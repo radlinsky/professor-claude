@@ -44,7 +44,7 @@ project:
     - courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/practice.qmd
 
 website:
-  title: "Professor Fable"
+  title: "Professor Claude"
   sidebar:
     style: docked
     contents:
