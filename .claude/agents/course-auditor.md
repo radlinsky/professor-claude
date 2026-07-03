@@ -51,7 +51,8 @@ lesson/practice counterpart and prerequisites for context.
 3. For symbol coverage, list the symbols in each `$...$`/`$$...$$` yourself and
    diff against the lesson's pronunciation table.
 4. Check TEACHING.md §Self-check items not covered by a numbered check (Optional
-   marking, one-name-per-concept, honest analogies, prerequisite links present).
+   marking, one-name-per-concept, honest analogies, prerequisite links — foundation modules AND prerequisite
+   courses — present and resolving, per checklist check 14).
 5. Note, separately from defects, anything legacy: sections the current templates
    require that an older file predates (e.g. no Warm-up in a pre-contract lesson).
    These are "retrofit candidates", not author errors.

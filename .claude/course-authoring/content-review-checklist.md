@@ -128,6 +128,16 @@ re-render, and re-check.
     `confirmed by human YYYY-MM-DD` token — a flag without it is a defect (and CI fails
     it). A missing line, or one that overstates a restricted source as OK, is a defect.
 
+14. **Declared prerequisites exist and are honest.**
+    Every prerequisite the `syllabus.md` / `00-roadmap.qmd` names — foundation
+    modules AND prerequisite courses — resolves to a real file (`ls` / link check)
+    and is actually linked, not named in prose only. If a lesson leans on an anchor
+    from another course (reuses its picture, notation, or result without
+    re-deriving it), that course must appear in the syllabus's *Before you start:
+    course(s) this one builds on* section and as a `:::priorcourse` node in the
+    roadmap. A silently-assumed course, or a declared prerequisite whose link
+    dangles, is a defect.
+
 ## Reporting
 
 List each defect as: file path, exact offending quote, why it is wrong, minimal fix.
