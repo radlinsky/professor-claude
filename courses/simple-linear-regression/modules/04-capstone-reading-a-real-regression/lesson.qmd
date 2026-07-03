@@ -1,0 +1,264 @@
+---
+title: "Capstone — reading a real regression, end to end"
+subtitle: "Return to the source: decode an actual summary(lm()) and its journal-table twin, line by line"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R (the
+# built-in `cars` dataset) is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+This is the finish line. No new concepts — instead, we point everything you've built
+at a **real** regression you didn't design: R's built-in `cars` dataset (recorded in
+the 1920s), 50 cars, each with a `speed` (mph) and the `dist` (feet) it took to stop.
+We fit stopping distance on speed, then read *every printed number* aloud and trace
+each one back to the module that taught it. Then we do it again in the costume a
+journal would use. If you can read both, the course goal is met.
+
+**Builds on:** all three modules —
+[least-squares idea](../01-least-squares-idea/lesson.qmd) (SSE),
+[deriving the OLS formulas](../02-deriving-the-ols-formulas/lesson.qmd)
+($\hat{\beta}_1 = s_{xy}/s_x^2$), and
+[reading lm() output & papers](../03-reading-lm-output-and-papers/lesson.qmd) (SE, t,
+p, $R^2$).
+
+## Warm-up: do you remember?
+
+Three recalls, one per module. Produce each before opening it.
+
+**1.** *(module 1)* What does a line's SSE measure, and what makes a line "best"?
+
+::: {.callout-note collapse="true" title="Answer"}
+SSE is the sum of squared misses $\sum (y_i - \hat{y}_i)^2$ — a badness score. The
+best line minimizes it (the arg-min). See
+[module 1](../01-least-squares-idea/lesson.qmd).
+:::
+
+**2.** *(module 2)* Write the slope formula and say it in words.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat{\beta}_1 = s_{xy}/s_x^2$ — the covariance of x and y over the variance of x
+(`cov(x,y)/var(x)`); and $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$, the line
+through the point of means. See
+[module 2](../02-deriving-the-ols-formulas/lesson.qmd).
+:::
+
+**3.** *(module 3)* In one sentence, what question does a coefficient's standard
+error answer?
+
+::: {.callout-note collapse="true" title="Answer"}
+"If we could rerun the study on a fresh sample, how much would this estimate
+typically bounce?" It's the estimated standard deviation of that bounce. See
+[module 3](../03-reading-lm-output-and-papers/lesson.qmd).
+:::
+
+## The artifact
+
+Here is the real thing — the output you'll meet in the wild, produced by two lines of
+R with nothing hidden:
+
+```{r the-fit}
+fit <- lm(dist ~ speed, data = cars)
+summary(fit)
+```
+
+Everything below decodes that printout, top to bottom.
+
+## The decode, line by line
+
+**The `Call` and `Residuals` block.**
+
+> `Call: lm(formula = dist ~ speed, data = cars)`
+> `Residuals:  Min -29.069 ... Max 43.201`
+
+The call restates the model: predict `dist` from `speed`. The residuals are the
+misses $e_i = y_i - \hat{y}_i$ from [module 1](../01-least-squares-idea/lesson.qmd) —
+here R just summarizes their five-number spread. The biggest under-prediction is
+about 43 feet, the biggest over-prediction about 29 feet: this line is far from
+perfect, which the later numbers will quantify.
+
+**The `Coefficients` table — the payoff.**
+
+> ` `             `Estimate  Std. Error  t value  Pr(>|t|)`
+> `(Intercept)   -17.5791     6.7584    -2.601   0.0123 *`
+> `speed           3.9324     0.4155     9.464   1.49e-12 ***`
+
+Read the `speed` row aloud: "the estimated slope is 3.93, its standard error is 0.42,
+its t value is 9.46, and its p-value is about $1.5\times10^{-12}$." Decoding each
+cell:
+
+- **`Estimate` 3.9324** — the slope $\hat{\beta}_1$, and it is *exactly* covariance
+  over variance from [module 2](../02-deriving-the-ols-formulas/lesson.qmd). In plain
+  English: **each extra mph of speed adds about 3.9 feet to the stopping distance.**
+  The intercept $-17.58$ is $\bar{y} - \hat{\beta}_1\bar{x}$; taken literally it says
+  a car at 0 mph needs $-17.6$ feet to stop — nonsense, a reminder that the intercept
+  is just where the line crosses $x = 0$, often outside the data's range.
+- **`Std. Error` 0.4155** — the typical bounce of that slope across hypothetical
+  re-runs ([module 3](../03-reading-lm-output-and-papers/lesson.qmd)). Its formula is
+  $\hat{\sigma}/\sqrt{\sum(x_i-\bar{x})^2}$.
+- **`t value` 9.464** — the estimate in bounce-lengths: $3.9324 / 0.4155 = 9.46$.
+  Nine-plus bounce-lengths from zero is enormous (rule of thumb: past ±2 is hard to
+  blame on luck).
+- **`Pr(>|t|)` 1.49e-12** — the p-value: *if speed truly had no effect* ($H_0$: true
+  slope 0), luck alone would produce an estimate this extreme about once in a
+  trillion. Hence the `***`, R's strongest significance stars.
+
+**The bottom summary lines.**
+
+> `Residual standard error: 15.38 on 48 degrees of freedom`
+> `Multiple R-squared: 0.6511`
+
+- **Residual standard error 15.38** — $\hat{\sigma}$, the typical size of a miss, in
+  the units of `dist` (feet). The line's predictions are off by ~15 feet on a typical
+  car. "48 degrees of freedom" is $n - 2 = 50 - 2$ (two parameters estimated — same
+  bookkeeping as `var()`'s $n-1$).
+- **Multiple R-squared 0.6511** — from
+  [module 3](../03-reading-lm-output-and-papers/lesson.qmd),
+  $R^2 = 1 - \mathrm{SSE}/\sum(y_i-\bar{y})^2$: speed explains about **65%** of the
+  variation in stopping distance; the remaining 35% is scatter this straight line
+  doesn't capture.
+
+Every number, rebuilt from the raw ingredients you derived — nothing in the printout
+is magic:
+
+```{webr}
+#| autorun: true
+# rebuild — LIVE: every printed number, rebuilt from the raw ingredients you derived.
+# PREDICT: will this from-scratch rebuild match summary(fit) above to every printed
+# digit, or only roughly? Commit, then press Run and compare the two vectors.
+x <- cars$speed; y <- cars$dist; n <- length(x)
+
+b1 <- cov(x, y) / var(x)                       # Estimate (slope), module 2
+b0 <- mean(y) - b1 * mean(x)                   # Estimate (intercept), module 2
+e  <- y - (b0 + b1 * x)                         # residuals, module 1
+sigma_hat <- sqrt(sum(e^2) / (n - 2))          # Residual standard error, module 3
+se_b1 <- sigma_hat / sqrt(sum((x - mean(x))^2))# Std. Error, module 3
+t_b1  <- b1 / se_b1                             # t value, module 3
+r2    <- 1 - sum(e^2) / sum((y - mean(y))^2)   # R-squared, module 3
+
+round(c(slope = b1, intercept = b0, resid_se = sigma_hat,
+        SE_slope = se_b1, t_slope = t_b1, R2 = r2), 4)
+# Compare against summary(fit) above — identical to every printed digit.
+```
+
+## Explore it yourself
+
+The rebuild above isn't a fluke of the full dataset — the slope *is*
+covariance-over-variance for whatever data you hand it. Refit on a subset and confirm
+the from-scratch slope still equals `lm()`'s, to the digit.
+
+```{webr}
+#| autorun: false
+# explore-newdata — LIVE: refit on just the slower cars, then confirm the from-scratch
+# slope still equals lm()'s. Edit the cutoff and run.
+# PREDICT: keeping only cars with speed <= 15, will the slope come out HIGHER or LOWER
+# than the full-data 3.93? Commit, then run.
+d  <- subset(cars, speed <= 15)                    # <-- change the cutoff and re-run
+x  <- d$speed; y <- d$dist
+
+b1_scratch <- cov(x, y) / var(x)                   # module-2 slope, by hand
+b1_lm      <- coef(lm(dist ~ speed, d))[["speed"]] # lm's slope
+c(scratch = b1_scratch, lm = b1_lm)                # identical — the rebuild IS lm()
+```
+
+## The same fit, journal costume
+
+A paper would never print the R block. It would show this instead — the identical
+numbers, dressed for publication:
+
+> | | (1) Stopping distance (ft) |
+> |---|---|
+> | Speed (mph) | 3.932*** |
+> | | (0.415) |
+> | Constant | −17.579* |
+> | | (6.758) |
+> | Observations | 50 |
+> | R² | 0.651 |
+>
+> *Notes:* Standard errors in parentheses. \*p < 0.05, \*\*p < 0.01, \*\*\*p < 0.001.
+
+Decode: each cell is $\hat{\beta}$ with its standard error in parentheses *below* it.
+"Speed 3.932***" is the slope; the `(0.415)` under it is `Std. Error`; the three
+stars encode $p < 0.001$. Divide estimate by parenthesis — $3.932/0.415 \approx 9.5$
+— and you've reconstructed the t value yourself. "Constant" is the journal's word for
+the intercept. Same fit, same story, new clothes.
+
+## What you still can't read (yet)
+
+Being honest about the edges of the course:
+
+- **The `F-statistic` line** (89.57, p = 1.49e-12) tests the *whole model* at once
+  rather than one coefficient. With a single predictor it mirrors the slope's t test
+  (in fact $F = t^2$: $9.464^2 \approx 89.6$), but its own logic is a next-course
+  topic.
+- **`Adjusted R-squared`** discounts $R^2$ for the number of predictors — it only
+  earns its keep once there are several.
+- **More than one predictor** (`dist ~ speed + weight + ...`) is *multiple*
+  regression, where the estimator becomes $(\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$
+  and you need a little linear algebra.
+- **The exact p-value machinery** (the t-distribution and its degrees of freedom) was
+  used here as a rule of thumb, not derived.
+
+Each is a natural next course — see "Where this goes next."
+
+## Common traps
+
+**Trap 1 — reading the intercept as a real-world quantity.** Our intercept is
+$-17.6$ feet: a car at 0 mph "needs negative stopping distance." The intercept is
+only the line's height at $x = 0$; when $x = 0$ is far outside the data (no car in
+`cars` goes near 0 mph), it carries no physical meaning. Don't over-interpret it.
+
+**Trap 2 — "$R^2 = 0.65$ and $p \approx 10^{-12}$, so the fit is nearly perfect."**
+They answer different questions. The tiny p-value says the slope is almost certainly
+not zero (speed *does* matter); $R^2 = 0.65$ says the line still leaves 35% of the
+variation unexplained (the ~15-foot typical miss). A relationship can be rock-solid
+*and* leave lots of scatter — significance is not the same as tightness of fit.
+
+## What you can now do
+
+- **Fit** a simple regression and know that its `Estimate` column is
+  $s_{xy}/s_x^2$ and $\bar{y}-\hat{\beta}_1\bar{x}$ — not a black box.
+- **Read every column** of `summary(lm())` aloud and say what question each answers
+  (Estimate, Std. Error, t value, Pr(>|t|), residual standard error, $R^2$).
+- **Translate** a journal regression table (estimate with SE in parentheses, stars)
+  back into those same quantities, and reconstruct a t value from a table.
+- **Interpret responsibly** — read a slope as "y-change per unit x", resist
+  over-reading an intercept, and keep significance and $R^2$ as separate ideas.
+
+**Mastery rule:** if any bullet feels shaky, revisit the module it traces to (the
+decode above links each number to its home module) and redo that module's practice
+before calling the course done.
+
+## Where this goes next
+
+You've reached the course goal: read `summary(lm())` and a paper's regression table,
+and explain where every number comes from. Natural next courses to ask for:
+
+- **Multiple regression** — several predictors at once; brings in the matrix form
+  $(\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$ and the linear-algebra
+  foundations to read it.
+- **Statistical inference for regression** — where t-distributions, degrees of
+  freedom, F-tests, and confidence intervals come from, making the p-value machinery
+  exact rather than a rule of thumb.
+
+Finish with the [cumulative practice set](practice.qmd), then update your Status in
+[courses/README.md](../../../README.md).

@@ -1,0 +1,208 @@
+---
+title: "Practice: Odds, log-odds, and the logit link"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Use paper or the live cells; only then open the
+answer. Reminders: the logit link is $\log\!\big(\tfrac{p}{1-p}\big) = \beta_0 + \beta_1
+x$; the odds ratio is $e^{\beta_1}$; and to get $p$ from a log-odds $\ell$,
+$p = e^{\ell}/(1 + e^{\ell})$.
+
+## Problem 1 — the toy example, new numbers
+
+A logistic model has log-odds $= -1 + 0.8x$. For $x = 0, 1, 2$, compute the log-odds,
+the odds, and the probability. Do the $x = 0$ case **by hand** first.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+b0 <- -1; b1 <- 0.8
+x <- c(0, 1, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+By hand at $x = 0$: log-odds $= -1 + 0.8(0) = -1$; odds $= e^{-1} \approx 0.368$;
+probability $= 0.368/1.368 \approx 0.269$.
+
+```{r p1-answer}
+b0 <- -1; b1 <- 0.8
+x  <- c(0, 1, 2)
+lo <- b0 + b1 * x
+od <- exp(lo)
+rbind(log_odds = lo, odds = od, prob = od / (1 + od))
+# log-odds -1, -0.2, 0.6 ; odds 0.368, 0.819, 1.822 ; prob 0.269, 0.450, 0.646
+```
+The log-odds rises in equal steps of $0.8$ (the slope), but the probability steps are
+uneven — the S-curve at work.
+:::
+
+## Problem 2 — fill in the missing step
+
+We're inverting the logit link to get a probability. Starting from a log-odds of $\ell$,
+here's the work with the **core step blanked**:
+
+> Step 1: $\ell = \log\!\big(\tfrac{p}{1-p}\big)$
+> Step 2: **your step here** — undo the log to isolate the odds
+> Step 3: $\dfrac{p}{1-p} = e^{\ell}$, and then $p = \dfrac{e^{\ell}}{1 + e^{\ell}}$
+
+Supply Step 2 (what you do to both sides, and why).
+
+```{webr}
+#| autorun: false
+# p2-starter — check the inversion for a log-odds of 0.5
+ell <- 0.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: **exponentiate both sides** — apply $e^{(\cdot)}$. Because $e^{\log(u)} = u$ (the
+undo pair from
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd)),
+$e^{\ell} = e^{\log(p/(1-p))} = \tfrac{p}{1-p}$. The log on the right cancels, leaving the
+odds by itself.
+
+```{r p2-answer}
+ell <- 0.5
+odds <- exp(ell)             # ~1.649
+odds / (1 + odds)            # ~0.622
+```
+So a log-odds of $0.5$ inverts to a probability of about $0.622$. Exponentiating is the
+key that unlocks the log.
+:::
+
+## Problem 3 — reading a coefficient as an odds ratio
+
+A published logistic model of hospital readmission reports a coefficient $\beta_1 = 0.41$
+for an extra day of initial stay. Compute the odds ratio, state in a sentence what it
+means, and compute what the odds ratio would be for a **two**-day increase.
+
+```{webr}
+#| autorun: false
+# p3-starter — odds ratio for one day, then for two days
+b1 <- 0.41
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+b1 <- 0.41
+c(odds_ratio_1day  = exp(b1),        # ~1.507
+  odds_ratio_2days = exp(2 * b1))    # ~2.270 = (e^0.41)^2
+```
+One extra day multiplies the odds of readmission by $e^{0.41} \approx 1.51$ — about a
+**51% increase in the odds** per day. For two days the log-odds rises by $2 \times 0.41 =
+0.82$, so the odds ratio is $e^{0.82} \approx 2.27$ — equivalently $(1.51)^2$, since each
+day multiplies the odds by the same factor. Odds ratios *compound* over multiple units.
+:::
+
+## Problem 4 — spot the error
+
+A colleague fits a logistic model and reports: "The coefficient for income is $\beta_1 =
+0.5$, so **each extra unit of income raises the probability of repayment by $0.5$**." The
+statement contains **exactly one conceptual mistake** — find it and explain the correct
+reading.
+
+```{webr}
+#| autorun: false
+# p4-starter — show that the probability change is NOT a constant 0.5
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- -2; b1 <- 0.5
+# probability change from x=1->2 vs x=5->6, same one-unit step:
+sigmoid(b0 + b1 * c(1, 2, 5, 6))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: $\beta_1$ is the change in **log-odds** per unit of $x$, **not** the change
+in probability. A slope of $0.5$ certainly can't add $0.5$ to a probability every step —
+that would blow past 1 almost immediately. The probability change depends on where you
+start:
+
+```{r p4-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- -2; b1 <- 0.5
+p <- sigmoid(b0 + b1 * c(1, 2, 5, 6))
+c(jump_1to2 = p[2] - p[1], jump_5to6 = p[4] - p[3])   # different, and both far from 0.5
+```
+The correct reading: each extra unit of income raises the **log-odds** by $0.5$, i.e.
+multiplies the **odds** by $e^{0.5} \approx 1.65$. The probability rises by an amount that
+shrinks as you approach the flat ends of the S-curve.
+:::
+
+## Problem 5 — mixing it with the sigmoid *(uses module 1's sigmoid)*
+
+For the model log-odds $= 0.5 + 1.5x$, compute the probability at $x = -1$ **two ways**
+and confirm they match: (a) via the logit route — log-odds → odds → probability; (b) by
+feeding the score straight into **module 1's sigmoid**. Why must they agree?
+
+```{webr}
+#| autorun: false
+# p5-starter — two routes to the same probability
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- 0.5; b1 <- 1.5
+x <- -1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p5-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- 0.5; b1 <- 1.5; x <- -1
+score <- b0 + b1 * x                 # 0.5 + 1.5(-1) = -1
+
+# (a) logit route
+odds <- exp(score); p_a <- odds / (1 + odds)
+# (b) sigmoid of the same score
+p_b <- sigmoid(score)
+c(via_logit = p_a, via_sigmoid = p_b)   # both ~ 0.269
+```
+Both give about $0.269$. They **must** agree because the sigmoid is the algebraic inverse
+of the logit link (the derivation in the lesson): "log-odds → probability" and "score →
+sigmoid" are literally the same function written two ways. The logit maps probability to a
+line; the sigmoid maps the line back to probability.
+:::
+
+## Problem 6 — a gentle cliffhanger
+
+We have the *shape* of the model but no way yet to pick the coefficients from data.
+Here's the idea that does it, in miniature. Suppose we observed one outcome: a customer
+**did** repay ($y = 1$). Under a model predicting probability $p$ of repayment, the
+"likelihood" of having seen that $y = 1$ is just $p$ itself. Now suppose a *second*
+customer **did not** repay ($y = 0$), predicted probability $p_2$; the likelihood of that
+observation is $1 - p_2$. For two independent customers, the likelihood of seeing *both*
+outcomes is the product $p_1 \times (1 - p_2)$.
+
+If customer 1 has predicted $p_1 = 0.8$ and customer 2 has $p_2 = 0.3$, compute that
+joint likelihood. Then guess: to *fit* the model, would we want to make this number as
+large as possible, or as small as possible?
+
+```{webr}
+#| autorun: false
+# p6-starter — the likelihood of the two observed outcomes
+p1 <- 0.8   # customer 1 repaid (y = 1): likelihood is p1
+p2 <- 0.3   # customer 2 did not (y = 0): likelihood is 1 - p2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p6-answer}
+p1 <- 0.8; p2 <- 0.3
+likelihood <- p1 * (1 - p2)     # 0.8 * 0.7
+likelihood                      # 0.56
+```
+The joint likelihood is $0.8 \times (1 - 0.3) = 0.8 \times 0.7 = 0.56$. And yes — to fit
+the model we make this **as large as possible**: we hunt for the coefficients that make
+the actually-observed 0/1 data most probable. That's *maximum likelihood*, and since it's
+a product of probabilities across all data points, we'll take its **log** (turning the
+product into a sum, from
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd)) and
+climb to the top by gradient ascent. You can't do the full fit yet —
+[the next module](../03-likelihood-and-gradient-ascent/lesson.qmd) builds it.
+:::

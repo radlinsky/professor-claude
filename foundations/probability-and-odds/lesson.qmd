@@ -1,0 +1,338 @@
+---
+title: "Probability, odds, and log-odds"
+subtitle: "Three ways to say the same thing about 'how likely' — and how to move between them"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+"How likely is it?" has three standard answers, and they're all the same information
+in different clothes: a **probability** (a number from 0 to 1), the **odds** (a ratio
+like "3 to 1"), and the **log-odds** (the natural log of the odds). Gamblers speak in
+odds, forecasters speak in probabilities, and — as you'll see in courses that model
+yes/no outcomes — statisticians love the log-odds because it's the version that ranges
+over *all* numbers, which makes it play nicely with straight-line models. This module
+makes all three comfortable and teaches you to convert between them in your sleep.
+
+Methods that lean on this: logistic regression, risk and epidemiology (odds ratios,
+relative risk), betting markets, and any model whose outcome is a yes/no event.
+
+**Builds on:** the [natural log and $e^x$](../exponentials-and-logs/lesson.qmd) (log-odds
+is *the log of* the odds), plus the baseline idea of probability.
+
+## Warm-up: do you remember?
+
+Two of these reach back to [exponentials-and-logs](../exponentials-and-logs/lesson.qmd);
+one is a baseline reflex. Produce each answer before opening it.
+
+**1.** *(baseline)* A fair coin has probability $0.5$ of heads. If you flip a bent coin
+that lands heads $70\%$ of the time, what is its probability of heads as a decimal, and
+what is its probability of *tails*?
+
+::: {.callout-note collapse="true" title="Answer"}
+Heads: $0.7$. Tails: $1 - 0.7 = 0.3$. The two must add to $1$, because the coin lands
+*some* way every time — "probability of not-A is one minus probability of A" is the fact
+this whole lesson leans on.
+:::
+
+**2.** *(exponentials-and-logs)* What is $\log(1)$, and is $\log(0.25)$ positive or
+negative?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\log(1) = 0$, and $\log(0.25)$ is **negative** (about $-1.386$) because $0.25$ is below
+1. Shaky? Revisit [exponentials-and-logs](../exponentials-and-logs/lesson.qmd) — the sign
+of a log will tell us which way a bet is leaning.
+:::
+
+**3.** *(exponentials-and-logs)* What does `exp()` do to `log(x)` — that is, what is
+$e^{\log x}$?
+
+::: {.callout-note collapse="true" title="Answer"}
+It gives back $x$: exp and log are the undo pair, so $e^{\log x} = x$. We'll use this to
+turn a log-odds back into ordinary odds. See
+[exponentials-and-logs](../exponentials-and-logs/lesson.qmd).
+:::
+
+## A tiny example first
+
+Suppose that, out of a long history, some event happens on $3$ days and doesn't happen
+on $1$ day, for every 4 days — a probability of $p = 3/4 = 0.75$.
+
+**Odds** ask a slightly different question than probability. Probability compares the
+event to *all* outcomes ("3 out of 4 days"); **odds** compare the event to its
+*opposite* ("3 days it happens for every 1 day it doesn't") — a ratio of $3$ to $1$,
+which we write as the single number $3$. In symbols, odds $= p / (1-p)$:
+
+$$
+\text{odds} = \frac{p}{1-p} = \frac{0.75}{0.25} = 3.
+$$
+
+So "probability $0.75$" and "odds of 3" (or "3 to 1") are the same fact. Now take the
+**log-odds** — literally the natural log of the odds:
+
+$$
+\text{log-odds} = \log(\text{odds}) = \log(3) \approx 1.099.
+$$
+
+A positive log-odds means the event is *more* likely than not (odds above 1); a
+log-odds of exactly $0$ means a 50/50 event (odds of 1, probability $0.5$); a negative
+log-odds means it's *less* likely than not.
+
+And you can walk back the other way. Given odds, probability is $p = \text{odds} /
+(1 + \text{odds}) = 3/4 = 0.75$ again. Given a log-odds, exponentiate first to recover
+the odds ($e^{1.099} \approx 3$), then convert.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+p <- 0.75
+
+odds     <- p / (1 - p)          # 3 -- "3 to 1"
+log_odds <- log(odds)            # ~1.099 -- the log of the odds
+c(p = p, odds = odds, log_odds = log_odds)
+
+# Walk back: odds -> probability, and log-odds -> odds -> probability
+p_from_odds     <- odds / (1 + odds)             # 0.75 again
+p_from_logodds  <- exp(log_odds) / (1 + exp(log_odds))  # exp() undoes the log first
+c(p_from_odds = p_from_odds, p_from_logodds = p_from_logodds)
+```
+
+## Getting a feel for it
+
+**A mental picture: a tug-of-war rope.** Put "it happens" on one side of a rope and "it
+doesn't" on the other. **Probability** is the fraction of the *whole rope* your side
+holds ($0.75$ = three-quarters of the rope). **Odds** is how your side compares to
+*their* side — 3 units of rope to their 1, a ratio. When the sides are even (50/50),
+probability is $0.5$ and odds are exactly $1$. As your side wins more rope, probability
+crawls toward 1 (but can never pass it) while odds shoot up with no ceiling; as your
+side loses, probability sinks toward 0 while odds shrink toward 0.
+
+Where the picture bends: probability is bounded and symmetric around $0.5$; odds are
+*not* symmetric — they run from 0 up to infinity, with the "even" point sitting at 1,
+not in the middle. That lopsidedness is the reason we reach for the log next.
+
+**Why bother with odds and log-odds at all?** Because of their *ranges*. A probability
+is trapped in $[0, 1]$ — a cramped little box. Odds open the top of the box: they run
+from $0$ to $\infty$. And taking the log opens the *bottom* too: **log-odds run over
+every number, $-\infty$ to $+\infty$.** That matters enormously the moment you want to
+model "how likely" with a straight line, because a straight line also runs over every
+number — you can't cram a line into $[0,1]$ without it poking out, but it fits the
+log-odds scale perfectly. Odds stretch the box open; the log makes it symmetric around
+zero.
+
+**What the numbers feel like.** Watch the same probabilities in all three scales:
+
+| Probability $p$ | Odds $p/(1-p)$ | Log-odds $\log$ of odds |
+|---|---|---|
+| $0.5$ | $1$ | $0$ |
+| $0.75$ | $3$ | $\approx 1.10$ |
+| $0.9$ | $9$ | $\approx 2.20$ |
+| $0.1$ | $0.111$ | $\approx -2.20$ |
+
+Notice the pleasing symmetry the log buys you: $p = 0.9$ and $p = 0.1$ are mirror
+images ($+2.20$ and $-2.20$), which they are *not* on the probability scale ($0.9$ and
+$0.1$ aren't mirror images around anything convenient) nor on the odds scale ($9$ vs
+$0.111$). A probability and "one minus it" always give log-odds that are negatives of
+each other — a fact worth trusting.
+
+## What the notation is going to say
+
+The formulas below just name the three moves you did with the toy example: **odds
+is probability over one-minus-probability; log-odds is the log of that; and you invert
+by exponentiating and dividing.** When you read $\text{logit}(p) = \log\!\big(\tfrac{p}
+{1-p}\big)$, hear "the logit of $p$ is the log of the odds of $p$" — it's a name for the
+whole odds-then-log pipeline.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $p$ | "pee" | a probability: a number from 0 to 1 | $0.75$ |
+| $1 - p$ | "one minus pee" | the probability of the *opposite* event | $0.25$ |
+| $\dfrac{p}{1-p}$ | "pee over one-minus-pee" | the **odds**: event vs. its opposite | $3$ |
+| $\log$ | "log" (natural log) | natural log, base $e$ (in R: `log`); undoes $e^x$ | $\log(3) \approx 1.099$ |
+| $\operatorname{logit}(p)$ | "the LOH-jit of pee" | the **log-odds**: $\log\!\big(\tfrac{p}{1-p}\big)$ | $\approx 1.099$ |
+| $\ell$ | "ell" | a log-odds *value* (a plain number on the log-odds scale), used when inverting back to $p$ | $1.099$ |
+| $e^{x}$ | "ee to the ex" | the exponential (in R: `exp`); turns a log-odds back into odds | $e^{1.099} \approx 3$ |
+
+## The formal version
+
+The three quantities and the round trip between them:
+
+$$
+\text{odds} = \frac{p}{1-p}, \qquad
+\operatorname{logit}(p) = \log\!\left(\frac{p}{1-p}\right).
+$$
+
+Reading it aloud: "odds equals pee over one-minus-pee" and "logit of pee equals log of
+(pee over one-minus-pee)" — in everyday words: *odds is the event weighed against its
+opposite, and the logit is the log of that.*
+
+And the inverses — how to climb back to a probability:
+
+$$
+p = \frac{\text{odds}}{1 + \text{odds}}, \qquad
+p = \frac{e^{\,\ell}}{1 + e^{\,\ell}} \quad (\ell = \text{log-odds}).
+$$
+
+- Left: solve $\text{odds} = \tfrac{p}{1-p}$ for $p$ (multiply out, collect the $p$'s) —
+  ordinary algebra, the "solve a linear equation for the unknown" move.
+- Right: since $\ell = \log(\text{odds})$, apply the undo pair $e^{\log(\cdot)} = \cdot$
+  (taught in [exponentials-and-logs](../exponentials-and-logs/lesson.qmd)) to get
+  $\text{odds} = e^{\ell}$, then reuse the left formula.
+
+Mapping onto the toy example ($p = 0.75$):
+
+- $\tfrac{p}{1-p}$ is "0.75 over 0.25" → odds $= 3$.
+- $\log(3)$ → log-odds $\approx 1.099$.
+- Back: $e^{1.099} \approx 3$, then $3/(1+3) = 0.75$. Full circle.
+
+Sanity-check the whole round trip numerically:
+
+```{r formal-check}
+p <- 0.75
+
+odds     <- p / (1 - p)          # 3
+logit_p  <- log(odds)            # ~1.099
+
+# Invert both ways -- must return 0.75
+back_from_odds   <- odds / (1 + odds)
+back_from_logit  <- exp(logit_p) / (1 + exp(logit_p))
+c(odds = odds, logit = logit_p,
+  back_from_odds = back_from_odds, back_from_logit = back_from_logit)
+# 3, 1.099, 0.75, 0.75 -- the conversions undo each other exactly
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The logit curve: log-odds plotted against probability p, rising from large negative values near p = 0, crossing zero at p = 0.5, and shooting up toward large positive values near p = 1."
+# explore-1 — LIVE: the logit stretches the cramped [0,1] probability scale onto the
+# whole number line. PREDICT: at p = 0.5, what is the log-odds? And what happens as p
+# approaches 0 or 1? Write your guesses, then run.
+p <- seq(0.01, 0.99, by = 0.01)
+logit <- log(p / (1 - p))
+plot(p, logit, type = "l", lwd = 2, col = "steelblue",
+     xlab = "probability p", ylab = "log-odds  log(p/(1-p))",
+     main = "the logit: [0,1] stretched onto all real numbers")
+abline(h = 0, v = 0.5, lty = 3)      # 50/50 sits at log-odds 0
+```
+
+```{webr}
+#| autorun: false
+# explore-2 — LIVE: probability, odds, and log-odds are the same fact three ways.
+# PREDICT: for p = 0.8, will the odds be 4 and the log-odds be positive? Guess, then run.
+p <- 0.8                              # <-- try 0.5, 0.1, 0.99
+odds     <- p / (1 - p)
+log_odds <- log(odds)
+c(p = p, odds = odds, log_odds = log_odds)
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: the mirror-image fact. Compare a probability to "one minus it".
+# PREDICT: will the log-odds of 0.9 and the log-odds of 0.1 be negatives of each other?
+lo <- function(p) log(p / (1 - p))
+c(logodds_0.9 = lo(0.9), logodds_0.1 = lo(0.1))   # equal and opposite?
+```
+
+## Common traps
+
+**Trap: "odds and probability are the same number."** Tempting, because casual speech
+blurs them ("the odds of rain are 75%"). But probability $0.75$ is **odds of 3**, not
+odds of $0.75$. Check: a 50/50 event has probability $0.5$ but odds of $1$; a $0.9$
+event has probability $0.9$ but odds of $9$. They only coincide near very small
+probabilities. Always ask "compared to *all* outcomes (probability) or to the *opposite*
+outcome (odds)?"
+
+**Trap: "log-odds is stuck between 0 and 1 like a probability."** No — that's the whole
+point of taking the log. Probability lives in $[0,1]$, odds live in $[0, \infty)$, and
+log-odds live in **all** of $(-\infty, +\infty)$. A log-odds of $-2.20$ (that's $p =
+0.1$) or $+2.20$ ($p = 0.9$) is perfectly ordinary. If you ever see a "log-odds" clamped
+to $[0,1]$, something has gone wrong.
+
+## Check yourself
+
+**1.** An event has probability $p = 0.2$. What are its odds, and its log-odds? Is the
+log-odds positive or negative, and why does that make sense?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to solve, right here
+p <- 0.2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Odds $= 0.2 / 0.8 = 0.25$ (or "1 to 4"). Log-odds $= \log(0.25) \approx -1.386$.
+
+```{r check1-answer}
+p <- 0.2
+c(odds = p / (1 - p), log_odds = log(p / (1 - p)))   # 0.25, -1.386
+```
+It's **negative** because the event is *less* likely than not ($p < 0.5$), so its odds
+are below 1, and the log of a number below 1 is negative — exactly the sign fact from
+[exponentials-and-logs](../exponentials-and-logs/lesson.qmd).
+:::
+
+**2.** A forecaster gives an event a log-odds of $0$. What is the probability? (No
+calculator needed.)
+
+::: {.callout-note collapse="true" title="Answer"}
+$p = 0.5$. Log-odds $0$ means odds $= e^0 = 1$ (an even, "1 to 1" bet), and odds of $1$
+means $p/(1-p) = 1$, i.e. $p = 1-p$, so $p = 0.5$. Zero log-odds is always dead-even.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the odds of an
+event are (versus its probability) and why statisticians reach for the log-odds.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The odds of an event are how often it happens compared to how often it *doesn't* (a
+ratio like "3 to 1"), whereas the probability compares it to *all* outcomes (a fraction
+of 1). Statisticians use the log-odds because, unlike probability (stuck in $[0,1]$) or
+odds (stuck above 0), it ranges over every number — so a straight-line model can predict
+it without ever poking outside a valid range.
+:::
+
+## What you can now do
+
+- **Convert a probability to odds** with $p/(1-p)$, and read odds back as a
+  probability with $\text{odds}/(1+\text{odds})$.
+- **Compute the log-odds** (logit) of a probability, and invert it (exponentiate, then
+  convert) to recover $p$.
+- **Read the sign of a log-odds**: positive → more likely than not, zero → 50/50,
+  negative → less likely than not.
+- **Explain the ranges** — why probability lives in $[0,1]$, odds in $[0,\infty)$, and
+  log-odds over all real numbers — and why that last range is the useful one for
+  line-based models.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) —
+the "three scales, one fact" table is the thing to have solid before any course uses it.
+
+## Where this goes next
+
+This is a shared building block. In the logistic-regression course you'll see that a
+straight line is fit to the **log-odds** (never directly to the probability), precisely
+because the log-odds is the scale a line can live on — and the sigmoid function is
+exactly the "log-odds → probability" inversion you practised here, run in reverse. Ready
+for more reps? Do the [practice problems](practice.qmd).

@@ -1,0 +1,183 @@
+---
+title: "Practice: Rolling downhill"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Use paper or the live cells; only then open the
+answer. A slope-measuring helper you can paste into any starter:
+`slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)`.
+
+## Problem 1 — the toy example, new numbers
+
+Minimize the bowl $f(x) = (x - 6)^2 + 2$ (bottom at $x = 6$). Start at $x = 2$, learning
+rate $0.1$. Do the **first two steps by hand** (the slope of this curve at $x$ is
+$2(x-6)$), then run it in R for 100 steps and confirm where it lands.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+f        <- function(x) (x - 6)^2 + 2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 2; lr <- 0.1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+By hand: at $x = 2$, slope $= 2(2 - 6) = -8$, so $x \leftarrow 2 - 0.1(-8) = 2.8$. At
+$x = 2.8$, slope $= 2(2.8 - 6) = -6.4$, so $x \leftarrow 2.8 - 0.1(-6.4) = 3.44$. Both
+steps move right, toward 6, and shrink as the slope eases.
+
+```{r p1-answer}
+f        <- function(x) (x - 6)^2 + 2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 2; lr <- 0.1
+for (t in 1:100) x <- x - lr * slope_at(f, x)
+x   # ~6
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+A gradient-descent loop for $f(x) = (x - 1)^2$ starting at $x = 4$, $lr = 0.2$, is
+written below with its **core line blanked**. Supply just that line.
+
+> ```
+> x <- 4
+> for (t in 1:50) {
+>   slope <- slope_at(f, x)
+>   your step here          # update x using slope, lr, and the descent rule
+> }
+> ```
+
+```{webr}
+#| autorun: false
+# p2-starter — fill in the update line, then Run
+f        <- function(x) (x - 1)^2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 4; lr <- 0.2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked line is the update rule — step *against* the slope by `lr`:
+`x <- x - lr * slope`. The move is: multiply the slope by the learning rate and
+*subtract* it (downhill, not up).
+
+```{r p2-answer}
+f        <- function(x) (x - 1)^2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 4; lr <- 0.2
+for (t in 1:50) { slope <- slope_at(f, x); x <- x - lr * slope }
+x   # ~1
+```
+:::
+
+## Problem 3 — start on the other side
+
+Minimize $f(x) = (x - 3)^2$ starting from $x = 10$ (to the *right* of the bottom this
+time), $lr = 0.1$, 100 steps. Where does it end up, and — in one sentence — why does it
+move *left* now when in the lesson it moved right?
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: run descent from x = 10 and explain the direction
+f        <- function(x) (x - 3)^2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 10; lr <- 0.1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+f        <- function(x) (x - 3)^2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 10; lr <- 0.1
+for (t in 1:100) x <- x - lr * slope_at(f, x)
+x   # ~3
+```
+It lands at about **3**. To the right of the bottom the slope is *positive* (uphill to
+the right), so subtracting it moves $x$ *left*, back toward the bottom. The minus sign
+always points you downhill, whichever side you start on.
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants to minimize $f(x) = (x-4)^2$ but their loop drifts *away* from the
+bottom. Their code has **exactly one mistake** — find it and fix it.
+
+```{webr}
+#| autorun: false
+# p4-starter — run it, watch x run off, then fix the one mistake
+f        <- function(x) (x - 4)^2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 1; lr <- 0.1
+for (t in 1:20) x <- x + lr * slope_at(f, x)   # x heads the wrong way
+x
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the **sign**: they wrote `x + lr * slope`, which steps *up* the slope
+(gradient *ascent*) — so from $x = 1$ it runs off toward $-\infty$, away from the
+minimum. Descent subtracts:
+
+```{r p4-answer}
+f        <- function(x) (x - 4)^2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 1; lr <- 0.1
+for (t in 1:20) x <- x - lr * slope_at(f, x)   # minus: downhill
+x   # ~4
+```
+:::
+
+## Problem 5 — did it really reach the bottom? *(uses derivative-as-slope)*
+
+Run descent on $f(x) = (x - 5)^2 + 3$ from $x = 0$, $lr = 0.1$, 200 steps. Then use the
+foundation's slope-measuring tool to check the slope *at the point where descent
+stopped*. What should that slope be if descent truly found the bottom?
+
+```{webr}
+#| autorun: false
+# p5-starter — descend, then measure the slope where you landed
+f        <- function(x) (x - 5)^2 + 3
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 0; lr <- 0.1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p5-answer}
+f        <- function(x) (x - 5)^2 + 3
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 0; lr <- 0.1
+for (t in 1:200) x <- x - lr * slope_at(f, x)
+c(landed_at = x, slope_there = slope_at(f, x))   # ~5, and slope ~0
+```
+Descent lands at about $x = 5$, and the measured slope there is essentially **zero** —
+the signature of a minimum from the [derivative module](../../../../foundations/derivative-as-slope/lesson.qmd).
+Measuring the slope where you stop is a cheap, honest way to confirm you've actually
+arrived at the bottom rather than merely run out of steps.
+:::
+
+## Problem 6 — a gentle cliffhanger
+
+Suppose the thing you want to minimize depends on **two** numbers, not one — say a cost
+$C(a, b)$ that changes as you tune both a dial $a$ and a dial $b$. You can still imagine
+a "downhill", but now there are two directions to worry about at once. How would you
+extend the one-dimensional rule "step against the slope" to this two-dial situation?
+
+::: {.callout-note collapse="true" title="Answer"}
+You can't fully solve this yet — but here's the honest sketch, and it's exactly the next
+lesson. You measure a slope *for each dial separately* (how does the cost change if I
+nudge only $a$? only $b$?), bundle those two slopes into a little vector called the
+**gradient**, and step against *both* at once: $a \leftarrow a - \alpha(\text{slope in }
+a)$ and $b \leftarrow b - \alpha(\text{slope in } b)$. Same downhill idea, one step per
+direction. [The next module](../02-the-gradient/lesson.qmd) makes this precise.
+:::

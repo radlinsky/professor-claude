@@ -1,0 +1,66 @@
+---
+title: "Roadmap"
+---
+
+How every module depends on the others. Blue nodes are reusable
+[foundations](../../foundations/README.md) modules shared across courses; arrows
+mean "needed for".
+
+This course also **builds on two earlier courses** and reuses their anchors rather
+than re-teaching them: [Simple Linear Regression](../simple-linear-regression/syllabus.md)
+(the line $\beta_0 + \beta_1 x$; reading model output) and
+[Gradient Descent, from Scratch](../gradient-descent/syllabus.md) (the
+cost-surface-with-knobs; stepping along the slope). If either is rusty, skim its
+syllabus first.
+
+```{mermaid}
+flowchart TD
+    classDef foundation fill:#e8f0fe,stroke:#4285f4
+    classDef priorcourse fill:#e6f4ea,stroke:#34a853
+
+    F1["exponentials-and-logs<br/>(e^x, ln, log rules)"]:::foundation
+    F2["probability-and-odds<br/>(p, odds = p/(1−p), log-odds)"]:::foundation
+    F3["vectors-and-summation<br/>(x_i, y_i, n, Σ)"]:::foundation
+    F4["derivative-as-slope<br/>(measure a slope numerically)"]:::foundation
+
+    C1["course: simple-linear-regression<br/>(the line β₀+β₁x)"]:::priorcourse
+    C2["course: gradient-descent<br/>(step along the slope)"]:::priorcourse
+
+    M1["01 · From a line to a probability<br/>(the sigmoid σ(z)=1/(1+e^−z))"]
+    M2["02 · Odds, log-odds & the logit<br/>(logit(p)=β₀+β₁x, odds ratio e^β)"]
+    M3["03 · Likelihood & gradient ascent<br/>(maximize the log-likelihood)"]
+    M4["04 · Capstone<br/>(decode glm(family = binomial))"]
+
+    F1 --> M1
+    C1 --> M1
+    M1 --> M2
+    F2 --> M2
+    F1 --> M2
+    M2 --> M3
+    F3 --> M3
+    F4 --> M3
+    C2 --> M3
+    M3 --> M4
+```
+
+## Suggested order
+
+1. Foundation: [exponentials-and-logs](../../foundations/exponentials-and-logs/lesson.qmd) —
+   new? take it fully; done before? skim its pronunciation table.
+2. Foundation: [probability-and-odds](../../foundations/probability-and-odds/lesson.qmd) —
+   same rule.
+3. Foundation: [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) —
+   same rule (you likely met this in the earlier courses).
+4. Foundation: [derivative-as-slope](../../foundations/derivative-as-slope/lesson.qmd) —
+   same rule (met in the gradient-descent course).
+5. [01 · From a line to a probability](modules/01-from-line-to-probability/lesson.qmd)
+   (+ [practice](modules/01-from-line-to-probability/practice.qmd))
+6. [02 · Odds, log-odds, and the logit link](modules/02-odds-log-odds-and-the-logit/lesson.qmd)
+   (+ [practice](modules/02-odds-log-odds-and-the-logit/practice.qmd))
+7. [03 · Likelihood and fitting by gradient ascent](modules/03-likelihood-and-gradient-ascent/lesson.qmd)
+   (+ [practice](modules/03-likelihood-and-gradient-ascent/practice.qmd))
+8. [04 · Capstone — reading a real logistic regression](modules/04-capstone-reading-a-real-logistic-regression/lesson.qmd)
+   (+ [practice](modules/04-capstone-reading-a-real-logistic-regression/practice.qmd))
+
+After each lesson, do its practice page before moving on — the problems are the part
+that makes it stick. External videos/posts for each module: [resources](resources.md).

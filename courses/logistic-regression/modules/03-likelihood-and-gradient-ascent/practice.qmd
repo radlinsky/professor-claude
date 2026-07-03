@@ -1,0 +1,224 @@
+---
+title: "Practice: Likelihood and gradient ascent"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Use paper or the live cells; only then open the
+answer. Two helpers to paste as needed:
+
+```r
+sigmoid  <- function(z) 1 / (1 + exp(-z))
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+## Problem 1 — the toy example, new numbers
+
+Five students, hours $x = (1,2,3,4,5)$ and outcomes $y = (0,1,0,1,1)$. Compute the
+log-likelihood at the starting guess $\beta = (0,0)$ **by hand** (every $p_i = 0.5$), then
+fit by gradient ascent (lr $= 0.1$, 8000 steps) in R and report the fitted coefficients.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+sigmoid  <- function(z) 1 / (1 + exp(-z))
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) { up<-v; dn<-v; up[i]<-up[i]+h; dn[i]<-dn[i]-h; (f(up)-f(dn))/(2*h) })
+x <- c(1, 2, 3, 4, 5); y <- c(0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+By hand at $\beta = (0,0)$: every $p_i = 0.5$, so each of the 5 terms is $\log(0.5)$, and
+the log-likelihood is $5 \times \log(0.5) \approx -3.466$.
+
+```{r p1-answer}
+sigmoid  <- function(z) 1 / (1 + exp(-z))
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) { up<-v; dn<-v; up[i]<-up[i]+h; dn[i]<-dn[i]-h; (f(up)-f(dn))/(2*h) })
+x <- c(1, 2, 3, 4, 5); y <- c(0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+
+loglik(c(0, 0))                        # -3.466 = 5 * log(0.5)
+b <- c(0, 0); for (t in 1:8000) b <- b + 0.1 * gradient(loglik, b)
+c(intercept = b[1], slope = b[2], loglik = loglik(b))   # ~ -2.649, 1.090, -2.422
+```
+Ascent climbs from $-3.466$ up to about $-2.422$ (less negative = more probable data), at
+coefficients $\hat\beta_0 \approx -2.649$, $\hat\beta_1 \approx 1.090$.
+:::
+
+## Problem 2 — fill in the missing step
+
+We're building the log-likelihood contribution of a single **failure** ($y_i = 0$) with
+predicted probability $p_i$. Here's the work with the **core step blanked**:
+
+> Step 1: the on/off switch $p_i^{\,y_i}(1 - p_i)^{1 - y_i}$ with $y_i = 0$ becomes
+> $p_i^{0}(1 - p_i)^{1}$
+> Step 2: **your step here** — simplify that expression
+> Step 3: take the log → the contribution is $\log(1 - p_i)$
+
+Supply Step 2.
+
+```{webr}
+#| autorun: false
+# p2-starter — check the failure contribution for p = 0.3
+p <- 0.3   # a failure: y = 0
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: $p_i^{0} = 1$ (anything to the power 0 is 1) and $(1-p_i)^{1} = 1 - p_i$, so the
+switch simplifies to $1 \times (1 - p_i) = 1 - p_i$. Taking the log then gives
+$\log(1 - p_i)$.
+
+```{r p2-answer}
+p <- 0.3
+c(switch = p^0 * (1 - p)^1, contribution_log = log(1 - p))   # 0.7, -0.357
+```
+A failure contributes $1 - p = 0.7$ to the likelihood (the model gave the non-event a
+$0.7$ chance), i.e. $\log(0.7) \approx -0.357$ to the log-likelihood.
+:::
+
+## Problem 3 — which coefficients fit better?
+
+For the lesson's data ($x = 1{:}6$, $y = 0,0,1,0,1,1$), a colleague can't decide between
+two candidate coefficient pairs: $\beta_A = (-1, 0.5)$ and $\beta_B = (-4, 1)$. Compute
+the log-likelihood of each and say which fits the data better, and why.
+
+```{webr}
+#| autorun: false
+# p3-starter — compare the log-likelihood at two candidate coefficient pairs
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+c(beta_A = loglik(c(-1, 0.5)), beta_B = loglik(c(-4, 1)))   # -3.283 vs -2.622
+```
+$\beta_B = (-4, 1)$ fits **better**: its log-likelihood is $-2.622$, less negative than
+$\beta_A$'s $-3.283$. "Less negative" means the observed 0/1 outcomes are *more probable*
+under $\beta_B$. (Neither is the true maximum — that's about $-2.478$ at $(-4.249, 1.214)$
+— but $\beta_B$ is closer to the summit.)
+:::
+
+## Problem 4 — spot the error
+
+A colleague adapts their gradient-descent code to fit logistic regression, but the
+log-likelihood *plummets* instead of climbing. Their code has **exactly one mistake** —
+find it and fix it.
+
+```{webr}
+#| autorun: false
+# p4-starter — run it, watch the log-likelihood crash, then fix the one mistake
+sigmoid  <- function(z) 1 / (1 + exp(-z))
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) { up<-v; dn<-v; up[i]<-up[i]+h; dn[i]<-dn[i]-h; (f(up)-f(dn))/(2*h) })
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+
+b <- c(0, 0)
+for (t in 1:30) b <- b - 0.1 * gradient(loglik, b)   # log-likelihood goes the wrong way
+c(b = b, loglik = loglik(b))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the **sign**: they wrote `b - 0.1 * gradient(...)`, which is gradient
+*descent* — it steps *downhill*, minimizing the log-likelihood (driving it toward
+$-\infty$). We want to *maximize* it, so we step *uphill* with a **plus**:
+
+```{r p4-answer}
+sigmoid  <- function(z) 1 / (1 + exp(-z))
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) { up<-v; dn<-v; up[i]<-up[i]+h; dn[i]<-dn[i]-h; (f(up)-f(dn))/(2*h) })
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+
+b <- c(0, 0)
+for (t in 1:30) b <- b + 0.1 * gradient(loglik, b)   # PLUS: climb uphill
+c(intercept = b[1], slope = b[2], loglik = loglik(b))   # climbing: loglik ~ -2.912 at 30 steps
+```
+With the minus sign, after 30 steps the log-likelihood was down around $-593$ and falling;
+with the plus sign it *rises* toward the summit (about $-2.912$ at 30 steps, heading for
+$-2.478$). Ascent maximizes, so it adds the gradient.
+:::
+
+## Problem 5 — mixing it with gradient descent *(uses the gradient-descent course's update rule)*
+
+Do **one** ascent step by hand-and-check. On the lesson data, starting at $\beta = (0,0)$,
+the gradient of the log-likelihood is $(0, 3.5)$ (worked out in the lesson). Using the
+**ascent update rule** with learning rate $\alpha = 0.1$, what is $\beta$ after one step?
+Confirm by computing the gradient and stepping in R.
+
+```{webr}
+#| autorun: false
+# p5-starter — take exactly ONE ascent step from (0,0)
+sigmoid  <- function(z) 1 / (1 + exp(-z))
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) { up<-v; dn<-v; up[i]<-up[i]+h; dn[i]<-dn[i]-h; (f(up)-f(dn))/(2*h) })
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The ascent rule is $\beta \leftarrow \beta + \alpha \nabla\ell$. With $\nabla\ell = (0,
+3.5)$ and $\alpha = 0.1$: $\beta = (0,0) + 0.1(0, 3.5) = (0,\ 0.35)$.
+
+```{r p5-answer}
+sigmoid  <- function(z) 1 / (1 + exp(-z))
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) { up<-v; dn<-v; up[i]<-up[i]+h; dn[i]<-dn[i]-h; (f(up)-f(dn))/(2*h) })
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+
+g <- gradient(loglik, c(0, 0))       # (0, 3.5)
+c(0, 0) + 0.1 * g                    # (0, 0.35)
+```
+The intercept doesn't move (its slope was 0 — three passes and three fails balanced), and
+the slope rises to $0.35$. This is the **same update rule** from the
+[gradient-descent course](../../../gradient-descent/syllabus.md), with the sign flipped to
+$+$ so we climb the log-likelihood instead of descending an error bowl.
+:::
+
+## Problem 6 — a gentle cliffhanger
+
+You've fit the coefficients from scratch. In practice you'd call `glm(y ~ x, family =
+binomial)` — and its `summary()` prints not just the coefficients but a whole table:
+**standard errors**, **z values**, **p-values**, and a quantity called **deviance**. Here
+is the coefficient table for the lesson's data. Read off the two fitted coefficients (you
+already know these!), and guess: what do you think the "Std. Error" column is telling you
+about each coefficient?
+
+```{r p6-artifact}
+# A real glm fit -- the coefficient table you'll fully decode in the capstone
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+summary(glm(y ~ x, family = binomial))$coefficients
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The `Estimate` column holds the fitted coefficients you found by ascent: intercept
+$\approx -4.249$ and slope $\approx 1.214$ — exactly your from-scratch answer. The
+`Std. Error` column is a measure of **uncertainty** in each estimate: roughly, how much
+the coefficient would wobble if you refit on fresh data from the same process. A large
+standard error (as here, with only 6 noisy points) means the estimate is imprecise. You
+can't fully unpack the z value, p-value, and deviance yet — the
+[capstone](../04-capstone-reading-a-real-logistic-regression/lesson.qmd) decodes every one
+of them and ties each back to what you built.
+:::

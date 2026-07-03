@@ -1,0 +1,319 @@
+---
+title: "Lines and the least-squares idea"
+subtitle: "What 'the best-fitting line' actually means"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Regression starts with a deceptively simple question: given a cloud of points, which
+straight line through it is *best*? This module builds the decision rule — score
+every candidate line by its **sum of squared errors**, and call the line with the
+lowest score the winner. Everything in the rest of the course (the formulas, the
+`lm()` output, the paper tables) is just the consequences of that one rule.
+
+**Builds on:** [vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd)
+and [mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Three quick recalls from the foundations this module stands on. Produce each answer
+before opening it.
+
+**1.** *(vectors & summation)* Say $\sum_{i=1}^{n} a_i^2$ aloud, then compute it for
+$a = (-2, 0, 2)$.
+
+::: {.callout-note collapse="true" title="Answer"}
+"The sum, from i equals 1 to n, of a-sub-eye squared" — square each, then add:
+$(-2)^2 + 0^2 + 2^2 = 4 + 0 + 4 = 8$. In R: `sum(a^2)`. See
+[vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd).
+:::
+
+**2.** *(mean, variance & covariance)* In one sentence: why do the deviations of any
+list of numbers from their own mean always add up to zero?
+
+::: {.callout-note collapse="true" title="Answer"}
+The mean is the balance point, so the amounts above it and below it are equal and
+cancel exactly — $\sum (x_i - \bar{x}) = 0$ for any list. This is the fact that will
+force us to *square* misses in a moment. See
+[mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd).
+:::
+
+**3.** *(mean, variance & covariance)* Compute the mean of $y = (2, 3, 5, 6)$ — the
+tomato counts we're about to model.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\bar{y} = (2 + 3 + 5 + 6) / 4 = 16 / 4 = 4$. In R: `mean(y)`.
+:::
+
+## A tiny example first
+
+You gave 4 tomato plants different doses of fertilizer, $x = (1, 2, 3, 4)$ scoops,
+and counted their tomatoes, $y = (2, 3, 5, 6)$. More fertilizer, more tomatoes —
+but which *line* summarizes the relationship?
+
+A line is two numbers: where it starts (the **intercept**: its height at x = 0) and
+how fast it climbs (the **slope**: extra tomatoes per extra scoop).
+
+Let's *guess* a line: intercept 1, slope 1 — "start at 1, add 1 per scoop". What
+does it predict, and how wrong is it?
+
+| plant | scoops $x$ | actual $y$ | predicted $1 + 1\cdot x$ | miss (actual − predicted) | miss² |
+|---|---|---|---|---|---|
+| 1 | 1 | 2 | 2 | 0 | 0 |
+| 2 | 2 | 3 | 3 | 0 | 0 |
+| 3 | 3 | 5 | 4 | +1 | 1 |
+| 4 | 4 | 6 | 5 | +1 | 1 |
+
+Add up the squared misses: 0 + 0 + 1 + 1 = **2**. That total is the line's score
+(lower = better). Why square the misses before adding? The same reason variance did:
+positive and negative misses would cancel, and a line that's wildly wrong in both
+directions could score a perfect 0.
+
+Try a second guess: intercept 0, slope 1.5. Predictions: 1.5, 3, 4.5, 6. Misses:
++0.5, 0, +0.5, 0. Squared and summed: 0.25 + 0 + 0.25 + 0 = **0.5**. Better! Guess
+two beats guess one. Is something even better hiding out there? (Yes — hold that
+thought.)
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The toy data: fertilizer scoops and tomato counts for 4 plants
+x <- c(1, 2, 3, 4)
+y <- c(2, 3, 5, 6)
+
+# Guess 1: intercept 1, slope 1 — "start at 1, add 1 tomato per scoop"
+pred1  <- 1 + 1 * x        # the line's predictions at each x
+miss1  <- y - pred1        # actual minus predicted: the misses
+sum(miss1^2)               # squared, then added: score = 2
+
+# Guess 2: intercept 0, slope 1.5
+pred2  <- 0 + 1.5 * x
+miss2  <- y - pred2
+sum(miss2^2)               # score = 0.5 — a better line
+```
+
+## Getting a feel for it
+
+**Picture a spring from each point to the line.** Imagine every data point tied to
+the line by a little vertical spring: the further the line sits from the point, the
+more that spring is stretched. Squaring the miss is exactly the energy stored in a
+stretched spring — stretch it twice as far and it holds *four* times the energy. The
+least-squares line is the one where the springs are, all together, as relaxed as
+possible. (Where the picture bends: the springs only pull straight up and down, never
+sideways — regression measures misses in the $y$ direction only.)
+
+**Why square the misses instead of just adding them?** Two reasons, both visible in
+our toy numbers. First, raw misses *cancel*: you recalled in the warm-up that
+deviations from a balance point sum to zero, so a wildly wrong line can post a fake
+score of 0 just by missing high as much as it misses low (Trap 1 below shows the flat
+line at $\bar{y}=4$ doing exactly that). Squaring makes every miss count as a
+positive penalty, so cancelling is impossible. Second, squaring *punishes a big miss
+far more than two small ones* — a spring stretched by 2 costs 4, but two springs
+stretched by 1 cost only 2 — so the line can't win by fitting three points nicely and
+abandoning the fourth. It's pushed toward being decent everywhere.
+
+**What the score feels like.** Lower is a tighter fit: guess 1 scored 2, guess 2
+scored 0.5, so guess 2 hugs the points more closely. The one move that always lowers
+the score is nudging the line toward wherever its springs are stretched most. You
+can't drive it all the way to 0, though — our four points don't sit on any single
+straight line, so some stretch always remains. In the "Explore it" plots below, that
+leftover shows up as a valley whose bottom sits *above* zero.
+
+## What the notation is going to say
+
+The formulas below say: "a candidate line has intercept beta-zero and slope
+beta-one; its prediction for plant i is beta-zero plus beta-one times x-sub-i; the
+plant's *residual* is actual minus predicted; the line's score is the sum of the
+squared residuals; and the best line is the (beta-zero, beta-one) pair that makes
+that score as small as possible." Exactly the table game we just played — twice.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x_i$ | "ex sub eye" | the i-th predictor value — here, scoops of fertilizer (in R: `x[i]`) | 1, 2, 3, 4 |
+| $y_i$ | "why sub eye" | the i-th observed outcome — here, tomatoes counted (in R: `y[i]`) | 2, 3, 5, 6 |
+| $\bar{x}$ | "ex bar" | the mean of the x values (in R: `mean(x)`) | 2.5 |
+| $\bar{y}$ | "why bar" | the mean of the y values (in R: `mean(y)`) | 4 |
+| $n$ | "en" | the number of data points (in R: `length(x)`) | 4 |
+| $\beta_0$ | "beta zero" (or "beta naught") | the intercept: the line's height at $x = 0$ | guess 1 used 1; guess 2 used 0 |
+| $\beta_1$ | "beta one" | the slope: how much $y$ rises per unit of $x$ | guess 1 used 1; guess 2 used 1.5 |
+| $\hat{y}_i$ | "why hat sub eye" | the line's prediction for observation i — the hat means "estimated, not observed" | guess 1 predicted 2, 3, 4, 5 |
+| $e_i$ | "ee sub eye" / "residual i" | the miss: $y_i - \hat{y}_i$, actual minus predicted | guess 1: 0, 0, +1, +1 |
+| $\mathrm{SSE}$ | "sum of squared errors" | the line's badness score: $\sum e_i^2$ | 2 for guess 1; 0.5 for guess 2 |
+| $\arg\min_{b_0,\, b_1}$ | "arg min over bee-zero and bee-one" | the VALUES of $b_0, b_1$ that minimize what follows (not the minimum itself) | the best line's intercept & slope |
+| $\hat{\beta}_0, \hat{\beta}_1$ | "beta-zero hat, beta-one hat" | the winning intercept and slope, estimated from data | found in the next module! |
+
+(Convention: $\beta$ for the unknown true values, $b$ for "any candidate we're
+trying", and hats for "the estimate we computed from data". Papers lean on this
+Greek/Latin/hat code constantly — same idea as $\mu$ vs. $\bar{x}$.)
+
+## The formal version
+
+A candidate line and its predictions:
+
+$$
+\hat{y}_i = b_0 + b_1 x_i
+$$
+
+Reading it aloud: "why-hat sub eye equals bee-zero plus bee-one times ex-sub-eye" —
+*the prediction for plant i is: start at the intercept, climb the slope once per
+scoop.* For guess 1: $\hat{y}_3 = 1 + 1 \times 3 = 4$ — row 3 of our table.
+
+The score of that line:
+
+$$
+\mathrm{SSE}(b_0, b_1) = \sum_{i=1}^{n} \big(y_i - (b_0 + b_1 x_i)\big)^2
+$$
+
+Reading it aloud: "the SSE of a candidate line equals the sum, from i equals 1 to n,
+of: actual y minus the line's prediction, squared." That's the miss² column, summed —
+our 2 and our 0.5. Note SSE is written as a *function of* $(b_0, b_1)$: every
+candidate line gets its own score.
+
+And the decision rule — the definition of least squares:
+
+$$
+(\hat{\beta}_0, \hat{\beta}_1) = \arg\min_{b_0,\, b_1} \; \sum_{i=1}^{n} \big(y_i - (b_0 + b_1 x_i)\big)^2
+$$
+
+Reading it aloud: "beta-zero hat and beta-one hat are the arg min, over all
+candidate intercepts and slopes, of the sum of squared errors" — *the best line is
+whichever candidate scores lowest.* This single line of notation IS "ordinary least
+squares" (OLS). When a paper says "we fit the model by OLS", it means exactly this
+game.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Scatter plot of the toy data with a candidate line and its residual segments drawn as dashed verticals"
+# explore-1 — LIVE: edit b0 and b1 below, press Run, watch the line move, the residual
+# segments stretch, and the SSE in the title update. Can you beat 0.5?
+# PREDICT: at b0 = 0, will raising the slope from b1 = 1.5 to 1.6 make SSE go up or
+# down? (Our line scores 0.5 right now.) Then edit and run.
+x <- c(1, 2, 3, 4)
+y <- c(2, 3, 5, 6)
+b0 <- 0; b1 <- 1.5                      # <-- your candidate line
+
+pred <- b0 + b1 * x                     # y-hat: the line's predictions
+sse  <- sum((y - pred)^2)               # the score
+
+plot(x, y, pch = 16, cex = 1.5, xlim = c(0, 5), ylim = c(0, 7),
+     main = sprintf("y-hat = %.2f + %.2f x   |   SSE = %.3f", b0, b1, sse))
+abline(a = b0, b = b1, col = "steelblue", lwd = 2)     # the candidate line
+segments(x, y, x, pred, col = "firebrick", lty = 2)    # the residuals, drawn
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Curve of SSE versus candidate slope, U-shaped with a single lowest point"
+# explore-2 — LIVE: instead of guessing one line at a time, score MANY slopes at once
+# (intercept fixed at 0.5 for now) and plot the scores. The best slope is the
+# bottom of the valley. TRY IT: change the by= step or the fixed intercept and re-run.
+# PREDICT: will the valley bottom land left or right of slope = 1.5? Write your guess,
+# then run and read it off the plot title.
+x <- c(1, 2, 3, 4)
+y <- c(2, 3, 5, 6)
+
+slopes <- seq(0, 3, by = 0.01)                    # 301 candidate slopes
+sse_of <- function(b1) sum((y - (0.5 + b1 * x))^2)  # score each with b0 = 0.5
+scores <- sapply(slopes, sse_of)
+
+plot(slopes, scores, type = "l", lwd = 2,
+     xlab = "candidate slope b1", ylab = "SSE",
+     main = sprintf("Valley bottom at b1 = %.2f", slopes[which.min(scores)]))
+abline(v = slopes[which.min(scores)], col = "firebrick", lty = 2)
+```
+
+That smooth valley with a single bottom is the key picture of this course. "Find the
+arg min" means "find the bottom of this valley" — and next module, calculus finds it
+*exactly*, without trying 301 candidates.
+
+## Common traps
+
+**Trap 1 — scoring a line by $\sum e_i$ instead of $\sum e_i^2$.** Adding up the raw
+misses feels simpler than squaring first. But raw misses cancel: the flat line at
+$\bar{y} = 4$ has misses $-2, -1, +1, +2$, which sum to **0** — a "perfect" score for
+a line that ignores fertilizer entirely. Squaring stops the cancelling, so that same
+useless line scores $4 + 1 + 1 + 4 = 10$, honestly bad. This is the same reason
+variance squares its deviations. (`sum(y - 4)` gives 0; `sum((y - 4)^2)` gives 10.)
+
+**Trap 2 — expecting the best line to score $\mathrm{SSE} = 0$.** A score of 0 would
+mean every point sits exactly on the line. Our four points don't lie on a single
+straight line (going 1→2→3→4 in scoops, tomatoes jump 2, 3, 5, 6 — not by a constant
+step), so **no** line can hit them all: the valley bottom in the plot above sits
+*above* zero, not at it. "Best" means lowest achievable score, not zero — real data
+keeps some irreducible scatter no straight line removes.
+
+## Check yourself
+
+**1.** Read this aloud and say what it equals for guess 1 (intercept 1, slope 1):
+$\;\hat{y}_4 = b_0 + b_1 x_4$
+
+::: {.callout-note collapse="true" title="Answer"}
+"Why-hat sub four equals bee-zero plus bee-one times ex-sub-four." With $b_0 = 1$,
+$b_1 = 1$, $x_4 = 4$: $\hat{y}_4 = 1 + 1 \times 4 = 5$. The actual $y_4$ is 6, so
+the residual is $e_4 = 6 - 5 = +1$ — the line under-predicts plant 4 by one tomato.
+:::
+
+**2.** A friend proposes scoring lines with $\sum e_i$ (no squaring). Using guess
+"intercept 4, slope 0" (a flat line at the mean of y), show why that's a broken
+score.
+
+```{webr}
+#| autorun: false
+# check2-starter — LIVE: edit and Run to compare sum(y - 4) with sum((y - 4)^2).
+x <- c(1, 2, 3, 4); y <- c(2, 3, 5, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The flat line predicts 4 for everyone. Misses: $2-4 = -2$, $3-4 = -1$, $5-4 = +1$,
+$6-4 = +2$. Un-squared sum: $-2 - 1 + 1 + 2 = 0$ — a "perfect" score for a line
+that ignores x entirely! (Deviations from a mean always cancel — the same fact we
+met in the foundations module.) Squaring stops the cancelling: the squared score is
+$4 + 1 + 1 + 4 = 10$, honestly bad. `sum(y - 4)` vs `sum((y - 4)^2)` confirms.
+:::
+
+## What you can now do
+
+- **Score any candidate line** on a dataset by summing its squared residuals (SSE),
+  by hand and with `sum((y - pred)^2)` in R.
+- **Explain why the misses are squared** — that raw misses cancel, and that squaring
+  punishes big misses hardest — instead of just added.
+- **State what "least squares" means**: the best line is the intercept/slope pair
+  with the lowest SSE (the arg-min), i.e. the bottom of the SSE valley.
+- **Recognize the phrase "fit by OLS"** in a paper as exactly this scoring game.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+and [The formal version](#the-formal-version) before continuing — the next module
+finds that valley bottom with calculus and assumes all of the above.
+
+## Where this goes next
+
+We can *score* any line, and we saw the valley has one bottom. Next module finds the
+bottom exactly: [deriving the OLS formulas](../02-deriving-the-ols-formulas/lesson.qmd) —
+with every algebra and calculus trick taught on the way. Ready for more reps first?
+Do the [practice problems](practice.qmd).

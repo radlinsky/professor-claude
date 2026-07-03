@@ -1,0 +1,175 @@
+---
+title: "Practice: Exponentials and logs"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Use paper or the live cells; only then open the
+answer. Reminder: `exp(x)` is $e^x$ and `log(x)` (no base) is the natural log.
+
+## Problem 1 — the toy example, new numbers
+
+Compute each of these by reasoning it out, then check in R: $e^0$, $e^{-1}$,
+$\log(1)$, and $\log(e^3)$.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to check your four answers
+c(exp(0), exp(-1), log(1), log(exp(3)))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+- $e^0 = 1$ (anything to the 0 is 1).
+- $e^{-1} = 1/e \approx 0.368$ (negative power means "one over").
+- $\log(1) = 0$ (because $e^0 = 1$).
+- $\log(e^3) = 3$ (the undo pair: log cancels exp, leaving the exponent).
+
+```{r p1-answer}
+c(exp0 = exp(0), exp_m1 = exp(-1), log1 = log(1), log_e3 = log(exp(3)))
+# 1, 0.368, 0, 3
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+We want to simplify $\log(a^2 b)$ into separate logs. Here's the work with the
+**core step blanked**:
+
+> Step 1: $\log(a^2 b) = \log(a^2) + \log(b)$  *(product rule: a product becomes a sum)*
+> Step 2: **your step here** — simplify the $\log(a^2)$ term
+> Step 3: $= 2\log(a) + \log(b)$
+
+Supply Step 2.
+
+```{webr}
+#| autorun: false
+# p2-starter — check your simplification for a = 3, b = 5
+a <- 3; b <- 5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2 uses the **power rule**: $\log(a^2) = 2\log(a)$ — the exponent 2 comes down out
+front as a multiplier. Putting it together gives $\log(a^2 b) = 2\log(a) + \log(b)$.
+
+```{r p2-answer}
+a <- 3; b <- 5
+c(lhs = log(a^2 * b), rhs = 2 * log(a) + log(b))   # both ~ 3.807
+```
+Both sides equal about $3.807$ — the rewrite is exact.
+:::
+
+## Problem 3 — a round trip on the log scale
+
+A colleague has a probability-like number $p = 0.2$. They compute its **log-odds**,
+$\log\!\big(\tfrac{p}{1-p}\big)$, and then want to get $p$ back from that log-odds value.
+Compute the log-odds, then recover $p$ using the undo pair, and confirm you land back on
+$0.2$.
+
+```{webr}
+#| autorun: false
+# p3-starter — compute the log-odds, then invert it back to p
+p <- 0.2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Forward: the odds are $p/(1-p) = 0.2/0.8 = 0.25$, and the log-odds is $\log(0.25)
+\approx -1.386$. To go back, exponentiate (that undoes the log) to recover the odds,
+then solve odds $= p/(1-p)$ for $p$:
+
+```{r p3-answer}
+p <- 0.2
+log_odds <- log(p / (1 - p))          # forward: ~ -1.386
+odds_back <- exp(log_odds)            # exp undoes log -> back to the odds, 0.25
+p_back    <- odds_back / (1 + odds_back)  # solve odds = p/(1-p) for p
+c(log_odds = log_odds, p_back = p_back)   # -1.386, and 0.2 recovered
+```
+`exp()` cancels the `log()`, handing back the odds; rearranging then returns $p = 0.2$.
+This exact round trip is how logistic regression turns a modeled log-odds back into a
+probability.
+:::
+
+## Problem 4 — spot the error
+
+A colleague is simplifying a log expression and writes the following. It contains
+**exactly one mistake** — find it and fix it.
+
+> $\log(a + b) = \log(a) + \log(b)$, so for $a = 5, b = 5$ we get
+> $\log(10) = \log(5) + \log(5) \approx 1.609 + 1.609 = 3.219$.
+
+```{webr}
+#| autorun: false
+# p4-starter — run both sides and see they disagree
+a <- 5; b <- 5
+c(claimed = log(a) + log(b), actual = log(a + b))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the very first equality: **there is no rule** $\log(a+b) = \log a + \log
+b$. The product rule turns a *product* into a sum, not a *sum* into a sum. The numbers
+expose it: $\log(10) \approx 2.303$, but $\log 5 + \log 5 \approx 3.219$ — not equal.
+
+```{r p4-answer}
+a <- 5; b <- 5
+c(claimed = log(a) + log(b), actual = log(a + b))   # 3.219 vs 2.303 -- different
+```
+What the colleague *could* have written is $\log(a \cdot b) = \log a + \log b$: indeed
+$\log(25) \approx 3.219$ matches. A sum inside a log doesn't break apart.
+:::
+
+## Problem 5 — interpretation
+
+You're reading a paper. In one spot it reports a quantity on the **log scale** as
+$-2.3$, and in another spot a different quantity as $+1.6$. Without computing exact
+values: which of the two underlying (un-logged) quantities is *bigger than 1*, and which
+is *between 0 and 1*? Explain the reasoning in one sentence.
+
+::: {.callout-note collapse="true" title="Answer"}
+The quantity whose log is $+1.6$ is **bigger than 1**, and the one whose log is $-2.3$
+is **between 0 and 1**. Reason: $\log(1) = 0$, so a positive log means the original
+number exceeded 1 (you had to raise $e$ to a positive power), while a negative log means
+the original number was a fraction below 1 (a negative power of $e$). Checking:
+$e^{1.6} \approx 4.95$ and $e^{-2.3} \approx 0.10$ — exactly as the signs predicted.
+:::
+
+## Problem 6 — a gentle cliffhanger
+
+The **sigmoid** function, which you'll meet in the logistic-regression course, is
+$\sigma(z) = \dfrac{1}{1 + e^{-z}}$. Using only what you know now, evaluate it at
+$z = 0$, and predict (in words) what happens to $\sigma(z)$ as $z$ grows very large
+positive, and as $z$ goes very large negative.
+
+```{webr}
+#| autorun: false
+# p6-starter — evaluate the sigmoid at a few z values
+sigma <- function(z) 1 / (1 + exp(-z))
+sigma(c(-6, 0, 6))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+At $z = 0$: $e^{-0} = 1$, so $\sigma(0) = \tfrac{1}{1+1} = 0.5$.
+
+As $z \to +\infty$: $e^{-z} \to 0$ (a large *negative* exponent), so $\sigma(z) \to
+\tfrac{1}{1+0} = 1$.
+
+As $z \to -\infty$: $e^{-z} \to +\infty$ (a large *positive* exponent), so the
+denominator blows up and $\sigma(z) \to 0$.
+
+```{r p6-answer}
+sigma <- function(z) 1 / (1 + exp(-z))
+sigma(c(-6, 0, 6))   # ~0.0025, 0.5, ~0.9975 -- squashed into (0, 1)
+```
+So the sigmoid takes *any* number and squashes it into the interval $(0, 1)$ — landing
+at exactly $0.5$ when its input is $0$. That "squash any number into a probability" move
+is the whole reason logistic regression starts here — the next course builds on it.
+:::

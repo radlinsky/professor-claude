@@ -1,0 +1,169 @@
+---
+title: "Practice: Vectors, subscripts, and the big Σ"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+---
+
+```{r setup}
+#| message: false
+# Packages this practice set uses. Missing ones are installed automatically.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+You measured 4 mushrooms: 3 cm, 1 cm, 4 cm, 2 cm. Using the notation
+$x = (3, 1, 4, 2)$: what are $n$, $x_2$, and $\sum_{i=1}^{n} x_i$? Do it on paper
+first, then check in R.
+
+```{r p1-starter}
+# Starter — copy this to begin
+x <- c(3, 1, 4, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$n = 4$ (four mushrooms). $x_2 = 1$ (the second value — subscripts point at
+positions, not sizes). The sum: $3 + 1 = 4$, $4 + 4 = 8$, $8 + 2 = 10$, so
+$\sum_{i=1}^{4} x_i = 10$.
+
+```{r p1-answer}
+x <- c(3, 1, 4, 2)
+length(x)   # n = 4
+x[2]        # x sub 2 = 1
+sum(x)      # the big sigma = 10
+```
+:::
+
+## Problem 2 — read it aloud, then compute
+
+For the same $x = (3, 1, 4, 2)$, compute by hand:
+$$\sum_{i=1}^{4} (x_i - 1)$$
+Then re-do it the lazy way using Rule 1 (split the sum) and Rule 3 (sum of a
+constant), without touching the individual values again.
+
+```{r p2-starter}
+# Starter — copy this to begin
+x <- c(3, 1, 4, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Read aloud: "the sum, from i equals 1 to 4, of x-sub-i minus one."
+
+By hand, item by item: $(3-1) + (1-1) + (4-1) + (2-1) = 2 + 0 + 3 + 1 = 6$.
+
+The lazy way — one algebraic step per line:
+
+$$
+\begin{aligned}
+\sum_{i=1}^{4} (x_i - 1) &= \sum_{i=1}^{4} x_i - \sum_{i=1}^{4} 1 \\
+&= 10 - 4 \times 1 = 6
+\end{aligned}
+$$
+
+- Line 1: split the sum (Rule 1, with $y_i = -1$).
+- Line 2: we already know $\sum x_i = 10$; summing the constant 1 four times is
+  $4 \times 1$ (Rule 3).
+
+Same answer, no re-adding. This "subtract a constant from every value" pattern is
+exactly what happens with deviations from the mean in the next module.
+:::
+
+## Problem 3 — spot the trap
+
+Without computing anything: which is bigger for $x = (3, 1, 4, 2)$,
+$\sum x_i^2$ or $\left(\sum x_i\right)^2$? Then verify in R.
+
+```{r p3-starter}
+# Starter — copy this to begin
+x <- c(3, 1, 4, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Add-then-square is bigger here: $\left(\sum x_i\right)^2 = 10^2 = 100$, while
+square-then-add is $9 + 1 + 16 + 4 = 30$. (With all-positive values, add-then-square
+always wins because the cross-terms pile up.)
+
+```{r p3-answer}
+x <- c(3, 1, 4, 2)
+sum(x^2)    # 30
+sum(x)^2    # 100
+```
+
+Papers rely on you noticing which one is written. Misreading this single
+parenthesis is one of the most common formula-reading errors.
+:::
+
+## Problem 4 — the rules on real-sized data (in R)
+
+Starter below. Show numerically that
+$\sum_{i=1}^{n} (5 x_i + 2) = 5 \sum_{i=1}^{n} x_i + 2n$ for this data, and say
+which rule justifies each move.
+
+```{r p4-starter}
+# Starter data — your job: verify the identity above two ways
+set.seed(42)
+x <- round(rnorm(100, mean = 50, sd = 10))
+n <- length(x)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p4-answer}
+set.seed(42)
+x <- round(rnorm(100, mean = 50, sd = 10))
+n <- length(x)
+
+# Left side: transform every value, then add
+lhs <- sum(5 * x + 2)
+
+# Right side: use the rules to avoid touching individual values
+rhs <- 5 * sum(x) + 2 * n
+
+c(lhs = lhs, rhs = rhs)   # identical
+```
+
+Justification, one move per line:
+
+$$
+\begin{aligned}
+\sum (5x_i + 2) &= \sum 5x_i + \sum 2 \\
+&= 5\sum x_i + \sum 2 \\
+&= 5\sum x_i + 2n
+\end{aligned}
+$$
+
+- Line 1: split the sum (Rule 1).
+- Line 2: pull the constant multiplier out (Rule 2).
+- Line 3: summing the constant 2, n times, is 2n (Rule 3).
+:::
+
+## Problem 5 — a gentle cliffhanger
+
+For $x = (3, 1, 4, 2)$ the average is $10/4 = 2.5$. Compute
+$\sum_{i=1}^{4} (x_i - 2.5)$ — the total of the "distances from the average". Notice
+anything? (You can't fully explain it yet — the next module,
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd), is exactly
+about why this happens.)
+
+```{r p5-starter}
+# Starter — copy this to begin
+x <- c(3, 1, 4, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$(3-2.5) + (1-2.5) + (4-2.5) + (2-2.5) = 0.5 - 1.5 + 1.5 - 0.5 = 0$.
+
+It's exactly zero — and that's no accident: deviations from the mean ALWAYS sum to
+zero (the overshoots and undershoots cancel perfectly). That's why variance squares
+the deviations before adding them, which is where the next lesson picks up.
+
+```{r p5-answer}
+x <- c(3, 1, 4, 2)
+sum(x - mean(x))   # 0 (up to tiny floating-point dust)
+```
+:::

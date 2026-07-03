@@ -1,0 +1,170 @@
+---
+title: "Practice: Deriving the OLS formulas"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+---
+
+```{r setup}
+#| message: false
+# Packages this practice set uses. Missing ones are installed automatically.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Find the bottom of $f(b) = (b - 5)^2 + 1$ two ways: (a) guess-and-check at
+$b = 3, 4, 5, 6, 7$; (b) take the derivative, set it to zero, solve.
+
+```{r p1-starter}
+# Starter — copy this to begin
+f <- function(b) (b - 5)^2 + 1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $f(3) = 5$, $f(4) = 2$, $f(5) = 1$, $f(6) = 2$, $f(7) = 5$ — bottom at $b = 5$.
+
+(b) Chain rule lite: $f'(b) = 2(b - 5) \cdot 1$ (the $+1$ is constant, derivative
+0). Set to zero: $2(b - 5) = 0 \Rightarrow b = 5$. Same answer, no guessing.
+
+```{r p1-answer}
+f <- function(b) (b - 5)^2 + 1
+optimize(f, c(0, 10))$minimum   # R's numeric optimizer agrees: 5
+```
+:::
+
+## Problem 2 — one derivation line, on your own
+
+In Step 1 we went from $\sum (y_i - b_0 - b_1 x_i) = 0$ to
+$\sum y_i - n\,b_0 - b_1 \sum x_i = 0$. Justify that move yourself, naming the sum
+rule used for each of the three pieces.
+
+::: {.callout-note collapse="true" title="Answer"}
+Split the sum into three sums (Rule 1):
+$\sum y_i - \sum b_0 - \sum b_1 x_i = 0$. Then:
+
+- $\sum y_i$ — stays as is.
+- $\sum b_0$: summing the constant $b_0$, n times, gives $n\,b_0$ (Rule 3).
+- $\sum b_1 x_i$: pull the constant multiplier $b_1$ out, giving $b_1 \sum x_i$
+  (Rule 2).
+
+Those three sum rules from the foundations module carry the whole derivation —
+that's why they were taught first.
+:::
+
+## Problem 3 — spot the error
+
+To find the slope, a colleague differentiates SSE with respect to $b_1$ and writes:
+
+> "$\dfrac{\partial\, \mathrm{SSE}}{\partial b_1} = \sum 2\,(y_i - b_0 - b_1 x_i)$.
+> Set it to zero: $\sum (y_i - b_0 - b_1 x_i) = 0$."
+
+Their derivative contains **exactly one mistake**. Name it, and explain why the
+mistake would make the slope impossible to solve for.
+
+::: {.callout-note collapse="true" title="Answer"}
+They dropped the chain rule's *inside-derivative* factor. The "stuff"
+$y_i - b_0 - b_1 x_i$ has derivative $-x_i$ with respect to $b_1$ (not 1), so the
+correct line is
+$$\frac{\partial\, \mathrm{SSE}}{\partial b_1} = \sum 2\,(y_i - b_0 - b_1 x_i)\,(-x_i).$$
+
+Why it matters: without the $-x_i$, setting the derivative to zero gives
+$\sum (y_i - b_0 - b_1 x_i) = 0$ — which is **exactly** the intercept equation from
+Step 1. Two identical equations can't pin down two unknowns ($b_0$ and $b_1$), so the
+slope would be unsolvable. The $x_i$ factor is precisely what makes the slope
+equation carry information about $x$, and it's what turns the final answer into
+$s_{xy}/s_x^2$.
+:::
+
+## Problem 4 — compute a fit fully by hand *(uses Module 1)*
+
+Three plants: $x = (1, 2, 3)$, $y = (3, 4, 6)$ — the same data you scored a *guessed*
+line on in module 01's practice (Problem 1). There you rated one line; now use the
+formulas to find the **best** one: compute $\bar{x}$, $\bar{y}$, $s_{xy}$, $s_x^2$,
+then $\hat{\beta}_1$ and $\hat{\beta}_0$. Check with `lm()`, and note how much lower
+the best line's SSE is than the guessed line's (which scored 1 back in module 01).
+
+```{r p4-starter}
+# Starter — copy this to begin
+x <- c(1, 2, 3); y <- c(3, 4, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\bar{x} = 2$, $\bar{y} = 13/3$. Deviations of x: $(-1, 0, 1)$; of y:
+$(3 - \tfrac{13}{3}, 4 - \tfrac{13}{3}, 6 - \tfrac{13}{3}) = (-\tfrac{4}{3}, -\tfrac{1}{3}, \tfrac{5}{3})$.
+
+Products: $\tfrac{4}{3}, 0, \tfrac{5}{3}$; sum = 3; so $s_{xy} = 3/2$.
+Squared x-deviations: $1, 0, 1$; sum = 2; so $s_x^2 = 1$.
+
+$\hat{\beta}_1 = \frac{3/2}{1} = 1.5$ and
+$\hat{\beta}_0 = \frac{13}{3} - 1.5 \times 2 = \frac{13}{3} - 3 = \frac{4}{3}$.
+
+So the best line is intercept $4/3$, slope $1.5$ — and its SSE is $1/6 \approx 0.167$,
+far below the guessed line's score of 1 in module 01. The formulas found the exact
+valley bottom that guessing could only approach.
+
+```{r p4-answer}
+x <- c(1, 2, 3); y <- c(3, 4, 6)
+c(b1 = cov(x, y) / var(x), b0 = mean(y) - (cov(x, y) / var(x)) * mean(x))
+coef(lm(y ~ x))                       # intercept 1.333, slope 1.5 — matches
+sum(resid(lm(y ~ x))^2)               # SSE = 0.1667 = 1/6, the exact minimum
+```
+:::
+
+## Problem 5 — break the formula (in R)
+
+The slope formula divides by $s_x^2$. Predict what happens when all x values are
+identical (say every plant got exactly 2 scoops) — then confirm with the starter,
+and explain in plain English why no slope *could* be estimated.
+
+```{r p5-starter}
+# Starter — your job: try the by-hand slope formula AND lm() on this data
+x <- c(2, 2, 2, 2)
+y <- c(2, 3, 5, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$s_x^2 = 0$ (no spread — every deviation is zero), so the formula is $s_{xy}/0$:
+division by zero, undefined.
+
+```{r p5-answer}
+x <- c(2, 2, 2, 2)
+y <- c(2, 3, 5, 6)
+cov(x, y) / var(x)    # NaN — 0/0, the formula collapses
+coef(lm(y ~ x))       # lm returns NA for the slope: it refuses too
+```
+
+Plain English: a slope answers "how much does y change *per unit change in x*?" —
+but x never changes in this data, so the question is unanswerable. Every vertical
+line of candidate slopes through the point of means scores the same SSE. When a
+paper says a predictor was dropped for "no variation" or warns about
+"(multi)collinearity", this is the failure mode it's talking about.
+:::
+
+## Problem 6 — a gentle cliffhanger
+
+Fit `lm(mpg ~ wt, data = mtcars)` and run `summary()` on it. You can now explain
+the two numbers in the `Estimate` column. Look at the neighboring column,
+`Std. Error` — from its name and the Greek/Latin letter code, take a guess at what
+question it answers. (The next module makes it precise.)
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p6-answer}
+summary(lm(mpg ~ wt, data = mtcars))$coefficients
+```
+
+`Estimate` is $\hat{\beta}_0 = 37.29$ and $\hat{\beta}_1 = -5.34$ — covariance over
+variance, and the anchor through the means, exactly as derived.
+
+`Std. Error` answers: *if we could rerun the study on a fresh sample of 32 cars,
+how much would the estimate typically bounce around?* A hat marks a quantity
+computed from one sample ($\hat{\beta}$ estimates the true, hatless $\beta$), so a
+different sample gives different values.
+The standard error is the estimated standard deviation of that bouncing. Making
+this precise (and turning it into t values and p-values) is the next module.
+:::

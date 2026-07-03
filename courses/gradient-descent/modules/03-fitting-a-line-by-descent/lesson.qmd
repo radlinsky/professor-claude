@@ -1,0 +1,366 @@
+---
+title: "Fitting a line by descent — and matching a real optimizer"
+subtitle: "Roll downhill on the error surface, and land where the professionals land"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Time to point gradient descent at something real: **fitting a straight line to data.**
+The two knobs are the line's intercept and slope; the thing to minimize is the total
+squared prediction error as those knobs vary — a bowl over $(b_0, b_1)$, exactly the
+kind of surface Module 2 rolled down. We'll build the fitter from scratch, then do the
+thing that makes it trustworthy: run a **real, professional optimizer** (`scipy`'s
+L-BFGS-B, compiled Fortran) on the very same data and watch our hand-built descent land
+on the *same coefficients* — to seven decimal places.
+
+**Builds on:** [the gradient (Module 2)](../02-the-gradient/lesson.qmd) and
+[rolling downhill (Module 1)](../01-rolling-downhill/lesson.qmd). (If you've taken the
+[simple-linear-regression course](../../../simple-linear-regression/modules/01-least-squares-idea/lesson.qmd),
+this minimizes the very same squared-error score — here by descent instead of a formula.)
+
+## Warm-up: do you remember?
+
+Three quick recalls. Produce each before opening it.
+
+**1.** *(Module 2)* What is the gradient of a function, and what does one vector step of
+gradient descent look like?
+
+::: {.callout-note collapse="true" title="Answer"}
+The gradient is the vector of slopes, one per input. A step is
+$\mathbf{v} \leftarrow \mathbf{v} - \alpha \nabla f(\mathbf{v})$ — move against the whole
+slope-vector at once. See [Module 2](../02-the-gradient/lesson.qmd).
+:::
+
+**2.** *(Module 1)* What goes wrong if the learning rate is too large?
+
+::: {.callout-note collapse="true" title="Answer"}
+Each step overshoots the bottom and lands farther up the far side; the value grows
+instead of settling — it diverges. See [Module 1](../01-rolling-downhill/lesson.qmd).
+:::
+
+**3.** *(baseline / regression idea)* A line is $\hat{y} = b_0 + b_1 x$. For the line
+$b_0 = 1, b_1 = 2$, what does it predict at $x = 3$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat{y} = 1 + 2 \times 3 = 7$. "Start at the intercept, add the slope once per unit of
+$x$." That prediction rule is what we'll score.
+:::
+
+## A tiny example first
+
+Three data points that happen to sit on a perfectly straight line — so we can check the
+answer by eye. $x = (1, 2, 3)$, $y = (3, 5, 7)$ (that's the line $y = 1 + 2x$).
+
+A candidate line makes predictions $\hat{y}_i = b_0 + b_1 x_i$; its **error** on point
+$i$ is the miss $\hat{y}_i - y_i$; we square the misses (so they can't cancel and so big
+misses hurt most) and average them. That average is the **mean squared error**, MSE —
+the height of our bowl at the knob-setting $(b_0, b_1)$.
+
+Score a bad guess, $b_0 = 0, b_1 = 1$: predictions $1, 2, 3$; misses $1-3, 2-5, 3-7 =
+-2, -3, -4$; squared $4, 9, 16$; averaged $= 29/3 \approx 9.67$. Now the true line
+$b_0 = 1, b_1 = 2$: predictions $3, 5, 7$; misses all $0$; MSE $= 0$. The good line sits
+at the bottom of the bowl (error zero), the bad line up on the wall. Gradient descent's
+job is to roll from the bad guess down to the good one — without being *told* the answer.
+
+The same thing in R:
+
+```{r toy-example}
+x <- c(1, 2, 3); y <- c(3, 5, 7)     # the line y = 1 + 2x, exactly
+
+# MSE of a candidate line b = c(intercept, slope): average squared miss
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+
+mse(c(0, 1))   # a bad guess -> ~9.67 (up the wall)
+mse(c(1, 2))   # the true line -> 0    (bottom of the bowl)
+```
+
+## Getting a feel for it
+
+**The error bowl, and the same ball.** Fix the data and let the two knobs vary: every
+$(b_0, b_1)$ gives some MSE, and plotting that is a bowl-shaped surface — low where the
+line fits well, high where it fits badly. Fitting the line is nothing new: it's rolling
+Module 2's ball to the bottom of *this particular* bowl. The bottom is the best line.
+(Where the picture bends: for squared error the bowl is guaranteed to have a single
+bottom — no side valleys to get stuck in — which is why every optimizer, ours included,
+finds the same answer.)
+
+**Why squared error makes the bowl.** Squaring the misses is what turns "how wrong is
+this line?" into a smooth bowl with a clear lowest point. Raw misses would cancel (a line
+that's too high on some points and too low on others could fake a good score); absolute
+misses have a sharp crease that's awkward to roll down. Squared error is smooth and
+bowl-shaped, so the slope is defined everywhere and points cleanly downhill — ideal
+terrain for gradient descent.
+
+**What the fit feels like.** Start the knobs anywhere and descent drifts them toward the
+setting that threads the line through the cloud of points. With clean collinear data it
+reaches MSE $= 0$; with noisy real data (coming up in "Explore it") it stops at the
+lowest *achievable* error — above zero, because no straight line hits noisy points
+exactly, but lower than any other line manages. And here's the punchline you'll verify:
+a from-scratch descent and a state-of-the-art optimizer, rolling down the same bowl, must
+arrive at the same bottom — there's only one.
+
+## What the notation is going to say
+
+The formula below says: "the mean squared error of a candidate line $(b_0, b_1)$ is the
+average, over the data points, of the squared miss $b_0 + b_1 x_i - y_i$." Then fitting
+is just Module 2 applied to this function: measure its gradient (how the error changes as
+you nudge the intercept, and as you nudge the slope), and step downhill until both slopes
+vanish.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x_i, y_i$ | "ex sub eye, why sub eye" | the $i$-th data point's input and output | $(1,3), (2,5), (3,7)$ |
+| $n$ | "en" | the number of data points | 3 |
+| $\sum_{i=1}^{n}$ | "the sum from eye equals one to en" | add up the term to its right, once per data point (in R: `sum(...)`) | sums the squared misses |
+| $b_0, b_1$ | "bee zero, bee one" | the candidate line's intercept and slope (the two knobs) | true line: $1, 2$ |
+| $\mathbf{b}_t$ | "bee sub tee" | the position: the two knobs $(b_0, b_1)$ together after $t$ steps | starts at `c(0, 0)` |
+| $\hat{y}_i$ | "why hat sub eye" | the line's prediction, $b_0 + b_1 x_i$ | $3, 5, 7$ for the true line |
+| $\mathrm{MSE}(b_0, b_1)$ | "em-ess-ee of bee-zero, bee-one" | mean squared error — the bowl's height at $(b_0, b_1)$ | $0$ at the true line |
+| $\nabla \mathrm{MSE}$ | "grad em-ess-ee" | the gradient of the error: (slope in $b_0$, slope in $b_1$) | $(0,0)$ at the bottom |
+| $\alpha$ | "alpha" | the learning rate | $0.1$ below |
+
+## The formal version
+
+The loss — mean squared error as a function of the two knobs:
+
+$$
+\mathrm{MSE}(b_0, b_1) = \frac{1}{n} \sum_{i=1}^{n} \big( b_0 + b_1 x_i - y_i \big)^2
+$$
+
+Reading it aloud: "em-ess-ee of bee-zero and bee-one equals one over en, times the sum
+over the points, of the quantity bee-zero plus bee-one ex-sub-eye minus why-sub-eye,
+squared" — plainly: "average the squared misses of the line." For the true line on our
+toy data every miss is 0, so MSE $= 0$, matching the hand computation.
+
+Fitting is Module 2's vector update, with the position being the two knobs
+$\mathbf{b} = (b_0, b_1)$ and the surface being the MSE:
+
+$$
+\mathbf{b}_{t+1} = \mathbf{b}_t - \alpha \, \nabla \mathrm{MSE}(\mathbf{b}_t)
+$$
+
+Nothing new — just Module 2 with MSE as the bowl. Measure the gradient numerically
+(reusing the exact tool from Module 2), loop, and watch it reach $(1, 2)$:
+
+```{r formal-check}
+x <- c(1, 2, 3); y <- c(3, 5, 7)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+
+# Module 2's numerical gradient, unchanged
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h
+    (f(up) - f(dn)) / (2 * h)
+  })
+
+b <- c(0, 0)                                   # start: flat line at 0
+for (t in 1:2000) b <- b - 0.1 * gradient(mse, b)
+b   # ~ (1, 2): descent recovered the true line
+```
+
+## Explore it
+
+Now the real test. Here is a small, **noisy** dataset — a line with a bit of measurement
+scatter — that was handed to a professional optimizer, `scipy.optimize.minimize` with the
+L-BFGS-B method (compiled Fortran, the kind of routine real software uses). Its answer
+was frozen into this course's equivalence fixture. Let's run *our* from-scratch descent
+on the identical data and compare.
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Scatter of eight noisy points with the gradient-descent best-fit line drawn through them, sloping downward."
+# explore-1 — LIVE: fit the noisy data with our own descent, and plot the line.
+# PREDICT: the points fall from upper-left to lower-right — will the fitted slope be
+# positive or negative? Guess, then run.
+x <- c(-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5)
+y <- c(12.53, 9.40, 6.58, 3.59, 0.30, -2.63, -5.49, -8.53)
+
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+
+b <- c(0, 0)
+for (t in 1:2000) b <- b - 0.1 * gradient(mse, b)   # lr = 0.1, 2000 steps
+
+plot(x, y, pch = 16, cex = 1.4, main = sprintf("fitted line: y-hat = %.3f + %.3f x", b[1], b[2]))
+abline(a = b[1], b = b[2], col = "steelblue", lwd = 2)
+b
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the moment of truth. Compare our from-scratch coefficients to the
+# frozen answer from the REAL optimizer (scipy L-BFGS-B), on the same data.
+# PREDICT: how many decimal places will match? Guess, then run.
+x <- c(-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5)
+y <- c(12.53, 9.40, 6.58, 3.59, 0.30, -2.63, -5.49, -8.53)
+
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:2000) b <- b - 0.1 * gradient(mse, b)
+
+# scipy L-BFGS-B's answer, frozen at authoring time in the equivalence fixture
+# (equivalence/fixtures/gradient-descent-full-scipy.json — validation tier: FULL)
+scipy_frozen <- c(1.968750029034487, -3.009404764462221)
+
+rbind(from_scratch = b, scipy_LBFGSB = scipy_frozen)
+cat("largest difference:", max(abs(b - scipy_frozen)),
+    " -> match within 1e-6?", max(abs(b - scipy_frozen)) < 1e-6, "\n")
+```
+
+Our hand-built descent and a compiled Fortran optimizer agree to seven decimal places
+(their largest coefficient difference is about $3 \times 10^{-8}$). They took completely
+different routes — ours plodded straight downhill in 2000 small steps,
+L-BFGS-B used curvature to leap there in a handful — but the bowl has exactly one bottom,
+so they *must* meet at it. That agreement is what "we rebuilt it correctly" looks like.
+
+::: {.callout-note title="Runs on your machine, not here"}
+The reference above was produced in **Python with `scipy`**, which compiles Fortran and
+therefore **cannot run in this browser** (WebR is R-only, no Fortran compiler — see
+[`docs/webr-decision.md`](../../../../docs/webr-decision.md)). So it was run once at
+authoring time and its result frozen into the course. The exact code — copy it into a
+Python session on your own machine to reproduce the frozen numbers:
+
+```python
+import numpy as np
+from scipy.optimize import minimize
+
+x = np.array([-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5])
+y = np.array([12.53, 9.40, 6.58, 3.59, 0.30, -2.63, -5.49, -8.53])
+
+def mse(b):            # b = [intercept, slope]
+    return np.mean((b[0] + b[1] * x - y) ** 2)
+
+res = minimize(mse, np.zeros(2), method="L-BFGS-B")
+print(res.x)           # [ 1.96875003 -3.00940476 ]  <- the frozen reference
+```
+:::
+
+R's own built-in optimizer agrees too — and *it* is base R, so it runs right here:
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: R's built-in optim() is a professional optimizer as well. Run it on
+# the same MSE and confirm it lands on the same coefficients as our descent and scipy.
+x <- c(-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5)
+y <- c(12.53, 9.40, 6.58, 3.59, 0.30, -2.63, -5.49, -8.53)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+optim(c(0, 0), mse, method = "BFGS")$par    # ~ (1.9688, -3.0094), same bottom
+```
+
+## Common traps
+
+**Trap: "a good fit should reach MSE $= 0$."** True only if the points sit *exactly* on
+a line. The noisy data above never can — no straight line passes through all eight
+scattered points — so the bottom of its error bowl is *above* zero. "Best fit" means the
+lowest achievable error, not zero. (Our clean toy hit 0 precisely because those three
+points were exactly collinear.)
+
+**Trap: "different optimizers give different answers, so which do I trust?"** For this
+squared-error bowl they give the *same* answer — our descent, scipy's L-BFGS-B, and R's
+`optim()` agreed to seven decimal places. The bowl has a single bottom, and every correct
+optimizer finds it; they differ only in the *path* and *speed*, not the destination. If
+two optimizers disagreed on a bowl like this, one of them (or your gradient) has a bug —
+which is exactly why an equivalence check like explore-2 is worth running.
+
+## Check yourself
+
+**1.** Fit a line to $x = (0, 1, 2, 3)$, $y = (1, 3, 5, 7)$ (the line $y = 1 + 2x$) with
+your from-scratch descent. What coefficients should it find?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to solve, right here
+x <- c(0, 1, 2, 3); y <- c(1, 3, 5, 7)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+It finds intercept $\approx 1$, slope $\approx 2$ — the exact line, MSE $\approx 0$.
+
+```{r check1-answer}
+x <- c(0, 1, 2, 3); y <- c(1, 3, 5, 7)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:3000) b <- b - 0.1 * gradient(mse, b)
+b   # ~ (1, 2)
+```
+:::
+
+**2.** Our descent and scipy's L-BFGS-B reached the same coefficients but took very
+different numbers of steps. Does that mean one of them is more *accurate*? Explain.
+
+::: {.callout-note collapse="true" title="Answer"}
+No — they reached the *same* bottom of the *same* bowl, so they're equally accurate here;
+they differ only in efficiency (how many steps to get there). L-BFGS-B uses information
+about the surface's curvature to take smart, large steps, so it converges in far fewer
+iterations; plain gradient descent takes many small fixed-direction steps. Same
+destination, different travel time.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, how fitting a line
+becomes a gradient-descent problem, and why our from-scratch answer matches a
+professional optimizer's.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Fitting a line means choosing the intercept and slope that minimize the average squared
+prediction error, which is a bowl-shaped surface over those two knobs — so we roll down
+it with gradient descent. Because that bowl has a single lowest point, any correct
+optimizer (ours or a professional one) must land on the same coefficients; only the route
+and speed differ.
+:::
+
+## What you can now do
+
+- **Write the squared-error loss** of a candidate line as a function of its two knobs,
+  and recognize it as a bowl to roll down.
+- **Fit a line from scratch** by running Module 2's gradient descent on that loss, in
+  base R, live in the browser.
+- **Validate a from-scratch method against a real reference**: run a professional
+  optimizer on the same data and check the answers match within tolerance.
+- **Explain why they match** — one bowl, one bottom — and why that check catches bugs.
+
+If any of these feels shaky, revisit [Explore it](#explore-it) — the capstone leans on
+your being able to read what an optimizer is doing.
+
+## Where this goes next
+
+You've rebuilt a fitter and shown it matches the professionals. The capstone closes the
+loop: we open the actual documentation of a real optimizer (`optim()` and
+`scipy`'s `minimize`) and decode it line by line, mapping every piece of jargon back to
+what you built here: [decode the optimizer](../04-capstone-decode-the-optimizer/lesson.qmd).
+Ready for more reps first? Do the [practice problems](practice.qmd).

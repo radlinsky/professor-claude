@@ -1,0 +1,11 @@
+{
+  "meta": {
+    "slug": "welford",
+    "tier": "full",
+    "source": "C Welford online mean/variance (gcc)",
+    "tolerance": {"abs": 1e-9, "rel": 1e-9},
+    "generator": "equivalence/generate/welford_full_c.c"
+  },
+  "inputs": {"x": [2, 4, 4, 4, 5, 5, 7, 9]},
+  "reference": {"mean": 5, "var": 4.5714285714285712}
+}

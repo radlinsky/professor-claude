@@ -1,0 +1,290 @@
+---
+title: "<Module title — plain words, e.g. 'The mean, and distance from it'>"
+subtitle: "<one line: what this module unlocks>"
+engine: knitr
+---
+
+<!-- INTERACTIVE LESSONS: if this lesson has any runnable in-browser `{webr}` cells,
+     keep the include line below (it wires WebR into this page). If the lesson is
+     entirely static `{r}` chunks, delete both the line below and `engine: knitr`
+     above. Full rules: .claude/course-authoring/interactive-webr.md. Do NOT add a
+     per-file `format:` — the project renders every page as live-html already. -->
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+<!--
+TEMPLATE INSTRUCTIONS (delete all HTML comments when filling in):
+- This template implements root TEACHING.md's golden order. Keep every section
+  below, in this exact order. When in doubt, TEACHING.md wins.
+- Replace <placeholders>. Keep headings' wording-style: plain, non-scary.
+- Every symbol used anywhere in this lesson MUST have a row in the pronunciation
+  table (§ "How to read the symbols"). Copy rows from .claude/course-authoring/notation-style.md.
+- The formal formula may appear ONLY in "The formal version" or later.
+- INTERACTIVE vs STATIC (full contract: .claude/course-authoring/interactive-webr.md):
+  a chunk the learner TWEAKS or SOLVES is a live `{webr}` cell; everything else —
+  the hidden setup chunk, listings the learner only reads, worked answers, and any
+  code needing a package WebAssembly can't run — stays a baked `{r}` chunk. Don't
+  make a chunk live by reflex.
+- R chunks: echo everything, comment the MATH each line computes; hidden setup uses
+  set.seed(42).
+- Anything beyond the course's applied need: mark it **Optional** with one line on
+  what the extra depth buys.
+-->
+
+```{r setup}
+#| include: false
+# Build-time setup only — a live `{webr}` cell does NOT see anything defined here,
+# so every teaching cell below re-states its own data. Packages this lesson uses are
+# installed automatically (into renv; run renv::snapshot() afterwards if you add one).
+needed <- c()   # e.g. c("ggplot2") — leave empty if base R suffices
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+<!-- 2–3 sentences, no formulas: what this concept IS and why the learner needs it
+     (for course modules: connect to the course goal; for foundation modules: name
+     the kinds of methods that use it). -->
+
+<What we'll learn, in plain words, and why it matters.>
+
+**Builds on:** <links to prerequisite lessons, or "just the baseline">
+
+## Warm-up: do you remember?
+
+<!-- 2–3 RETRIEVAL questions on the prerequisites THIS lesson stands on. Rules:
+     - Retrieval, not re-reading: ask the learner to PRODUCE something — a value
+       from small numbers, a pronunciation, a one-line explanation. Never "did you
+       read X?".
+     - Reach back to ≥2 different earlier points when they exist (an earlier module
+       AND a foundation module); for entry modules, quiz the baseline (arithmetic,
+       reading a scatter plot, the idea of an average).
+     - Each answer: collapsed callout, brief worked answer, plus a link back to the
+       lesson/section that taught it ("shaky? revisit <link>").
+     - If a question hands the learner data to compute with, give a copy-able
+       starter chunk (label warmupN-starter), same rule as practice problems. -->
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** <recall question from a prerequisite module>
+
+::: {.callout-note collapse="true" title="Answer"}
+<brief worked answer> — taught in [<module name>](<relative link>); revisit if shaky.
+:::
+
+**2.** <recall question from a different earlier point>
+
+::: {.callout-note collapse="true" title="Answer"}
+<brief worked answer + backlink>
+:::
+
+## A tiny example first
+
+<!-- THE most important section. Rules:
+     - n ≤ 6 data points, small friendly numbers (integers if possible).
+     - Work the computation in PROSE, digit by digit ("add 2 + 4 + 6 to get 12,
+       divide by 3 to get 4").
+     - Then reproduce the exact same numbers in a commented R chunk.
+     - NO formal notation yet. Words only. -->
+
+<Set up the toy scenario in one or two sentences — concrete and friendly, e.g.
+"You measured 3 plants: 2 cm, 4 cm, 6 cm.">
+
+<Work the whole computation in prose.>
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The toy data: <what it is>
+x <- c(2, 4, 6)
+
+# <what this computes, in math words — e.g. "add up all the values">
+total <- sum(x)
+total
+
+# <next step of the same hand computation>
+```
+
+## Getting a feel for it
+
+<!-- Build the INTUITION before any notation. The learner reads R fluently but does
+     not yet FEEL what this concept measures. Still NO formulas here. Three beats:
+     (a) ANALOGY / MENTAL PICTURE — tie the concept to something they already have a
+         feel for (a balance point, two dancers moving together, a typical bet).
+         Blurry-to-sharp: a rough picture first, sharpened later by the formula.
+         REUSE the repo's established anchors where one fits (grep earlier lessons)
+         so anchors compound across courses; and say where the analogy breaks.
+     (b) WHY THIS CONSTRUCTION — why square / why multiply / why divide by THIS, in
+         plain words, tied to the toy numbers ("raw deviations cancel to zero, so we
+         square to stop the cancelling"). This is the design reason, not "it follows".
+     (c) WHAT THE NUMBER FEELS LIKE — is our toy result big or small? What single
+         change would make it bigger or smaller? Point at the picture in "Explore it
+         in R" if the concept has one (or sketch a number line here).
+     ANTI-FILLER RULE: rewording the formula in prose is NOT intuition. This section
+     is a defect unless it contains a genuine analogy AND a why-it's-built-this-way
+     reason. If the concept is purely mechanical and truly has no intuition to build,
+     say so in one line rather than padding. -->
+
+<Analogy / mental picture, why it's built this way, and what the toy number feels like.>
+
+## What the notation is going to say
+
+<!-- Bridge section, still NO formula. In 1 short paragraph, narrate what the
+     upcoming formula says, in English, referring to the toy numbers:
+     "The formula will say: take each measurement, ... . In our toy example
+     that's exactly the 'add 2+4+6, divide by 3' we just did." -->
+
+<Narrate the upcoming formula in plain English.>
+
+## How to read the symbols
+
+<!-- One row per symbol appearing ANYWHERE in this lesson (including practice-
+     relevant ones). Copy pronunciations from .claude/course-authoring/notation-style.md so
+     they stay consistent across all modules. The last column anchors each
+     symbol to the toy example. -->
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x$ | "ex" | <meaning> | <value(s)> |
+| $n$ | "en" | how many data points | 3 |
+
+## The formal version
+
+<!-- ONLY NOW show the formula. Rules:
+     - Multi-term equations: assemble ONE TERM AT A TIME — why the term exists,
+       what breaks without it — then show the finished equation.
+     - Map every part back to the toy numbers ("the Σ part is the 2+4+6 step; the
+       1/n part is the 'divide by 3' step"), and re-do the toy computation once
+       more, narrated THROUGH the formula.
+     - Give the reading-aloud line: symbol-by-symbol AND everyday words.
+     - For derivations: one algebraic step per line (aligned $$ ... $$ block), a
+       bullet after EVERY line naming the trick used ("expand the square", "a sum
+       can be split into two sums", ...); each trick taught already — in a
+       foundation module or earlier in this lesson. Then SANITY-CHECK the result
+       numerically: plug the toy numbers in and show they match the earlier hand
+       computation. -->
+
+$$
+<formula>
+$$
+
+Reading it aloud: "<the whole formula spoken in words, using the pronunciation
+table>" — or in everyday words: "<plain-English sentence>".
+
+Mapping it onto the toy example:
+
+- <formula part> is the "<prose step>" we did above → <number>
+- ...
+
+## Explore it
+
+<!-- 2–4 chunks the learner should RUN AND TWEAK, live in the page. These are the
+     lesson's INTERACTIVE cells: write them as `{webr}` (see
+     .claude/course-authoring/interactive-webr.md). Each chunk:
+     - a one-line "TRY IT: change ..." instruction in a comment at the top,
+     - a PREDICT prompt for anything with a checkable outcome: "PREDICT: write down
+       what you expect <X> to be — then run." (2–3 predict-then-run moments per
+       lesson; committing to a prediction is what makes the result teach),
+     - computes the concept BOTH from the raw formula (by hand, sum()/length()
+       etc.) AND with the built-in R function when one exists, showing they
+       match — that's what makes notation trustworthy,
+     - a plot whenever the concept has a picture (with fig-alt). A concept-carrying
+       plot uses `#| autorun: true` so the picture is there on page load.
+     If a cell needs a package WebAssembly can't run, it is NOT a `{webr}` cell —
+     keep it a baked `{r}` chunk under the static-fallback callout (pattern in
+     interactive-webr.md), clearly labelled "runs on your machine, not here". -->
+
+```{webr}
+#| autorun: true
+#| fig-alt: "<describe the picture for a screen reader>"
+# TRY IT: change the values below and re-run — watch the result move.
+# PREDICT: write down what you expect <X> to be — then run and check.
+x <- c(2, 4, 6)
+
+# By hand, straight from the formula: <formula in words>
+by_hand <- sum(x) / length(x)
+
+# R's built-in shortcut for the same thing
+built_in <- mean(x)
+
+c(by_hand = by_hand, built_in = built_in)  # identical — the formula IS the function
+```
+
+## Common traps
+
+<!-- 1–2 predictable misconceptions, refuted WITH NUMBERS (refutation beats
+     omission: naming the trap inoculates; hiding it leaves it live). Pattern per
+     trap: state the tempting wrong belief plainly → say why it's tempting → show
+     it fail on this lesson's numbers (prose or a tiny chunk). Pick traps a real
+     learner would hit (order-of-operations, n vs n−1, correlation≠slope, ...).
+     One of these becomes the practice set's spot-the-error problem. -->
+
+**Trap: "<the tempting wrong belief>".** <Why it's tempting, and the numeric
+refutation using this lesson's toy numbers.>
+
+## Check yourself
+
+<!-- 2–3 quick questions, answerable in <1 minute each, straight from this lesson.
+     The LAST one is always the own-words prompt: "Explain to a colleague, in two
+     sentences, what <concept> measures and why it's built the way it is" — with a
+     collapsed MODEL answer (a genuinely good two-sentence explanation, not a
+     formula reading). Answers in collapsed callouts with the worked step(s), not
+     just the result. If a question gives the learner a vector / data frame to
+     compute with, add a small ```{r} starter chunk defining that data right after
+     the question (same copy-able-data rule as the practice set; label
+     checkN-starter). Skip it for scalar-only plug-ins already stated in prose. -->
+
+**1.** <question>
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to solve, right here (omit if scalar-only)
+x <- c(...)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+<worked answer>
+:::
+
+**2.** <question>
+
+::: {.callout-note collapse="true" title="Answer"}
+<worked answer>
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what <concept>
+measures and why it's built the way it is.
+
+::: {.callout-note collapse="true" title="A model answer"}
+<two crisp sentences a non-mathematician could say — analogy welcome, no formula
+recitation>
+:::
+
+## What you can now do
+
+<!-- 3–5 CAN-DO bullets — abilities, not topics ("compute a covariance by hand from
+     paired deviations", not "covariance"). Then the mastery rule, naming the exact
+     place to revisit. -->
+
+- <can-do 1>
+- <can-do 2>
+- <can-do 3>
+
+If any of these feels shaky, revisit <section / module link> before continuing —
+the next module assumes all of them.
+
+## Where this goes next
+
+<!-- 2–3 sentences: which module comes next and what THIS concept will be used
+     for there. Link with a relative path. Then point to practice.qmd. If the
+     course's COURSE-REQUEST gave applied-practice pointers for this module, end
+     with the Applied-practice line (format in course-structure.md). -->
+
+<Next step and link. Then: "Ready for more reps? Do the
+[practice problems](practice.qmd).">
+
+<!-- Optional, only when the course request provides it:
+**Applied practice (<external repo>):** open `<path/to/notebook-or-doc>` — <one
+line on what to do there>. -->

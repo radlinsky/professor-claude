@@ -1,0 +1,308 @@
+---
+title: "Vectors, subscripts, and the big Σ"
+subtitle: "How to read the single most common piece of notation in all of statistics"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Almost every formula in a statistics paper is built from three little pieces: a list
+of numbers (a *vector*), a way to point at one item in the list (a *subscript*), and
+an instruction to add things up (the big Σ). Once you can read those three fluently,
+formulas stop being walls and start being recipes. Nearly every method — means,
+variances, regression, likelihoods — is written with them.
+
+**Builds on:** just the baseline (you already use R vectors every day — that's most
+of the battle).
+
+## Warm-up: do you remember?
+
+This is the entry module, so there's nothing earlier to recall — just three baseline
+reflexes the notation leans on. You already know these from R; produce each before
+opening it.
+
+**1.** For `x <- c(2, 4, 6)`, what does `x[3]` give, and what does `length(x)` give?
+
+::: {.callout-note collapse="true" title="Answer"}
+`x[3]` is `6` (the third item) and `length(x)` is `3` (how many items). These are
+exactly the subscript $x_i$ and the count $n$ you're about to meet in math clothing.
+:::
+
+**2.** In R, what does `sum(c(2, 4, 6))` return, and what is the operation in plain
+words?
+
+::: {.callout-note collapse="true" title="Answer"}
+`12` — "go through the list and add the items up." That single operation is all the
+big Σ ever asks for.
+:::
+
+**3.** Order of operations: is `2 + 3 * 4` equal to `20` or `14`? Why?
+
+::: {.callout-note collapse="true" title="Answer"}
+`14` — multiplication happens before addition ($3\times4 = 12$, then $+2$). The same
+"what binds first?" instinct is what keeps $\sum x_i^2$ (square first) separate from
+$\left(\sum x_i\right)^2$ (add first) later in this lesson.
+:::
+
+## A tiny example first
+
+You measured the heights of 3 plants: 2 cm, 4 cm, and 6 cm.
+
+Suppose someone asks for the total height. You'd add 2 + 4 = 6, then 6 + 6 = 12.
+The total is **12 cm**. That's it — that's everything the scary Σ notation will ever
+ask you to do: *go through a list, item by item, and add as you go*.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The toy data: three plant heights, in cm
+x <- c(2, 4, 6)
+
+# Point at individual items — "the 1st value", "the 3rd value"
+x[1]   # 2
+x[3]   # 6
+
+# Add up every item in the list, one by one
+total <- sum(x)
+total  # 12
+```
+
+## Getting a feel for it
+
+**The big Σ is a `for` loop frozen into one symbol.** You already write this loop
+without thinking: start a running total at 0, walk the list one item at a time, and
+add each item as you pass it. That is *exactly* what $\sum$ means — the loop below and
+the symbol are the same instruction:
+
+```r
+total <- 0
+for (i in 1:n) total <- total + x[i]   # this loop IS the big Σ
+```
+
+So when a formula throws a towering Σ at you, the feeling to reach for is not "scary
+math" but "oh — it's a loop, and I know loops."
+
+**Why it's written with a counter and bounds.** The little $i$ underneath and the $n$
+on top aren't decoration: they're the loop variable and the list length, and they're
+there so *one* compact recipe works for a list of any size. Write "$2 + 4 + 6$" and
+you've described adding *three specific* numbers; write $\sum_{i=1}^{n} x_i$ and you've
+described adding a list whether it holds 3 numbers or 3 million. The subscript $x_i$ is
+how the recipe says "the item I'm pointing at right now," the same job `x[i]` does
+inside your loop.
+
+**What it feels like to read one.** Reading a Σ fluently is three glances: find the
+counter and its range (the loop bounds), find the expression sitting to its right (the
+body of the loop), then picture the loop running and accumulating. A monstrous-looking
+sum is never more than "do this small thing to each item, and keep a running total."
+The only real subtlety — how *far right* the Σ reaches — is the one habit we sharpen
+next.
+
+## What the notation is going to say
+
+The formula you're about to see says exactly this: "call the list x; call its i-th
+item x-sub-i; there are n items; add up all of them, starting at item 1 and stopping
+at item n." In our toy example that's just the "2 + 4 + 6 = 12" we already did —
+with n = 3.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\mathbf{x}$ | "the vector ex" | a whole list of numbers at once (an R vector!) | `c(2, 4, 6)` |
+| $x_i$ | "ex sub eye" | the i-th value of x (in R: `x[i]`) | $x_1 = 2$, $x_2 = 4$, $x_3 = 6$ |
+| $y_i$ | "why sub eye" | the i-th value of a *second* list y (in R: `y[i]`) | used in Rule 1 below |
+| $i$ | "eye" | the counter that walks through the list | goes 1, 2, 3 |
+| $n$ | "en" | how many data points there are (in R: `length(x)`) | 3 |
+| $\sum_{i=1}^{n}$ | "the sum from i equals 1 to n" | add up the expression to its right, once per i (in R: `sum(...)`) | $2 + 4 + 6$ |
+| $c$ | "see" | some constant — a fixed number that doesn't change with i | we'll use 10 below |
+
+## The formal version
+
+$$
+\sum_{i=1}^{n} x_i = x_1 + x_2 + \dots + x_n
+$$
+
+Reading it aloud: "the sum, from i equals 1 to n, of x-sub-i" — or in everyday
+words: "walk through the list from the first item to the last, adding as you go."
+
+Mapping it onto the toy example:
+
+- $x_i$ is "the current plant's height" → 2, then 4, then 6
+- $i=1$ under the Σ is "start at the first plant"
+- $n$ on top is "stop after the third plant" (n = 3)
+- the whole thing → $2 + 4 + 6 = 12$, exactly `sum(x)`
+
+**One crucial reading habit:** Σ applies to *everything written to its right* (until
+a + or − at the same level). $\sum x_i^2$ means "square each item, THEN add"
+(`sum(x^2)`), while $\left(\sum x_i\right)^2$ means "add first, THEN square"
+(`sum(x)^2`). Those are different numbers — check:
+
+```{r square-vs-sum}
+x <- c(2, 4, 6)
+sum(x^2)   # square each, then add:  4 + 16 + 36 = 56
+sum(x)^2   # add, then square:       12^2        = 144
+```
+
+### Three rules for shuffling sums (the algebra tricks)
+
+Derivations in papers constantly reshape sums using three legal moves. Each is
+obvious with the toy numbers — and that's the point: they're bookkeeping, not magic.
+
+**Rule 1 — a sum can be split into two sums** (because you can regroup addition):
+
+$$
+\sum_{i=1}^{n} (x_i + y_i) = \sum_{i=1}^{n} x_i + \sum_{i=1}^{n} y_i
+$$
+
+**Rule 2 — a constant multiplier can be pulled out front** (factoring):
+
+$$
+\sum_{i=1}^{n} c\, x_i = c \sum_{i=1}^{n} x_i
+$$
+
+**Rule 3 — summing a constant n times gives n·c:**
+
+$$
+\sum_{i=1}^{n} c = n\,c
+$$
+
+```{r sum-rules}
+x <- c(2, 4, 6)
+y <- c(1, 1, 2)
+n <- length(x)
+c_const <- 10
+
+# Rule 1: sum of (x + y) equals sum of x plus sum of y
+c(lhs = sum(x + y), rhs = sum(x) + sum(y))   # both 16
+
+# Rule 2: constants factor out of a sum
+c(lhs = sum(c_const * x), rhs = c_const * sum(x))   # both 120
+
+# Rule 3: adding the constant 10, once per data point, is just n * 10
+c(lhs = sum(rep(c_const, n)), rhs = n * c_const)    # both 30
+```
+
+These three rules are the entire toolkit behind most "then it follows that…" steps
+in methods sections. When a later lesson says "split the sum (Rule 1)", it means
+exactly this.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: make the vector longer or change values, press Run, and verify
+# sum() always matches walking the list yourself with a loop (what Σ literally says).
+# PREDICT: will the loop total ever disagree with sum() for ANY vector you type in?
+# Commit yes/no, then edit x and run.
+x <- c(2, 4, 6)
+
+running_total <- 0
+for (i in 1:length(x)) {        # "from i equals 1 to n"
+  running_total <- running_total + x[i]   # "...add x-sub-i"
+}
+c(loop = running_total, sigma = sum(x))   # identical — sum() IS the Σ
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: change n or the constant and press Run — the three rules hold for
+# ANY data, not just nice numbers.
+# PREDICT: will all three all.equal() checks print TRUE for 50 random values? Commit,
+# then run.
+set.seed(42)
+n <- 50
+x <- rnorm(n)          # 50 random values
+y <- rnorm(n)
+c_const <- 3.7
+
+all.equal(sum(x + y), sum(x) + sum(y))          # Rule 1
+all.equal(sum(c_const * x), c_const * sum(x))   # Rule 2
+all.equal(sum(rep(c_const, n)), n * c_const)    # Rule 3
+```
+
+## Common traps
+
+**Trap 1 — $\sum x_i^2$ versus $\left(\sum x_i\right)^2$.** These read almost the
+same but are different numbers, and mixing them up is the single most common Σ
+mistake. Square-then-add: $2^2 + 4^2 + 6^2 = 4 + 16 + 36 = 56$ (`sum(x^2)`).
+Add-then-square: $12^2 = 144$ (`sum(x)^2`). The Σ reaches only as far right as the
+$x_i^2$; the parentheses in the second form pull the squaring outside. When you meet
+this in a variance or SSE formula, check where the exponent sits.
+
+**Trap 2 — assuming Σ swallows everything after it, including a trailing constant.**
+$\sum_{i=1}^{n} x_i + c$ means $\left(\sum x_i\right) + c$ — the $+c$ is added
+**once**, outside the sum. It does *not* mean $\sum (x_i + c)$, which adds $c$ to
+every term ($n$ times). For $x = (2,4,6)$ and $c = 10$: the first is
+$12 + 10 = 22$, the second is $\sum(12, 14, 16) = 42$ — nowhere near each other. Σ
+extends only to the first $+$ or $-$ at its own level; parentheses are what pull more
+under it.
+
+## Check yourself
+
+**1.** Read this aloud, then compute it for $x = (2, 4, 6)$: $\;\sum_{i=1}^{3} 2\,x_i$
+
+```{webr}
+#| autorun: false
+# check1-starter — LIVE: write your answer here, then press Run (Question 2 reuses x).
+x <- c(2, 4, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"The sum, from i equals 1 to 3, of two times x-sub-i."
+
+Compute directly: $2(2) + 2(4) + 2(6) = 4 + 8 + 12 = 24$.
+
+Or use Rule 2 (pull the constant out): $2 \sum x_i = 2 \times 12 = 24$. In R:
+`sum(2 * x)` = 24.
+:::
+
+**2.** For the same $x$: are $\sum_{i=1}^{3} x_i^2$ and $\left(\sum_{i=1}^{3} x_i\right)^2$ the same number?
+
+::: {.callout-note collapse="true" title="Answer"}
+No. Square-then-add: $4 + 16 + 36 = 56$ (`sum(x^2)`). Add-then-square:
+$12^2 = 144$ (`sum(x)^2`). The Σ only applies to what's written directly to its
+right — parentheses change the order of operations, exactly like in R.
+:::
+
+## What you can now do
+
+- **Read a Σ expression aloud** — name its counter, its start-and-stop bounds, and
+  the expression being summed — and translate it to `sum(...)` or a `for` loop in R.
+- **Tell $\sum x_i^2$ from $\left(\sum x_i\right)^2$** by where the operation binds:
+  square-then-add (56) versus add-then-square (144) for $x = (2,4,6)$.
+- **Apply the three sum rules** — split a sum (Rule 1), pull a constant out front
+  (Rule 2), and turn a summed constant into $n\,c$ (Rule 3) — to reshape an expression.
+- **Spot how far a Σ reaches**: only to the first $+$ or $-$ at its level, unless
+  parentheses pull more underneath it.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+and [The formal version](#the-formal-version) before continuing — every later formula
+in statistics is built from these moves.
+
+## Where this goes next
+
+With Σ in hand you can read the formulas for the mean, variance, and covariance —
+that's the next module: [mean, variance & covariance](../mean-variance-covariance/lesson.qmd).
+And Rules 1–3 are precisely the moves used to derive regression's formulas later.
+Ready for more reps? Do the [practice problems](practice.qmd).

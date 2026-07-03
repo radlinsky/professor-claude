@@ -1,0 +1,330 @@
+---
+title: "Exponentials and logs: undoing each other"
+subtitle: "The number e, the natural log, and the handful of rules that make them tame"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Two functions show up in almost every statistical formula that involves growth,
+decay, probabilities, or likelihoods: the **exponential** $e^x$ and its exact
+opposite, the **natural logarithm** $\log$. They look intimidating written down, but
+they are just a matched pair of buttons on a calculator that undo each other — like
+"square" and "square root," or "add 3" and "subtract 3." This module makes them
+comfortable: what $e$ is, what $\log$ gives you back, and the five little rules that
+turn ugly products into tidy sums.
+
+Methods that lean on them: anything with the word *likelihood*, logistic regression
+and other models built on probabilities, compound growth and half-lives, and the
+information/entropy measures in machine learning.
+
+**Builds on:** just the baseline (you can already raise a number to a power and take
+a square root, and you know that some operations undo others).
+
+## Warm-up: do you remember?
+
+This is a foundation module, so there's nothing earlier to recall — just three
+baseline reflexes the idea leans on. Produce each answer before opening it.
+
+**1.** What is $2^3$? And what single operation *undoes* "raise 2 to a power" — that
+is, if $2^{?} = 8$, how would you describe finding that `?`?
+
+::: {.callout-note collapse="true" title="Answer"}
+$2^3 = 2 \times 2 \times 2 = 8$. Undoing it means asking "2 to *what* power gives 8?" —
+the answer is 3. That question is exactly what a **logarithm** answers, and it's the
+whole idea of this lesson.
+:::
+
+**2.** Square roots undo squares: $\sqrt{9} = 3$ because $3^2 = 9$. In the same spirit,
+what number, squared, gives 25? What operation did you just perform?
+
+::: {.callout-note collapse="true" title="Answer"}
+$5$, because $5^2 = 25$ — you took a square root. The point to hold onto: functions
+come in **undo-pairs**. Exponentials and logs are one such pair.
+:::
+
+**3.** What is $\tfrac{1}{2^3}$ as a decimal? (No calculator — just $2^3 = 8$.)
+
+::: {.callout-note collapse="true" title="Answer"}
+$\tfrac{1}{8} = 0.125$. A *negative* exponent will turn out to mean exactly this — "one
+over" — so $2^{-3} = \tfrac{1}{8}$. Worth having fresh, because $e^{-z}$ is everywhere
+in the courses that use this module.
+:::
+
+## A tiny example first
+
+Meet the number **$e \approx 2.718$**. It's just a fixed number, like $\pi \approx
+3.14159$ — nothing mystical, a specific constant that happens to make growth math come
+out clean. "Raising $e$ to a power" is the **exponential** function, written $e^x$ or
+`exp(x)`.
+
+Let's compute a few by hand-ish reasoning and then check them:
+
+- $e^0 = 1$. (Anything to the power 0 is 1 — no exceptions for $e$.)
+- $e^1 = e \approx 2.718$. (One copy of $e$.)
+- $e^2 = e \times e \approx 2.718 \times 2.718 \approx 7.389$.
+- $e^{-1} = \tfrac{1}{e} \approx \tfrac{1}{2.718} \approx 0.368$. (Negative power = "one
+  over," from the warm-up.)
+
+Now the **natural log**, written $\log$ here (base $e$), is the undo button: $\log(y)$
+answers "$e$ to *what* power gives $y$?" So:
+
+- $\log(1) = 0$, because $e^0 = 1$.
+- $\log(e) = 1$, because $e^1 = e$.
+- $\log(7.389) \approx 2$, because $e^2 \approx 7.389$.
+
+Feed a number through $e^x$ and then through $\log$, and you get the original number
+straight back. That "there and back again" is the single most useful fact here.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# e is exp(1); "raise e to a power" is exp()
+exp(0)          # e^0 = 1
+exp(1)          # e^1 = e ~ 2.718
+exp(2)          # e^2 ~ 7.389
+exp(-1)         # e^-1 = 1/e ~ 0.368
+
+# log() with no base is the NATURAL log (base e) in R -- the undo button
+log(1)          # 0, since e^0 = 1
+log(exp(2))     # exactly 2: log undoes exp
+exp(log(5))     # exactly 5: exp undoes log (the round trip, other direction)
+```
+
+## Getting a feel for it
+
+**A mental picture: a stretchy ruler and its rewind button.** Think of $e^x$ as a
+machine that takes a distance $x$ and *stretches* it into a scale factor. At $x = 0$
+there's no stretch, so you get $1$. Each step to the right multiplies by another factor
+of $e$ (about 2.7×), so the output rockets upward — that's *exponential growth*. Step
+*left* into negative $x$ and you divide instead of multiply, so the output shrinks
+toward zero but never quite reaches it. The **log** is the rewind button: hand it a
+scale factor and it tells you how far along the ruler you'd walked to get there.
+
+Where the picture bends: a real ruler is evenly spaced, but the *outputs* of $e^x$ are
+not — they get dramatically farther apart as $x$ grows and bunch up toward zero as $x$
+goes negative. That uneven spacing is the whole personality of exponential growth.
+
+**Why $e$ and not just $10$?** You *can* take logs in any base (base-10 logs power the
+Richter scale, base-2 logs power bits). Base $e$ is the "natural" choice because it's
+the one where the growth rate equals the current size — the slope of $e^x$ *is* $e^x$
+— which makes the calculus in likelihoods and growth models come out without stray
+constants. For reading formulas, the practical rule is simpler: **in stats papers,
+"$\log$" means natural log (base $e$) unless it explicitly says otherwise.**
+
+**Why logs turn products into sums.** Here's the property that makes logs beloved:
+multiplying two numbers becomes *adding* their logs. Multiplying a long chain of
+probabilities (all tiny, prone to underflow) is a nightmare; adding their logs is
+stable and easy. That single trick — "products become sums" — is why every likelihood
+in statistics gets a log slapped on it before anyone does any work.
+
+**What the numbers feel like.** $e^x$ is always **positive**, no matter what $x$ is —
+even $e^{-100}$ is a tiny positive sliver, never zero or negative. And $\log$ only
+accepts **positive** inputs (you can't ask "$e$ to what power gives $-3$?" — nothing
+works). $\log$ of a number bigger than 1 is positive; $\log(1) = 0$; $\log$ of a number
+between 0 and 1 is *negative*. Keep those signs in your pocket — they catch a lot of
+mistakes.
+
+## What the notation is going to say
+
+The rules below all say variations of one idea: **$e^x$ and $\log$ undo each other, and
+because exponents add when you multiply powers, logs turn multiplication into
+addition.** When you see $\log(ab) = \log a + \log b$, read it as "the log of a product
+is the sum of the logs" — the same fact as "$e^2 \cdot e^3 = e^{2+3} = e^5$," just
+viewed through the rewind button.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $e$ | "ee" (Euler's number) | a fixed constant $\approx 2.718$, the natural base (in R: `exp(1)`) | $2.718\ldots$ |
+| $e^x$ | "ee to the ex" | the exponential function: raise $e$ to the power $x$ (in R: `exp(x)`) | $e^2 \approx 7.389$ |
+| $\exp(x)$ | "the exponential of ex" | another way to write $e^x$ | same as $e^x$ |
+| $\log$ | "log" (natural log) | the natural logarithm, base $e$ — the undo of $e^x$ (in R: `log(x)`) | $\log(e^2) = 2$ |
+| $\ln$ | "ell-en" (natural log) | the same natural log; some sources write $\ln$ where we write $\log$ | $\ln(e) = 1$ |
+| $x^{-1}$ | "ex to the minus one" | one over: $x^{-1} = 1/x$; a negative exponent means "reciprocal" | $e^{-1} \approx 0.368$ |
+| $a, b, y$ | "ay, bee, why" | generic stand-ins for *any* number, used to state the rules | e.g. $a = 4$, $b = 3$ below |
+
+## The formal version
+
+Here is the whole toolkit — five rules, each one just the undo-relationship or the
+"exponents add" fact in disguise. We'll verify each numerically right after.
+
+**The undo pair (the two most important):**
+
+$$
+\log(e^x) = x \qquad\text{and}\qquad e^{\log y} = y \ \ (y > 0)
+$$
+
+Reading it aloud: "log of ee-to-the-ex is ex" and "ee-to-the-log-of-why is why" — in
+everyday words: *exp and log cancel each other, in either order.*
+
+**The three algebra rules:**
+
+$$
+\begin{aligned}
+\log(a \cdot b) &= \log a + \log b \\
+\log(a / b)     &= \log a - \log b \\
+\log(a^b)       &= b \cdot \log a
+\end{aligned}
+$$
+
+- Line 1: **a product becomes a sum** — because $e^{p}\cdot e^{q} = e^{p+q}$, so the
+  exponents (which are the logs) add.
+- Line 2: **a quotient becomes a difference** — same fact with division, so exponents
+  subtract. A special case: $\log(1/b) = \log 1 - \log b = -\log b$ (since $\log 1 = 0$).
+- Line 3: **a power comes down out front as a multiplier** — because $a^b$ is $a$
+  multiplied by itself $b$ times, and by Line 1 each copy contributes one $\log a$.
+
+Reading Line 1 aloud: "log of a-times-b equals log-a plus log-b" — "multiplying inside
+the log is the same as adding outside it."
+
+Sanity-check every rule on friendly numbers (using $\log$ base $e$):
+
+```{r formal-check}
+a <- 4; b <- 3
+
+# Undo pair
+c(log_of_exp = log(exp(2.5)), exp_of_log = exp(log(9)))   # 2.5 and 9 -- unchanged
+
+# Product -> sum
+c(lhs = log(a * b), rhs = log(a) + log(b))                # both ~ 2.4849
+
+# Quotient -> difference (and the 1/b special case)
+c(lhs = log(a / b), rhs = log(a) - log(b))                # both ~ 0.2877
+c(lhs = log(1 / b), rhs = -log(b))                        # both ~ -1.0986
+
+# Power -> multiplier out front
+c(lhs = log(a^b), rhs = b * log(a))                       # both ~ 4.1589
+```
+
+Every pair matches to the last digit — the rules aren't magic, they're the same
+arithmetic written two ways.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The curve of e^x rising steeply for positive x and flattening toward (but never touching) zero for negative x, with a dashed horizontal line at y = 0."
+# explore-1 — LIVE: the shape of e^x. Positive everywhere, explosive right, hugs 0 left.
+# PREDICT: is e^x ever zero or negative for any x? Write your guess, then run and look.
+curve(exp(x), from = -3, to = 3, lwd = 2, col = "steelblue",
+      ylab = "exp(x)", main = "e^x is always positive")
+abline(h = 0, lty = 3)          # the floor it approaches but never reaches
+points(0, exp(0), pch = 16)     # e^0 = 1
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: log and exp really are inverses. Feed a number through both.
+# PREDICT: what will `log(exp(z))` and `exp(log(z))` each equal? Guess, then run.
+z <- 7                          # <-- try other POSITIVE numbers
+c(round_trip_1 = log(exp(z)),   # exp then log
+  round_trip_2 = exp(log(z)))   # log then exp -- both give z back
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: the "products become sums" rule is what makes logs useful.
+# PREDICT: multiply these three numbers, then take the log. Will it equal the SUM of
+# their three individual logs? Write yes/no, then run.
+vals <- c(2, 5, 10)
+by_product <- log(prod(vals))              # log of the product
+by_sum     <- sum(log(vals))               # sum of the logs
+c(by_product = by_product, by_sum = by_sum)
+```
+
+## Common traps
+
+**Trap: "$\log(a + b)$ is $\log a + \log b$."** Very tempting, because the product rule
+looks so close. But the rule turns *products* into sums, not *sums* into sums. Check it:
+$\log(4 + 3) = \log(7) \approx 1.946$, while $\log 4 + \log 3 \approx 1.386 + 1.099 =
+2.485$. **Not equal.** There is no rule that simplifies $\log$ of a sum — leave it
+alone.
+
+**Trap: "a negative exponent makes the answer negative."** No — a negative exponent
+means "one over," and the result stays **positive**. $e^{-2} = 1/e^{2} \approx 0.135$,
+a small *positive* number, not $-7.389$. Exponentials never go negative; only their
+*exponent* can.
+
+## Check yourself
+
+**1.** Without a calculator: what is $\log(e^5)$? And what is $e^{\log(12)}$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\log(e^5) = 5$ and $e^{\log(12)} = 12$. Both are the undo pair in action — exp and log
+cancel, leaving the exponent (5) or the input (12) untouched.
+:::
+
+**2.** Use the log rules to rewrite $\log\!\left(\dfrac{a}{b}\right)$ as a sum/difference
+of simpler logs, then check it in R for $a = 6, b = 2$.
+
+```{webr}
+#| autorun: false
+# check2-starter — edit and Run to check your rewrite
+a <- 6; b <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The quotient rule gives $\log(a/b) = \log a - \log b$.
+
+```{r check2-answer}
+a <- 6; b <- 2
+c(lhs = log(a / b), rhs = log(a) - log(b))   # both ~ 1.0986
+```
+Both equal about $1.0986$ ($= \log 3$, since $6/2 = 3$) — the quotient inside the log
+became a difference outside it.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the natural log
+gives you and why turning products into sums is so useful.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The natural log of a number answers "$e$ raised to what power gives this number?" — it's
+the rewind button for exponential growth. Its product-to-sum rule lets you replace
+multiplying a long chain of numbers (which is fiddly and can underflow to zero) with
+adding their logs, which is why every likelihood in statistics is worked on the
+log scale.
+:::
+
+## What you can now do
+
+- **Evaluate** $e^x$ and $\log(x)$ for simple inputs and know their signs (both $e^x$
+  and valid $\log$ inputs are positive; $\log$ of a number below 1 is negative).
+- **Use the undo pair** $\log(e^x) = x$ and $e^{\log y} = y$ to cancel exp and log in
+  either order.
+- **Apply the three log rules** — product→sum, quotient→difference, power→multiplier —
+  and know that $\log$ of a *sum* does not simplify.
+- **Explain why** likelihoods are taken on the log scale (products become sums).
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+and [The formal version](#the-formal-version) — courses that use this module lean on
+the undo pair and the product→sum rule constantly.
+
+## Where this goes next
+
+This is a shared building block, so it feeds several courses. You'll use $e^{-z}$ to
+build the **sigmoid** function in logistic regression, the natural log to define
+**log-odds** and to turn a product of probabilities into a **log-likelihood** you can
+actually work with, and these same rules whenever a derivation says "take the log of
+both sides." Ready for more reps? Do the [practice problems](practice.qmd).

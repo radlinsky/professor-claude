@@ -1,0 +1,178 @@
+---
+title: "Capstone practice — the whole course, mixed"
+subtitle: "No labels saying which tool to use — recalling that is part of the test. Answers hidden; try first."
+---
+
+```{r setup}
+#| message: false
+# Packages this practice set uses. Missing ones are installed automatically.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+These draw on every module, in mixed order — figuring out *which* idea each problem
+needs is the point, so there are no "uses Module N" hints. Do each honestly before
+opening the answer.
+
+## Problem 1
+
+Three cars: $x = (2, 4, 6)$ mph over the limit, $y = (3, 5, 8)$ tickets that year.
+Score the candidate line "intercept 1, slope 1" by hand — predictions, residuals,
+and its total score. Check in R.
+
+```{r p1-starter}
+# Starter — copy this to begin
+x <- c(2, 4, 6); y <- c(3, 5, 8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Predictions $1 + 1\cdot x$: 3, 5, 7. Residuals $y - \hat{y}$: 0, 0, +1. Square and
+sum (never just add — raw misses would cancel): $0 + 0 + 1 = 1$. The score is
+SSE $= 1$.
+
+```{r p1-answer}
+x <- c(2, 4, 6); y <- c(3, 5, 8)
+sum((y - (1 + 1 * x))^2)   # 1
+```
+:::
+
+## Problem 2
+
+New data: $x = (1, 2, 3)$, $y = (2, 1, 6)$. Fit the *best* line by hand: compute
+$\bar{x}, \bar{y}, s_{xy}, s_x^2$, then the slope and intercept. Confirm with `lm()`.
+
+```{r p2-starter}
+# Starter — copy this to begin
+x <- c(1, 2, 3); y <- c(2, 1, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\bar{x} = 2$, $\bar{y} = 3$. Deviations of x: $(-1, 0, 1)$; of y: $(-1, -2, 3)$.
+Products: $1, 0, 3$; sum 4, so $s_{xy} = 4/2 = 2$. Squared x-deviations: $1, 0, 1$;
+sum 2, so $s_x^2 = 2/2 = 1$.
+
+Slope $\hat{\beta}_1 = s_{xy}/s_x^2 = 2/1 = 2$; intercept
+$\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x} = 3 - 2\times 2 = -1$.
+
+```{r p2-answer}
+x <- c(1, 2, 3); y <- c(2, 1, 6)
+c(slope = cov(x, y) / var(x),
+  intercept = mean(y) - (cov(x, y) / var(x)) * mean(x))   # 2 and -1
+coef(lm(y ~ x))                                            # matches
+```
+:::
+
+## Problem 3
+
+A journal table reports a predictor as `2.61 (0.87)` with the note "standard errors
+in parentheses." Reconstruct its t value, and say in one plain sentence what that t
+value tells you.
+
+::: {.callout-note collapse="true" title="Answer"}
+$t = \text{estimate} / \text{SE} = 2.61 / 0.87 = 3.0$. The estimate sits 3 bounce
+("standard error") lengths from zero — comfortably past the ±2 rule of thumb, so it's
+unlikely that luck alone (a true coefficient of zero) produced an effect this large;
+the paper would flag it as statistically significant.
+:::
+
+## Problem 4 — spot the error
+
+A colleague computes the regression slope for $x = (1, 2, 3)$, $y = (2, 1, 6)$ like
+this. It has **exactly one mistake** — find it and give the correct slope.
+
+> "Covariance is 2, variance of x is 1. The slope is variance over covariance,
+> $s_x^2 / s_{xy} = 1/2 = 0.5$."
+
+```{r p4-starter}
+# Starter — copy this to check the corrected slope
+x <- c(1, 2, 3); y <- c(2, 1, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The ratio is upside down. The slope is **covariance over variance**,
+$\hat{\beta}_1 = s_{xy}/s_x^2 = 2/1 = 2$ — not variance over covariance. (A quick
+sanity check catches it: this data clearly trends upward overall, so the slope should
+be a solid positive number like 2, not a shallow 0.5.)
+
+```{r p4-answer}
+x <- c(1, 2, 3); y <- c(2, 1, 6)
+cov(x, y) / var(x)   # 2 — covariance over variance
+```
+:::
+
+## Problem 5
+
+Fit `mpg ~ hp` on the built-in `mtcars` (fuel efficiency vs horsepower). The
+horsepower coefficient comes out strongly significant ($p < 0.001$), and $R^2 \approx
+0.60$. A friend concludes: "significant means horsepower predicts mpg almost
+perfectly." Are they right? Explain.
+
+```{r p5-starter}
+# Starter — copy this to begin
+fit <- lm(mpg ~ hp, data = mtcars)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+No — they're conflating two different questions. The tiny p-value says the *slope is
+almost certainly not zero*: more horsepower really is associated with lower mpg. But
+$R^2 = 0.60$ says the line still leaves **40%** of mpg's variation unexplained — a
+lot of scatter around the line. A relationship can be rock-solid (highly significant)
+and still be a loose predictor. Significance answers "is there an effect?"; $R^2$
+answers "how tightly does the line fit?"
+
+```{r p5-answer}
+summary(lm(mpg ~ hp, data = mtcars))$coefficients   # hp: p ~ 1e-7, very significant
+summary(lm(mpg ~ hp, data = mtcars))$r.squared       # ~0.60 — 40% unexplained
+```
+:::
+
+## Problem 6 — decode a fresh table
+
+Here is a regression you haven't seen, from R's built-in `women` data (average weight
+in pounds regressed on height in inches for 15 age groups), in journal format:
+
+> | | Weight (lbs) |
+> |---|---|
+> | Height (in) | 3.450*** |
+> | | (0.091) |
+> | Constant | −87.517*** |
+> | | (5.937) |
+> | Observations | 15 |
+> | R² | 0.991 |
+>
+> *Notes:* SEs in parentheses. \*\*\*p < 0.001.
+
+(a) In plain English, what does the Height coefficient mean? (b) Reconstruct the
+Height t value from the table. (c) The intercept is −87.5 lbs — is a 0-inch person
+predicted to weigh negative? What's really going on? (d) Is this a tight fit?
+
+```{r p6-starter}
+# Starter — check your reading against the real fit
+fit <- lm(weight ~ height, data = women)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) Each additional inch of height is associated with about **3.45 more pounds** of
+weight (that's $\hat{\beta}_1 = s_{xy}/s_x^2$).
+
+(b) $t = 3.450 / 0.091 \approx 37.9$ — an enormous distance from zero; the `***`
+(p < 0.001) is no surprise.
+
+(c) No real 0-inch person exists — the intercept is just the line's height at
+$x = 0$, far outside the data (the shortest woman here is 58 inches). Extrapolating
+the line that far gives a meaningless negative; interpret the intercept only as the
+anchor $\bar{y} - \hat{\beta}_1\bar{x}$, not a physical weight.
+
+(d) Yes — $R^2 = 0.991$ means height explains 99% of the weight variation; these are
+smoothed group averages, so the line fits almost exactly.
+
+```{r p6-answer}
+fit <- lm(weight ~ height, data = women)
+summary(fit)$coefficients   # slope 3.450 (0.091), intercept -87.517 (5.937)
+summary(fit)$r.squared       # 0.991
+3.450 / 0.091                # ~37.9, the reconstructed t
+```
+:::

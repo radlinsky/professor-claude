@@ -1,0 +1,264 @@
+---
+title: "Capstone: reading a real logistic regression"
+subtitle: "Open a full summary(glm(..., family = binomial)) and decode every number"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The R cell below with a **Run** button is live (WebR) — you rebuild the predicted
+probabilities from the fitted coefficients right here. The `glm()` output itself is baked
+in at build time (it uses R's `stats` package, which isn't in the browser build), so it's
+shown for reading, with a note beside it.
+:::
+
+## Where we're going
+
+No new ideas here — this capstone proves you reached the goal. When you started, a
+logistic-regression printout was a wall of jargon: *coefficients on the log-odds scale*,
+*std. error*, *z value*, *deviance*, *odds ratio*. Now you've **built** every one of those
+things. So we'll open a real `summary(glm(..., family = binomial))` — R fitting a genuine
+model to the built-in `mtcars` data — and decode every field, tracing each back to the
+module where you built it. Then we'll read the same fit the way a paper's methods section
+would report it. If you can read this, you can read the logistic regression in almost any
+methods section.
+
+**Builds on:** every module — the [sigmoid (1)](../01-from-line-to-probability/lesson.qmd),
+[odds, log-odds & the logit (2)](../02-odds-log-odds-and-the-logit/lesson.qmd), and
+[likelihood & gradient ascent (3)](../03-likelihood-and-gradient-ascent/lesson.qmd), plus
+the foundations they rest on.
+
+## Warm-up: do you remember?
+
+Three recalls spanning the course. Produce each before opening it.
+
+**1.** *(Module 1)* A car has linear score $z = 1.98$ from a logistic model. What is its
+predicted probability, and which function turns the score into it?
+
+::: {.callout-note collapse="true" title="Answer"}
+The sigmoid: $\sigma(1.98) = 1/(1 + e^{-1.98}) \approx 0.879$. See
+[Module 1](../01-from-line-to-probability/lesson.qmd).
+:::
+
+**2.** *(Module 2)* A coefficient is $\beta_1 = -4.02$. What is the odds ratio, and does
+this predictor raise or lower the odds of the outcome?
+
+::: {.callout-note collapse="true" title="Answer"}
+Odds ratio $= e^{-4.02} \approx 0.018$. Since it's **below 1**, each one-unit rise in the
+predictor *lowers* the odds (multiplies them by about $0.018$ — a steep drop). See
+[Module 2](../02-odds-log-odds-and-the-logit/lesson.qmd).
+:::
+
+**3.** *(Module 3)* How are logistic-regression coefficients found, given there's no
+closed-form formula like least squares?
+
+::: {.callout-note collapse="true" title="Answer"}
+By **maximizing the log-likelihood** — climbing the single-summit surface with gradient
+ascent until the gradient is zero. See
+[Module 3](../03-likelihood-and-gradient-ascent/lesson.qmd).
+:::
+
+## The artifact
+
+Here is a real logistic regression. We predict whether a car has a **manual transmission**
+(`am = 1`) from its **weight** in thousands of pounds (`wt`), using R's built-in `mtcars`
+data (32 cars). This is exactly the kind of call and output you'll meet in real code and
+papers:
+
+::: {.callout-note title="Runs on your machine, not here"}
+`glm()` lives in R's `stats` package, which isn't in the browser's WebR build, so this
+cell is baked at build time — copy it into your own R session to reproduce it. (In
+[Module 3](../03-likelihood-and-gradient-ascent/lesson.qmd) you confirmed a from-scratch
+gradient ascent lands on these very same coefficients.)
+:::
+
+```{r artifact}
+# THE ARTIFACT — a real logistic regression, fit with base R's glm
+fit <- glm(am ~ wt, data = mtcars, family = binomial)
+summary(fit)
+```
+
+## The decode, field by field
+
+Read each piece aloud, then trace it home to the module that built it.
+
+**The model being fit — `am ~ wt`, `family = binomial`.** This says "model the outcome
+`am` (manual = 1, automatic = 0) as a logistic regression on `wt`." Under the hood it is
+the [logit link from Module 2](../02-odds-log-odds-and-the-logit/lesson.qmd):
+$$
+\log\!\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 \cdot \texttt{wt},
+$$
+the log-odds of a manual transmission as a straight line in weight. `family = binomial` is
+what tells `glm` to use the sigmoid and the Bernoulli log-likelihood rather than ordinary
+least squares.
+
+**`Coefficients — Estimate`: `(Intercept) 12.040`, `wt -4.024`.** These are the fitted
+$\hat\beta_0$ and $\hat\beta_1$ — the [Module 3](../03-likelihood-and-gradient-ascent/lesson.qmd)
+summit of the log-likelihood, the exact numbers your from-scratch ascent reached. They
+live on the **log-odds scale** ([Module 2](../02-odds-log-odds-and-the-logit/lesson.qmd)):
+
+- $\hat\beta_0 = 12.040$ is the log-odds of a manual transmission at $\texttt{wt} = 0$ (an
+  extrapolation — no car weighs zero — but that's what the intercept means).
+- $\hat\beta_1 = -4.024$ is the change in log-odds per extra 1000 lb. It's **negative**:
+  heavier cars are less likely to be manual. As an odds ratio ([Module 2](../02-odds-log-odds-and-the-logit/lesson.qmd)),
+  $e^{-4.024} \approx 0.018$ — each extra 1000 lb multiplies the odds of manual by about
+  $0.018$, roughly a **98% drop** in the odds.
+
+**`Std. Error`: `4.510`, `1.436`.** The uncertainty in each estimate — how much the
+coefficient would wobble if you refit on fresh data from the same process. With only 32
+cars these are sizeable. (It plays the same role as the standard errors you met reading
+`lm()` output in the
+[simple-linear-regression course](../../../simple-linear-regression/syllabus.md); the
+machinery differs, the meaning is the same.)
+
+**`z value`: `2.670`, `-2.801`.** Each is `Estimate / Std. Error` — how many
+standard errors the coefficient sits from zero. For `wt`: $-4.024 / 1.436 \approx -2.80$.
+Big in magnitude → the coefficient is far from zero relative to its noise → strong
+evidence of a real effect. (The logistic-regression analogue of the *t value* from
+ordinary regression; here the reference curve is the normal, so it's called `z`.)
+
+**`Pr(>|z|)`: `0.00759`, `0.00509`.** The **p-value** for each coefficient: the chance of
+seeing a `z` value this far from zero if the coefficient were truly zero (no effect). Both
+are well under $0.05$, and the `**` codes flag them as significant at the $0.01$ level.
+Weight is a statistically clear predictor of transmission type. (Same reading as the
+p-value stars in a
+[regression table](../../../simple-linear-regression/syllabus.md).)
+
+**`Null deviance: 43.230 on 31 df` and `Residual deviance: 19.176 on 30 df`.** Deviance is
+$-2 \times$ log-likelihood — so a **smaller** deviance means a **larger** log-likelihood,
+i.e. a better fit (the sign-flip of "less negative log-likelihood is better" from
+[Module 3](../03-likelihood-and-gradient-ascent/lesson.qmd)). *Null* deviance is the fit
+using only an intercept (no `wt`); *residual* deviance is the fit with `wt` added. The drop
+from $43.230$ to $19.176$ — about $24$ — is how much better the model got by letting weight
+matter. The `df` are bookkeeping: 32 cars minus 1 parameter (null) or 2 parameters
+(residual).
+
+**`AIC: 23.176`.** A model-comparison score that rewards fit (low deviance) but penalizes
+using more parameters — handy for choosing between competing models. *(Optional: you don't
+need AIC to read this fit; it matters when comparing several models. Lower is better.)*
+
+**`Number of Fisher Scoring iterations: 6`.** How many steps `glm`'s optimizer took to
+reach the summit — the same *idea* as the iteration count you watched in gradient ascent
+([Module 3](../03-likelihood-and-gradient-ascent/lesson.qmd)), though `glm` uses a smarter,
+curvature-aware climber (Fisher scoring) that needs far fewer steps than plain ascent, just
+as `optim`'s L-BFGS-B did in the
+[gradient-descent capstone](../../../gradient-descent/modules/04-capstone-decode-the-optimizer/lesson.qmd).
+
+### Rebuild the predictions from the coefficients
+
+Everything the model predicts flows from the two coefficients through the machinery you
+built. Take the coefficients, form the score, squash with the sigmoid — and you get the
+same probabilities `glm`'s own `predict()` returns. Run it:
+
+```{webr}
+#| autorun: true
+# LIVE: rebuild glm's predicted probabilities by hand, from the fitted coefficients.
+# PREDICT: a light 2.5k-lb car vs a heavy 4k-lb car -- which has the higher probability
+# of being manual? Guess, then run.
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- 12.040; b1 <- -4.024               # the fitted coefficients from the summary
+
+wt    <- c(2.5, 4.0)
+score <- b0 + b1 * wt                     # the log-odds (Module 2): 1.98 and -4.06
+prob  <- sigmoid(score)                   # squash to probability (Module 1)
+rbind(wt = wt, log_odds = round(score, 3), prob = round(prob, 3))
+# 2.5k-lb car: ~0.879 chance manual ; 4.0k-lb car: ~0.017 -- matches glm's predict()
+```
+
+A light car ($2.5$k lb) is predicted about $88\%$ likely to be manual; a heavy one ($4$k
+lb) only about $2\%$ — the negative weight coefficient at work, run all the way through the
+sigmoid to a probability.
+
+## How a paper would report the same fit
+
+A methods section rarely prints the raw `glm` block. It writes something like:
+
+> We modelled transmission type (manual vs. automatic) with logistic regression on vehicle
+> weight. Heavier vehicles were significantly less likely to be manual (log-odds
+> $\hat\beta = -4.02$ per 1000 lb; odds ratio $0.018$, 95% CI $[0.001, 0.30]$; $z =
+> -2.80$, $p = 0.005$).
+
+Decode that sentence, all of it now familiar:
+
+- "**logistic regression on vehicle weight**" → the [logit link](../02-odds-log-odds-and-the-logit/lesson.qmd),
+  log-odds modelled as a line in weight.
+- "**log-odds $\hat\beta = -4.02$ per 1000 lb**" → the `wt` coefficient, on the log-odds
+  scale ([Module 2](../02-odds-log-odds-and-the-logit/lesson.qmd)).
+- "**odds ratio $0.018$**" → $e^{\hat\beta} = e^{-4.02}$ ([Module 2](../02-odds-log-odds-and-the-logit/lesson.qmd));
+  each extra 1000 lb multiplies the odds of manual by $0.018$.
+- "**95% CI $[0.001, 0.30]$**" → a plausible range for that odds ratio, built from the
+  standard error as $e^{\hat\beta \pm 1.96\,\text{SE}}$. The whole interval sits below $1$
+  — "no effect" — which is the CI-form of "the p-value is below $0.05$".
+- "**$z = -2.80$, $p = 0.005$**" → the coefficient's `z value` and p-value straight from
+  the table.
+
+Same fit, same numbers — just prose instead of a printout.
+
+## Common traps
+
+**Trap: "the coefficient $-4.02$ means weight lowers the *probability* of manual by
+$4.02$ (or by $402\%$)."** No — a coefficient is a change in **log-odds** per unit, never a
+change in probability ([Module 2's trap](../02-odds-log-odds-and-the-logit/lesson.qmd#common-traps)).
+Its clean multiplicative reading is the odds ratio $e^{-4.02} \approx 0.018$ (odds
+multiplied by $0.018$ per 1000 lb). The *probability* change depends on the car's weight —
+big near the middle of the S-curve, tiny out at the ends.
+
+**Trap: "the null deviance being bigger than the residual deviance means the model got
+worse."** Backwards. Deviance is $-2 \times$ log-likelihood, so **smaller is better**. The
+*null* model (intercept only) has the bigger deviance ($43.230$); adding `wt` *reduced* it
+to $19.176$. A drop in deviance is an *improvement* in fit — the mirror of "less negative
+log-likelihood is better" from [Module 3](../03-likelihood-and-gradient-ascent/lesson.qmd).
+
+## What you can now do
+
+- **Read a `summary(glm(..., family = binomial))` field by field** — the model formula and
+  family, the coefficients (on the log-odds scale), their standard errors, z values, and
+  p-values, the null and residual deviance, the iteration count.
+- **Interpret each coefficient two ways** — as a change in log-odds per unit, and as an
+  odds ratio $e^{\hat\beta}$ (above 1 raises the odds, below 1 lowers them).
+- **Rebuild any predicted probability** from the coefficients: form the score
+  $\beta_0 + \beta_1 x$, squash with the sigmoid.
+- **Decode the same model as a paper reports it** — coefficient, odds ratio with a
+  confidence interval, z, and p — and know which module every piece came from.
+
+If any field still reads as jargon, revisit the module it points to above — reading that
+output cold is the entire goal of this course, and you just did it on real data.
+
+## What you still can't read (yet)
+
+This course took you through logistic regression with a **single** predictor. A few honest
+edges to know about, each a natural next step:
+
+- **Several predictors at once** — `glm(y ~ x1 + x2 + x3, family = binomial)`. Nothing new
+  in spirit: the score becomes $\beta_0 + \beta_1 x_1 + \beta_2 x_2 + \cdots$ (more knobs on
+  the same gradient-ascent climb), and each coefficient's odds ratio is read "holding the
+  others fixed." The linear-algebra bookkeeping for many predictors at once is its own
+  topic.
+- **Other outcomes** — counts (Poisson regression), 3+ categories (multinomial), ordered
+  categories (ordinal). These swap the sigmoid and the likelihood for relatives of them;
+  the "line on a transformed scale, fit by maximum likelihood" skeleton is identical.
+- **How the standard errors and that 95% CI are actually computed** — this comes from the
+  *curvature* of the log-likelihood at its summit (how sharply the hill falls away from the
+  top). It leans on more calculus and a little linear algebra than this course assumed.
+
+None of these change what you built; they extend it. You can read the core of a logistic
+regression now — the rest is more of the same shape.
+
+## Where this goes next
+
+You've built and decoded logistic regression end to end. The natural continuations are
+above: multiple logistic regression (many predictors), the wider family of *generalized
+linear models* (Poisson, multinomial — same skeleton, different link and likelihood), and
+the curvature-based standard-error machinery. Each reuses exactly what you now own — a line
+on a transformed scale, squashed to a valid range, fit by maximizing a likelihood. Ready
+for the final cumulative set? Do the [practice problems](practice.qmd).

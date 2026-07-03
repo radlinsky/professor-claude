@@ -1,0 +1,41 @@
+name: license-check
+
+# Backstop for issue #12: every course must record a source-license verdict so
+# copyrighted / non-open material can't be built on silently. The real check is the
+# intake gate in the create-course / port-library skills (a human confirms flags);
+# this only asserts, mechanically, that each course syllabus carries a non-empty
+# `**Source license:**` line — catching any build that reached a PR without one.
+# See .claude/course-authoring/source-licensing.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'courses/**/syllabus.md'
+      - '.github/workflows/license-check.yml'
+  pull_request:
+    paths:
+      - 'courses/**/syllabus.md'
+      - '.github/workflows/license-check.yml'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Every course syllabus records a source-license verdict
+        run: |
+          fail=0
+          for f in courses/*/syllabus.md; do
+            [ -e "$f" ] || continue
+            verdict=$(grep -m1 '^\*\*Source license:\*\*' "$f" | sed 's/^\*\*Source license:\*\* *//')
+            case "$verdict" in
+              ""|*TODO*|*todo*|*unknown*|*UNKNOWN*)
+                echo "::error file=$f::missing or placeholder '**Source license:**' line (got: '${verdict:-<none>}')"
+                fail=1 ;;
+              *)
+                echo "OK  $f — $verdict" ;;
+            esac
+          done
+          exit $fail

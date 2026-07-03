@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "slug": "gradient-descent",
+    "tier": "full",
+    "source": "scipy.optimize L-BFGS-B (scipy 1.18.0)",
+    "tolerance": {
+      "abs": 1e-06,
+      "rel": 1e-06
+    },
+    "seed": 42,
+    "generated": "2026-07-03T07:52:56-06:00",
+    "generator": "equivalence/generate/gd_full_scipy.py"
+  },
+  "inputs": {
+    "x": [
+      -3.5,
+      -2.5,
+      -1.5,
+      -0.5,
+      0.5,
+      1.5,
+      2.5,
+      3.5
+    ],
+    "y": [
+      12.53,
+      9.4,
+      6.58,
+      3.59,
+      0.3,
+      -2.63,
+      -5.49,
+      -8.53
+    ],
+    "lr": 0.1,
+    "n_iter": 2000
+  },
+  "reference": {
+    "coef": [
+      1.968750029034487,
+      -3.009404764462221
+    ]
+  }
+}

@@ -1,0 +1,222 @@
+---
+title: "Practice: The gradient"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order. Handy helpers to paste into any starter:
+
+```r
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+```
+
+## Problem 1 — the toy example, new numbers
+
+For $f(a,b) = (a - 3)^2 + (b - 1)^2$ (bottom at $a=3, b=1$), compute the gradient at
+$(0, 0)$ by hand (the slope in each direction is $2(\text{coord} - \text{target})$), then
+take one descent step with $\alpha = 0.1$. Check in R.
+
+```{webr}
+#| autorun: false
+# p1-starter
+f <- function(v) (v[1] - 3)^2 + (v[2] - 1)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Slopes at $(0,0)$: in $a$, $2(0-3) = -6$; in $b$, $2(0-1) = -2$. So gradient $=(-6,-2)$.
+One step: $(0,0) - 0.1(-6,-2) = (0.6, 0.2)$ — moving toward $(3,1)$ on both axes.
+
+```{r p1-answer}
+f <- function(v) (v[1] - 3)^2 + (v[2] - 1)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+g <- gradient(f, c(0, 0)); g       # (-6, -2)
+c(0, 0) - 0.1 * g                  # (0.6, 0.2)
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+A vector gradient-descent loop is written with its **update line blanked**. Supply it.
+
+> ```
+> v <- c(0, 0)
+> for (t in 1:100) {
+>   g <- gradient(f, v)
+>   your step here          # update the whole vector v using g and lr
+> }
+> ```
+
+```{webr}
+#| autorun: false
+# p2-starter — fill in the update line, then Run
+f <- function(v) (v[1] - 3)^2 + (v[2] - 1)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+v <- c(0, 0); lr <- 0.1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked line is the vector update — subtract the learning rate times the whole
+gradient: `v <- v - lr * g`. Because `v` and `g` are both length-2 vectors, this one
+line updates *both* knobs at once.
+
+```{r p2-answer}
+f <- function(v) (v[1] - 3)^2 + (v[2] - 1)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+v <- c(0, 0); lr <- 0.1
+for (t in 1:100) { g <- gradient(f, v); v <- v - lr * g }
+v   # ~ (3, 1)
+```
+:::
+
+## Problem 3 — descend to the bottom
+
+Minimize $f(a,b) = (a + 2)^2 + (b - 4)^2$ (bottom at $a=-2, b=4$) from the start
+$(5, 5)$, $\alpha = 0.1$, 150 steps. Report the final $(a, b)$.
+
+```{webr}
+#| autorun: false
+# p3-starter
+f <- function(v) (v[1] + 2)^2 + (v[2] - 4)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+f <- function(v) (v[1] + 2)^2 + (v[2] - 4)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+v <- c(5, 5); lr <- 0.1
+for (t in 1:150) v <- v - lr * gradient(f, v)
+v   # ~ (-2, 4)
+```
+It converges to about $(-2, 4)$. Note $a$ started far away (at 5, target $-2$) and $b$
+started close (at 5, target 4), so $a$ took bigger early steps — each knob moves at a
+pace set by its own slope.
+:::
+
+## Problem 4 — spot the error
+
+A colleague's "partial slope in direction $i$" nudges the wrong thing. Their code has
+**exactly one mistake** — find it and fix it.
+
+```{webr}
+#| autorun: false
+# p4-starter — this partial() nudges every coordinate, not just coordinate i. Fix it.
+f <- function(v) (v[1] - 3)^2 + (v[2] - 1)^2
+partial <- function(f, v, i, h = 1e-5) {
+  (f(v + h) - f(v - h)) / (2 * h)     # nudges ALL of v, not only v[i]
+}
+partial(f, c(0, 0), 1)   # should be -6 (slope in a only); gives something else
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: `f(v + h)` adds $h$ to **every** coordinate at once, so it measures a
+diagonal slope, not the slope in direction $i$ alone. A partial must nudge *only* the
+$i$-th coordinate, holding the rest fixed:
+
+```{r p4-answer}
+f <- function(v) (v[1] - 3)^2 + (v[2] - 1)^2
+partial <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v
+  up[i] <- up[i] + h; dn[i] <- dn[i] - h   # change ONLY coordinate i
+  (f(up) - f(dn)) / (2 * h)
+}
+partial(f, c(0, 0), 1)   # -6, the slope in the a-direction, as it should be
+```
+:::
+
+## Problem 5 — two knobs that don't talk *(uses Module 1's 1-D descent)*
+
+The bowl $f(a,b) = (a - 3)^2 + (b - 1)^2$ splits cleanly: the $a$ part doesn't involve
+$b$ and vice versa. *Predict*, using Module 1 thinking, what 2-D descent will find — then
+confirm the two coordinates behave exactly like two independent 1-D descents.
+
+```{webr}
+#| autorun: false
+# p5-starter — compare 2-D descent to two separate 1-D descents
+f     <- function(v) (v[1] - 3)^2 + (v[2] - 1)^2
+fa    <- function(x) (x - 3)^2      # the a-slice alone (a 1-D bowl, Module 1)
+fb    <- function(x) (x - 1)^2      # the b-slice alone
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Prediction: since the knobs don't interact, the $a$-coordinate should behave like a
+Module-1 descent on $(a-3)^2$ (landing at 3) and the $b$-coordinate like a descent on
+$(b-1)^2$ (landing at 1) — completely independently. Confirm:
+
+```{r p5-answer}
+f     <- function(v) (v[1] - 3)^2 + (v[2] - 1)^2
+fa    <- function(x) (x - 3)^2
+fb    <- function(x) (x - 1)^2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+
+# 1-D descents (Module 1) on each slice
+xa <- 0; xb <- 0
+for (t in 1:100) { xa <- xa - 0.1 * slope_at(fa, xa); xb <- xb - 0.1 * slope_at(fb, xb) }
+
+# 2-D descent, same start and rate
+v <- c(0, 0)
+for (t in 1:100) v <- v - 0.1 * gradient(f, v)
+
+rbind(one_d = c(xa, xb), two_d = v)   # identical: (3, 1)
+```
+When the inputs don't interact, the gradient's coordinates are just separate 1-D slopes,
+so 2-D descent *is* two Module-1 descents running side by side.
+:::
+
+## Problem 6 — a gentle cliffhanger
+
+To fit a straight line $\hat y = b_0 + b_1 x$ to data, the two knobs are the intercept
+$b_0$ and the slope $b_1$, and the thing to minimize is the total squared prediction
+error as those knobs vary — a bowl over $(b_0, b_1)$. Given everything in this module,
+what would gradient descent *do* to fit the line, in one sentence?
+
+::: {.callout-note collapse="true" title="Answer"}
+It would treat $(b_0, b_1)$ as the position $\mathbf v$, measure the gradient of the
+squared-error surface (how the error changes as you nudge the intercept, and as you nudge
+the slope), and step against it repeatedly until both slopes are zero — i.e. roll to the
+bottom of the error bowl. That bottom is the best-fitting line, and
+[the next module](../03-fitting-a-line-by-descent/lesson.qmd) runs it — then checks the
+answer against a professional optimizer.
+:::

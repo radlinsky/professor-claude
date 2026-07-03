@@ -1,0 +1,157 @@
+---
+title: "Practice: The derivative, as a slope you can measure"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in the live cells; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+In the lesson we measured the slope of $f(x) = x^2$ at $x = 3$ and got $6$. Now measure
+it at $x = 2$. Take a forward step of $h = 0.1$ by hand (rise over run), then check in R.
+What value should the slope approach as $h$ shrinks?
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+f <- function(x) x^2
+x0 <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+By hand with $h = 0.1$: rise $= f(2.1) - f(2) = 4.41 - 4 = 0.41$; run $= 0.1$; slope
+$= 0.41 / 0.1 = 4.1$. Shrinking $h$ marches this toward **4**.
+
+```{r p1-answer}
+f <- function(x) x^2
+x0 <- 2
+(f(x0 + 0.1) - f(x0)) / 0.1                 # 4.1, heading for 4
+(f(x0 + 1e-5) - f(x0 - 1e-5)) / (2 * 1e-5)  # ~4, the settled-on slope
+```
+
+The exact slope of $x^2$ is $2x = 4$ at $x = 2$ — found here by measuring, not by a rule.
+:::
+
+## Problem 2 — fill in the missing step
+
+Estimate the slope of $f(x) = x^3$ at $x = 1$ with the central difference, $h = 0.01$.
+The work is laid out below with the **core step blanked** — supply just that line.
+
+> Step 1 — the two nearby outputs: $f(1.01) = 1.01^3 = 1.030301$ and
+> $f(0.99) = 0.99^3 = 0.970299$.
+> Step 2 — **`your step here`**: form the central difference (rise across both steps,
+> over the total run $2h = 0.02$).
+> Step 3 — read the result: it should be close to $3$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+f <- function(x) x^3
+x0 <- 1; h <- 0.01
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing step is the central-difference ratio:
+$$
+\frac{f(1.01) - f(0.99)}{2h} = \frac{1.030301 - 0.970299}{0.02} = \frac{0.060002}{0.02}
+= 3.0001 \;\approx\; 3.
+$$
+The move is: subtract the two outputs to get the rise, divide by the *total* run $2h$.
+
+```{r p2-answer}
+f <- function(x) x^3
+x0 <- 1; h <- 0.01
+(f(x0 + h) - f(x0 - h)) / (2 * h)   # 3.0001 -> the slope of x^3 at x = 1 is 3
+```
+:::
+
+## Problem 3 — a curve that falls
+
+Measure the slope of $f(x) = 1/x$ at $x = 2$ using the numerical method. Then say, in
+words, what the *sign* of your answer tells you about the curve there.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: measure the slope of 1/x at x = 2, then interpret its sign
+f <- function(x) 1 / x
+x0 <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) 1 / x
+slope_at(f, 2)   # about -0.25
+```
+The slope is about $-0.25$ — **negative**, so the curve $1/x$ is heading *downhill* at
+$x = 2$: as $x$ increases, $1/x$ decreases. (It's also fairly gentle — a magnitude of
+only a quarter — because $1/x$ has flattened out by $x = 2$.)
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants the slope of $f(x) = x^2$ at $x = 3$ (which we know is $6$). They
+write the central difference like this — it contains **exactly one mistake**. Find it
+and fix it.
+
+```{webr}
+#| autorun: false
+# p4-starter — this is the buggy code; run it, see the wrong answer, then fix it
+f <- function(x) x^2
+x0 <- 3; h <- 1e-5
+(f(x0 + h) - f(x0 - h)) / h      # they got about 12 — but the slope is 6
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the **run**: stepping from $x - h$ to $x + h$ covers a distance of
+$2h$, not $h$. Dividing by $h$ instead of $2h$ doubles the answer (that's why $6$ came
+out as $12$). Fix the denominator:
+
+```{r p4-answer}
+f <- function(x) x^2
+x0 <- 3; h <- 1e-5
+(f(x0 + h) - f(x0 - h)) / (2 * h)   # 6 — correct once the run is the full 2h
+```
+:::
+
+## Problem 5 — a gentle cliffhanger
+
+Here is the curve $f(x) = (x - 4)^2 + 1$ — a bowl whose lowest point is somewhere near
+$x = 4$. You can't solve for the bottom with a formula yet, but you *can* hunt for it
+with slopes: the bottom is where the slope is **zero**. Scan a few $x$ values, measure
+the slope at each, and find where it flips from negative to positive.
+
+```{webr}
+#| autorun: false
+# p5-starter — measure the slope at several x; where does it cross zero?
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) (x - 4)^2 + 1
+xs <- 1:7
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p5-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) (x - 4)^2 + 1
+xs <- 1:7
+sapply(xs, function(x) slope_at(f, x))   # -6 -4 -2 0 2 4 6
+```
+The slopes go $-6, -4, -2, 0, +2, +4, +6$ across $x = 1 \dots 7$: negative (downhill)
+to the left of $x = 4$, positive (uphill) to the right, and **zero exactly at
+$x = 4$** — the bottom of the bowl. That "slope is zero at the lowest point, negative
+before it, positive after" pattern is the whole idea behind *rolling downhill to the
+minimum* — the tool that turns this scan into an automatic search is next.
+:::

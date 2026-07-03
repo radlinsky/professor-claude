@@ -1,0 +1,210 @@
+---
+title: "Practice: Capstone — the whole descent, mixed"
+subtitle: "No hints about which idea each problem needs — recalling that is the test."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+These draw on every module, in mixed order — figuring out *which* idea each one needs is
+part of the test, so there are no "uses Module N" labels. Two helpers to paste as needed:
+
+```r
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+## Problem 1
+
+Measure the slope of $f(x) = x^3 - 2x$ at $x = 2$, numerically. Is the function heading
+uphill or downhill there?
+
+```{webr}
+#| autorun: false
+# p1-starter
+f <- function(x) x^3 - 2 * x
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p1-answer}
+f <- function(x) x^3 - 2 * x
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+slope_at(f, 2)   # 10
+```
+The slope is about $+10$ — positive, so the curve is heading **uphill** at $x = 2$. (The
+exact slope is $3x^2 - 2 = 10$, but you found it by measuring.)
+:::
+
+## Problem 2
+
+Minimize $f(x) = (x + 3)^2 + 2$ (a bowl with its bottom at $x = -3$) with gradient
+descent from $x = 4$, learning rate $0.1$, 100 steps. Where does it land?
+
+```{webr}
+#| autorun: false
+# p2-starter
+f <- function(x) (x + 3)^2 + 2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p2-answer}
+f <- function(x) (x + 3)^2 + 2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 4; for (t in 1:100) x <- x - 0.1 * slope_at(f, x)
+x   # ~ -3
+```
+It lands at about $x = -3$. Starting to the right of the bottom, the slope is positive,
+so subtracting it walks $x$ left toward $-3$.
+:::
+
+## Problem 3
+
+For $g(a, b) = (a - 5)^2 + (b + 1)^2$, compute the gradient at $(0, 0)$ and take one
+descent step with $\alpha = 0.1$. Which direction does each knob move, and why?
+
+```{webr}
+#| autorun: false
+# p3-starter
+g <- function(v) (v[1] - 5)^2 + (v[2] + 1)^2
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+g <- function(v) (v[1] - 5)^2 + (v[2] + 1)^2
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+gr <- gradient(g, c(0, 0)); gr        # (-10, 2)
+c(0, 0) - 0.1 * gr                    # (1, -0.2)
+```
+Gradient $(-10, +2)$. Subtracting $0.1$ times it moves $a$ **up** (toward its target 5,
+since the $a$-slope is negative → downhill is toward larger $a$) and $b$ **down** (toward
+$-1$). Each knob heads toward its own target.
+:::
+
+## Problem 4
+
+Fit a line to this noisy data by descent, then report the coefficients **and** the final
+MSE. Should the MSE be zero? Explain in a sentence.
+
+```{webr}
+#| autorun: false
+# p4-starter
+x <- c(0, 1, 2, 3, 4); y <- c(1.1, 2.8, 5.2, 6.9, 9.1)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p4-answer}
+x <- c(0, 1, 2, 3, 4); y <- c(1.1, 2.8, 5.2, 6.9, 9.1)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:5000) b <- b - 0.02 * gradient(mse, b)
+c(intercept = b[1], slope = b[2], mse = mse(b))
+```
+Coefficients near intercept $\approx 1$, slope $\approx 2$. The MSE is **not** zero: the
+points carry scatter, so no straight line hits them all — the best line just minimizes the
+leftover squared error.
+:::
+
+## Problem 5 — spot the error
+
+This code is meant to fit a line, but the gradient is computed wrongly — **exactly one
+mistake**. Find it and fix it.
+
+```{webr}
+#| autorun: false
+# p5-starter — the gradient nudges both knobs together instead of one at a time. Fix it.
+x <- c(1, 2, 3, 4); y <- c(3, 5, 7, 9)     # line y = 1 + 2x
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+bad_gradient <- function(f, v, h = 1e-5) {
+  (f(v + h) - f(v - h)) / (2 * h)          # nudges the whole vector at once
+}
+b <- c(0, 0); for (t in 1:2000) b <- b - 0.05 * bad_gradient(mse, b)
+b
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The gradient must nudge **one coordinate at a time** (a partial slope), holding the other
+fixed. `f(v + h)` adds $h$ to both knobs simultaneously, measuring a diagonal slope, not
+the per-knob slopes — so the fit is wrong. Fix it with the proper per-coordinate gradient:
+
+```{r p5-answer}
+x <- c(1, 2, 3, 4); y <- c(3, 5, 7, 9)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:2000) b <- b - 0.05 * gradient(mse, b)
+b   # ~ (1, 2)
+```
+:::
+
+## Problem 6 — interpretation
+
+You fit the same data three ways — your from-scratch descent, R's `optim()`, and `lm()` —
+and all three return the same intercept and slope, but your descent took 3000 iterations
+while `optim()` reports only 12. A colleague says "so `optim()` is more accurate." Are
+they right? Answer in two or three sentences.
+
+::: {.callout-note collapse="true" title="Answer"}
+No. All three found the *same* bottom of the *same* single-bottomed error bowl, so they're
+equally accurate on this problem — the answer is identical. They differ only in
+*efficiency*: `optim()` (a BFGS-type method) uses the surface's curvature to take large,
+well-chosen steps and so converges in far fewer iterations, while plain gradient descent
+takes many small fixed steps. Fewer iterations means faster, not more correct.
+:::
+
+## Problem 7 — decode a fresh artifact
+
+Here is the output of a real optimizer you haven't seen — `optim()` minimizing some
+objective. Read each field and say, in plain words, what it tells you (no need to know
+the objective).
+
+```{r p7-artifact}
+# A fresh optimizer run to decode (you don't need to know the objective)
+set.seed(1)
+obj <- function(v) (v[1] - 7)^2 + 3 * (v[2] + 2)^2 + 5
+optim(par = c(0, 0), fn = obj, method = "BFGS")[c("par", "value", "counts", "convergence")]
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+- **`par`** ≈ $(7, -2)$ — the parameters at the answer: the position of the bottom of this
+  objective's bowl (the values that minimize it).
+- **`value`** ≈ $5$ — the objective *at* that bottom: the smallest value it reached (here
+  the "+5" floor of the bowl).
+- **`counts`** — how many times it evaluated the function / its gradient: a proxy for the
+  number of downhill steps it took.
+- **`convergence`** = `0` — the success flag: it reached a flat spot (gradient ≈ 0) and
+  stopped cleanly rather than running out of iterations.
+
+Reading those four fields off any optimizer's output — that's the whole point of the
+course, and you just did it on something new.
+:::

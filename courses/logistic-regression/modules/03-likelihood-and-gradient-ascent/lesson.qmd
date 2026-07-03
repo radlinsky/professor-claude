@@ -1,0 +1,481 @@
+---
+title: "Likelihood, and fitting by gradient ascent"
+subtitle: "Find the coefficients that make the observed 0/1 data most probable — by climbing uphill"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+We have the model's *shape* — a line on the log-odds, bent to a probability by the
+sigmoid. What we don't have is the coefficients. In ordinary regression there was a tidy
+formula for them; in logistic regression **there isn't** — no closed form exists. Instead
+we ask a beautifully direct question: *which coefficients make the 0/1 data we actually
+observed most probable?* That "probability of the data" is the **likelihood**; the
+coefficients that maximize it are the fit. This module builds the likelihood, explains
+why we work with its **log**, and finds the top by **gradient ascent** — your
+[gradient-descent](../../../gradient-descent/syllabus.md) machine with the sign flipped to
+climb *uphill*.
+
+**Builds on:** [the logit link and sigmoid](../02-odds-log-odds-and-the-logit/lesson.qmd)
+(module 2); the [gradient-descent](../../../gradient-descent/syllabus.md) course (the
+update rule, the gradient over several knobs); and the foundations
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd)
+(products → sums via the log),
+[vectors-and-summation](../../../../foundations/vectors-and-summation/lesson.qmd) (the
+$\Sigma$), and
+[derivative-as-slope](../../../../foundations/derivative-as-slope/lesson.qmd) (measuring a
+slope numerically).
+
+## Warm-up: do you remember?
+
+Three recalls spanning module 2, the gradient-descent course, and a foundation. Produce
+each answer before opening it.
+
+**1.** *(module 2)* For a logistic model with score $z = \beta_0 + \beta_1 x$, what
+function turns the score into the predicted probability $p$?
+
+::: {.callout-note collapse="true" title="Answer"}
+The sigmoid: $p = \sigma(z) = 1/(1 + e^{-z})$. See
+[module 2](../02-odds-log-odds-and-the-logit/lesson.qmd).
+:::
+
+**2.** *(gradient-descent course)* Gradient **descent** updates a parameter vector by
+$\mathbf{v} \leftarrow \mathbf{v} - \alpha \nabla f(\mathbf{v})$ to find a *minimum*. What
+one change turns it into gradient **ascent**, to find a *maximum*?
+
+::: {.callout-note collapse="true" title="Answer"}
+Flip the sign: $\mathbf{v} \leftarrow \mathbf{v} + \alpha \nabla f(\mathbf{v})$ — step
+*with* the gradient (uphill) instead of against it. See the
+[gradient-descent course](../../../gradient-descent/syllabus.md).
+:::
+
+**3.** *(exponentials-and-logs)* What does the log rule turn a *product*
+$a \times b \times c$ into, once you take $\log$ of it?
+
+```{webr}
+#| autorun: false
+# warmup3-starter — edit and Run to check the product -> sum rule
+vals <- c(0.8, 0.5, 0.3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Into a **sum** of logs: $\log(a b c) = \log a + \log b + \log c$. Shaky? Revisit
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd). This is
+exactly why the log-likelihood is a *sum*, not a product.
+:::
+
+## A tiny example first
+
+Six students, hours studied $x$, and whether each passed ($y = 1$) or not ($y = 0$).
+Notice the **overlap** near the middle — a `1` at 3 hours, a `0` at 4 — which is what
+makes this a realistic, well-behaved fit rather than a clean cutoff:
+
+| $x$ (hours) | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| $y$ (passed) | 0 | 0 | 1 | 0 | 1 | 1 |
+
+A logistic model predicts a probability $p_i = \sigma(\beta_0 + \beta_1 x_i)$ that
+student $i$ passes. **How well does a given pair of coefficients explain what we saw?**
+Here's the key idea, one student at a time:
+
+- If a student **passed** ($y_i = 1$), the chance the model assigned to *that* happening
+  is $p_i$. We want $p_i$ big.
+- If a student **failed** ($y_i = 0$), the chance the model assigned to *that* is
+  $1 - p_i$. We want $1 - p_i$ big.
+
+So each student contributes $p_i$ (if they passed) or $1 - p_i$ (if they failed). Assuming
+the students are independent, the probability of seeing the **whole** observed pattern is
+the *product* of those six contributions. That product is the **likelihood** of the data.
+
+Let's compute it for the simplest guess, $\beta_0 = 0, \beta_1 = 0$. Then every score is
+$0$, so every $p_i = \sigma(0) = 0.5$. Three students passed (contribute $0.5$ each) and
+three failed (contribute $1 - 0.5 = 0.5$ each), so the likelihood is
+$0.5 \times 0.5 \times \cdots = 0.5^6 = 0.015625$. A tiny number — six probabilities
+multiplied always is.
+
+That tininess is a problem (multiply 100 data points and it underflows to zero), and the
+fix is the log. The **log-likelihood** is just $\log$ of that product, which — by the
+product→sum rule from
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd) — turns
+into a *sum*: $\log(0.5^6) = 6 \times \log(0.5) \approx -4.159$. Same information, on a
+friendly additive scale.
+
+The same thing in R:
+
+```{r toy-example}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(1, 2, 3, 4, 5, 6)
+y <- c(0, 0, 1, 0, 1, 1)
+
+# Try the simplest coefficients: beta = (0, 0) -> every p = 0.5
+b <- c(0, 0)
+p <- sigmoid(b[1] + b[2] * x)     # all 0.5
+p
+
+# Each student's contribution: p if passed (y=1), 1-p if failed (y=0)
+contrib <- ifelse(y == 1, p, 1 - p)
+contrib                           # all 0.5 here
+
+likelihood     <- prod(contrib)   # the product -> 0.5^6
+log_likelihood <- sum(log(contrib))  # log of the product = sum of logs
+c(likelihood = likelihood, log_likelihood = log_likelihood)  # 0.015625, -4.159
+```
+
+## Getting a feel for it
+
+**A mental picture: which dial setting best explains the crime.** Think of the
+coefficients $(\beta_0, \beta_1)$ as two dials on a machine that, once set, assigns a
+probability to every student passing. You didn't see the dials — you only saw the
+*outcomes* (who passed). Maximum likelihood is detective work: **turn the dials to the
+setting under which the outcomes you actually observed are the least surprising.** A dial
+setting that predicts $p = 0.9$ for someone who *failed* is a bad suspect (it made a
+likely event that didn't happen); one that predicts $p = 0.9$ for someone who *passed* is
+a good fit. The likelihood scores every dial setting by how unsurprised it is by the whole
+record; we crank the dials to the highest score.
+
+Where the picture bends: a detective seeks the single true culprit, but maximum likelihood
+just finds the *best-fitting* dials for this data — with different students you'd get
+somewhat different dials. It's the most plausible explanation, not a certainty.
+
+**Why multiply the contributions — and why then take the log?** We *multiply* because we
+want the probability of *all* the outcomes happening together, and for independent events
+"and" means multiply (seeing student 1's result **and** student 2's **and** …). That's an
+honest probability of the whole dataset. But a product of many numbers below 1 rockets
+toward zero — $0.5^{100}$ is about $10^{-30}$, which a computer rounds to 0, and you can't
+climb a hill that's numerically flat-zero everywhere. Taking the **log** rescues it: by
+the product→sum rule, the log of the product becomes a *sum* of logs — a manageable
+number that moves smoothly as the dials turn. And because $\log$ is increasing, whatever
+dials maximize the likelihood also maximize the log-likelihood: **same peak, friendlier
+landscape.**
+
+**Why *ascent*, not descent — and what the surface looks like.** In the
+[gradient-descent course](../../../gradient-descent/syllabus.md) you minimized an error
+bowl by stepping *against* the slope. Here we want the *maximum* of the log-likelihood, so
+we step *with* the slope — uphill. Same machine, `+` instead of `−`. The log-likelihood
+surface over the two dials is a smooth hill with a single summit (for this kind of model),
+so climbing from anywhere lands you on top. That single-summit fact is why the fit is
+reliable — and why every correct optimizer (including R's `glm`) finds the *same*
+coefficients.
+
+**What the numbers feel like.** The log-likelihood is always **negative** (it's a sum of
+logs of probabilities, and $\log$ of anything below 1 is negative — the sign fact from
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd)). "Less
+negative is better": our starting guess scored $-4.159$; the best-fit coefficients we'll
+find score about $-2.478$ — closer to zero, meaning the observed data is more probable
+under them. You'll never see a *positive* log-likelihood here, and a value near zero would
+mean the model predicts the data almost perfectly.
+
+## What the notation is going to say
+
+The likelihood formula will say: "for each student, take $p_i$ if they passed and
+$1 - p_i$ if they failed, and multiply all six together." The clever single-line way to
+write "$p_i$ if $y_i = 1$, else $1 - p_i$" is $p_i^{\,y_i}(1 - p_i)^{1 - y_i}$ — because a
+number to the power 1 is itself and to the power 0 is 1, the exponents act as an on/off
+switch. The log-likelihood then says: "take the log, so the product becomes the sum
+$\sum_i \big[y_i \log p_i + (1 - y_i)\log(1 - p_i)\big]$." In our toy example the whole
+sum is the "$6 \times \log 0.5$" we just did.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x_i, y_i$ | "ex sub eye, why sub eye" | the predictor and the observed 0/1 outcome for student $i$ | $x_i$: $1..6$; $y_i$: $0,0,1,0,1,1$ |
+| $\beta_0, \beta_1$ | "beta zero, beta one" | the two coefficients being fit (the "dials"): intercept and slope of the score | the pair we tune |
+| $\sigma(z)$ | "SIG-muh of zee" | the sigmoid (from [module 1](../01-from-line-to-probability/lesson.qmd)): turns a score into a probability | $\sigma(0) = 0.5$ |
+| $\log$ | "log" (natural log) | natural log (in R: `log`); from [exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd) | $\log(0.5) \approx -0.693$ |
+| $p_i$ | "pee sub eye" | the model's predicted probability for student $i$: $\sigma(\beta_0 + \beta_1 x_i)$ | all $0.5$ at $\beta = (0,0)$ |
+| $\prod_{i=1}^{n}$ | "the product from i equals 1 to n" | multiply the terms to its right, one per data point (in R: `prod`) | six factors |
+| $\sum_{i=1}^{n}$ | "the sum from i equals 1 to n" | add the terms to its right, one per data point (in R: `sum`) | six terms |
+| $L(\beta)$ | "ell of beta" | the **likelihood**: probability of the observed data under coefficients $\beta$ | $0.5^6 = 0.015625$ |
+| $\ell(\beta)$ | "little-ell of beta" | the **log-likelihood**: $\log L(\beta)$, the thing we maximize | $\approx -4.159$ |
+| $\nabla \ell$ | "grad ell" (nabla ell) | the gradient: the vector of slopes of $\ell$ in the $\beta_0$ and $\beta_1$ directions | $(0, 3.5)$ at $\beta=(0,0)$ |
+| $\alpha$ | "alpha" | the learning rate (step size), from the gradient-descent course | $0.1$ |
+| $\leftarrow$ | "gets updated to" | assignment: replace the old value with the new (from the gradient-descent course) | $\beta \leftarrow (0,\,0.35)$ |
+| $\hat{\beta}_0, \hat{\beta}_1$ | "beta-zero hat, beta-one hat" | the fitted coefficients — the dials at the summit (hat = "estimated from data") | $-4.249, 1.214$ |
+
+## The formal version
+
+The **likelihood** of the observed 0/1 data, and its log:
+
+$$
+L(\beta) = \prod_{i=1}^{n} p_i^{\,y_i}\,(1 - p_i)^{1 - y_i},
+\qquad
+\ell(\beta) = \sum_{i=1}^{n}\Big[\, y_i \log p_i + (1 - y_i)\log(1 - p_i) \,\Big],
+$$
+
+where $p_i = \sigma(\beta_0 + \beta_1 x_i)$.
+
+Reading $\ell(\beta)$ aloud: "little-ell of beta equals the sum, over all students, of
+why-sub-eye times log pee-sub-eye, plus one-minus-why-sub-eye times log of one-minus-pee-
+sub-eye" — in everyday words: *add up, for every data point, the log-probability the model
+gave to the outcome that actually happened.*
+
+Assembling it one piece at a time:
+
+- $p_i^{\,y_i}(1 - p_i)^{1 - y_i}$ is the **on/off switch**: if $y_i = 1$ it's
+  $p_i^1 (1-p_i)^0 = p_i$; if $y_i = 0$ it's $p_i^0 (1-p_i)^1 = 1 - p_i$. One expression,
+  both cases.
+- $\prod$ multiplies those switches — the probability of *all* the outcomes together.
+- $\log$ turns that product into the $\sum$ (product→sum rule), and distributes over the
+  switch to give the $y_i \log p_i + (1-y_i)\log(1-p_i)$ form — the same on/off logic, now
+  additive.
+
+Re-do the toy computation *through the formula* at $\beta = (0,0)$, where every
+$p_i = 0.5$: each bracket is $y_i \log(0.5) + (1-y_i)\log(0.5) = \log(0.5)$ regardless of
+$y_i$, so the sum is $6\log(0.5) \approx -4.159$ — matching the hand computation.
+
+**Fitting: climb the log-likelihood by gradient ascent.** We can't solve $\nabla \ell = 0$
+with algebra (no closed form), so we measure the gradient numerically — the *exact*
+central-difference tool from
+[derivative-as-slope](../../../../foundations/derivative-as-slope/lesson.qmd), applied one
+coordinate at a time as in the
+[gradient-descent course](../../../gradient-descent/syllabus.md) — and step **uphill**:
+
+$$
+\beta \leftarrow \beta + \alpha\,\nabla \ell(\beta).
+$$
+
+The only difference from the descent you already built is the **plus sign** (uphill, not
+down). Watch it converge on the toy data, and confirm it lands where R's `glm` lands:
+
+```{r formal-check}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(1, 2, 3, 4, 5, 6)
+y <- c(0, 0, 1, 0, 1, 1)
+
+# The log-likelihood as a function of the two coefficients
+loglik <- function(b) {
+  p <- sigmoid(b[1] + b[2] * x)
+  sum(y * log(p) + (1 - y) * log(1 - p))
+}
+
+# The gradient, measured numerically -- one partial slope per coordinate
+# (this is the gradient-descent course's tool, unchanged)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+
+# Gradient ASCENT: step WITH the gradient (the + sign is the whole change)
+b <- c(0, 0)
+for (t in 1:5000) b <- b + 0.1 * gradient(loglik, b)
+c(intercept = b[1], slope = b[2], loglik = loglik(b))   # ~ -4.249, 1.214, -2.478
+```
+
+That climbed from a log-likelihood of $-4.159$ (at the starting guess) up to about
+$-2.478$ — less negative, so the data is more probable under the fitted dials.
+
+::: {.callout-note title="Runs on your machine, not here"}
+The reference fit — R's built-in `glm` — is baked at build time (it uses R's `stats`
+package, which isn't in the browser WebR build). Copy it into your own R session to run
+it. Notice it returns the **same** coefficients our from-scratch ascent found.
+:::
+
+```{r glm-reference}
+# The real thing: base R's glm with the binomial family
+x <- c(1, 2, 3, 4, 5, 6)
+y <- c(0, 0, 1, 0, 1, 1)
+fit <- glm(y ~ x, family = binomial)
+coef(fit)                          # (Intercept) -4.249, x 1.214 -- matches our ascent
+as.numeric(logLik(fit))            # -2.478 -- the same summit height
+```
+
+### Optional: why the gradient is "sum of (actual − predicted)"
+
+*(This buys you the intuition for the `glm` internals and the connection to least squares;
+skip it without losing the thread — the numerical gradient above is all you need to fit.)*
+
+If you work out the slope of $\ell$ with calculus (the chain rule, from a foundation), the
+messy-looking derivative collapses to something startlingly clean:
+
+$$
+\frac{\partial \ell}{\partial \beta_0} = \sum_{i=1}^{n} (y_i - p_i),
+\qquad
+\frac{\partial \ell}{\partial \beta_1} = \sum_{i=1}^{n} (y_i - p_i)\,x_i.
+$$
+
+Read it as: **the gradient is driven by the residuals $y_i - p_i$** — actual outcome minus
+predicted probability. This is the *same shape* as the least-squares gradient from the
+[gradient-descent course](../../../gradient-descent/syllabus.md) (sum of errors, and sum
+of errors times $x$) — logistic regression just uses $p_i = \sigma(\text{score})$ where
+least squares used a straight line. At $\beta = (0,0)$ every $p_i = 0.5$, so the residuals
+are $y_i - 0.5 = (-0.5, -0.5, 0.5, -0.5, 0.5, 0.5)$; they sum to $0$ (the $\beta_0$ slope)
+and, weighted by $x$, to $3.5$ (the $\beta_1$ slope) — the gradient $(0, 3.5)$. Let's
+confirm the tidy formula matches the numerically-measured gradient exactly:
+
+```{r gradient-check}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2] * x); sum(y*log(p) + (1-y)*log(1-p)) }
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) { up<-v; dn<-v; up[i]<-up[i]+h; dn[i]<-dn[i]-h; (f(up)-f(dn))/(2*h) })
+
+b <- c(0, 0)
+p <- sigmoid(b[1] + b[2] * x)
+residuals <- y - p
+analytic  <- c(sum(residuals), sum(residuals * x))   # the tidy formula
+numeric   <- gradient(loglik, b)                      # the measured gradient
+rbind(analytic = analytic, numeric = numeric)         # identical: (0, 3.5)
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The log-likelihood plotted against the slope coefficient beta1 (intercept held at its fitted value), a smooth hill peaking at a single summit near beta1 = 1.21."
+# explore-1 — LIVE: the log-likelihood is a HILL with one summit. Here we slice it along
+# the slope beta1 (holding the intercept at its fitted value). PREDICT: is there one peak
+# or several? Where (roughly) is the top? Guess, then run.
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+
+b1s <- seq(-1, 3, length.out = 200)
+ll  <- sapply(b1s, function(b1) loglik(c(-4.249, b1)))   # intercept fixed at fitted value
+plot(b1s, ll, type = "l", lwd = 2, col = "steelblue",
+     xlab = expression(beta[1]), ylab = "log-likelihood",
+     main = "one summit: the log-likelihood along the slope")
+abline(v = 1.214, lty = 3)          # the fitted slope sits at the top
+```
+
+```{webr}
+#| autorun: false
+# explore-2 — LIVE: run the ascent yourself and watch it climb. PREDICT: starting from
+# (0,0) with lr = 0.1, will 5000 steps be enough to reach glm's answer (-4.249, 1.214)?
+# Guess, then run. (Try fewer steps, e.g. 200, to see it mid-climb.)
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+loglik <- function(b) { p <- sigmoid(b[1] + b[2]*x); sum(y*log(p) + (1-y)*log(1-p)) }
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) { up<-v; dn<-v; up[i]<-up[i]+h; dn[i]<-dn[i]-h; (f(up)-f(dn))/(2*h) })
+
+b <- c(0, 0); lr <- 0.1; n <- 5000       # <-- try n = 200, or lr = 0.05
+for (t in 1:n) b <- b + lr * gradient(loglik, b)
+c(intercept = b[1], slope = b[2], loglik = loglik(b))
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: the residual y - p drives the fit. At the SUMMIT, the (x-weighted)
+# residuals must balance to zero -- that's what "no more uphill" means. PREDICT: at the
+# fitted coefficients, will sum(y - p) be ~0? Guess, then run.
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(1, 2, 3, 4, 5, 6); y <- c(0, 0, 1, 0, 1, 1)
+b <- c(-4.249, 1.214)                    # the fitted coefficients
+p <- sigmoid(b[1] + b[2] * x)
+round(rbind(x = x, y = y, p = round(p, 3), residual = round(y - p, 3)), 3)
+c(sum_resid = sum(y - p), sum_resid_x = sum((y - p) * x))   # both ~ 0 at the top
+```
+
+## Common traps
+
+**Trap: "maximize the likelihood, so we want it as *small* as possible — those tiny
+numbers look like errors."** Backwards. The likelihood is the *probability of the data*;
+bigger is better (more probable). It's tiny only because it's a product of many
+sub-1 numbers, not because it's bad. On the log scale that's "less negative is better":
+our fit's $-2.478$ beats the starting guess's $-4.159$. Don't confuse "small number" with
+"small fit" — check the direction by remembering it's a probability.
+
+**Trap: "gradient ascent uses a minus sign like the descent I learned."** No — that's the
+one change. Descent *minimizes* by stepping against the slope ($-$); here we *maximize* the
+log-likelihood by stepping with it ($+$). Flip it by accident and you slide *downhill* to
+the worst fit (log-likelihood plunging toward $-\infty$) instead of climbing to the best.
+And, as in the descent course, too big a learning rate misbehaves: on this surface
+$\alpha = 0.1$ climbs cleanly to the summit, but a much larger step overshoots and can
+stall at a worse spot. Uphill, gently.
+
+## Check yourself
+
+**1.** For a two-point dataset, one success ($y_1 = 1$, predicted $p_1 = 0.7$) and one
+failure ($y_2 = 0$, predicted $p_2 = 0.2$), what is the likelihood of the data, and the
+log-likelihood?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to solve, right here
+p1 <- 0.7   # y1 = 1 (success): contributes p1
+p2 <- 0.2   # y2 = 0 (failure): contributes 1 - p2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Likelihood $= p_1 \times (1 - p_2) = 0.7 \times 0.8 = 0.56$. Log-likelihood $=
+\log(0.7) + \log(0.8) \approx -0.357 + (-0.223) = -0.580$.
+
+```{r check1-answer}
+p1 <- 0.7; p2 <- 0.2
+c(likelihood = p1 * (1 - p2),
+  log_likelihood = log(p1) + log(1 - p2))   # 0.56, -0.580
+```
+The failure contributes $1 - p_2 = 0.8$ (the model gave the non-event an $0.8$ chance,
+and it happened), and the log turns the product into a sum.
+:::
+
+**2.** After fitting converges, what should be true about the gradient of the
+log-likelihood at the fitted coefficients — and how does gradient ascent "know" to stop
+there?
+
+::: {.callout-note collapse="true" title="Answer"}
+At the summit the gradient is the **zero vector** — every slope is flat, so there's no
+uphill left to climb. Gradient ascent effectively stops because each step $\beta \leftarrow
+\beta + \alpha \nabla\ell$ adds (almost) nothing once $\nabla\ell \approx \mathbf{0}$. This
+is the maximum-of-a-hill mirror of the "gradient is zero at the bottom of the bowl" fact
+from the [gradient-descent course](../../../gradient-descent/syllabus.md).
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the likelihood
+measures and why we fit logistic regression by *maximizing its log* rather than by a
+formula like least squares.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The likelihood is the probability of the exact 0/1 outcomes we observed, computed under a
+given pair of coefficients, so maximizing it finds the coefficients that make the data
+least surprising. We maximize the *log*-likelihood — a sum instead of a runaway-tiny
+product — because logistic regression has no closed-form solution, so we climb the smooth
+single-peaked surface by gradient ascent instead of plugging into a formula.
+:::
+
+## What you can now do
+
+- **Build the likelihood** of 0/1 data — each point contributes $p_i$ if it's a 1 and
+  $1 - p_i$ if it's a 0 — and take its log to get the additive log-likelihood.
+- **Explain the log** — a product of sub-1 probabilities underflows; the log turns it into
+  a stable sum with the same maximizer.
+- **Fit by gradient ascent** — measure the gradient numerically and step *with* it
+  ($\beta \leftarrow \beta + \alpha \nabla\ell$), and know why it converges to the same
+  coefficients `glm` reports (one summit).
+- **Read the sign conventions** — the log-likelihood is negative and "less negative is
+  better"; the gradient is zero at the fitted coefficients.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) and
+[The formal version](#the-formal-version) — the capstone reads a real `glm` fit and every
+field ties back to what you built here.
+
+## Where this goes next
+
+You've now built logistic regression end to end: a line on the log-odds, squashed by the
+sigmoid, fit by maximizing the log-likelihood with gradient ascent. The capstone puts it
+all to work on a **real** `glm(..., family = binomial)` fit — decoding every number the
+`summary()` prints (coefficients, standard errors, z values, p-values, deviance) and
+reading the coefficients as odds ratios — each piece traced back to the module that built
+it: [the capstone — reading a real logistic regression](../04-capstone-reading-a-real-logistic-regression/lesson.qmd).
+Ready for more reps first? Do the [practice problems](practice.qmd).

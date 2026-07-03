@@ -1,0 +1,341 @@
+---
+title: "The gradient: downhill in more than one direction"
+subtitle: "When a curve has two knobs, the slope becomes a little vector of slopes"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Last module we rolled downhill on a curve with a single knob $x$. Real problems have
+*several* knobs — a line to fit has an intercept *and* a slope, a model can have dozens
+of parameters. This module makes the leap to a function of **two** inputs and shows that
+the recipe barely changes: measure a slope *in each direction*, bundle those slopes into
+a little vector called the **gradient**, and step against the whole bundle. That's the
+version that scales to everything later.
+
+**Builds on:** [rolling downhill (Module 1)](../01-rolling-downhill/lesson.qmd) and
+[vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Three quick recalls. Produce each before opening it.
+
+**1.** *(Module 1)* Write the one-dimensional gradient-descent update rule, and say why
+it has a minus sign.
+
+::: {.callout-note collapse="true" title="Answer"}
+$x_{t+1} = x_t - \alpha f'(x_t)$. The minus is there because the slope points *uphill*,
+and we want to go *downhill* — the opposite way. See
+[Module 1](../01-rolling-downhill/lesson.qmd).
+:::
+
+**2.** *(vectors & summation)* In R, for `v <- c(2, 5)`, what are `v[1]` and `v[2]`, and
+what does "a vector" mean in one phrase?
+
+::: {.callout-note collapse="true" title="Answer"}
+`v[1]` is `2`, `v[2]` is `5`. A vector is just *a list of numbers held together* — here,
+two of them. See [vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd).
+:::
+
+**3.** *(derivative-as-slope)* How would you measure the slope of a function in the
+direction of *one* input while holding everything else fixed?
+
+::: {.callout-note collapse="true" title="Answer"}
+Nudge *only that input* up and down by a small $h$, leave the others alone, and take
+rise over run: $(f(\text{nudged up}) - f(\text{nudged down}))/(2h)$. That "nudge one at a
+time" idea is the whole trick this module needs.
+:::
+
+## A tiny example first
+
+Here's a bowl over *two* inputs — think of a real valley you could walk around in, with
+an east–west direction $a$ and a north–south direction $b$:
+
+$$
+f(a, b) = (a - 2)^2 + (b - 5)^2
+$$
+
+Its lowest point is at $a = 2, b = 5$ (both squared terms zero). Stand at the point
+$a = 0, b = 0$ and ask: *which way is downhill?* Now there are two questions, one per
+direction:
+
+- **Slope in the $a$ direction** (nudge $a$, hold $b = 0$): the curve $(a-2)^2 + 25$ has
+  slope $2(a - 2) = 2(0 - 2) = -4$ at $a = 0$. Negative → downhill is toward larger $a$.
+- **Slope in the $b$ direction** (nudge $b$, hold $a = 0$): the curve $4 + (b-5)^2$ has
+  slope $2(b - 5) = 2(0 - 5) = -10$ at $b = 0$. Negative → downhill is toward larger $b$.
+
+Bundle those two slopes into a vector — that's the **gradient** at $(0,0)$: $(-4, -10)$.
+It says "to go uphill, head in direction $(-4,-10)$", so to go *downhill* we step the
+opposite way. One gradient-descent step with $\alpha = 0.1$ nudges *both* knobs at once:
+
+$$
+a \leftarrow 0 - 0.1(-4) = 0.4, \qquad b \leftarrow 0 - 0.1(-10) = 1.0
+$$
+
+We moved from $(0,0)$ toward $(0.4, 1.0)$ — heading for $(2, 5)$ on both axes at once.
+
+The same thing in R, measuring each slope numerically so no calculus is needed:
+
+```{r toy-example}
+# The two-input bowl; f takes a vector v = c(a, b)
+f <- function(v) (v[1] - 2)^2 + (v[2] - 5)^2
+
+# Slope in direction i: nudge ONLY v[i] up and down, rise over run
+partial <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v
+  up[i] <- up[i] + h; dn[i] <- dn[i] - h
+  (f(up) - f(dn)) / (2 * h)
+}
+# The gradient: one partial slope per input, bundled into a vector
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+
+v <- c(0, 0)
+gradient(f, v)            # about (-4, -10) — the two slopes at (0,0)
+v - 0.1 * gradient(f, v)  # one downhill step -> about (0.4, 1.0)
+```
+
+## Getting a feel for it
+
+**Standing on a hillside.** On a one-dimensional curve there were only two ways to
+move — left or right. On a two-input surface you're standing on an actual hillside and
+can face any compass direction. The gradient is an arrow, lying flat on the ground, that
+points in the direction of **steepest uphill**, and its length says how steep that is.
+Water (and gradient descent) runs in exactly the opposite direction: $-\nabla f$, the
+steepest way *down*. Each descent step reads that arrow and takes a scaled hop against
+it. (Where the picture bends: the gradient points steepest-uphill *right where you
+stand*; a step away, the hillside has turned, so you must re-measure — which is why it's
+a loop, not one leap.)
+
+**Why one slope per direction, measured separately?** Because "how steep is it here?"
+has a different answer depending on which way you walk. Walking east might be a gentle
+climb while walking north is a cliff. Holding all but one input fixed and nudging just
+that one isolates "the steepness if I walk purely along this axis" — and it's a
+remarkable, convenient fact that once you know the steepness along each axis separately,
+you know the steepest direction overall: it's just the vector of those per-axis slopes.
+So we never have to search over all compass directions; we measure two numbers.
+
+**What the gradient feels like.** At $(0,0)$ our gradient was $(-4, -10)$: the $b$
+direction is steeper (magnitude 10) than the $a$ direction (magnitude 4), so the first
+steps move $b$ faster than $a$. As each knob nears its target the matching slope shrinks
+toward zero, so that knob's steps taper — the same self-slowing you saw in one dimension,
+now happening independently on each axis. At the very bottom $(2,5)$ **both** slopes are
+zero: the gradient is the zero vector, and descent stops.
+
+## What the notation is going to say
+
+The formulas below say: "the gradient of $f$, written $\nabla f$, is the vector whose
+entries are the slope in the $a$ direction and the slope in the $b$ direction; and one
+gradient-descent step subtracts the learning rate times that whole vector from your
+current position." It's Module 1's rule with vectors in place of single numbers — the
+$-4$ and the $-10$ handled together.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $f(a, b)$ | "eff of ay, bee" | a function of two inputs — a surface with a knob for each | $(a-2)^2 + (b-5)^2$ |
+| $\mathbf{v}$ | "vee" | the position, held as a vector of the inputs (in R: `c(a, b)`) | starts at `c(0, 0)` |
+| $\dfrac{\partial f}{\partial a}$ | "the partial of eff with respect to ay" | the slope in the $a$ direction, holding $b$ fixed | $-4$ at $(0,0)$ |
+| $\nabla f$ | "grad eff" (or "del eff") | the **gradient**: the vector of all the partial slopes | $(-4, -10)$ at $(0,0)$ |
+| $\alpha$ | "alpha" | the learning rate (same as Module 1) | $0.1$ |
+| $\mathbf{v}_{t+1}$ | "vee sub tee plus one" | the position after the next step | $(0.4, 1.0)$ |
+
+(The $\partial$ ("partial") is just a $d$ for "a slope, but only along this one direction
+while the others hold still". The $\nabla$ ("grad") gathers those slopes into one arrow.)
+
+## The formal version
+
+The gradient is the vector of partial slopes:
+
+$$
+\nabla f(a, b) = \left( \frac{\partial f}{\partial a}, \; \frac{\partial f}{\partial b} \right)
+$$
+
+Reading it aloud: "grad eff equals the vector of: the partial of eff with respect to ay,
+and the partial of eff with respect to bee" — or plainly: "list the slope in each
+direction." At $(0,0)$ that's $(-4, -10)$, the two numbers we measured.
+
+And one step of gradient descent, now in vector form:
+
+$$
+\mathbf{v}_{t+1} = \mathbf{v}_t - \alpha \, \nabla f(\mathbf{v}_t)
+$$
+
+Reading it aloud: "vee sub tee-plus-one equals vee sub tee minus alpha times grad eff at
+vee sub tee" — *your next position is your current position, stepped against the gradient
+arrow by a fraction alpha.* It's identical to Module 1's $x_{t+1} = x_t - \alpha f'(x_t)$
+— only now $\mathbf{v}$ and $\nabla f$ are vectors, so the single subtraction updates
+*both* knobs at once. Check the first step numerically:
+
+```{r formal-check}
+f <- function(v) (v[1] - 2)^2 + (v[2] - 5)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h
+  (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+
+descend <- function(f, v, lr, n_steps) {
+  for (t in 1:n_steps) v <- v - lr * gradient(f, v)   # the vector update, repeated
+  v
+}
+descend(f, v = c(0, 0), lr = 0.1, n_steps = 100)   # ~ (2, 5), the bottom
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A contour map of the two-input bowl with the gradient-descent path drawn as connected points spiraling in toward the minimum at (2,5)."
+# explore-1 — LIVE: a contour map (like a topographic map) of the bowl, with the descent
+# path drawn on top. Each ring is a height; the path walks across rings toward the center.
+# PREDICT: from (0,0) with lr = 0.1, roughly how many steps until the path reaches the
+# center at (2,5)? Guess, then run. Try changing the start or lr.
+f <- function(v) (v[1] - 2)^2 + (v[2] - 5)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+
+v <- c(0, 0); lr <- 0.1; n <- 25
+path <- matrix(NA, n + 1, 2); path[1, ] <- v
+for (t in 1:n) { v <- v - lr * gradient(f, v); path[t + 1, ] <- v }
+
+a <- seq(-1, 5, length.out = 60); b <- seq(-1, 8, length.out = 60)
+z <- outer(a, b, function(A, B) (A - 2)^2 + (B - 5)^2)
+contour(a, b, z, xlab = "a", ylab = "b", main = sprintf("after %d steps: (%.2f, %.2f)", n, v[1], v[2]))
+lines(path[, 1], path[, 2], col = "firebrick", lwd = 2)
+points(path[, 1], path[, 2], pch = 16, col = "firebrick", cex = 0.7)
+points(2, 5, pch = 3, cex = 2, lwd = 2)   # the true minimum
+```
+
+```{webr}
+#| autorun: false
+#| fig-alt: "Contour map of a stretched bowl where the descent path zig-zags toward the minimum."
+# explore-2 — LIVE: a STRETCHED bowl, 10x steeper in b than in a. Watch the path
+# zig-zag instead of heading straight for the center. PREDICT: will the negative
+# gradient point straight AT the minimum here? Run and see why not (Trap 2 below).
+f <- function(v) (v[1] - 2)^2 + 10 * (v[2] - 5)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+
+v <- c(-1, 8); lr <- 0.08; n <- 40
+path <- matrix(NA, n + 1, 2); path[1, ] <- v
+for (t in 1:n) { v <- v - lr * gradient(f, v); path[t + 1, ] <- v }
+a <- seq(-2, 5, length.out = 60); b <- seq(2, 8, length.out = 60)
+z <- outer(a, b, function(A, B) (A - 2)^2 + 10 * (B - 5)^2)
+contour(a, b, z, xlab = "a", ylab = "b", main = "stretched bowl: the path zig-zags")
+lines(path[, 1], path[, 2], col = "firebrick", lwd = 2); points(2, 5, pch = 3, cex = 2, lwd = 2)
+```
+
+## Common traps
+
+**Trap: "tune one knob all the way, then tune the other."** It's tempting to minimize
+over $a$ first (holding $b$ fixed), then over $b$. Gradient descent does *not* do this —
+it nudges **both at once**, a little each step, using the current slopes. Tuning one
+fully then the other can take many more passes and, on tilted surfaces, get stuck
+ping-ponging. The gradient's whole point is to move in all directions *simultaneously*
+in the right proportions.
+
+**Trap: "the negative gradient points straight at the minimum."** On our first, round
+bowl it very nearly does — but that's luck of symmetry. On the *stretched* bowl in
+explore-2, the steepest-downhill direction is not aimed at the center, so the path
+zig-zags in toward it rather than making a beeline. The gradient only promises the
+steepest direction *locally*, right where you stand; it makes no promise about pointing
+at the far-off bottom. (This is why step size and surface shape matter so much in
+practice.)
+
+## Check yourself
+
+**1.** For $f(a,b) = (a-1)^2 + (b+3)^2$ (bottom at $a=1, b=-3$), compute the gradient at
+$(0, 0)$ numerically, then take one descent step with $\alpha = 0.1$.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to solve, right here
+f <- function(v) (v[1] - 1)^2 + (v[2] + 3)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The slopes at $(0,0)$: in $a$, $2(0-1) = -2$; in $b$, $2(0+3) = +6$. So
+$\nabla f(0,0) = (-2, 6)$. One step: $(0,0) - 0.1(-2, 6) = (0.2, -0.6)$ — moving toward
+$a=1$ (right) and toward $b=-3$ (down), as it should.
+
+```{r check1-answer}
+f <- function(v) (v[1] - 1)^2 + (v[2] + 3)^2
+partial  <- function(f, v, i, h = 1e-5) {
+  up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+}
+gradient <- function(f, v) sapply(seq_along(v), function(i) partial(f, v, i))
+g <- gradient(f, c(0, 0)); g            # (-2, 6)
+c(0, 0) - 0.1 * g                       # (0.2, -0.6)
+```
+:::
+
+**2.** At the bottom of any bowl, what is the gradient vector, and how does descent
+"know" to stop there?
+
+::: {.callout-note collapse="true" title="Answer"}
+At the bottom every partial slope is zero, so the gradient is the **zero vector**
+$(0, 0)$. The update $\mathbf{v} - \alpha \cdot \mathbf{0} = \mathbf{v}$ leaves the
+position unchanged — descent stops moving because there's no downhill left in any
+direction.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the gradient is
+and how gradient descent uses it when there's more than one input.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The gradient is the bundle of slopes — one per input — that together point in the
+steepest-uphill direction on the surface. Gradient descent measures it at the current
+spot and steps the opposite way (downhill) in all directions at once, scaled by the
+learning rate, repeating until every slope is zero.
+:::
+
+## What you can now do
+
+- **Measure a partial slope**: the steepness in one input's direction, by nudging only
+  that input.
+- **Build the gradient** of a multi-input function numerically — the vector of partial
+  slopes — and read it as a steepest-uphill arrow.
+- **Run gradient descent in vector form**, updating all inputs at once with
+  $\mathbf{v} \leftarrow \mathbf{v} - \alpha \nabla f(\mathbf{v})$.
+- **Explain why descent stops at the bottom** (the gradient is zero) and why paths can
+  zig-zag on stretched surfaces.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) and
+[Explore it](#explore-it) — the next module puts this exact machinery to work on real
+data.
+
+## Where this goes next
+
+Now we point this at something real: fitting a straight line to data by gradient
+descent — the loss becomes an error-over-two-knobs (intercept and slope), and we watch
+our from-scratch descent land on the *same* answer as a professional optimizer:
+[fitting a line by descent](../03-fitting-a-line-by-descent/lesson.qmd). Ready for more
+reps first? Do the [practice problems](practice.qmd).

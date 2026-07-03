@@ -1,0 +1,364 @@
+---
+title: "The mean, variance & covariance"
+subtitle: "Three numbers that summarize a cloud of data — and the notation for them"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Three summaries carry most of applied statistics: the **mean** (where the data sits),
+the **variance** (how spread out it is), and the **covariance** (how two variables
+move *together*). Regression, correlation, PCA, ANOVA — under the hood they are all
+built from these three. This lesson makes their formulas readable and shows they're
+the same `mean()`, `var()`, `cov()` you already call in R.
+
+**Builds on:** [vectors & summation](../vectors-and-summation/lesson.qmd) — we'll use
+$x_i$, $n$, Σ, and sum-Rules 1–3 throughout.
+
+## Warm-up: do you remember?
+
+Before the new material, pull these back from
+[vectors & summation](../vectors-and-summation/lesson.qmd) — try to *produce* each
+answer before you open it.
+
+**1.** For $x = (2, 4, 6)$: say $\sum_{i=1}^{n} x_i$ aloud, then give its value and $n$.
+
+::: {.callout-note collapse="true" title="Answer"}
+"The sum from i equals 1 to n of ex-sub-eye" — add them all up: $2 + 4 + 6 = 12$, and
+$n = 3$ (three data points). In R: `sum(x)` and `length(x)`. See
+[vectors & summation](../vectors-and-summation/lesson.qmd).
+:::
+
+**2.** A constant slips inside a sum: does $\sum_{i=1}^{n}(x_i + 3)$ equal
+$\sum x_i + 3$ or $\sum x_i + 3n$? One sentence on why.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\sum x_i + 3n$. The $+3$ is added once for *every* one of the $n$ terms, so it
+appears $n$ times — that is sum-Rule 3 (a constant sums to $n$ times itself). Here
+that's $12 + 3\times 3 = 21$.
+:::
+
+**3.** In R you already write these every day. What computes $\sum_{i=1}^{n} x_i$, and
+what computes the number of data points $n$?
+
+::: {.callout-note collapse="true" title="Answer"}
+`sum(x)` and `length(x)`. The whole point of this lesson is that the scary formulas
+below are just these R calls you already know.
+:::
+
+## A tiny example first
+
+Same three plants as before, heights $x = (2, 4, 6)$ cm. This time we also recorded
+how much water each got per week: $y = (1, 2, 6)$ liters.
+
+**The mean (the balance point).** Add the heights: 2 + 4 + 6 = 12. Divide by how
+many plants: 12 ÷ 3 = **4 cm**. That's the mean height.
+
+**Deviations (distance from the mean).** How far is each plant from 4?
+2 − 4 = −2, then 4 − 4 = 0, then 6 − 4 = +2. Notice they add to zero:
+−2 + 0 + 2 = 0. They *always* do — over- and under-shoots cancel exactly. So
+"average deviation" is useless as a spread measure; we need to stop the cancelling.
+
+**Variance (typical squared distance).** Square each deviation first:
+(−2)² = 4, 0² = 0, 2² = 4. Add: 4 + 0 + 4 = 8. Divide by n − 1 = 2 (why n − 1 and
+not n: see the box below): 8 ÷ 2 = **4**. The **standard deviation** un-squares it:
+√4 = **2 cm** — "plants are typically about 2 cm from the average".
+
+**Covariance (do x and y move together?).** Water has mean (1 + 2 + 6) ÷ 3 = 3, so
+its deviations are −2, −1, +3. Now pair up each plant's two deviations and multiply:
+
+| plant | height dev. | water dev. | product |
+|---|---|---|---|
+| 1 | −2 | −2 | +4 |
+| 2 |  0 | −1 |  0 |
+| 3 | +2 | +3 | +6 |
+
+Products are positive when both deviations point the same way (both below average,
+or both above). Add: 4 + 0 + 6 = 10; divide by n − 1 = 2: covariance = **5**.
+Positive → taller plants tend to be the better-watered ones.
+
+The same computations in R, so you can check every step:
+
+```{r toy-example}
+# The toy data: heights (cm) and water (liters) for 3 plants
+x <- c(2, 4, 6)
+y <- c(1, 2, 6)
+n <- length(x)
+
+# The mean: add everything up, divide by how many there are
+sum(x) / n                       # 4 — the balance point
+
+# Deviations: each value minus the mean. They always sum to 0.
+dev_x <- x - mean(x)             # -2  0  2
+sum(dev_x)                       # 0 — overshoots and undershoots cancel
+
+# Variance: square the deviations (kills the cancelling), average with n - 1
+sum(dev_x^2) / (n - 1)           # 8 / 2 = 4
+sqrt(4)                          # standard deviation: 2 cm, back in height units
+
+# Covariance: multiply each PAIR of deviations, then average with n - 1
+dev_y <- y - mean(y)             # -2 -1  3
+sum(dev_x * dev_y) / (n - 1)     # 10 / 2 = 5 — positive: they move together
+```
+
+## Getting a feel for it
+
+You already have a feel for the **mean**: it's the *balance point*. Stand the three
+plants on a seesaw at their heights 2, 4, 6 and it tips level at 4 — the overshoots
+(+2) and undershoots (−2) cancel exactly. Everything below is built on that one
+picture.
+
+**Variance — how far a typical plant sits from the balance point.** The natural first
+try is "average the deviations", but we just saw those add to zero *every time* (the
+seesaw always balances), so their average is a useless flat zero. We need a move that
+stops the cancelling, and squaring is it: a squared number is never negative, so an
+overshoot and an undershoot no longer erase each other — they both pile up as positive
+spread. Squaring does one more thing for free: it makes *far* misses count much more
+than near ones (being 2 away contributes 4, being 3 away contributes 9), so variance
+is really asking "how badly, on average, do the points miss the center?" Our answer, 4,
+is a real "how spread out" number — but notice its *units* are centimeters **squared**.
+You can't picture 4 square-centimeters of plant height. That awkward squared scale is
+exactly the problem the next quantity fixes.
+
+**Standard deviation — the same spread, back in plain centimeters.** Un-square the
+variance (take its square root) and you get 2 — and now the units are just cm again.
+That makes it a distance you can actually picture: *a typical plant sits about 2 cm
+from the average height.* It's the size of miss you'd bet on if someone picked a plant
+at random. Rule of thumb worth keeping: **variance is for the math, standard deviation
+is for the meaning** — you compute with variance because squaring behaves nicely, but
+you *report* the standard deviation because a human can feel it.
+
+**Covariance — do two things move together, like two dancers?** Forget the arithmetic
+for a second and just ask: when a plant is *taller* than average, does it also tend to
+be *better watered* than average? If tall-goes-with-wet and short-goes-with-dry, the
+two move together. The trick that measures this is to multiply each plant's two
+deviations: when both point the *same* way (both above their averages, or both below),
+their product is positive; when they point *opposite* ways, it's negative. Add the
+products and the sign tells you the story — positive here (5), so taller plants are the
+better-watered ones. Two cautions that matter: the **sign is the real message**, and
+the *size* is not something you can judge on its own — 5 what? Its units are
+centimeters-times-liters, a mixed scale with no intuitive "big or small" (that's the
+gap correlation fills at the end of this lesson). The picture to hold: draw the two
+average-lines through the scatter, splitting it into four quadrants; points in the two
+same-sign corners pull covariance positive, points in the opposite corners pull it
+negative. You'll see exactly this in the "Explore it" plot below.
+
+## What the notation is going to say
+
+The formulas below say, in order: "the mean is: add all the x values, divide by n"
+(our 12 ÷ 3); "the variance is: take each value's distance from the mean, square it,
+add those up, divide by n − 1" (our 8 ÷ 2); and "the covariance is: for each i,
+multiply x's deviation by y's deviation, add those up, divide by n − 1" (our
+10 ÷ 2). Nothing more.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\bar{x}$ | "ex bar" | the mean of the x values (in R: `mean(x)`) | 4 |
+| $\bar{y}$ | "why bar" | the mean of the y values | 3 |
+| $x_i - \bar{x}$ | "ex sub eye minus ex bar" | observation i's deviation from the mean | −2, 0, +2 |
+| $y_i - \bar{y}$ | "why sub eye minus why bar" | the second variable's deviation from its mean (the other factor in covariance) | −2, −1, +3 |
+| $s^2$ or $s_x^2$ | "ess squared" | sample variance of x (in R: `var(x)`) | 4 |
+| $s$ or $s_x$ | "ess" | sample standard deviation, $\sqrt{s^2}$ (in R: `sd(x)`) | 2 |
+| $\mathrm{Cov}(x, y)$ or $s_{xy}$ | "the covariance of x and y" | how x and y move together (in R: `cov(x, y)`) | 5 |
+| $r$ | "little r" / "the correlation" | covariance rescaled to lie in [−1, 1] (in R: `cor(x, y)`) | ≈ 0.94 |
+| $\mu$ | "mew" | the TRUE mean of the whole population — usually unknown | (we only have $\bar{x}$) |
+| $\sigma^2$ | "sigma squared" | the TRUE population variance | (we only have $s^2$) |
+| $n - 1$ | "en minus one" | the divisor for sample variance/covariance | 2 |
+
+Greek letters ($\mu$, $\sigma$) are the *true but unknown* quantities; Latin letters
+($\bar{x}$, $s$) are what we *compute from data* to estimate them. Often (not always)
+the estimate also wears a bar or a hat — $\bar{x}$ for a mean, $\hat{\beta}$ for a
+fitted coefficient — but plain $s$ has neither and is still an estimate. Papers switch
+between Greek and Latin constantly; this letter code is how you keep track.
+
+## The formal version
+
+$$
+\bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i
+\qquad
+s_x^2 = \frac{1}{n-1}\sum_{i=1}^{n} (x_i - \bar{x})^2
+\qquad
+s_{xy} = \frac{1}{n-1}\sum_{i=1}^{n} (x_i - \bar{x})(y_i - \bar{y})
+$$
+
+Reading them aloud:
+
+- "$\bar{x}$ equals one over n, times the sum from i equals 1 to n, of x-sub-i" —
+  *add them all up and divide by how many.*
+- "$s_x^2$ equals one over n minus one, times the sum of x-sub-i minus x-bar,
+  squared" — *typical squared distance from the mean.*
+- "$s_{xy}$ equals one over n minus one, times the sum of x's deviation times y's
+  deviation" — *do the deviations point the same way, on average?*
+
+Mapping back to the toy numbers:
+
+- $\sum x_i$ is the "2 + 4 + 6" step → 12; $\frac{1}{n}$ is "divide by 3" → $\bar{x} = 4$
+- $(x_i - \bar{x})^2$ is the "square each of −2, 0, 2" step → 4, 0, 4
+- $\frac{1}{n-1}\sum(\dots)$ is "add, divide by 2" → $s_x^2 = 4$
+- $(x_i - \bar{x})(y_i - \bar{y})$ is the product column of our table → 4, 0, 6 → $s_{xy} = 5$
+
+Notice the variance is just the covariance of x *with itself*: set $y = x$ in the
+covariance formula and $(x_i-\bar{x})(x_i-\bar{x}) = (x_i-\bar{x})^2$. One formula,
+not two — papers use this identity all the time.
+
+::: {.callout-tip collapse="true" title="Why divide by n − 1 and not n? (optional but satisfying)"}
+We measured spread around $\bar{x}$, but the honest target is spread around the true
+mean $\mu$, which we don't know. $\bar{x}$ is computed *from these very data points*,
+so it sits slightly closer to them than $\mu$ does — making the squared deviations a
+little too small on average. Dividing by the smaller number n − 1 (instead of n)
+exactly compensates. With n huge, n vs. n − 1 barely matters; with n = 3 it matters
+a lot. R's `var()`, `sd()`, `cov()` all use n − 1.
+:::
+
+**Correlation, in one breath:** covariance has awkward units (cm·liters!). Divide by
+both standard deviations and the units cancel, forcing the result into [−1, 1]:
+$r = s_{xy} / (s_x s_y)$ — "the correlation is the covariance divided by ess-ex
+times ess-why". For the toy data: $5 / (2 \times 2.646) \approx 0.94$: strongly
+"move together".
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: change the values in x, press Run — the by-hand formula ALWAYS
+# matches R's built-ins. The formula IS the function.
+x <- c(2, 4, 6)
+n <- length(x)
+
+by_hand_mean <- sum(x) / n
+by_hand_var  <- sum((x - by_hand_mean)^2) / (n - 1)
+
+c(by_hand = by_hand_mean, built_in = mean(x))
+c(by_hand = by_hand_var,  built_in = var(x))
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: shift and stretch, then press Run.
+# PREDICT: add 100 to every value — does the mean move, the sd move, both, neither?
+# Then multiply the original values by 3 — what happens to the sd? Commit both, then run.
+x <- c(2, 4, 6)
+
+c(mean(x + 100), sd(x + 100))   # mean 104, sd still 2
+c(mean(3 * x),   sd(3 * x))     # mean 12,  sd 6
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Scatter plots of positively correlated, uncorrelated, and negatively correlated data"
+# explore-3 — LIVE: covariance as a picture. Change `slope` (try 2, 0, -2), press Run,
+# and watch the point cloud tilt and cov/cor change sign with it.
+# PREDICT: set slope <- -2 below. Will cov(x, y) and cor(x, y) come out positive or
+# negative, and which two quadrants will fill up? Commit, then edit slope and run.
+set.seed(42)
+n <- 200
+slope <- 2
+x <- rnorm(n)
+y <- slope * x + rnorm(n, sd = 2)   # y follows x, plus noise
+
+plot(x, y, pch = 16, col = "steelblue",
+     main = sprintf("cov = %.2f   cor = %.2f", cov(x, y), cor(x, y)))
+abline(v = mean(x), h = mean(y), lty = 2)  # the mean lines split the plot in 4
+# Points in the top-right & bottom-left quadrants push covariance POSITIVE
+# (deviations share a sign); the other two quadrants push it NEGATIVE.
+```
+
+## Common traps
+
+**Trap 1 — "a bigger covariance means a stronger relationship."** Tempting, because
+size usually means strength. But covariance carries the *units* of x times y, so its
+size moves when you merely rescale a variable — the relationship unchanged. Measure
+the water in milliliters instead of liters (multiply $y$ by 1000): every product in
+our table scales by 1000, so $s_{xy}$ jumps from **5** to **5000** — yet the plants
+relate to their water exactly as before. The **sign** is the trustworthy message;
+for a size you can compare, use the correlation, which stays put at
+$r \approx 0.94$ either way. (`cov(x, 1000*y)` returns 5000; `cor(x, 1000*y)` still
+0.94.)
+
+**Trap 2 — dividing by $n$ instead of $n - 1$.** The mean formula divides by $n$, so
+it feels natural to divide the variance by $n$ too. But sample variance uses
+$n - 1$: with our sum of squared deviations $= 8$, dividing by $n = 3$ gives
+$\approx 2.67$, while the correct $n - 1 = 2$ gives $s_x^2 = 4$ — a big gap at $n = 3$
+(see the "why $n-1$" box above). R's `var()`, `sd()`, and `cov()` all use $n - 1$; if
+your by-hand number disagrees with `var()`, this is the usual culprit.
+
+## Check yourself
+
+**1.** Without computing: for $x = (10, 10, 10, 10)$, what are $\bar{x}$ and $s_x^2$?
+
+```{webr}
+#| autorun: false
+# check1-starter — LIVE: write your answer here, then press Run.
+x <- c(10, 10, 10, 10)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\bar{x} = 10$ (all values equal the balance point) and $s_x^2 = 0$: every deviation
+is $10 - 10 = 0$, so the sum of squared deviations is 0. Zero variance means "no
+spread at all". (`var(rep(10, 4))` returns 0.)
+:::
+
+**2.** Read aloud, then compute for $x = (1, 3)$, $y = (5, 1)$:
+$\;s_{xy} = \frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})$
+
+```{webr}
+#| autorun: false
+# check2-starter — LIVE: write your answer here, then press Run.
+x <- c(1, 3); y <- c(5, 1)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"Ess-sub-ex-why equals one over n minus one, times the sum from i equals 1 to n, of
+x-sub-i minus ex-bar, times y-sub-i minus why-bar."
+
+$\bar{x} = 2$, $\bar{y} = 3$. Deviations: x gives (−1, +1); y gives (+2, −2).
+Products: $(-1)(2) = -2$ and $(1)(-2) = -2$. Sum: −4. Divide by $n - 1 = 1$:
+$s_{xy} = -4$. Negative — when x is above its mean, y is below. `cov(c(1,3), c(5,1))`
+confirms −4.
+:::
+
+## What you can now do
+
+- **Compute a mean by hand** and explain it as the balance point where deviations
+  above and below cancel to zero.
+- **Compute a variance and a standard deviation** from squared deviations, and say
+  why the deviations are squared (so they don't cancel) and why the divisor is
+  $n - 1$.
+- **Compute a covariance** from paired deviations, and read its *sign* as the
+  direction two variables move together (positive = same way, negative = opposite).
+- **Interpret, not just calculate** — judge whether a spread or co-movement is large,
+  and name a change to the data that would make it bigger or smaller.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+and [The formal version](#the-formal-version) before continuing — the regression
+course opens with the slope formula $s_{xy}/s_x^2$ and assumes all of the above.
+
+## Where this goes next
+
+You now own every ingredient of simple linear regression: its slope formula is
+literally *covariance divided by variance* — $\hat{\beta}_1 = s_{xy} / s_x^2$. The
+[simple-linear-regression course](../../courses/simple-linear-regression/syllabus.md)
+starts there. Ready for more reps first? Do the [practice problems](practice.qmd).

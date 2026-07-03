@@ -1,0 +1,194 @@
+---
+title: "Capstone: decode a real optimizer"
+subtitle: "Open the documentation of optim() and scipy.minimize — and read every word"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The R cell below with a **Run** button is live (WebR). The Python listing is shown for
+reading only — it can't run in the browser (see the note beside it).
+:::
+
+## Where we're going
+
+No new ideas here — this capstone proves you reached the goal. When you started, an
+optimizer's documentation was a wall of jargon: *objective*, *gradient*, *convergence
+tolerance*, *L-BFGS-B*. Now you've *built* the thing those words describe. So we'll open
+the actual output and signature of two real optimizers — R's `optim()` and Python's
+`scipy.optimize.minimize` — and decode every field, tracing each back to the module where
+you built it. If you can read these, you can read the optimizer call buried in almost any
+methods section or codebase.
+
+**Builds on:** every module —
+[the derivative as slope](../../../../foundations/derivative-as-slope/lesson.qmd),
+[rolling downhill (1)](../01-rolling-downhill/lesson.qmd),
+[the gradient (2)](../02-the-gradient/lesson.qmd), and
+[fitting a line by descent (3)](../03-fitting-a-line-by-descent/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Three recalls spanning the course. Produce each before opening it.
+
+**1.** *(Module 1)* In one sentence, what does the *learning rate* control, and what
+happens if it's too big?
+
+::: {.callout-note collapse="true" title="Answer"}
+It's the step size; too big and each step overshoots the bottom and the value diverges
+instead of settling. See [Module 1](../01-rolling-downhill/lesson.qmd).
+:::
+
+**2.** *(Module 2)* At the bottom of the error bowl, what is the gradient, and how does an
+optimizer use that fact to know it's done?
+
+::: {.callout-note collapse="true" title="Answer"}
+The gradient is the zero vector — every slope is zero. An optimizer stops when the
+gradient is *near* zero (nothing left to descend). See
+[Module 2](../02-the-gradient/lesson.qmd).
+:::
+
+**3.** *(Module 3)* Our from-scratch descent and scipy's L-BFGS-B reached the same
+coefficients. Why must they agree?
+
+::: {.callout-note collapse="true" title="Answer"}
+The squared-error bowl has a single bottom, so every correct optimizer lands there; only
+the route and speed differ. See [Module 3](../03-fitting-a-line-by-descent/lesson.qmd).
+:::
+
+## The artifact
+
+Here is a real optimizer at work — R's built-in `optim()`, fitting our line by
+minimizing the mean squared error. This is the kind of call you'll see in real code.
+Run it and look at everything it returns:
+
+```{webr}
+#| autorun: true
+# THE ARTIFACT — a real optimizer's full output. Run it, then read the decode below.
+x <- c(-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5)
+y <- c(12.53, 9.40, 6.58, 3.59, 0.30, -2.63, -5.49, -8.53)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+
+result <- optim(par = c(0, 0), fn = mse, method = "BFGS")
+result       # look at $par, $value, $counts, $convergence
+```
+
+And here is the equivalent in Python, with `scipy` — the version that **can't run in
+this browser**, shown for reading:
+
+::: {.callout-note title="Runs on your machine, not here"}
+`scipy` compiles Fortran, so it can't run in WebR. This is the reference the course was
+validated against; run it in a Python session to reproduce the frozen numbers.
+
+```python
+import numpy as np
+from scipy.optimize import minimize
+
+x = np.array([-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5])
+y = np.array([12.53, 9.40, 6.58, 3.59, 0.30, -2.63, -5.49, -8.53])
+
+def mse(b):
+    return np.mean((b[0] + b[1] * x - y) ** 2)
+
+result = minimize(mse, x0=np.zeros(2), method="L-BFGS-B")
+#   result.x        -> array([ 1.96875003, -3.00940476 ])   the coefficients
+#   result.fun      -> 0.00897...  the MSE at the bottom
+#   result.jac      -> ~[0, 0]     the gradient there
+#   result.nit      -> a handful   number of iterations
+#   result.success  -> True        converged
+```
+:::
+
+## The decode, field by field
+
+Read each field aloud, then trace it home. The two optimizers use slightly different
+names for the same things.
+
+- **`par` (R) / `result.x` (scipy)** — "the parameters at the answer." These are the
+  fitted intercept and slope, the *position of the bottom of the bowl* — exactly what
+  your descent returned in [Module 3](../03-fitting-a-line-by-descent/lesson.qmd). Both
+  report about $(1.969, -3.009)$.
+
+- **`fn` (R) / the function passed to `minimize` (scipy)** — "the objective" or "the loss."
+  This is the thing being minimized: our `mse`, the mean squared error of the line. It's
+  the *height of the bowl* — the surface from [Module 3](../03-fitting-a-line-by-descent/lesson.qmd).
+  Every optimizer needs you to hand it this one function.
+
+- **`value` (R) / `result.fun` (scipy)** — "the objective at the answer." The MSE at the
+  bottom — the *leftover error* the best line can't remove (above zero, because the data
+  is noisy, exactly [Module 3's trap](../03-fitting-a-line-by-descent/lesson.qmd#common-traps)).
+
+- **`result.jac` (scipy)** — "the Jacobian," here just the **gradient** at the answer:
+  the vector of slopes from [Module 2](../02-the-gradient/lesson.qmd). It's essentially
+  $(0, 0)$ — the signal that there's no downhill left, so this is the bottom.
+
+- **`counts` (R) / `result.nit` (scipy)** — "how many iterations it took." Each is one
+  step of the kind you looped over in [Module 1](../01-rolling-downhill/lesson.qmd).
+  Notice L-BFGS-B needs only a handful where our plain descent took 2000 — same
+  destination, far smarter route.
+
+- **`convergence` (R, `0` = success) / `result.success` (scipy, `True`)** — "did it
+  actually reach a flat spot?" It's the optimizer reporting that the gradient got near
+  zero before it ran out of iterations — the [Module 2](../02-the-gradient/lesson.qmd)
+  stopping signal.
+
+- **`method = "BFGS"` / `"L-BFGS-B"`** — "which downhill strategy." These are cousins of
+  gradient descent that also read the *curvature* of the bowl to take bigger, smarter
+  steps — which is why they need no learning rate you set by hand (they choose step sizes
+  themselves) and finish in few iterations. Same idea you built — use the slope to go
+  downhill — with a better step-size rule bolted on.
+
+Notice what's *missing* from these signatures: a **learning rate**. You set $\alpha$ by
+hand in Modules 1–3; L-BFGS-B picks its own step size each iteration. That's the one
+place the real tool is fancier than your build — and now you know exactly what it's
+doing instead.
+
+## Common traps
+
+**Trap: "`convergence = 0` (or `success = True`) means it found the best possible
+answer."** It means the optimizer reached a spot where the gradient is ~zero and stopped
+cleanly — a bottom. For our single-bowl squared-error problem that *is* the global best.
+But on a surface with several valleys (Module 1's caveat), "converged" only means "found
+*a* bottom" — possibly a shallow local one. Success reports a clean stop, not a guarantee
+of the deepest valley.
+
+**Trap: "L-BFGS-B is doing something fundamentally different from what I built."** Its
+name is intimidating, but the core is your loop: evaluate the objective, use the gradient
+to head downhill, repeat until the gradient vanishes. The extra letters are a smarter
+*step-size* rule (using curvature) and a way to handle *bounds* (the "B") — refinements on
+top of the idea you now own, not a different idea.
+
+## What you can now do
+
+- **Read an optimizer's call and output** — `optim()` or `scipy.minimize` — and say what
+  every field means: the objective, the fitted parameters, the objective value, the
+  gradient, the iteration count, the convergence flag.
+- **Map the jargon to the mechanics you built**: objective = the bowl, parameters = the
+  bottom, gradient ≈ 0 = the stopping signal, iterations = descent steps.
+- **Explain what a method like L-BFGS-B adds** over plain gradient descent (a smarter
+  step-size rule from curvature; no hand-set learning rate) — and what it shares (downhill
+  by the gradient).
+- **Trust a from-scratch implementation** by validating it against a real optimizer, and
+  say why they must agree on a single-bottomed loss.
+
+If any field still reads as jargon, revisit the module it points to above — the whole
+course goal is being able to read that output cold.
+
+## Where this goes next
+
+You've built and decoded gradient-based optimization for a two-parameter line. The same
+machinery scales straight up: fit *many* coefficients at once (multiple regression), swap
+the squared-error bowl for other losses (logistic regression's log-loss, for classifying),
+or handle huge datasets by descending on small batches at a time (stochastic gradient
+descent — the engine under modern machine learning). Each is this exact loop —
+loss, gradient, step — with a bigger position vector or a different bowl. Ready for the
+final cumulative set? Do the [practice problems](practice.qmd).

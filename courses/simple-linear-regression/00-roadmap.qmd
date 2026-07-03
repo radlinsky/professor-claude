@@ -1,0 +1,45 @@
+---
+title: "Roadmap"
+---
+
+How every module depends on the others. Blue nodes are reusable
+[foundations](../../foundations/README.md) modules shared across courses; arrows
+mean "needed for".
+
+```{mermaid}
+flowchart TD
+    classDef foundation fill:#e8f0fe,stroke:#4285f4
+
+    F1["vectors-and-summation<br/>(x_i, n, Σ, sum rules)"]:::foundation
+    F2["mean-variance-covariance<br/>(x̄, s², cov, cor)"]:::foundation
+    M1["01 · Lines & the least-squares idea<br/>(β₀, β₁, ŷ, residuals, SSE, argmin)"]
+    M2["02 · Deriving the OLS formulas<br/>(the calc tricks + the derivation)"]
+    M3["03 · Reading lm() output & papers<br/>(SE, t, p, R², paper tables)"]
+    M4["04 · Capstone<br/>(decode a real regression, end to end)"]
+
+    F1 --> F2
+    F1 --> M1
+    F2 --> M1
+    F2 --> M2
+    M1 --> M2
+    M2 --> M3
+    M3 --> M4
+```
+
+## Suggested order
+
+1. Foundation: [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) —
+   new? take it fully; done before? skim its pronunciation table.
+2. Foundation: [mean-variance-covariance](../../foundations/mean-variance-covariance/lesson.qmd) —
+   same rule.
+3. [01 · Lines and the least-squares idea](modules/01-least-squares-idea/lesson.qmd)
+   (+ [practice](modules/01-least-squares-idea/practice.qmd))
+4. [02 · Deriving the OLS formulas](modules/02-deriving-the-ols-formulas/lesson.qmd)
+   (+ [practice](modules/02-deriving-the-ols-formulas/practice.qmd))
+5. [03 · Reading lm() output and papers](modules/03-reading-lm-output-and-papers/lesson.qmd)
+   (+ [practice](modules/03-reading-lm-output-and-papers/practice.qmd))
+6. [04 · Capstone — reading a real regression](modules/04-capstone-reading-a-real-regression/lesson.qmd)
+   (+ [practice](modules/04-capstone-reading-a-real-regression/practice.qmd))
+
+After each lesson, do its practice page before moving on — the problems are the part
+that makes it stick. External videos/posts for each module: [resources](resources.md).

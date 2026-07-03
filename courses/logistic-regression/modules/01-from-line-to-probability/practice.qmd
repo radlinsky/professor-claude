@@ -1,0 +1,195 @@
+---
+title: "Practice: From a line to a probability"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Use paper or the live cells; only then open the
+answer. Paste this into any starter as needed:
+`sigmoid <- function(z) 1 / (1 + exp(-z))`.
+
+## Problem 1 — the toy example, new numbers
+
+A logistic model has intercept $\beta_0 = 2$ and slope $\beta_1 = -0.5$. Compute the
+linear score $\eta = \beta_0 + \beta_1 x$ for $x = 0$, $x = 4$, and $x = 8$, then squash
+each with the sigmoid. Do the $x = 4$ case **by hand** first.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- 2; b1 <- -0.5
+x <- c(0, 4, 8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+By hand at $x = 4$: $\eta = 2 + (-0.5)(4) = 0$, so $\sigma(0) = 0.5$.
+
+```{r p1-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- 2; b1 <- -0.5
+x   <- c(0, 4, 8)
+eta <- b0 + b1 * x
+rbind(eta = eta, prob = sigmoid(eta))   # eta = 2, 0, -2 ; prob = 0.881, 0.5, 0.119
+```
+The score falls as $x$ rises (negative slope), so the probability slides from $0.881$
+down through $0.5$ to $0.119$ — all legal probabilities.
+:::
+
+## Problem 2 — fill in the missing step
+
+We're evaluating the sigmoid at a score of $z = 3$. Here's the work with the **core
+step blanked**:
+
+> Step 1: $e^{-z} = e^{-3} \approx 0.0498$
+> Step 2: **your step here** — build the denominator and take the reciprocal
+> Step 3: $\sigma(3) \approx 0.953$
+
+Supply Step 2.
+
+```{webr}
+#| autorun: false
+# p2-starter — check sigma(3)
+sigmoid <- function(z) 1 / (1 + exp(-z))
+z <- 3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: add 1 to get the denominator, then take one over it: $1 + e^{-3} \approx 1.0498$,
+and $\sigma(3) = 1/1.0498 \approx 0.953$.
+
+```{r p2-answer}
+z <- 3
+denom <- 1 + exp(-z)     # ~1.0498
+1 / denom                # ~0.953
+```
+The "add 1, then reciprocal" is the whole squashing move — it's what forces the answer
+below 1 (denominator over 1) and above 0 (one over a positive number).
+:::
+
+## Problem 3 — reading probabilities off scores
+
+Below are the linear scores for five customers from a logistic model. Turn them into
+predicted probabilities, and say how many are predicted "more likely than not" (probability
+above $0.5$).
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: convert scores to probabilities and count those above 0.5
+sigmoid <- function(z) 1 / (1 + exp(-z))
+scores <- c(-2.5, -0.3, 0.0, 1.2, 4.0)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+scores <- c(-2.5, -0.3, 0.0, 1.2, 4.0)
+probs  <- sigmoid(scores)
+round(probs, 3)          # 0.076, 0.426, 0.500, 0.769, 0.982
+sum(probs > 0.5)         # 2
+```
+Probabilities: $0.076, 0.426, 0.500, 0.769, 0.982$. Exactly **2** are above $0.5$ (the
+scores $1.2$ and $4.0$). The score of $0$ lands exactly on $0.5$ (not above), and the two
+negative scores fall below — the sign of the score decides which side of $0.5$ you're on.
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants the failure probability for a part with linear score $z = -3$ and
+writes the following. It contains **exactly one mistake** — find it and fix it.
+
+```{webr}
+#| autorun: false
+# p4-starter — run it; the answer comes out above 0.5, which can't be right for z = -3
+bad_sigmoid <- function(z) 1 / (1 + exp(z))   # note the exponent
+bad_sigmoid(-3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the **sign in the exponent**: they wrote `exp(z)` instead of `exp(-z)`.
+That computes $1/(1 + e^{z})$, which is $\sigma(-z)$, not $\sigma(z)$ — so a negative
+score wrongly comes out *above* $0.5$. For $z = -3$ the correct probability is small:
+
+```{r p4-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+c(wrong = 1 / (1 + exp(-3)),   # what the buggy code returns for z = -3: ~0.953
+  right = sigmoid(-3))          # correct: ~0.047
+```
+A part with a *negative* score should be *unlikely* to fail, so its probability must be
+**below** $0.5$ — the correct $\sigma(-3) \approx 0.047$, not $0.953$. The minus sign in
+$e^{-z}$ is doing essential work; drop it and the S-curve runs backwards.
+:::
+
+## Problem 5 — mixing it with the line *(uses simple-linear-regression's $\beta_0 + \beta_1 x$)*
+
+A logistic model for whether a seed germinates uses temperature $x$ (in °C) with
+$\beta_0 = -6$ and $\beta_1 = 0.3$. First, using the **linear-regression skill**, find
+the temperature $x$ where the linear score $\eta$ equals $0$. Then explain, using this
+module, what the germination probability is at that temperature.
+
+```{webr}
+#| autorun: false
+# p5-starter — solve for x where eta = 0, then interpret with the sigmoid
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- -6; b1 <- 0.3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Setting the line to zero (the linear-regression move — solve $\beta_0 + \beta_1 x = 0$
+for $x$): $-6 + 0.3x = 0 \Rightarrow x = 6/0.3 = 20$°C.
+
+```{r p5-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- -6; b1 <- 0.3
+x_star <- -b0 / b1            # solve the line = 0: x = 20
+c(x_at_score_0 = x_star, prob_there = sigmoid(b0 + b1 * x_star))   # 20, and 0.5
+```
+At $x = 20$°C the score is $0$, so the germination probability is exactly $\sigma(0) =
+0.5$ — a 50/50 seed. This temperature is the model's *tipping point*: below it germination
+is predicted unlikely, above it likely. (The score-of-zero location is where the S-curve
+crosses $0.5$ — the same crossing you saw in the lesson's explore plot.)
+:::
+
+## Problem 6 — a gentle cliffhanger
+
+We keep saying a straight line is fit to something inside the sigmoid — but to *what*,
+exactly? Here's a hint you can check now. Take a probability $p$, and compute
+$\log\!\big(\tfrac{p}{1-p}\big)$ (its log-odds, from the
+[probability-and-odds](../../../../foundations/probability-and-odds/lesson.qmd) module).
+Do this for the three probabilities the sigmoid produced from scores $-1, 0, 1$. What do
+you notice about the log-odds you get back?
+
+```{webr}
+#| autorun: false
+# p6-starter — run the sigmoid forward, then take log-odds to go back
+sigmoid <- function(z) 1 / (1 + exp(-z))
+scores <- c(-1, 0, 1)
+p <- sigmoid(scores)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p6-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+scores <- c(-1, 0, 1)
+p       <- sigmoid(scores)
+log_odds <- log(p / (1 - p))
+rbind(score = scores, prob = round(p, 3), log_odds = round(log_odds, 3))
+```
+The log-odds you recover are exactly the original scores: $-1, 0, 1$. That's the punchline
+of the whole course sneaking up on you — **the sigmoid turns a score into a probability,
+and the log-odds turns that probability right back into the score.** So the "line inside
+the sigmoid" is really a line for the *log-odds*. You can't fully unpack why that's the
+natural choice yet — [the next module](../02-odds-log-odds-and-the-logit/lesson.qmd) makes
+it precise.
+:::

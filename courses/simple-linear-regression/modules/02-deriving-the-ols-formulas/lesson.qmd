@@ -1,0 +1,405 @@
+---
+title: "Deriving the OLS formulas"
+subtitle: "The 'take the derivative, set it to zero' trick — taught, then used for real"
+---
+
+```{r setup}
+#| message: false
+# Packages this lesson uses. Missing ones are installed automatically.
+needed <- c()   # base R is all we need
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+Last module ended at a valley: SSE plotted against candidate slopes, with the best
+line at the bottom. This module finds the bottom *exactly*. The tool is the single
+most reused move in all of applied math — **take the derivative, set it to zero,
+solve** — and by the end, that move will hand us the famous formulas
+$\hat{\beta}_1 = s_{xy}/s_x^2$ and $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x}$.
+Every algebra step on the way uses a trick you've already been taught (mostly the
+sum rules), and each step says which.
+
+**Builds on:** [module 01](../01-least-squares-idea/lesson.qmd) (SSE, argmin),
+[vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd)
+(sum Rules 1–3), and
+[mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Everything this derivation leans on, retrieved first. Produce each answer before you
+open it.
+
+**1.** *(module 1)* In one sentence: what does $\mathrm{SSE}$ measure, and what does
+"the best line" mean in least squares?
+
+::: {.callout-note collapse="true" title="Answer"}
+SSE (sum of squared errors) is a line's *badness score* — the sum of its squared
+misses, $\sum (y_i - \hat{y}_i)^2$. The best line is the $(b_0, b_1)$ pair that makes
+that score smallest (the arg-min — the bottom of the valley). See
+[module 1](../01-least-squares-idea/lesson.qmd).
+:::
+
+**2.** *(vectors & summation)* A constant $b_0$ is added inside a sum over $n$ terms:
+what is $\sum_{i=1}^{n} b_0$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$n\,b_0$ — the constant appears once per term, $n$ times over (sum-Rule 3). We'll use
+this exact move in Step 1. See
+[vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd).
+:::
+
+**3.** *(mean, variance & covariance)* Fill in the blank: for any list, the deviations
+from the mean sum to ______ , i.e. $\sum_{i=1}^{n}(x_i - \bar{x}) = $ ______ .
+
+::: {.callout-note collapse="true" title="Answer"}
+Zero: $\sum (x_i - \bar{x}) = 0$. This is the "centering trick" that turns the raw
+slope formula into covariance-over-variance in Step 3. See
+[mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd).
+:::
+
+## A tiny example first
+
+Forget regression for a moment. Here's the smallest possible valley problem:
+
+> $f(b) = (b - 3)^2 + 2$. Which $b$ makes $f$ smallest?
+
+Try a few values by hand: $f(1) = (-2)^2 + 2 = 6$; $f(2) = 1 + 2 = 3$;
+$f(3) = 0 + 2 = 2$; $f(4) = 1 + 2 = 3$; $f(5) = 6$. The scores fall, bottom out at
+$b = 3$, and rise again — a valley with its bottom at 3.
+
+Now the calculus way, no guessing. Rusty-memory refresher from AP Calc: the
+**derivative** of a function is its slope at each point. Walking down into a valley
+the slope is negative, climbing out it's positive — so **at the exact bottom the
+slope is zero**. Find where the derivative equals zero and you've found the bottom.
+
+Two derivative facts are enough today (the derivative "recipes" you once memorized):
+
+- **Power rule:** the derivative of $b^2$ is $2b$ ("bring the 2 down").
+- **Chain rule, lite:** the derivative of $(\text{stuff})^2$ is
+  $2 \cdot (\text{stuff}) \cdot (\text{derivative of the stuff})$ — square rule
+  first, then multiply by the inside's own derivative.
+
+Apply to our $f$: the derivative of $(b-3)^2$ is $2(b-3) \cdot 1$ (the inside
+$b - 3$ has derivative 1), and the $+2$ is a constant — flat, derivative 0. So
+$f'(b) = 2(b - 3)$. Set it to zero: $2(b - 3) = 0$, so $b = 3$. The bottom, exactly,
+in two lines — no grid search.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+#| fig-alt: "A parabola with its minimum at b = 3 where the slope is zero"
+# The tiny valley: f(b) = (b - 3)^2 + 2
+f <- function(b) (b - 3)^2 + 2
+
+# Guess-and-check, like we did by hand
+f(c(1, 2, 3, 4, 5))          # 6 3 2 3 6 — bottom at b = 3
+
+# The derivative we computed: f'(b) = 2(b - 3). Zero exactly at b = 3.
+fprime <- function(b) 2 * (b - 3)
+fprime(c(1, 2, 3, 4, 5))     # -4 -2 0 2 4 — negative going in, zero at bottom
+
+b <- seq(0, 6, 0.01)
+plot(b, f(b), type = "l", lwd = 2, main = "The slope is 0 exactly at the bottom")
+abline(v = 3, col = "firebrick", lty = 2)
+```
+
+One more idea and we're armed. SSE depends on TWO knobs, $b_0$ and $b_1$. A
+**partial derivative** ($\partial$, "partial") is just: take the derivative with
+respect to one knob *while pretending the other knob is a constant*. A 2-knob
+valley's bottom is where BOTH partial slopes are zero — two equations, two unknowns.
+
+## Getting a feel for it
+
+**A ball in a bowl.** Picture the SSE valley from module 1 as a smooth bowl and drop
+a marble in. It rolls downhill, overshoots, rolls back, and finally settles at one
+spot — and that resting spot is the *only* place where the ground under it is
+perfectly **level**. Anywhere the ground tilts, the marble keeps rolling. That's the
+whole idea in one picture: the bottom of a valley is the place where the ground is
+flat.
+
+**Why "derivative equals zero" is exactly that.** The derivative is nothing but the
+steepness of the ground — how tilted the curve is at a point. So "level ground"
+*is* "derivative equals zero." Instead of the module-1 grid search (score 301
+candidate slopes and eyeball the lowest), we can ask algebra directly: *where is the
+ground level?* Set the slope-of-the-curve to zero and solve. In our toy valley
+$f(b) = (b-3)^2 + 2$, the steepness is $f'(b) = 2(b-3)$: it reads $-4$ at $b=1$ and
+$-2$ at $b=2$ (ground tilting down, marble rolls right), shrinks to $0$ exactly at
+$b=3$, then goes positive past it. The steepness *changing sign through zero* is the
+marble arriving at the bottom and stopping.
+
+**Why the bowl shape is what lets this work.** Squaring the misses (module 1) is what
+makes the SSE surface a bowl — curving *up* on every side — so it has exactly one
+level spot, and that spot is a bottom, not a peak or a saddle. That's the payoff of
+squaring showing up again: because SSE is a bowl, "find where the slope is zero" is
+guaranteed to find *the* minimum, and with two knobs we just do it in both
+directions at once (both partial slopes zero). The rest of this lesson is that single
+move, carried out carefully with the sum rules doing the bookkeeping.
+
+## What the notation is going to say
+
+The derivation below says: "write down the SSE score from module 1; take its
+partial derivative with respect to the intercept, set it to zero, and simplify with
+the sum rules — that gives one equation. Do the same for the slope — a second
+equation. Solve the pair: the intercept equation says *the best line passes through
+the point* $(\bar{x}, \bar{y})$, and the slope equation then simplifies to
+*covariance over variance*."
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x_i$ | "ex sub eye" | the i-th predictor value (in R: `x[i]`) | 1, 2, 3, 4 |
+| $y_i$ | "why sub eye" | the i-th observed outcome (in R: `y[i]`) | 2, 3, 5, 6 |
+| $n$ | "en" | the number of data points (in R: `length(x)`) | 4 |
+| $b_0, b_1$ | "bee-zero, bee-one" | the intercept and slope *knobs* we're minimizing over (any candidate line) | swept during the search |
+| $f'(b)$ | "f prime of b" | the derivative: the slope of $f$ at $b$ | $f'(b) = 2(b-3)$ |
+| $\frac{\partial}{\partial b_0}$ | "the partial derivative with respect to bee-zero" | slope in the $b_0$ direction, holding $b_1$ still | see derivation |
+| $\mathrm{SSE}(b_0, b_1)$ | "the SSE at bee-zero, bee-one" | the score as a function of both knobs | $\sum (y_i - b_0 - b_1 x_i)^2$ |
+| $\hat{\beta}_0, \hat{\beta}_1$ | "beta-zero hat, beta-one hat" | the solution: the arg-min pair | 0.5 and 1.4 (verified below) |
+| $\bar{x}, \bar{y}$ | "ex bar, why bar" | means of x and y | 2.5 and 4 |
+| $s_{xy}$ | "the covariance of x and y" | $\frac{1}{n-1}\sum(x_i-\bar{x})(y_i-\bar{y})$ | $7/3$ |
+| $s_x^2$ | "the variance of x" | $\frac{1}{n-1}\sum(x_i-\bar{x})^2$ | $5/3$ |
+| $\Rightarrow$ | "which implies" / "therefore" | the next line follows from this one | between derivation lines |
+
+## The formal version
+
+The problem, from module 1 (tomato data $x = (1,2,3,4)$, $y = (2,3,5,6)$ as our
+running check):
+
+$$
+(\hat{\beta}_0, \hat{\beta}_1) = \arg\min_{b_0,\, b_1} \;\underbrace{\sum_{i=1}^{n} (y_i - b_0 - b_1 x_i)^2}_{\mathrm{SSE}(b_0,\, b_1)}
+$$
+
+### Step 1 — partial derivative with respect to $b_0$, set to zero
+
+$$
+\begin{aligned}
+\frac{\partial\, \mathrm{SSE}}{\partial b_0}
+&= \sum_{i=1}^{n} 2\,(y_i - b_0 - b_1 x_i)\cdot(-1) \\
+&= -2 \sum_{i=1}^{n} (y_i - b_0 - b_1 x_i)
+\end{aligned}
+$$
+
+- Line 1: chain rule, lite — derivative of (stuff)² is 2·(stuff)·(derivative of
+  stuff). Treating $b_1$ as a constant, the "stuff" $y_i - b_0 - b_1 x_i$ has
+  derivative $-1$ with respect to $b_0$. Also: the derivative of a sum is the sum
+  of the derivatives (differentiate each term of the Σ separately).
+- Line 2: pull the constant $-2$ out of the sum (sum Rule 2).
+
+Set it to zero and simplify (dividing both sides by $-2$ first):
+
+$$
+\begin{aligned}
+\sum_{i=1}^{n} (y_i - b_0 - b_1 x_i) &= 0 \\
+\Rightarrow\quad \sum y_i \;-\; n\,b_0 \;-\; b_1 \sum x_i &= 0 \\
+\Rightarrow\quad \bar{y} - b_0 - b_1 \bar{x} &= 0 \\
+\Rightarrow\quad \boxed{\;\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\, \bar{x}\;}
+\end{aligned}
+$$
+
+- Line 2: split the sum into three sums (Rule 1); $b_0$ summed n times is $n b_0$
+  (Rule 3); pull $b_1$ out (Rule 2).
+- Line 3: divide the whole equation by $n$; $\frac{1}{n}\sum y_i$ is $\bar{y}$ and
+  $\frac{1}{n}\sum x_i$ is $\bar{x}$ — the mean's definition.
+- Line 4: solve for $b_0$ (move terms across the equals sign).
+
+Plain English: **the best line always passes through the point of means**
+$(\bar{x}, \bar{y})$ — pick any slope, and the best intercept for it just slides
+the line through that anchor point.
+
+### Step 2 — partial derivative with respect to $b_1$, set to zero
+
+$$
+\begin{aligned}
+\frac{\partial\, \mathrm{SSE}}{\partial b_1}
+&= \sum_{i=1}^{n} 2\,(y_i - b_0 - b_1 x_i)\cdot(-x_i)
+\;=\; -2 \sum_{i=1}^{n} x_i\,(y_i - b_0 - b_1 x_i)
+\end{aligned}
+$$
+
+- Chain rule again — this time the inside's derivative with respect to $b_1$ is
+  $-x_i$; then pull out the constant $-2$ (Rule 2).
+
+Set to zero, then substitute Step 1's result $b_0 = \bar{y} - b_1 \bar{x}$:
+
+$$
+\begin{aligned}
+\sum x_i \big(y_i - (\bar{y} - b_1 \bar{x}) - b_1 x_i\big) &= 0 \\
+\Rightarrow\quad \sum x_i \big( (y_i - \bar{y}) - b_1 (x_i - \bar{x}) \big) &= 0 \\
+\Rightarrow\quad \sum x_i (y_i - \bar{y}) \;-\; b_1 \sum x_i (x_i - \bar{x}) &= 0 \\
+\Rightarrow\quad \hat{\beta}_1 = \frac{\sum x_i (y_i - \bar{y})}{\sum x_i (x_i - \bar{x})}
+\end{aligned}
+$$
+
+- Line 1: substitution (replace $b_0$ with what Step 1 proved it must be).
+- Line 2: regroup the inside: $y_i - \bar{y} + b_1\bar{x} - b_1 x_i$ becomes
+  $(y_i - \bar{y}) - b_1(x_i - \bar{x})$ — just collecting the $b_1$ terms (factoring).
+- Line 3: split the sum (Rule 1) and pull $b_1$ out (Rule 2).
+- Line 4: solve for $b_1$.
+
+### Step 3 — the centering trick makes it recognizable
+
+The last expression doesn't look like covariance/variance yet. One small lemma
+fixes both top and bottom. Remember from the foundations module that deviations sum
+to zero: $\sum (y_i - \bar{y}) = 0$. Multiply that zero by the constant $\bar{x}$:
+
+$$
+\begin{aligned}
+\sum (x_i - \bar{x})(y_i - \bar{y})
+&= \sum x_i (y_i - \bar{y}) - \bar{x} \underbrace{\sum (y_i - \bar{y})}_{=\,0} \\
+&= \sum x_i (y_i - \bar{y})
+\end{aligned}
+$$
+
+- Line 1: expand the first factor and split the sum (Rule 1), pulling the constant
+  $\bar{x}$ out (Rule 2).
+- Line 2: the second term is $\bar{x} \times 0 = 0$ and vanishes.
+
+So the numerator can be rewritten with $(x_i - \bar{x})$ in it for free; the same
+argument with $y \to x$ rewrites the denominator. Therefore:
+
+$$
+\hat{\beta}_1
+= \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}{\sum (x_i - \bar{x})^2}
+= \frac{s_{xy}}{s_x^2}
+\qquad\text{and}\qquad
+\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\,\bar{x}
+$$
+
+(For the last equality: divide top and bottom by the same $n - 1$ — it cancels,
+which is why the covariance/variance form and the sum form are the same number.)
+
+Reading it aloud: "beta-one hat equals the covariance of x and y, divided by the
+variance of x" — *the slope is: how much x and y move together, per unit of how
+much x moves on its own.*
+
+Mapping back to the toy numbers: $\bar{x} = 2.5$, $\bar{y} = 4$,
+$s_{xy} = 7/3$, $s_x^2 = 5/3$, so
+$\hat{\beta}_1 = (7/3)/(5/3) = 7/5 = 1.4$ and
+$\hat{\beta}_0 = 4 - 1.4 \times 2.5 = 0.5$. Module 1's grid search found exactly
+this pair — now you know why.
+
+## Explore it
+
+```{r explore-1}
+# The formulas, straight from the derivation — then lm() as the referee.
+# PREDICT: will the by-hand slope (cov/var) match lm()'s slope exactly, or only
+# roughly? Write your guess, then read the two lines of output below.
+x <- c(1, 2, 3, 4)
+y <- c(2, 3, 5, 6)
+
+b1_hat <- cov(x, y) / var(x)          # slope: covariance over variance
+b0_hat <- mean(y) - b1_hat * mean(x)  # intercept: through the point of means
+
+c(b0 = b0_hat, b1 = b1_hat)           # 0.5 and 1.4
+coef(lm(y ~ x))                       # lm() agrees exactly
+```
+
+```{r explore-2}
+# TRY IT: swap in ANY data — the agreement is not a coincidence of the toy
+# numbers. mtcars: predict fuel efficiency (mpg) from weight (wt).
+x <- mtcars$wt
+y <- mtcars$mpg
+
+c(by_hand = cov(x, y) / var(x),
+  lm      = unname(coef(lm(y ~ x))[2]))     # identical slopes
+
+# And the anchor-point fact from Step 1: the fitted line passes through
+# (mean of x, mean of y). Predict at x-bar and compare with y-bar:
+fit <- lm(y ~ x)
+c(prediction_at_xbar = unname(predict(fit, data.frame(x = mean(x)))),
+  ybar               = mean(y))              # identical
+```
+
+```{r explore-3}
+#| fig-alt: "SSE valley over slopes with the derivative-derived optimum marked"
+# TRY IT: module 1's valley, revisited — but now the red line is placed by the
+# FORMULA, not by search. Change y's noise (sd below) and re-run: the formula
+# tracks the valley bottom perfectly every time.
+# PREDICT: the true slope used to build y is 2. Will the formula's red line land
+# exactly on 2, or a little off? Guess, then read the value in the plot title.
+set.seed(42)
+x <- 1:20
+y <- 3 + 2 * x + rnorm(20, sd = 4)
+
+b1_hat <- cov(x, y) / var(x)
+b0_best_for <- function(b1) mean(y) - b1 * mean(x)   # Step 1, reused
+sse_of <- function(b1) sum((y - (b0_best_for(b1) + b1 * x))^2)
+
+slopes <- seq(0, 4, 0.01)
+plot(slopes, sapply(slopes, sse_of), type = "l", lwd = 2,
+     xlab = "candidate slope b1", ylab = "SSE (with best b0 for each slope)",
+     main = sprintf("Formula says bottom at b1 = %.3f", b1_hat))
+abline(v = b1_hat, col = "firebrick", lty = 2)
+```
+
+## Common traps
+
+**Trap 1 — dropping the inside-derivative factor of the chain rule.** It's easy to
+differentiate $(y_i - b_0 - b_1 x_i)^2$ as just $2(y_i - b_0 - b_1 x_i)$ and forget
+the $\cdot(-x_i)$ that the chain rule tacks on for the $b_1$ direction. That missing
+factor is not cosmetic: without the $x_i$, the slope equation collapses to
+$\sum (y_i - b_0 - b_1 x_i) = 0$ — which is *identical* to the intercept equation
+from Step 1. Two identical equations can't pin down two unknowns, so you'd never get
+a unique slope. The $-x_i$ is exactly what makes the slope equation carry
+information about $x$. (Practice turns this into a spot-the-error.)
+
+**Trap 2 — "derivative = 0 means minimum."** Setting the slope to zero finds *level*
+ground, which by itself could be a valley bottom, a hilltop, or a flat saddle. We're
+entitled to call it the minimum only because SSE is a **bowl** — squaring the misses
+curves the surface up on every side (Trap-2's payoff from module 1), so its one level
+spot must be a bottom. On a curve that bends the other way, "derivative zero" would
+hand you the *worst* point, not the best.
+
+## Check yourself
+
+**1.** Read this aloud, then answer: what is $\frac{\partial}{\partial b_0}\,(y_3 - b_0 - b_1 x_3)^2$
+for the toy data (where $x_3 = 3$, $y_3 = 5$), evaluated at $b_0 = 0.5, b_1 = 1.4$?
+
+::: {.callout-note collapse="true" title="Answer"}
+"The partial derivative, with respect to bee-zero, of: why-three minus bee-zero
+minus bee-one times ex-three, squared."
+
+Chain rule lite: $2\,(y_3 - b_0 - b_1 x_3)\cdot(-1)$. Plug in:
+$y_3 - b_0 - b_1 x_3 = 5 - 0.5 - 4.2 = 0.3$, so the answer is
+$2 \times 0.3 \times (-1) = -0.6$. (Each data point contributes a term like this;
+at the optimum they all sum to zero, even though individual terms — like this
+−0.6 — don't have to be zero themselves.)
+:::
+
+**2.** Using only Step 1's boxed result (no computation): a fitted regression line
+has slope 2, and the data have $\bar{x} = 10$, $\bar{y} = 30$. What is the
+intercept?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x} = 30 - 2 \times 10 = 10$. The best
+line must pass through the point of means $(10, 30)$; with slope 2, walking back
+from $x = 10$ to $x = 0$ descends $2 \times 10 = 20$, landing at 10.
+:::
+
+## What you can now do
+
+- **Find the bottom of a one-variable valley** by taking the derivative, setting it
+  to zero, and solving — e.g. minimize $f(b) = (b-3)^2 + 2$ in two lines.
+- **Explain "derivative equals zero"** as "level ground at the bottom of the bowl,"
+  and say why the bowl shape (from squaring) guarantees it's a minimum.
+- **Walk the OLS derivation**, naming the trick behind each step (chain rule, the
+  three sum rules, the centering trick), from $\mathrm{SSE}$ down to
+  $\hat{\beta}_1 = s_{xy}/s_x^2$ and $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$.
+- **Compute a fit by hand** with `cov(x,y)/var(x)` and `mean(y) - b1*mean(x)`, and
+  use the point-of-means fact to get an intercept from a slope.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+and [The formal version](#the-formal-version) before continuing — the next module
+reads the output of exactly this fit.
+
+## Where this goes next
+
+You now know what `lm()` computes and why. The last module decodes what it *prints* —
+standard errors, t values, p-values, $R^2$ — and how the same numbers appear in
+papers: [reading lm() output and papers](../03-reading-lm-output-and-papers/lesson.qmd).
+Ready for more reps first? Do the [practice problems](practice.qmd).

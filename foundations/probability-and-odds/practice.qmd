@@ -1,0 +1,170 @@
+---
+title: "Practice: Probability, odds, and log-odds"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Use paper or the live cells; only then open the
+answer. Reminders: odds $= p/(1-p)$, log-odds $= \log(\text{odds})$, and to invert,
+$p = \text{odds}/(1+\text{odds})$.
+
+## Problem 1 — the toy example, new numbers
+
+An event has probability $p = 0.8$. Compute its odds and its log-odds by hand, then
+check in R. State the "X to Y" reading of the odds.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to check your two answers
+p <- 0.8
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Odds $= 0.8 / 0.2 = 4$ — that's "**4 to 1**." Log-odds $= \log(4) \approx 1.386$
+(positive, because the event is more likely than not).
+
+```{r p1-answer}
+p <- 0.8
+c(odds = p / (1 - p), log_odds = log(p / (1 - p)))   # 4, 1.386
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+We're converting **odds back to a probability**. The odds are $2$ (a "2 to 1" event).
+Here's the work with the **core step blanked**:
+
+> Step 1: odds $= \dfrac{p}{1 - p} = 2$
+> Step 2: **your step here** — solve this equation for $p$
+> Step 3: $p = \dfrac{2}{3} \approx 0.667$
+
+Supply Step 2 (the algebra that gets from Step 1 to Step 3).
+
+```{webr}
+#| autorun: false
+# p2-starter — check that odds = 2 gives p = 2/3
+odds <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: multiply both sides by $(1-p)$ to clear the fraction, then collect the $p$'s:
+$2(1 - p) = p \Rightarrow 2 - 2p = p \Rightarrow 2 = 3p \Rightarrow p = 2/3$. In general
+this rearrangement is the formula $p = \text{odds}/(1 + \text{odds})$.
+
+```{r p2-answer}
+odds <- 2
+odds / (1 + odds)   # 0.6667
+```
+Odds of $2$ mean the event is twice as likely to happen as not — a probability of about
+$0.667$, not $0.5$.
+:::
+
+## Problem 3 — the full round trip
+
+Start from a log-odds value of $\ell = -1.5$. Recover the odds (undo the log), then the
+probability. Then, as a check, feed that probability *forward* through odds and log to
+confirm you get $-1.5$ back.
+
+```{webr}
+#| autorun: false
+# p3-starter — invert the log-odds, then re-derive it as a check
+ell <- -1.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+ell  <- -1.5
+odds <- exp(ell)                 # exp undoes log -> odds ~ 0.223
+p    <- odds / (1 + odds)        # odds -> probability ~ 0.182
+c(odds = odds, p = p)
+
+# Forward check: p -> odds -> log-odds should return -1.5
+log(p / (1 - p))                 # -1.5, full circle
+```
+The log-odds $-1.5$ corresponds to odds $\approx 0.223$ and probability $\approx 0.182$
+(a fairly unlikely event, as the negative log-odds warned). Running it forward returns
+exactly $-1.5$ — the conversions are genuine inverses.
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants the odds of a probability $p = 0.6$ and writes the following. It
+contains **exactly one mistake** — find it and fix it.
+
+> "The odds are just the probability, so odds $= 0.6$. Then the log-odds is $\log(0.6)
+> \approx -0.511$, which is negative — so the event is *less* likely than not."
+
+```{webr}
+#| autorun: false
+# p4-starter — compute the CORRECT odds and log-odds for p = 0.6
+p <- 0.6
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is "**the odds are just the probability**." Odds are $p/(1-p)$, not $p$. For
+$p = 0.6$ the odds are $0.6/0.4 = 1.5$, and the log-odds is $\log(1.5) \approx +0.405$ —
+**positive**, correctly signalling the event is *more* likely than not (as it should be,
+since $p > 0.5$).
+
+```{r p4-answer}
+p <- 0.6
+c(wrong_odds = p, right_odds = p / (1 - p),
+  right_log_odds = log(p / (1 - p)))   # 0.6 (wrong) vs 1.5, +0.405
+```
+The colleague's error even flipped the *conclusion*: they got a negative log-odds for an
+event that's actually more likely than not. Confusing odds with probability is the
+classic slip.
+:::
+
+## Problem 5 — mixing it with logs *(uses exponentials-and-logs' log rules)*
+
+Two events have odds $o_1 = 6$ and $o_2 = 2$. Their **log-odds difference** is
+$\log(o_1) - \log(o_2)$. Using a log rule (not a calculator), rewrite that difference as
+a *single* log of one number, then confirm in R. What single number's log is it?
+
+```{webr}
+#| autorun: false
+# p5-starter — check that log(6) - log(2) collapses to one log
+o1 <- 6; o2 <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+By the quotient rule (from
+[exponentials-and-logs](../exponentials-and-logs/lesson.qmd)), $\log(o_1) - \log(o_2) =
+\log(o_1 / o_2) = \log(6/2) = \log(3) \approx 1.099$. So the difference of two log-odds is
+the log of the **ratio of the odds** — that ratio ($6/2 = 3$) is exactly what gets called
+an *odds ratio* in applied work.
+
+```{r p5-answer}
+o1 <- 6; o2 <- 2
+c(difference = log(o1) - log(o2), single_log = log(o1 / o2))   # both ~ 1.099
+```
+This "a difference of log-odds is the log of an odds ratio" fact is the seed of how
+logistic-regression coefficients get read — you'll meet it in that course.
+:::
+
+## Problem 6 — interpretation
+
+Two medical tests are described. Test A: the odds of a true positive are $9$. Test B:
+the odds are $1.5$. Without converting to probabilities, which test is more likely to
+give a true positive, and roughly how do their probabilities compare (both above $0.5$,
+both below, one each)? Explain in a sentence or two.
+
+::: {.callout-note collapse="true" title="Answer"}
+Test A is much more likely to give a true positive — odds of $9$ (nine hits per miss)
+dwarf odds of $1.5$ (three hits per two misses). Both odds exceed $1$, so **both**
+probabilities are above $0.5$: Test A's is $9/10 = 0.9$ and Test B's is $1.5/2.5 = 0.6$.
+The lesson: any odds above 1 means "more likely than not," and the bigger the odds, the
+closer the probability creeps toward 1 (without ever reaching it).
+:::

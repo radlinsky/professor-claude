@@ -1,0 +1,317 @@
+---
+title: "The derivative, as a slope you can measure"
+subtitle: "How steep is a curve right here? Measure it with arithmetic — no calculus rules needed"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+You already have the *idea* of a derivative: it's the **slope** of a curve — how fast
+the output changes as you nudge the input. This module turns that idea into something
+you can actually **compute**, using nothing but subtraction and division. No
+differentiation rules, no limits-in-symbols: we'll measure the slope the way you'd
+measure the steepness of a hill — take a tiny step and look at the rise over the run.
+
+That one skill — "how steep is this curve right here?" — is the compass behind a huge
+amount of applied math: finding where a curve bottoms out (optimization), rates of
+change in physics and finance, and the sensitivity of any model to its inputs.
+
+**Builds on:** just the baseline (you can read a line's slope as rise over run, and
+plug a number into a function).
+
+## Warm-up: do you remember?
+
+This is a foundation module, so there's nothing earlier to recall — just three
+baseline reflexes the idea leans on. Produce each answer before opening it.
+
+**1.** A straight line passes through the points $(1, 2)$ and $(3, 8)$. What is its
+slope?
+
+::: {.callout-note collapse="true" title="Answer"}
+Slope is *rise over run*: $(8 - 2) / (3 - 1) = 6 / 2 = 3$. The line climbs 3 units of
+output for every 1 unit of input. Everything in this lesson is this one calculation,
+done over a tiny run.
+:::
+
+**2.** For the function $f(x) = x^2$, what are $f(3)$ and $f(3.1)$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$f(3) = 3^2 = 9$ and $f(3.1) = 3.1^2 = 9.61$. "Plug the number in and square it" — that's
+all $f(x) = x^2$ asks.
+:::
+
+**3.** Look at a U-shaped curve (like $x^2$). Where along it is the curve *flat* —
+slope zero — and where is it steepest: near the bottom, or far out on the sides?
+
+::: {.callout-note collapse="true" title="Answer"}
+It's flat at the very bottom (slope 0 there) and gets steeper the farther out you go.
+Slope changes from point to point — which is exactly why we need a way to measure it
+*at a chosen point*.
+:::
+
+## A tiny example first
+
+Take the curve $f(x) = x^2$, and ask: **how steep is it right at $x = 3$?**
+
+Here's the snag. Slope is rise over run — but that needs *two* points, and we only
+have one. So we borrow a second point a tiny step away and measure the slope of the
+little line between them. Watch what happens as the step shrinks:
+
+- **Step of 0.5:** go from $x = 3$ to $x = 3.5$. Rise $= f(3.5) - f(3) = 12.25 - 9 =
+  3.25$. Run $= 0.5$. Slope $= 3.25 / 0.5 = 6.5$.
+- **Step of 0.1:** from $3$ to $3.1$. Rise $= 9.61 - 9 = 0.61$. Run $= 0.1$. Slope $=
+  6.1$.
+- **Step of 0.01:** from $3$ to $3.01$. Rise $= 9.0601 - 9 = 0.0601$. Run $= 0.01$.
+  Slope $= 6.01$.
+
+The numbers are marching toward **6**. That settled-on value — the slope the little
+lines approach as the step shrinks to nothing — is the derivative of $f$ at $x = 3$.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The curve, as an R function
+f <- function(x) x^2
+
+x0 <- 3
+for (h in c(0.5, 0.1, 0.01)) {
+  rise  <- f(x0 + h) - f(x0)   # change in output over the little step
+  run   <- h                   # the step itself
+  slope <- rise / run          # rise over run
+  cat("step", h, "-> slope", slope, "\n")
+}
+# 6.5, 6.1, 6.01 -> heading for 6
+```
+
+## Getting a feel for it
+
+**A speedometer is a derivative.** Your car's speed is how fast distance changes with
+time. You can't see "speed at this instant" directly — but measure how far you travel
+in the next 1 second (that's an average speed), then the next 0.1 second, then the next
+0.01 second, and the averages home in on the number the speedometer shows *right now*.
+Instantaneous speed is the derivative of distance. Same move as our shrinking step.
+(Where the picture bends: a real speedometer measures forward in time only; in a moment
+we'll get a sharper estimate by looking a step *each way*.)
+
+**Why rise-over-a-shrinking-run?** Over a wide step, "rise / run" is the *average*
+slope across the whole interval — it blurs together the gentle part and the steep part.
+Shrinking the run zooms in until the curve, over that tiny stretch, is essentially
+straight — and the slope of that straight little piece is the steepness *right at the
+point*. It's the mathematical version of zooming into a map until the curved coastline
+looks like a straight edge.
+
+**What the slope's value feels like.** A bigger number means steeper. A **positive**
+slope means the curve is heading uphill as $x$ increases; **negative** means downhill;
+**zero** means momentarily flat — the top of a hill or the bottom of a valley. At
+$x = 3$ our slope is $+6$: steep, and climbing. At $x = 0$ (the bottom of the $x^2$
+bowl) it would be $0$. That "slope is zero at the bottom" fact is the whole reason
+slopes help us *find* bottoms later.
+
+## What the notation is going to say
+
+The formula coming up says exactly what we just did: "pick a point $x$; take a tiny
+step of size $h$; the slope is the change in the function, $f(x+h) - f(x)$, divided by
+the step $h$; and as $h$ shrinks toward $0$, that ratio settles onto *the* slope at
+$x$, which we name $f'(x)$." In our toy example that's the "$(9.61 - 9)/0.1 = 6.1$,
+and shrinking" we just watched.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $f$ | "eff" | a function — a rule that turns an input into an output (an R function!) | $f(x) = x^2$ |
+| $f(x)$ | "eff of ex" | the output of $f$ at input $x$ | $f(3) = 9$ |
+| $x$ | "ex" | the input, and the point we measure the slope at | $3$ |
+| $h$ | "aitch" | the tiny step we take away from $x$ | $0.5$, then $0.1$, then $0.01$ |
+| $f(x+h)$ | "eff of ex plus aitch" | the output one small step to the right | $f(3.1) = 9.61$ |
+| $f(x-h)$ | "eff of ex minus aitch" | the output one small step to the left | $f(2.9) = 8.41$ |
+| $2h$ | "two aitch" | the total run from $x-h$ to $x+h$ — twice the step | $0.2$ |
+| $f'(x)$ | "eff prime of ex" | the slope of $f$ at the point $x$ — the derivative | $f'(3) = 6$ |
+| $\approx$ | "approximately equals" | almost equal (our estimate, before $h$ reaches $0$) | $6.1 \approx 6$ |
+
+## The formal version
+
+The slope over one small step — called the **difference quotient** — is:
+
+$$
+\frac{f(x + h) - f(x)}{h}
+$$
+
+Reading it aloud: "eff of ex plus aitch, minus eff of ex, all over aitch" — or in
+everyday words: "the rise (how much the output changed) divided by the run (the little
+step you took)." For our toy at $x = 3$, $h = 0.1$: $(9.61 - 9)/0.1 = 6.1$ — exactly
+the middle row of the table above.
+
+The derivative $f'(x)$ is the value this settles on as the step $h$ shrinks toward
+zero:
+
+$$
+f'(x) \;\approx\; \frac{f(x+h) - f(x)}{h} \qquad \text{(sharper and sharper as } h \to 0\text{)}
+$$
+
+Reading it aloud: "eff prime of ex is approximately the difference quotient, and it
+gets exact as aitch goes to zero." For $x^2$ the numbers marched $6.5 \to 6.1 \to 6.01
+\to 6$, so $f'(3) = 6$.
+
+**A sharper way to measure it (the one we'll use in code).** Instead of stepping only
+*forward*, step the same distance each way — back to $x - h$ and forward to $x + h$ —
+and take the rise across both:
+
+$$
+f'(x) \;\approx\; \frac{f(x + h) - f(x - h)}{2h}
+$$
+
+Reading it aloud: "eff of ex-plus-aitch minus eff of ex-minus-aitch, all over two
+aitch." Looking symmetrically each way cancels most of the curve's bending, so this
+**central difference** is far more accurate for the same $h$. Check it on our toy at
+$x = 3$ with $h = 0.1$: $(f(3.1) - f(2.9)) / 0.2 = (9.61 - 8.41)/0.2 = 1.2/0.2 = 6$ —
+bang on, no shrinking needed.
+
+```{r sanity-check}
+# Sanity-check the central difference against the value we approached by hand
+f <- function(x) x^2
+x0 <- 3; h <- 0.1
+(f(x0 + h) - f(x0 - h)) / (2 * h)   # 6 exactly — matches f'(3) = 6
+```
+
+(For this particular curve the exact slope happens to be $2x$, which is $6$ at
+$x = 3$. We won't *derive* that rule — the point of this module is that you can always
+**measure** the slope numerically, whatever the function, without knowing a rule for
+it.)
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The parabola f(x)=x squared with the point at x=3 marked and a straight secant line through x=3 and x=3+h; the secant's slope is shown in the title."
+# explore-1 — LIVE: this draws the curve, the point at x = 3, and the little line
+# through (3, f(3)) and (3+h, f(3+h)). Shrink h and watch that line become the tangent.
+# PREDICT: as you make h smaller (try 0.5, then 0.1, then 0.01), what number does the
+# slope in the title head toward? Write it down, then edit h and re-run.
+f  <- function(x) x^2
+x0 <- 3
+h  <- 0.5                                  # <-- shrink me
+
+slope <- (f(x0 + h) - f(x0)) / h           # rise over run, stepping forward by h
+
+curve(f, from = 0, to = 5, lwd = 2, ylab = "f(x) = x^2",
+      main = sprintf("step h = %.2f   ->   measured slope = %.3f", h, slope))
+points(x0, f(x0), pch = 16, cex = 1.5)
+# the little "rise over run" line, extended so you can see its steepness
+abline(a = f(x0) - slope * x0, b = slope, col = "firebrick", lwd = 2, lty = 2)
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: a reusable tool. `slope_at(f, x)` measures the slope of ANY
+# function f at any point x, using the symmetric central difference. This little
+# function is the workhorse the rest of the optimization story is built on.
+# TRY IT: change the function, or the point. PREDICT each slope before running.
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+f <- function(x) x^2
+c(at_x0 = slope_at(f, 0),    # bottom of the bowl -> should be 0
+  at_x3 = slope_at(f, 3),    # -> should be 6
+  at_xm2 = slope_at(f, -2))  # downhill on the left -> should be -4
+```
+
+## Common traps
+
+**Trap: "smaller $h$ is always better — use $h = 10^{-16}$."** It's tempting: the
+formula is exact only as $h \to 0$, so tinier looks more accurate. But computers store
+numbers with limited precision, and when $h$ is *too* small, $f(x+h)$ and $f(x-h)$ round
+to nearly the same stored value — their difference is then mostly rounding noise, and
+dividing by a tiny $h$ blows that noise up. There's a sweet spot (around $h = 10^{-5}$
+for the central difference). See it fail:
+
+```{r trap-tiny-h}
+f <- function(x) x^2
+central <- function(h) (f(3 + h) - f(3 - h)) / (2 * h)
+c(good_h = central(1e-5),   # ~6, correct
+  tiny_h = central(1e-14))  # noticeably off — floating-point cancellation
+```
+
+**Trap: "the slope at a point comes from that one point alone."** A single point has a
+*height*, not a *slope* — steepness is inherently about how the height *changes*
+between nearby points. That's why every method here nudges to a second point (or two);
+"the slope at $x$" is really shorthand for "what the nearby rise-over-runs settle on."
+
+## Check yourself
+
+**1.** Use the numerical method to estimate the slope of $f(x) = x^2$ at $x = 5$. What
+value should it approach?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run. Define f, pick x = 5, measure the slope.
+f <- function(x) x^2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Using the central difference: `slope_at <- function(f, x, h = 1e-5) (f(x+h) - f(x-h))/(2*h)`
+then `slope_at(f, 5)` gives essentially **10**. (The exact slope of $x^2$ is $2x = 10$
+at $x = 5$ — but you found it by measuring, not by any rule.)
+:::
+
+**2.** At a point where a curve is heading *downhill* as $x$ increases, is the measured
+slope positive or negative?
+
+::: {.callout-note collapse="true" title="Answer"}
+Negative. Going downhill means the output *falls* as $x$ rises, so the rise is
+negative, and rise/run comes out below zero. (Uphill → positive; momentarily flat →
+zero.)
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the derivative
+of a function at a point measures, and why we compute it with a tiny step instead of a
+single point.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The derivative at a point is the steepness of the curve right there — how fast the
+output changes for a small nudge in the input. We use a tiny step because steepness is
+about *change* between points, so we look at the rise over a run and shrink the run
+until it reflects the slope at that single spot.
+:::
+
+## What you can now do
+
+- **Measure the slope of any function at any point** numerically — rise over a small
+  run — using `(f(x+h) - f(x-h)) / (2*h)`, without knowing a single differentiation
+  rule.
+- **Read what the slope's value means**: sign tells you uphill / downhill / flat, and
+  magnitude tells you how steep.
+- **Explain the derivative as a rate of change** (the speedometer picture) and why a
+  slope needs two nearby points, not one.
+- **Pick a sensible step size** — small, but not so small that rounding noise takes
+  over.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+and [Explore it](#explore-it) before moving on — anything that *searches* for the
+bottom of a curve leans on all of them.
+
+## Where this goes next
+
+A slope tells you which way is uphill and how steep — so if you're trying to find the
+*lowest* point of a curve, the slope is a compass: step against it and you head
+downhill. That's the engine of gradient-based optimization, and it's where this tool
+goes to work next. Ready for more reps first? Do the [practice problems](practice.qmd).

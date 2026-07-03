@@ -1,0 +1,151 @@
+---
+title: "Practice: <Module title>"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+<!-- INTERACTIVE PRACTICE: the include line below wires WebR into this page so the
+     learner can solve each problem in-browser on a phone. Keep it whenever any
+     problem has a live `{webr}` starter (the normal case). Delete it and
+     `engine: knitr` only if the whole set is static. Rules:
+     .claude/course-authoring/interactive-webr.md. Do NOT add a per-file `format:`. -->
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+<!--
+TEMPLATE INSTRUCTIONS (delete all HTML comments when filling in):
+- 4–7 problems on the FADING RAMP (full contract:
+  .claude/course-authoring/problem-authoring.md — the single source of truth):
+    P1: confidence rep — ALWAYS "redo the lesson's toy example with new numbers".
+    P2: faded worked example — a worked solution with 1–2 steps blanked out; the
+        learner supplies ONLY the missing steps. Blank the core move, not bookkeeping.
+    P3–P4: full problems, by hand then in R; include ONE spot-the-error built from a
+        lesson Common-trap (say it contains exactly one mistake).
+    P5: interleaved — explicitly mixes an earlier module's skill, labeled
+        "*(uses <module>'s <skill>)*". Skip only if no earlier module exists.
+    Last: transfer to a new context, or a clearly-labeled cliffhanger.
+- Mix by-hand and in-R. At least one problem tests INTERPRETATION, not computation.
+  In-R problems keep the predict-then-run habit.
+- COPY-ABLE DATA (non-negotiable): any problem that gives the learner specific data
+  (a vector/function/data frame they'd otherwise retype) opens with a STARTER chunk
+  defining that data — by-hand problems included. Exempt: built-in datasets and
+  scalar-only prompts.
+- INTERACTIVE STARTERS (see interactive-webr.md): the starter the learner solves is a
+  live `{webr}` cell (`#| autorun: false` — they write before they run). The worked
+  ANSWER chunk inside the callout STAYS a baked `{r}` chunk so its result shows the
+  moment the callout opens. `{webr}` cells take no knitr label; keep the old
+  `pN-starter` name as a leading comment. Non-WebR-runnable code stays static `{r}`
+  under the "runs on your machine" callout.
+- EVERY answer: inside ::: {.callout-note collapse="true" title="Answer"} ... :::
+  with the FULL worked reasoning — every algebraic step / every line of R explained,
+  never just the final number.
+- Use the same symbols + pronunciations as the lesson. No new notation here.
+- Capstone modules use the cumulative format from course-structure.md §Capstone
+  instead of this ramp.
+-->
+
+```{r setup}
+#| include: false
+# Build-time setup only (a `{webr}` starter does not see it — each starter re-states
+# its own data). Packages are installed automatically (into renv; run
+# renv::snapshot() afterwards if you add one).
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+<!-- Restate the lesson's toy computation with fresh, equally small numbers. -->
+
+<problem statement>
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+x <- c(...)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+<full worked steps in prose, then the same steps in a small BAKED `{r}` chunk>
+:::
+
+## Problem 2 — fill in the missing step
+
+<!-- Faded worked example: show the worked solution with 1–2 steps replaced by
+     <your step here>. The learner writes ONLY the blanked steps. -->
+
+<problem statement, then the partial solution with the blanked step(s):>
+
+<step 1, shown>
+<step 2: **your step here** — what has to happen between step 1 and step 3?>
+<step 3, shown>
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+x <- c(...)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+<the missing step(s), worked in full, plus one line on why that's the move>
+:::
+
+## Problem 3 — <short descriptive name>
+
+<problem statement — full problem, by hand or in R>
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: <what to compute>
+x <- c(3, 1, 4, 1, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+<worked answer, including the completed R code with math-comments>
+:::
+
+## Problem 4 — spot the error
+
+<!-- Take a Common-trap from the lesson and turn it into a short, plausible wrong
+     computation (prose steps or a small chunk). Exactly one mistake; say so. -->
+
+A colleague computed <thing> like this — it contains **exactly one mistake**. Find
+it and fix it.
+
+<the flawed computation, prose or starter chunk>
+
+::: {.callout-note collapse="true" title="Answer"}
+<name the mistake, show why it's wrong with the numbers, show the corrected step>
+:::
+
+## Problem 5 — mixing it with <earlier module> *(uses <module>'s <skill>)*
+
+<!-- Interleaved: genuinely requires the earlier skill plus this module's. -->
+
+<problem statement>
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+x <- c(...)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+<worked answer, flagging where the earlier module's move gets used>
+:::
+
+## Problem 6 — <transfer, or a gentle cliffhanger>
+
+<!-- New context, or a labeled preview: "you can't quite solve this yet — the next
+     lesson gives you the missing tool". Cliffhangers must be labeled as such. -->
+
+<problem statement>
+
+::: {.callout-note collapse="true" title="Answer"}
+<worked answer — for a cliffhanger, the honest partial answer plus what's coming>
+:::

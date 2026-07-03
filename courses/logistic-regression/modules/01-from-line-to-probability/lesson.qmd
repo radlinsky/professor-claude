@@ -1,0 +1,365 @@
+---
+title: "From a line to a probability: the sigmoid"
+subtitle: "A straight line can predict 1.7 or −4 — the sigmoid bends it back into a real probability"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+You already know how to fit a straight line to predict a *number* (that's
+[simple linear regression](../../../simple-linear-regression/syllabus.md)). But what if
+the thing you're predicting is a **yes/no** — did the patient recover, did the email get
+opened, did the part fail? The natural target is a *probability*, a number between 0 and
+1. The trouble: a straight line happily predicts $1.7$ or $-4$, which are nonsense as
+probabilities. This module builds the fix — the **sigmoid** (also called the *logistic*)
+function, a gentle S-shaped bend that squashes any number, however wild, into a clean
+probability between 0 and 1. It's the beating heart of logistic regression.
+
+**Builds on:** the line $\beta_0 + \beta_1 x$ from
+[simple linear regression](../../../simple-linear-regression/syllabus.md), plus
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd) (we
+build the sigmoid out of $e^{-z}$) and
+[probability-and-odds](../../../../foundations/probability-and-odds/lesson.qmd) (what
+counts as a valid probability).
+
+## Warm-up: do you remember?
+
+Three quick recalls spanning the courses this module stands on. Produce each answer
+before opening it.
+
+**1.** *(simple linear regression)* For the line $\eta = \beta_0 + \beta_1 x$ with
+intercept $\beta_0 = -1$ and slope $\beta_1 = 0.5$, what is $\eta$ at $x = 2$? At
+$x = 10$?
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+b0 <- -1; b1 <- 0.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+At $x = 2$: $\eta = -1 + 0.5(2) = 0$. At $x = 10$: $\eta = -1 + 0.5(10) = 4$. A line just
+keeps climbing — nothing stops it at 1. That's the problem this lesson solves. See
+[simple linear regression](../../../simple-linear-regression/syllabus.md).
+:::
+
+**2.** *(exponentials-and-logs)* What is $e^{0}$? And as $z$ gets very large *positive*,
+what happens to $e^{-z}$ — does it grow or shrink toward zero?
+
+::: {.callout-note collapse="true" title="Answer"}
+$e^{0} = 1$. As $z \to +\infty$, the exponent $-z$ goes very negative, so $e^{-z} \to 0$.
+(And as $z \to -\infty$, $e^{-z} \to +\infty$.) Shaky? Revisit
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd).
+:::
+
+**3.** *(probability-and-odds)* What is the smallest a probability can be, and the
+largest? Name a value a straight line might output that is *not* a legal probability.
+
+::: {.callout-note collapse="true" title="Answer"}
+A probability lives in $[0, 1]$ — smallest $0$, largest $1$. A line could output $1.7$ or
+$-4$, neither of which is a legal probability. See
+[probability-and-odds](../../../../foundations/probability-and-odds/lesson.qmd).
+:::
+
+## A tiny example first
+
+Suppose we're predicting whether a part fails, from a stress reading $x$. We fit a line
+to get a score $\eta$ (Greek letter "eta" — just the line's output, the same
+$\beta_0 + \beta_1 x$ you know). Say $\beta_0 = -1$ and $\beta_1 = 0.5$. Look at three
+parts:
+
+- $x = 2$: score $\eta = -1 + 0.5(2) = 0$.
+- $x = 10$: score $\eta = -1 + 0.5(10) = 4$.
+- $x = -6$: score $\eta = -1 + 0.5(-6) = -4$.
+
+Scores of $0$, $4$, and $-4$. As "probabilities of failure" those are broken — you can't
+have a probability of $4$ or $-4$. We need to *translate* a score on the whole number
+line into a probability in $[0, 1]$. The **sigmoid** does exactly that. Its recipe: take
+the score $z$, compute $e^{-z}$, add 1, and take the reciprocal:
+
+$$
+\sigma(z) = \frac{1}{1 + e^{-z}}.
+$$
+
+Let's run our three scores through it, by hand-ish:
+
+- $z = 0$: $e^{-0} = 1$, so $\sigma = \tfrac{1}{1+1} = 0.5$. A score of 0 → a coin flip.
+- $z = 4$: $e^{-4} \approx 0.018$, so $\sigma = \tfrac{1}{1.018} \approx 0.982$. A big
+  positive score → almost certainly fails.
+- $z = -4$: $e^{-(-4)} = e^{4} \approx 54.6$, so $\sigma = \tfrac{1}{55.6} \approx 0.018$.
+  A big negative score → almost certainly doesn't.
+
+Every one landed inside $[0, 1]$ — exactly what we wanted. The same thing in R:
+
+```{r toy-example}
+# The linear score (eta) for three parts, from a line with intercept -1, slope 0.5
+b0 <- -1; b1 <- 0.5
+x  <- c(2, 10, -6)
+eta <- b0 + b1 * x
+eta                                   # 0, 4, -4  -- NOT valid probabilities
+
+# The sigmoid: squash each score into (0, 1)
+sigmoid <- function(z) 1 / (1 + exp(-z))
+sigmoid(eta)                          # 0.5, 0.982, 0.018 -- all legal probabilities
+```
+
+## Getting a feel for it
+
+**A mental picture: a dimmer switch, not a light switch.** A plain yes/no is a light
+switch — off or on, 0 or 1, nothing between. But we rarely *know* for sure; we have a
+*degree of belief*. The sigmoid is a **dimmer switch**: as the score $z$ slides from
+very negative to very positive, the output glides smoothly from "basically off" (near 0)
+through "50/50" (exactly $0.5$ at $z = 0$) to "basically on" (near 1). The middle is
+where the switch is most sensitive — a small change in score swings the probability a
+lot; out at the extremes the switch is nearly maxed and barely responds. That's the
+S-shape: steep in the middle, flat at both ends.
+
+Where the picture bends: a real dimmer has a hard *off* and a hard *full*, but the
+sigmoid never quite reaches 0 or 1 — it only *approaches* them. There's always a sliver
+of doubt, which is honest: no finite score makes an outcome truly certain.
+
+**Why this particular formula — why $1/(1 + e^{-z})$?** We need a function that (a) takes
+*any* real number and (b) returns something strictly between 0 and 1, (c) is smoothly
+increasing, and (d) sends $z = 0$ to $0.5$. Look at how the pieces conspire:
+
+- $e^{-z}$ is **always positive** (from
+  [exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd) —
+  exponentials never go negative), so $1 + e^{-z}$ is always **bigger than 1**.
+- One divided by "something bigger than 1" is always **between 0 and 1**. Guaranteed. No
+  matter how extreme $z$ is, the output can't escape the box.
+- When $z$ is huge positive, $e^{-z} \to 0$, so $\sigma \to \tfrac{1}{1} = 1$. When $z$
+  is huge negative, $e^{-z} \to \infty$, so $\sigma \to 0$. And at $z = 0$, $e^{-0} = 1$
+  gives exactly $\tfrac{1}{2}$.
+
+So the formula isn't arbitrary — each piece is doing a job to hit all four requirements
+at once. It's the simplest "squasher" that behaves.
+
+**What the numbers feel like.** The action is concentrated near $z = 0$. Between $z = -2$
+and $z = +2$, $\sigma$ sweeps from about $0.12$ to $0.88$ — most of its range. Push past
+$z = \pm 5$ and it's pinned near 0 or 1; extra score out there barely moves the
+probability. So the sigmoid is *decisive in the middle, saturated at the edges* — which
+matches how belief actually works: the swing from "leaning no" to "leaning yes" happens
+over a narrow band of evidence.
+
+## What the notation is going to say
+
+The formula will say: "to turn a score $z$ into a probability, take one, over the
+quantity (one plus $e$ to the minus $z$)." In our toy example that's exactly the "$z = 4$
+gives $\tfrac{1}{1 + e^{-4}} \approx 0.982$" step we just did. The whole job of $\sigma$
+is: *number line in, probability out.*
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x$ | "ex" | the predictor / input (the stress reading) | $2, 10, -6$ |
+| $\beta_0, \beta_1$ | "beta zero, beta one" | intercept and slope of the linear score | $-1$ and $0.5$ |
+| $\eta$ | "AY-tuh" (eta) | the **linear predictor** (score): $\beta_0 + \beta_1 x$, any real number | $0, 4, -4$ |
+| $z$ | "zee" | a stand-in for whatever number goes into the sigmoid (here, $z = \eta$) | same as $\eta$ |
+| $e^{-z}$ | "ee to the minus zee" | the exponential of $-z$; always positive (in R: `exp(-z)`) | $e^{-4} \approx 0.018$ |
+| $\sigma(z)$ | "SIG-muh of zee" | the **sigmoid / logistic** function: squashes $z$ into $(0,1)$ | $\sigma(4) \approx 0.982$ |
+| $p$ | "pee" | the resulting probability, $\sigma(z)$ | $0.5, 0.982, 0.018$ |
+
+::: {.callout-note title="Heads up: two meanings of σ"}
+In the [mean-variance module](../../../../foundations/mean-variance-covariance/lesson.qmd),
+lowercase $\sigma$ meant a *standard deviation*. Here $\sigma(z)$ — always written **with
+an argument in parentheses** — means the *sigmoid function*. Same letter, unrelated jobs;
+the parentheses tell them apart. This is standard notation, not a clash we invented.
+:::
+
+## The formal version
+
+The sigmoid (logistic) function:
+
+$$
+\sigma(z) = \frac{1}{1 + e^{-z}}, \qquad z = \beta_0 + \beta_1 x.
+$$
+
+Reading it aloud: "sigma of zee equals one over, open paren, one plus ee-to-the-minus-zee,
+close paren" — or in everyday words: *feed the linear score into the squasher: one divided
+by (one plus e-to-the-minus-the-score).*
+
+Assembling it one piece at a time, so nothing is a mystery:
+
+- Start with the **score** $z = \beta_0 + \beta_1 x$ — the ordinary line, output anywhere
+  on the number line.
+- Form $e^{-z}$: a positive number, big when $z$ is very negative, tiny when $z$ is very
+  positive.
+- Add 1: now it's a number **strictly bigger than 1** (since $e^{-z} > 0$).
+- Take the reciprocal $1/(\cdot)$: a number **strictly between 0 and 1** — a probability.
+
+Mapping onto the toy example, the middle part ($x = 10$, so $z = 4$):
+
+- $z$ is the line's output → $-1 + 0.5(10) = 4$.
+- $e^{-z}$ is $e^{-4}$ → about $0.0183$.
+- $1 + e^{-z}$ → about $1.0183$.
+- $1 / 1.0183$ → about $0.982$, matching our hand computation.
+
+Sanity-check the whole thing numerically, and confirm two facts we claimed — that
+$\sigma(0) = 0.5$ exactly, and that the output never leaves $(0,1)$ even for an extreme
+score:
+
+```{r formal-check}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+
+# The toy scores again, through the assembled formula
+sigmoid(c(0, 4, -4))            # 0.5, 0.982, 0.018 -- matches the hand work
+
+# The promised facts
+sigmoid(0)                      # exactly 0.5
+sigmoid(c(-100, 100))           # ~0 and ~1 (the second PRINTS as 1 -- see note below)
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The S-shaped sigmoid curve rising smoothly from near 0 on the far left, through the point (0, 0.5), to near 1 on the far right, with a dashed horizontal line at 0.5 and a dashed vertical line at z = 0."
+# explore-1 — LIVE: the S-curve. Any score in, a probability out. Steep in the middle,
+# flat at the ends. PREDICT: at z = 0, what is sigma? Where is the curve steepest?
+sigmoid <- function(z) 1 / (1 + exp(-z))
+curve(sigmoid, from = -8, to = 8, lwd = 2, col = "steelblue",
+      xlab = "score z", ylab = expression(sigma(z)),
+      main = "the sigmoid squashes any score into (0, 1)")
+abline(h = c(0, 0.5, 1), lty = 3); abline(v = 0, lty = 3)
+points(0, 0.5, pch = 16)         # the anchor: z = 0 -> 0.5
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A scatter of 0/1 outcomes against a predictor x, with the fitted sigmoid probability curve rising through them from near 0 to near 1."
+# explore-2 — LIVE: a line's scores, bent into probabilities, laid over real 0/1 data.
+# PREDICT: for x below where the curve crosses 0.5, are points mostly 0 or mostly 1?
+sigmoid <- function(z) 1 / (1 + exp(-z))
+set.seed(1)
+x  <- sort(runif(60, -6, 6))
+b0 <- -1; b1 <- 0.9
+p  <- sigmoid(b0 + b1 * x)         # true probability of a 1 at each x
+y  <- rbinom(60, size = 1, prob = p)   # actual 0/1 outcomes drawn with that probability
+
+plot(x, y, pch = 16, col = "grey50", ylab = "outcome (0/1) and P(y=1)",
+     main = "0/1 data with the sigmoid probability curve")
+curve(sigmoid(b0 + b1 * x), add = TRUE, lwd = 2, col = "firebrick")
+abline(h = 0.5, lty = 3)
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: turn the knobs. The slope b1 controls how SHARP the S is; the
+# intercept b0 slides it left/right. PREDICT: does a bigger b1 make the S steeper or
+# gentler? Change b1 to 3, then to 0.2, and watch.
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- 0; b1 <- 1                   # <-- try b1 = 3 (sharp) and b1 = 0.2 (gentle)
+curve(sigmoid(b0 + b1 * x), from = -8, to = 8, lwd = 2, col = "darkgreen",
+      ylim = c(0, 1), ylab = expression(sigma(b0 + b1 * x)),
+      main = sprintf("b0 = %.1f, b1 = %.1f", b0, b1))
+abline(h = 0.5, lty = 3); abline(v = -b0 / b1, lty = 3)   # crosses 0.5 where score = 0
+```
+
+## Common traps
+
+**Trap: "just fit a straight line to the 0/1 outcomes and read it as a probability."**
+Tempting — you already know how to fit lines. But the line doesn't stay in $[0, 1]$: with
+$\beta_0 = -1, \beta_1 = 0.5$, at $x = 10$ the line predicts $\eta = 4$ (a "400%
+probability") and at $x = -6$ it predicts $-4$ (a negative probability). Both are
+nonsense. The sigmoid exists precisely to bend those runaway values back into
+$\sigma(4) \approx 0.982$ and $\sigma(-4) \approx 0.018$ — legal probabilities.
+
+**Trap: "the sigmoid can hit exactly 0 or exactly 1 for a big enough score."**
+*Mathematically* it gets arbitrarily close but never touches: since $e^{-z}$ is always a
+positive number, $1 + e^{-z}$ is always strictly greater than 1, so $\sigma(z)$ is always
+strictly less than 1 (and, being one over a positive number, always strictly greater than
+0). There's always a whisker of uncertainty. The one wrinkle: for a score like $z = 100$,
+$e^{-100}$ is so tiny that your *computer* rounds $\sigma(100)$ to a displayed `1` (it
+runs out of decimal places) — a rounding artifact, not a real probability of exactly 1.
+The math never reaches the edges even where the arithmetic can't show it.
+
+## Check yourself
+
+**1.** A logistic model gives a part the linear score $z = 2$. What is its predicted
+failure probability? Is it above or below $0.5$, and why?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to solve, right here
+sigmoid <- function(z) 1 / (1 + exp(-z))
+z <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\sigma(2) = 1/(1 + e^{-2}) \approx 0.88$.
+
+```{r check1-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+sigmoid(2)   # ~0.881
+```
+It's **above** $0.5$ because the score is **positive**: any $z > 0$ makes $e^{-z} < 1$,
+so the denominator is under 2 and the reciprocal is over $0.5$. Positive score → leaning
+"yes."
+:::
+
+**2.** Two parts have scores $z = 1$ and $z = -1$. Without a calculator, how do their
+sigmoid probabilities relate to each other and to $0.5$?
+
+::: {.callout-note collapse="true" title="Answer"}
+They're mirror images around $0.5$: $\sigma(1) \approx 0.73$ and $\sigma(-1) \approx
+0.27$, and $0.73 + 0.27 = 1$. In general $\sigma(-z) = 1 - \sigma(z)$ — flipping the sign
+of the score reflects the probability to "one minus" it, which is why $z = 0$ sits
+exactly at $0.5$.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the sigmoid does
+and why a plain straight line can't be used as a probability directly.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The sigmoid is a smooth S-shaped squasher that takes any score on the whole number line
+and maps it into a probability strictly between 0 and 1, landing at $0.5$ when the score
+is 0. A plain straight line can't serve as a probability because it keeps climbing past 1
+and dropping below 0 — impossible values — whereas the sigmoid bends those runaway scores
+back inside the legal $[0,1]$ range.
+:::
+
+## What you can now do
+
+- **Compute the linear score** $\eta = \beta_0 + \beta_1 x$ and recognize when it falls
+  outside $[0,1]$ (so can't be a probability as-is).
+- **Apply the sigmoid** $\sigma(z) = 1/(1 + e^{-z})$ to turn any score into a legal
+  probability, by hand and in R.
+- **Explain why the formula works** — $e^{-z} > 0$ forces the output strictly between 0
+  and 1 — and read the S-shape (steep in the middle, saturated at the ends, $0.5$ at
+  $z = 0$).
+- **Predict the direction**: positive score → probability above $0.5$, negative →
+  below, and $\sigma(-z) = 1 - \sigma(z)$.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) and
+[Explore it](#explore-it) — the next module runs this bend *backwards* and everything
+here has to be solid first.
+
+## Where this goes next
+
+We can now turn a score into a probability. But *why* model it this way — why is a line
+the right thing to bend, and how do we read the slope $\beta_1$ once it's inside a
+sigmoid? The answer runs the sigmoid in reverse: the thing the line actually models
+directly is the **log-odds**, and un-bending the sigmoid gives it back. That's the
+[logit link — odds, log-odds, and reading a coefficient](../02-odds-log-odds-and-the-logit/lesson.qmd).
+Ready for more reps first? Do the [practice problems](practice.qmd).

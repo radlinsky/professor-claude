@@ -1,0 +1,7 @@
+# Python reference libraries for the equivalence harness (authoring-time only).
+# Installed into a gitignored venv (equivalence/env/venv) by regenerate-all.sh;
+# never part of the learner-facing render and never in renv. The pin matches the
+# `source` recorded in the fixtures these produced (ols-full-numpy.json,
+# gradient-descent-full-scipy.json); refresh it whenever you regenerate.
+numpy==2.5.0
+scipy==1.18.0

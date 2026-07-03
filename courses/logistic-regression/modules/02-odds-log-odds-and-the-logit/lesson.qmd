@@ -1,0 +1,380 @@
+---
+title: "Odds, log-odds, and the logit link"
+subtitle: "Logistic regression fits a line to the log-odds — here's why, and how to read the slope"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Last module we bent a line into a probability with the sigmoid. Now we answer the
+question it leaves hanging: *what is the line actually a line for?* The surprising,
+tidy answer is that logistic regression models the **log-odds** as a straight line in
+$x$ — a relationship called the **logit link**. That single choice is what makes the
+coefficients readable: this module teaches you to read the slope $\beta_1$ two ways — as
+a "change in log-odds per unit of $x$," and, after one exponentiation, as an **odds
+ratio**, the form you'll actually see quoted in papers.
+
+**Builds on:** [the sigmoid](../01-from-line-to-probability/lesson.qmd) (module 1), and
+the [probability-and-odds](../../../../foundations/probability-and-odds/lesson.qmd)
+foundation (odds, log-odds, and their conversions), which itself leans on
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Three recalls spanning module 1 and the foundations. Produce each answer before opening
+it.
+
+**1.** *(module 1)* What is the sigmoid $\sigma(z)$, and what is $\sigma(0)$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\sigma(z) = 1/(1 + e^{-z})$, the S-shaped squasher, and $\sigma(0) = 0.5$. See
+[module 1](../01-from-line-to-probability/lesson.qmd).
+:::
+
+**2.** *(probability-and-odds)* A probability is $p = 0.8$. What are its odds, and its
+log-odds?
+
+```{webr}
+#| autorun: false
+# warmup2-starter — edit and Run to check
+p <- 0.8
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Odds $= p/(1-p) = 0.8/0.2 = 4$; log-odds $= \log(4) \approx 1.386$. Shaky? Revisit
+[probability-and-odds](../../../../foundations/probability-and-odds/lesson.qmd).
+:::
+
+**3.** *(exponentials-and-logs)* What is $e^{\log(4)}$? And what does the log rule say
+$\log(a) - \log(b)$ equals as a single log?
+
+::: {.callout-note collapse="true" title="Answer"}
+$e^{\log(4)} = 4$ (exp undoes log). And $\log(a) - \log(b) = \log(a/b)$ — a difference of
+logs is the log of the ratio. See
+[exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd). Both
+facts do heavy lifting in this lesson.
+:::
+
+## A tiny example first
+
+We're modelling whether a loan is repaid, from the applicant's income $x$ (in tens of
+thousands). Suppose the true relationship, on the **log-odds scale**, is a straight line:
+
+$$
+\text{log-odds of repayment} = -2 + 1 \cdot x.
+$$
+
+So the log-odds is $-2$ at $x = 0$, and climbs by $1$ for every extra unit of income.
+Let's tabulate three incomes and walk each all the way to a probability, by hand:
+
+- **$x = 1$:** log-odds $= -2 + 1(1) = -1$. Odds $= e^{-1} \approx 0.368$. Probability
+  $= \tfrac{0.368}{1 + 0.368} \approx 0.269$.
+- **$x = 2$:** log-odds $= -2 + 1(2) = 0$. Odds $= e^{0} = 1$. Probability $=
+  \tfrac{1}{2} = 0.5$.
+- **$x = 3$:** log-odds $= -2 + 1(3) = +1$. Odds $= e^{1} \approx 2.718$. Probability
+  $= \tfrac{2.718}{3.718} \approx 0.731$.
+
+Two things to notice. First, the **log-odds** moved in equal steps ($-1, 0, +1$) — it's
+the thing that's linear in $x$. Second, going from log-odds to probability is exactly the
+[probability-and-odds](../../../../foundations/probability-and-odds/lesson.qmd) round trip
+(exponentiate to get odds, then odds/(1+odds)), and — this is the punchline — it lands on
+the very same numbers the **sigmoid** gives: $\sigma(-1) \approx 0.269$, $\sigma(0) = 0.5$,
+$\sigma(1) \approx 0.731$.
+
+The same thing in R:
+
+```{r toy-example}
+b0 <- -2; b1 <- 1
+x  <- c(1, 2, 3)
+
+log_odds <- b0 + b1 * x                 # the LINE: -1, 0, 1 (equal steps)
+odds     <- exp(log_odds)               # exp undoes log -> odds
+prob     <- odds / (1 + odds)           # odds -> probability
+
+sigmoid  <- function(z) 1 / (1 + exp(-z))
+rbind(log_odds = log_odds,
+      odds     = odds,
+      prob     = prob,
+      sigmoid  = sigmoid(log_odds))     # bottom two rows are IDENTICAL
+```
+
+## Getting a feel for it
+
+**A mental picture: a volume knob wired to a dimmer.** In module 1 the sigmoid was a
+dimmer switch — score in, brightness (probability) out. Now picture *turning a volume
+knob* labelled $x$. Each equal click of the knob adds the *same amount* to the log-odds
+(that's the line: constant slope). But because the log-odds feeds a dimmer, those equal
+clicks produce *unequal* changes in brightness: near the middle (probability around
+$0.5$) a click swings the light a lot; out near "off" or "full," the same click barely
+changes it. So the story is "**even steps on the log-odds scale, uneven steps on the
+probability scale**" — which is exactly the shape of the S-curve.
+
+Where the picture bends: a volume knob has a floor and a ceiling you can slam into, but
+the log-odds knob has neither — you can keep clicking $x$ forever and the log-odds keeps
+climbing, even as the probability creeps toward (but never reaches) 1.
+
+**Why model the log-odds with a line, and not the probability directly?** Two reasons,
+both of which you can now feel:
+
+1. **Range.** A line runs over all real numbers, and so does the log-odds (from the
+   [probability-and-odds](../../../../foundations/probability-and-odds/lesson.qmd)
+   module: probability is boxed in $[0,1]$, but log-odds is unbounded both ways). A line
+   fits the log-odds scale perfectly — no poking outside a legal range, the exact problem
+   that killed the plain-line-on-probability idea in module 1.
+2. **A constant, readable effect.** On the log-odds scale the effect of $x$ is *constant*
+   — one extra unit of income always adds $\beta_1$ to the log-odds, whether you start
+   rich or poor. "Every extra \$10k adds the same amount to the log-odds" is a clean
+   sentence; "every extra \$10k adds *some* amount to the probability that depends on
+   where you started" is not.
+
+**Why exponentiating the slope gives an odds ratio — and what the number feels like.**
+Here's the move that makes $\beta_1$ quotable. Increasing $x$ by 1 adds $\beta_1$ to the
+log-odds. On the *odds* scale, adding $\beta_1$ to a log means **multiplying** the odds
+by $e^{\beta_1}$ (from the undo pair — a difference of logs is a log of a ratio, run
+backwards). So $e^{\beta_1}$ is the factor the odds get multiplied by per unit of $x$ —
+the **odds ratio**. In our example $\beta_1 = 1$, so $e^{1} \approx 2.718$: each extra
+unit of income makes repayment about **2.7 times** the odds it was. An odds ratio of $1$
+means "no effect" (multiplying by 1 changes nothing); above 1 means $x$ raises the odds;
+below 1 means $x$ lowers them.
+
+## What the notation is going to say
+
+The link equation will say: "the log-odds of the outcome is a straight line in $x$" —
+$\log\!\big(\tfrac{p}{1-p}\big) = \beta_0 + \beta_1 x$. In our toy example that's the
+"$-2 + 1 \cdot x$" we tabulated. Read $\beta_1$ as "how much the log-odds rises per unit
+of $x$," and $e^{\beta_1}$ as "the factor the *odds* get multiplied by per unit of $x$."
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $p$ | "pee" | the probability of the outcome (here, repayment) | $0.269, 0.5, 0.731$ |
+| $\dfrac{p}{1-p}$ | "pee over one-minus-pee" | the **odds** of the outcome | $0.368, 1, 2.718$ |
+| $\log$ | "log" (natural log) | natural log, base $e$ (in R: `log`); from [exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd) | $\log(3) \approx 1.099$ |
+| $e^{(\cdot)}$ | "ee to the …" | the exponential (in R: `exp`); undoes $\log$, so $e^{\log u} = u$ | $e^{1} \approx 2.718$ |
+| $\operatorname{logit}(p)$ | "the LOH-jit of pee" | the **log-odds**: $\log\!\big(\tfrac{p}{1-p}\big)$ | $-1, 0, 1$ |
+| $\sigma(z)$ | "SIG-muh of zee" | the **sigmoid** from [module 1](../01-from-line-to-probability/lesson.qmd): score → probability (undoes the logit) | $\sigma(1) \approx 0.731$ |
+| $\beta_0$ | "beta zero" | intercept: the log-odds when $x = 0$ | $-2$ |
+| $\beta_1$ | "beta one" | slope: the change in log-odds per one-unit rise in $x$ | $1$ |
+| $e^{\beta_1}$ | "ee to the beta one" | the **odds ratio**: the factor the odds multiply by per unit of $x$ | $e^{1} \approx 2.718$ |
+| $x$ | "ex" | the predictor (here, income) | $1, 2, 3$ |
+
+## The formal version
+
+The **logit link** — the defining equation of logistic regression:
+
+$$
+\underbrace{\log\!\left(\frac{p}{1-p}\right)}_{\text{log-odds of the outcome}}
+= \beta_0 + \beta_1 x.
+$$
+
+Reading it aloud: "log of (pee over one-minus-pee) equals beta-zero plus beta-one ex" —
+or in everyday words: *the log-odds of the outcome is a straight line in $x$.*
+
+It is the exact inverse of module 1's sigmoid. Solving the link for $p$ un-does the
+logit and lands you back on the sigmoid — one algebra chain, each step a move you've
+already met:
+
+$$
+\begin{aligned}
+\log\!\left(\frac{p}{1-p}\right) &= \beta_0 + \beta_1 x \\
+\frac{p}{1-p} &= e^{\,\beta_0 + \beta_1 x} \\
+p &= e^{\,\beta_0 + \beta_1 x}\,(1 - p) \\
+p\left(1 + e^{\,\beta_0 + \beta_1 x}\right) &= e^{\,\beta_0 + \beta_1 x} \\
+p &= \frac{e^{\,\beta_0 + \beta_1 x}}{1 + e^{\,\beta_0 + \beta_1 x}}
+   = \frac{1}{1 + e^{-(\beta_0 + \beta_1 x)}} = \sigma(\beta_0 + \beta_1 x)
+\end{aligned}
+$$
+
+- Line 2: apply $e^{(\cdot)}$ to both sides; $e^{\log(u)} = u$ cancels the log on the left
+  (the undo pair, from
+  [exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd)).
+- Line 3: multiply both sides by $(1-p)$ — clearing a fraction, ordinary algebra.
+- Line 4: expand the right side and gather every $p$ term on the left (distribute, then
+  collect like terms — the "solve for the unknown" move from
+  [simple linear regression](../../../simple-linear-regression/syllabus.md)).
+- Line 5: divide both sides by $\left(1 + e^{\beta_0 + \beta_1 x}\right)$; the final tidy
+  form comes from dividing top and bottom by $e^{\beta_0 + \beta_1 x}$ (multiplying by
+  $\tfrac{e^{-(\cdot)}}{e^{-(\cdot)}} = 1$), which is exactly the sigmoid of the score.
+
+So **logit and sigmoid are two views of one model**: the logit takes probability → score
+(a line), the sigmoid takes score → probability. Sanity-check that the link really
+reproduces module 1's sigmoid on the toy numbers:
+
+```{r formal-check}
+b0 <- -2; b1 <- 1
+x  <- c(1, 2, 3)
+
+# Route A: the link -> solve for p by the derived formula
+score <- b0 + b1 * x
+p_via_link <- exp(score) / (1 + exp(score))
+
+# Route B: module 1's sigmoid of the same score
+sigmoid <- function(z) 1 / (1 + exp(-z))
+p_via_sigmoid <- sigmoid(score)
+
+rbind(p_via_link = p_via_link, p_via_sigmoid = p_via_sigmoid)  # identical rows
+
+# And the odds ratio: exp(beta1) is the per-unit multiplier on the ODDS
+odds <- exp(score)                       # odds at x = 1, 2, 3
+c(odds_ratio_step = odds[2] / odds[1],   # odds(x=2)/odds(x=1)
+  exp_beta1        = exp(b1))            # both = e^1 ~ 2.718
+```
+
+The bottom check makes the odds-ratio claim concrete: the odds at $x = 2$ divided by the
+odds at $x = 1$ equals $e^{\beta_1}$ — the odds get multiplied by that same factor for
+*every* one-unit step.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two side-by-side plots: on the left, log-odds as a straight line rising with x; on the right, the same model as probability, an S-shaped curve rising from near 0 to near 1."
+# explore-1 — LIVE: the SAME model, two scales. Straight line on the log-odds scale (left)
+# becomes the S-curve on the probability scale (right). PREDICT: where the left line
+# crosses 0, what is the probability on the right? Guess, then run.
+b0 <- -2; b1 <- 1
+sigmoid <- function(z) 1 / (1 + exp(-z))
+xs <- seq(-2, 6, length.out = 200)
+
+op <- par(mfrow = c(1, 2))
+plot(xs, b0 + b1 * xs, type = "l", lwd = 2, col = "steelblue",
+     xlab = "x", ylab = "log-odds", main = "log-odds: a straight line")
+abline(h = 0, lty = 3)
+plot(xs, sigmoid(b0 + b1 * xs), type = "l", lwd = 2, col = "firebrick",
+     xlab = "x", ylab = "probability p", main = "probability: an S-curve")
+abline(h = 0.5, lty = 3)
+par(op)
+```
+
+```{webr}
+#| autorun: false
+# explore-2 — LIVE: read a coefficient as an ODDS RATIO. With slope b1, one extra unit of
+# x multiplies the odds by exp(b1). PREDICT: with b1 = 0.7, is the odds ratio above or
+# below 1, and what does that mean? Guess, then run. (Try b1 = -0.5 too.)
+b1 <- 0.7                          # <-- change me
+odds_ratio <- exp(b1)
+c(beta1 = b1, odds_ratio = odds_ratio,
+  meaning_above_1 = odds_ratio > 1)   # >1 means x raises the odds
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: equal steps in x add equal amounts to the LOG-ODDS, but UNEQUAL
+# amounts to the PROBABILITY. PREDICT: as x goes 0,1,2,3,4, will the jumps in probability
+# be constant? Guess, then run and look at diff().
+b0 <- -2; b1 <- 1
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- 0:4
+lo <- b0 + b1 * x
+p  <- sigmoid(lo)
+rbind(x = x, log_odds = lo, prob = round(p, 3))
+list(step_in_log_odds = diff(lo),      # constant (= b1)
+     step_in_prob      = round(diff(p), 3))   # NOT constant
+```
+
+## Common traps
+
+**Trap: "the slope $\beta_1$ is the change in *probability* per unit of $x$."** Very
+tempting — that's what slope means in ordinary regression. But here $\beta_1$ is the
+change in **log-odds**, and the probability change is *not* constant. In our model
+($\beta_0 = -2, \beta_1 = 1$), going from $x = 1$ to $x = 2$ raises the probability from
+$0.269$ to $0.5$ (a jump of $0.231$), but from $x = 4$ to $x = 5$ it goes $0.881 \to
+0.953$ (a jump of only $0.072$). Same one-unit step in $x$, same $+1$ in log-odds — but
+very different probability jumps, because of the S-curve's flattening ends.
+
+**Trap: "an odds ratio of 2 means the probability doubles."** No — it means the *odds*
+double, and doubling the odds does *not* double the probability. Start at $p = 0.4$ (odds
+$0.667$); double the odds to $1.333$; the new probability is $1.333/2.333 \approx 0.571$,
+not $0.8$. Odds ratios multiply odds, and only near very small probabilities does that
+approximately match "multiplying the probability." Always convert if you want the
+probability.
+
+## Check yourself
+
+**1.** A logistic model has log-odds $= -1 + 0.5x$. What is the log-odds at $x = 4$, and
+the corresponding probability?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to solve, right here
+b0 <- -1; b1 <- 0.5
+x <- 4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Log-odds $= -1 + 0.5(4) = 1$. Odds $= e^{1} \approx 2.718$; probability $= 2.718/3.718
+\approx 0.731$ (equivalently $\sigma(1)$).
+
+```{r check1-answer}
+b0 <- -1; b1 <- 0.5; x <- 4
+lo <- b0 + b1 * x                    # 1
+c(log_odds = lo, prob = exp(lo) / (1 + exp(lo)))   # 1, 0.731
+```
+:::
+
+**2.** A coefficient is $\beta_1 = 0.69$. What is the odds ratio, and — in one sentence —
+what does it tell you about the effect of a one-unit rise in $x$?
+
+::: {.callout-note collapse="true" title="Answer"}
+Odds ratio $= e^{0.69} \approx 1.99 \approx 2$. So each one-unit rise in $x$ roughly
+**doubles the odds** of the outcome (multiplies them by about 2). (It does *not* double
+the probability — see the trap above.)
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why logistic
+regression puts a line on the log-odds instead of on the probability, and what
+$e^{\beta_1}$ means.
+
+::: {.callout-note collapse="true" title="A model answer"}
+It puts the line on the log-odds because the log-odds ranges over all real numbers (like a
+line does), so the model can't predict an impossible probability, and because the effect
+of $x$ is then a clean constant — the same log-odds change per unit no matter where you
+start. $e^{\beta_1}$ is the odds ratio: the factor by which the odds of the outcome get
+multiplied for each one-unit increase in $x$.
+:::
+
+## What you can now do
+
+- **Write the logit link** $\log\!\big(\tfrac{p}{1-p}\big) = \beta_0 + \beta_1 x$ and
+  explain why the log-odds (not the probability) is the thing modelled as a line.
+- **Travel between scales**: log-odds → odds ($e^{(\cdot)}$) → probability
+  ($\text{odds}/(1+\text{odds})$), and recognize this is the sigmoid run backwards.
+- **Interpret a coefficient two ways**: $\beta_1$ as the change in log-odds per unit of
+  $x$, and $e^{\beta_1}$ as the odds ratio (the per-unit multiplier on the odds).
+- **Avoid the two classic misreadings**: $\beta_1$ is not a change in probability, and an
+  odds ratio is not a probability ratio.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) and
+[The formal version](#the-formal-version) — the next module needs the log-odds ↔
+probability round trip cold.
+
+## Where this goes next
+
+We now have the *shape* of the model — a line on the log-odds — but not yet the
+$\beta$'s themselves. Where do the fitted coefficients come from? Unlike least squares
+there's no neat formula; instead we ask "which $\beta$'s make the observed 0/1 data most
+probable?" and climb to the top of that **likelihood** by gradient ascent — reusing your
+[gradient-descent](../../../gradient-descent/syllabus.md) course with the sign flipped:
+[likelihood and fitting by gradient ascent](../03-likelihood-and-gradient-ascent/lesson.qmd).
+Ready for more reps first? Do the [practice problems](practice.qmd).

@@ -1,0 +1,195 @@
+---
+title: "Practice: Lines and the least-squares idea"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — each starter below re-states its own data. Base R throughout.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Each **Starter** cell is live: edit it and press
+Run to solve right here in the page (WebR boots on the first run — give it a moment).
+Try honestly first; the worked answer's output stays baked in, so it's there the moment
+you open the callout.
+
+## Problem 1 — the toy example, new numbers
+
+Three plants: $x = (1, 2, 3)$ scoops, $y = (3, 4, 6)$ tomatoes. Score the candidate
+line "intercept 2, slope 1" by hand: predictions, residuals, SSE. Check in R.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+x <- c(1, 2, 3); y <- c(3, 4, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Predictions $\hat{y}_i = 2 + 1 \cdot x_i$: 3, 4, 5. Residuals $y_i - \hat{y}_i$:
+$3-3 = 0$, $4-4 = 0$, $6-5 = +1$. Squared and summed: $0 + 0 + 1 = 1$. SSE = **1**.
+
+```{r p1-answer}
+x <- c(1, 2, 3); y <- c(3, 4, 6)
+pred <- 2 + 1 * x        # the line's predictions
+sum((y - pred)^2)        # SSE = 1
+```
+:::
+
+## Problem 2 — faded worked example (score a line)
+
+New data: $x = (0, 1, 2)$ scoops, $y = (1, 4, 4)$ tomatoes; candidate line "intercept
+1, slope 2". The scoring is worked out below, but the **core step is blanked** — fill
+in ONLY that line.
+
+> Predictions $\hat{y}_i = 1 + 2 x_i$: at $x = 0,1,2$ → $1, 3, 5$.
+> Residuals $y_i - \hat{y}_i$: $1-1 = 0$, $\;4-3 = +1$, $\;4-5 = -1$.
+> **`<your step here>`** — square each residual and add them up:
+> $\mathrm{SSE} = \underline{\phantom{00}}$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+x <- c(0, 1, 2); y <- c(1, 4, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the move that defines the score — square the residuals so they
+can't cancel, then sum: $0^2 + 1^2 + (-1)^2 = 0 + 1 + 1 = 2$. So $\mathrm{SSE} = 2$.
+
+```{r p2-answer}
+x <- c(0, 1, 2); y <- c(1, 4, 4)
+pred <- 1 + 2 * x        # 1 3 5
+sum((y - pred)^2)        # 0 + 1 + 1 = 2
+```
+:::
+
+## Problem 3 — spot the error
+
+A colleague scores the candidate line "intercept 4, slope 0" (a flat line) on the
+tomato data $x = (1,2,3,4)$, $y = (2,3,5,6)$. Their work contains **exactly one
+mistake** — find it, and give the correct score.
+
+> "The flat line predicts 4 for every plant. Misses: $2-4=-2$, $3-4=-1$, $5-4=+1$,
+> $6-4=+2$. Add the misses: $-2-1+1+2 = 0$. Score = 0 — a perfect fit!"
+
+```{webr}
+#| autorun: false
+# p3-starter — edit and Run to check the corrected score
+x <- c(1, 2, 3, 4); y <- c(2, 3, 5, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is summing the **raw** misses instead of the **squared** misses. Raw
+residuals always cancel around a mean-height line (overshoots balance undershoots),
+so $\sum e_i = 0$ would rate this x-ignoring flat line as "perfect" — nonsense. SSE
+squares first: $(-2)^2 + (-1)^2 + 1^2 + 2^2 = 4 + 1 + 1 + 4 = 10$ — honestly bad, as
+it should be.
+
+```{r p3-answer}
+x <- c(1, 2, 3, 4); y <- c(2, 3, 5, 6)
+pred <- rep(4, 4)
+sum(y - pred)        # 0  — the broken "score"
+sum((y - pred)^2)    # 10 — the real SSE
+```
+:::
+
+## Problem 4 — read the paper's sentence
+
+A paper writes: "Parameters were estimated by minimizing
+$\sum_{i=1}^{n}(y_i - b_0 - b_1 x_i)^2$." In one or two plain-English sentences:
+what did the authors do? (Hint: it's this module in disguise — note that
+$y_i - b_0 - b_1 x_i$ is just $y_i - (b_0 + b_1 x_i)$ with the parentheses dropped.)
+
+::: {.callout-note collapse="true" title="Answer"}
+They played exactly our scoring game: for every candidate line (every intercept
+$b_0$ and slope $b_1$), they computed each observation's miss — actual $y_i$ minus
+the line's prediction $b_0 + b_1 x_i$ — squared the misses, summed them, and chose
+the line with the smallest total. In other words: ordinary least squares. "Minimize
+the sum of squared errors" is the formal way of saying "pick the line with the best
+badness score."
+:::
+
+## Problem 5 — interleaved *(uses mean-variance-covariance)*
+
+The flat line at the mean, $\hat{y}_i = \bar{y}$, has a special SSE. For
+$y = (2, 3, 5, 6)$ (so $\bar{y} = 4$): compute this flat line's SSE by hand, then
+compute the sample variance $s_y^2$ from the
+[foundations module](../../../../foundations/mean-variance-covariance/lesson.qmd).
+How are the two numbers related? (Reach back: $s_y^2 = \frac{1}{n-1}\sum(y_i-\bar{y})^2$.)
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+y <- c(2, 3, 5, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Flat-line residuals are exactly the deviations from the mean: $-2, -1, +1, +2$. So
+$\mathrm{SSE} = 4 + 1 + 1 + 4 = 10$. The variance divides that same sum of squared
+deviations by $n - 1 = 3$: $s_y^2 = 10/3 \approx 3.33$. So
+$\mathrm{SSE}_{\text{flat}} = (n-1)\, s_y^2$ — the flat line's badness *is* the
+spread of $y$ (times $n-1$). That is why a good regression line is judged by how far
+below this number it can push the SSE: it's the "no predictor" baseline.
+
+```{r p5-answer}
+y <- c(2, 3, 5, 6); n <- length(y)
+sse_flat <- sum((y - mean(y))^2)     # 10
+c(sse_flat = sse_flat, var_y = var(y), n_minus_1_times_var = (n - 1) * var(y))
+```
+:::
+
+## Problem 6 — the SSE surface (in R)
+
+Module 1's valley plot fixed the intercept and varied only the slope. Now vary BOTH
+with the starter below: fill in the `sse` computation, then find the grid's best
+$(b_0, b_1)$ pair. Compare it with `coef(lm(y ~ x))`.
+
+```{webr}
+#| autorun: false
+# p6-starter — your job: compute the SSE for every (b0, b1) pair in the grid
+x <- c(1, 2, 3, 4)
+y <- c(2, 3, 5, 6)
+grid <- expand.grid(b0 = seq(-1, 2, by = 0.05),
+                    b1 = seq(0.5, 2.5, by = 0.05))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p6-answer}
+x <- c(1, 2, 3, 4)
+y <- c(2, 3, 5, 6)
+grid <- expand.grid(b0 = seq(-1, 2, by = 0.05),
+                    b1 = seq(0.5, 2.5, by = 0.05))
+
+# For each candidate pair: predictions, misses, squared, summed
+grid$sse <- apply(grid, 1, function(b) sum((y - (b["b0"] + b["b1"] * x))^2))
+
+grid[which.min(grid$sse), ]     # best pair in the grid: b0 = 0.5, b1 = 1.4
+coef(lm(y ~ x))                 # lm agrees: intercept 0.5, slope 1.4
+```
+
+The grid search and `lm()` land on the same line — because `lm()` is solving the
+same arg-min, just exactly (with Module 2's formulas) instead of by brute force.
+:::
+
+## Problem 7 — a gentle cliffhanger
+
+The valley plot had ONE bottom, and grid search found it — but only to the grid's
+resolution, and it needed over 2,500 candidate evaluations. From AP Calculus, hazily:
+what tool finds the exact bottom of a smooth valley in one move? (Next lesson
+re-teaches it from scratch before using it.)
+
+::: {.callout-note collapse="true" title="Answer"}
+The derivative. At the bottom of a smooth valley the slope of the curve is exactly
+zero — so instead of trying thousands of candidates, you take the derivative of
+SSE with respect to the line's parameters, set it equal to zero, and solve. That
+"take the derivative, set it to zero, solve" move is the entire engine of the next
+module — and of a remarkable fraction of every methods section you'll ever read.
+:::

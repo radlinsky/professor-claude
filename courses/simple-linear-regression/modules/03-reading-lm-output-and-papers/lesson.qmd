@@ -1,0 +1,348 @@
+---
+title: "Reading lm() output — and the same model in papers"
+subtitle: "Decode every number summary() prints, then recognize it in a journal table"
+---
+
+```{r setup}
+#| message: false
+# Packages this lesson uses. Missing ones are installed automatically.
+needed <- c()   # base R is all we need
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+You can already produce the `Estimate` column of `summary(lm())` by hand. This
+module decodes the rest — `Std. Error`, `t value`, `Pr(>|t|)`, `R-squared`,
+`Residual standard error` — and then shows how the identical numbers dress up in an
+academic paper: a model equation with $\varepsilon_i$, and a coefficient table with
+parentheses and stars. After this, a regression table in a paper is something you
+*read*, not skip.
+
+**Builds on:** [module 02](../02-deriving-the-ols-formulas/lesson.qmd) — plus the
+Greek/Latin/hat letter code from
+[mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Pull these back before the new columns — you'll lean on all three. Produce each
+answer before opening it.
+
+**1.** *(module 2)* The `Estimate` column you can already produce. Say
+$\hat{\beta}_1 = s_{xy}/s_x^2$ in plain words — what is the slope, in one sentence?
+
+::: {.callout-note collapse="true" title="Answer"}
+"Beta-one hat equals the covariance of x and y over the variance of x" — the slope is
+how much x and y move together, per unit of how much x moves on its own. In R:
+`cov(x, y) / var(x)`, which matches `coef(lm(y ~ x))[2]`. See
+[module 2](../02-deriving-the-ols-formulas/lesson.qmd).
+:::
+
+**2.** *(mean, variance & covariance)* The letter code: of $\mu$ and $\bar{x}$, which
+is the *true but unknown* quantity and which is the *estimate from data*? Why does it
+matter here?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mu$ (Greek) is the true, unknown population value; $\bar{x}$ (Latin) is what we
+compute from the sample to estimate it. This module lives on that gap: $\beta_1$ is
+the unknown truth, $\hat{\beta}_1$ is our estimate, and the standard error measures
+how far the estimate might bounce from the truth. See
+[mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd).
+:::
+
+**3.** *(module 1)* What is a residual $e_i$, in symbols and in words?
+
+::: {.callout-note collapse="true" title="Answer"}
+$e_i = y_i - \hat{y}_i$ — actual minus predicted, the line's miss on point $i$. The
+"residual standard error" this module decodes is just the typical size of these
+misses. See [module 1](../01-least-squares-idea/lesson.qmd).
+:::
+
+## A tiny example first
+
+The new idea behind ALL the remaining columns is: **your estimate would have come
+out differently with different data.** Let's *see* that.
+
+Pretend, just for this game, that we secretly know the truth: tomatoes really
+follow $y = 1 + 2x + \text{noise}$ — intercept 1, slope 2, plus random luck each
+season. We grow 5 plants at $x = (1, 2, 3, 4, 5)$ and run three seasons:
+
+- Season 1 luck: $(+1, -1, 0, +1, -1)$ → harvest $y = (4, 4, 7, 10, 10)$.
+  Fit the line (module 2 formulas): slope $\hat{\beta}_1 = 1.8$.
+- Season 2 luck: $(-1, 0, +1, -1, +1)$ → $y = (2, 5, 8, 8, 12)$. Slope: $2.3$.
+- Season 3 luck: $(0, +1, -1, +1, 0)$ → $y = (3, 6, 6, 10, 11)$. Slope: $2.0$.
+
+Same true slope (2) every time — but the *estimates* came out 1.8, 2.3, 2.0. The
+estimate is a lottery ticket: mostly near the truth, never exactly it. The
+**standard error** is simply the typical size of that bounce, estimated from the
+one sample you actually have.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The secret truth (only simulations get to know it): y = 1 + 2x + noise
+x <- c(1, 2, 3, 4, 5)
+
+season1 <- c(4, 4, 7, 10, 10)    # truth + luck (+1,-1,0,+1,-1)
+season2 <- c(2, 5, 8, 8, 12)     # truth + luck (-1,0,+1,-1,+1)
+season3 <- c(3, 6, 6, 10, 11)    # truth + luck (0,+1,-1,+1,0)
+
+# The slope estimate from each season — covariance over variance, as derived
+c(cov(x, season1) / var(x),      # 1.8
+  cov(x, season2) / var(x),      # 2.3
+  cov(x, season3) / var(x))      # 2.0  — bouncing around the true 2
+```
+
+## Getting a feel for it
+
+**Your estimate is a lottery ticket.** Each season of data is one draw from the same
+machine, and the slope you compute from it is the ticket that draw hands you: 1.8,
+then 2.3, then 2.0, all circling the true 2 you never get to see directly. Run the
+season once more and you'd get yet another ticket. The **standard error** is just the
+typical spread of those tickets — how far a single ticket usually lands from the
+middle of the pile. (Where the picture bends: a real study buys only *one* ticket,
+so the standard error is itself *estimated* from that lone draw, not measured by
+actually re-running.)
+
+**Why some estimates bounce more than others.** Two things widen the spread of
+tickets, and both make plain sense. More *noise* in the harvest — bigger random luck
+each season — jostles every estimate harder, so the tickets scatter wider. And fewer
+data points, or fertilizer doses bunched close together, give the line less to brace
+against, so it wobbles more; spreading the $x$'s out and adding plants both pin the
+line down and pull the tickets into a tighter pile. That's the whole content of the
+standard-error formula before we write a single symbol: *noise pushes the spread up,
+and well-anchored, plentiful data pushes it down.*
+
+**What the number feels like.** A small standard error means "if I'd run a different
+season, I'd have landed in nearly the same place" — the estimate is trustworthy. A
+large one means "easily could have come out quite different" — hold it loosely. The
+histogram in "Explore it" below draws the whole invisible pile of tickets you could
+have drawn, so you can *see* the spread the standard error is trying to summarize
+from your single draw.
+
+## What the notation is going to say
+
+Papers describe this exact game in one line: "each y is the line plus a random
+error; the errors are independent draws centered on zero." Then every column of the
+output answers a question about the lottery: *how big is the bounce?* (standard
+error), *how many bounce-lengths from zero is my estimate?* (t value), *if the true
+slope were zero, how often would luck alone produce an estimate this far out?*
+(p-value), and *how much of y's variation does the line soak up?* ($R^2$).
+
+## How to read the symbols
+
+Reused from earlier modules (they appear in this lesson's formulas, so they get a row
+here too — season 1's data $x = (1,2,3,4,5)$, $y = (4,4,7,10,10)$ as the anchor):
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x_i$ | "ex sub eye" | the i-th predictor value — fertilizer scoops (in R: `x[i]`) | 1, 2, 3, 4, 5 |
+| $y_i$ | "why sub eye" | the i-th observed outcome — a season's harvest (in R: `y[i]`) | 4, 4, 7, 10, 10 |
+| $\bar{y}$ | "why bar" | the mean of the y values (in R: `mean(y)`) | 7 |
+| $\beta_0, \beta_1$ | "beta zero, beta one" | the TRUE (unknown) intercept and slope — no hats | 1 and 2 in our game |
+| $\hat{\beta}_0, \hat{\beta}_1$ | "beta-zero hat, beta-one hat" | the fitted estimates from one sample ($s_{xy}/s_x^2$, module 2) | season 1: 1.6 and 1.8 |
+| $\hat{y}_i$ | "why hat sub eye" | the fitted line's prediction for point i | season 1: 3.4, 5.2, 7, 8.8, 10.6 |
+| $e_i$ | "ee sub eye" / "residual i" | the leftover miss $y_i - \hat{y}_i$ (module 1) | season 1: 0.6, −1.2, 0, 1.2, −0.6 |
+| $\mathrm{SSE}$ | "sum of squared errors" | the fitted line's total squared miss, $\sum e_i^2$ (module 1) | season 1: 3.6 |
+
+New in this lesson:
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\varepsilon_i$ | "epsilon sub eye" | the random error: the part of $y_i$ the line doesn't explain | season 1's luck: +1, −1, 0, +1, −1 |
+| $\sim$ | "is distributed as" | the left side follows the distribution on the right | $\varepsilon_i \sim N(0, \sigma^2)$ |
+| $N(0, \sigma^2)$ | "normal with mean zero and variance sigma-squared" | a bell curve centered at 0 with spread $\sigma$ | luck averaging out to 0 |
+| $\sigma$ | "sigma" | the true typical error size (unknown) | 1-ish in our game |
+| $\hat{\sigma}$ | "sigma hat" (R: `Residual standard error`) | the estimate of $\sigma$ from the residuals | ≈ 0.79 below |
+| $\mathrm{SE}(\hat{\beta}_1)$ | "the standard error of beta-one hat" | the typical bounce of the slope estimate across hypothetical re-runs | ≈ 0.25 below |
+| $t$ | "the t value" | estimate ÷ its standard error: how many bounce-lengths from zero | ≈ 7.7 below |
+| $p$ or $\Pr(>\|t\|)$ | "the p-value" | if the true coefficient were 0, the chance of an estimate ≥ this many bounce-lengths out | ≈ 0.005 below |
+| $R^2$ | "R squared" | the fraction of y's variance the line explains, from 0 to 1 | ≈ 0.95 below |
+| $H_0$ | "the null hypothesis" | the boring default being tested — here "true slope is 0" | "fertilizer does nothing" |
+
+## The formal version
+
+**The model, as papers write it:**
+
+$$
+y_i = \beta_0 + \beta_1 x_i + \varepsilon_i, \qquad \varepsilon_i \sim N(0, \sigma^2)
+$$
+
+Reading it aloud: "why-sub-eye equals beta-zero plus beta-one ex-sub-eye plus
+epsilon-sub-eye, where the epsilons are normal with mean zero and variance
+sigma-squared." In everyday words: *each harvest is the line's value plus that
+season's luck, and luck is bell-curve noise centered on zero.* This is exactly the
+game we played — $\beta_0 = 1$, $\beta_1 = 2$, luck as $\varepsilon_i$. When a
+paper writes this equation, it is declaring which lottery it believes generated the
+data. (Note it uses hatless Greek $\beta$s: the *true* line, not the estimate.)
+
+**The columns of `summary(lm())`, one question each:**
+
+$$
+t = \frac{\hat{\beta}_1 - 0}{\mathrm{SE}(\hat{\beta}_1)}
+\qquad\qquad
+R^2 = 1 - \frac{\mathrm{SSE}}{\sum_{i=1}^n (y_i - \bar{y})^2}
+$$
+
+- $\mathrm{SE}(\hat{\beta}_1)$ — the estimated bounce. (Its own formula is
+  $\hat{\sigma}/\sqrt{\sum(x_i-\bar{x})^2}$ — spread of the errors over spread of
+  the x's: noisier data → bouncier estimates; wider-spread x → steadier ones.)
+- $t$: "the t value equals the estimate minus zero, over its standard error" —
+  distance from zero measured in bounce-lengths. Rule of thumb: beyond about ±2
+  bounce-lengths is hard to explain by luck.
+- $p$: the probability, *assuming the true coefficient is zero* ($H_0$), of luck
+  producing an estimate at least this many bounce-lengths out. Small p → "luck
+  alone rarely does this" → the stars in papers.
+- $R^2$: "one minus SSE over the total sum of squares" — compare the line's leftover
+  error to the error of the do-nothing flat line at $\bar{y}$ (module 1's broken
+  candidate!). Soaking up all the error → $R^2 = 1$; doing no better than the flat
+  line → $R^2 = 0$.
+
+**The same model in a paper's table** (this is the payoff — the format to
+recognize):
+
+> | | (1) Tomatoes |
+> |---|---|
+> | Fertilizer | 1.926** |
+> | | (0.249) |
+> | Constant | 1.662 |
+> | | (0.827) |
+> | Observations | 5 |
+> | R² | 0.952 |
+>
+> *Notes:* Standard errors in parentheses. \*p < 0.05, \*\*p < 0.01, \*\*\*p < 0.001.
+
+(These are exactly the numbers `summary()` prints in the Explore section below —
+same fit, journal costume.) Same numbers, new costume: each cell is $\hat{\beta}$ with $\mathrm{SE}(\hat{\beta})$
+in parentheses *below* it (some journals use brackets, or t values instead — the
+table notes always say). Stars encode the p-value thresholds. Divide any estimate by
+its parenthesis and you've reconstructed the t value yourself.
+
+## Explore it
+
+```{r explore-1}
+# TRY IT: the full decode, on data where WE set the truth. Change the true slope
+# or sigma and re-run — watch every column respond.
+# PREDICT: the true slope is 2. Will the Estimate row read exactly 2.000? Guess,
+# then find the slope line in the summary() output below.
+set.seed(42)
+n <- 5
+x <- c(1, 2, 3, 4, 5)
+y <- 1 + 2 * x + rnorm(n, sd = 1)     # beta0 = 1, beta1 = 2, sigma = 1
+
+fit <- lm(y ~ x)
+summary(fit)
+```
+
+```{r explore-2}
+# Rebuild each printed number from raw ingredients — nothing is magic:
+est   <- coef(fit)[2]                          # beta-one hat: cov/var
+resid <- y - fitted(fit)                       # the leftovers e_i
+sigma_hat <- sqrt(sum(resid^2) / (n - 2))      # residual standard error*
+se    <- sigma_hat / sqrt(sum((x - mean(x))^2))# SE: error spread / x spread
+tval  <- est / se                              # bounce-lengths from zero
+r2    <- 1 - sum(resid^2) / sum((y - mean(y))^2)
+
+round(c(estimate = unname(est), SE = se, t = unname(tval), R2 = r2), 4)
+# compare with the summary() printout above — identical.
+# (*n - 2 because two parameters were estimated; same story as var()'s n - 1.)
+```
+
+```{r explore-3}
+#| fig-alt: "Histogram of slope estimates across 2000 simulated re-runs, with width matching the standard error"
+# TRY IT: is SE really "the typical bounce"? Run the lottery 2000 times and
+# check. Increase sd or decrease n — the histogram widens and SE tracks it.
+# PREDICT: will the spread (SD) of the 2000 re-run slopes come out close to the SE
+# computed from the SINGLE sample above? Guess, then compare the two numbers in
+# the plot title.
+set.seed(42)
+slopes <- replicate(2000, {
+  y_new <- 1 + 2 * x + rnorm(n, sd = 1)     # a fresh season each time
+  cov(x, y_new) / var(x)                    # its slope estimate
+})
+
+hist(slopes, breaks = 40, col = "steelblue",
+     main = sprintf("SD of 2000 re-run slopes: %.3f  |  SE from ONE sample: %.3f",
+                    sd(slopes), se))
+abline(v = 2, col = "firebrick", lwd = 2)   # the truth
+```
+
+That histogram is the deepest idea in the module: the standard error printed from
+your *single* dataset estimates the spread of a whole histogram you could never
+actually observe. (With only n = 5 the two numbers agree roughly, not perfectly —
+the SE is itself an estimate, and small samples make everything bouncy. Re-run with
+`x <- 1:50` and watch them converge.)
+
+## Common traps
+
+**Trap 1 — reading the p-value as "the chance the effect is nothing."** Our toy fit
+has $p \approx 0.005$. It is tempting to say "so there's a 0.5% chance fertilizer does
+nothing." That's backwards. The p-value is computed *assuming the true slope is
+already zero* ($H_0$) — it's the chance that **luck alone** would produce an estimate
+this many bounce-lengths out, IF the null were true. It says nothing directly about
+how probable the null itself is. Correct reading: "if fertilizer truly did nothing,
+data this extreme would show up only about 0.5% of the time — so 'nothing' is a poor
+explanation."
+
+**Trap 2 — "more stars = bigger effect."** Since $t = \hat{\beta}/\mathrm{SE}$, the t
+value (and its stars) grows when the estimate is large *or* when the standard error
+is small — and SE shrinks with more data and less noise. So a microscopically small
+slope, measured very precisely in a huge sample, can earn three stars. Stars measure
+*confidence the effect isn't zero*, not the *size* or importance of the effect. To
+judge size, read the estimate itself (in its real units); to judge how much the
+predictor explains, read $R^2$.
+
+## Check yourself
+
+**1.** A paper's table shows `Fertilizer  1.84 (0.23)`. Reconstruct the t value and
+say, in plain English, what it means.
+
+::: {.callout-note collapse="true" title="Answer"}
+$t = 1.84 / 0.23 = 8$. The slope estimate is 8 bounce-lengths away from zero — if
+fertilizer truly did nothing, luck essentially never produces an estimate that far
+out, so the paper will report it as strongly significant (and star it accordingly).
+:::
+
+**2.** Read aloud, then unpack in everyday words:
+$y_i = \beta_0 + \beta_1 x_i + \varepsilon_i,\; \varepsilon_i \sim N(0, \sigma^2)$.
+Which symbols would get hats in the fitted version?
+
+::: {.callout-note collapse="true" title="Answer"}
+"Why-sub-eye equals beta-zero plus beta-one ex-sub-eye plus epsilon-sub-eye, where
+epsilon-sub-eye is distributed normal with mean zero and variance sigma-squared."
+Everyday words: each observed y is a straight-line part plus a random error, and
+the errors are bell-curve noise centered at zero with typical size sigma.
+
+The fitted version hats everything estimated from data: $\hat{\beta}_0$,
+$\hat{\beta}_1$, $\hat{\sigma}$ — and the errors are replaced by their observable
+stand-ins, the residuals $e_i = y_i - \hat{y}_i$. ($x_i$ and $y_i$ are data;
+they never wear hats.)
+:::
+
+## What you can now do
+
+- **Read every column** of `summary(lm())` aloud and say what question each answers:
+  Estimate, Std. Error, t value, Pr(>|t|), residual standard error, $R^2$.
+- **Reconstruct** a t value from a journal table's estimate and parenthesized
+  standard error, and decode the stars.
+- **Read the model equation** $y_i = \beta_0 + \beta_1 x_i + \varepsilon_i$ aloud, and
+  say which symbols get hats once it's fitted from data.
+- **Keep the ideas separate** — significance (p, stars) answers "is the effect
+  nonzero?", $R^2$ answers "how much does it explain?", and the intercept is just the
+  line's height at $x = 0$.
+
+**Mastery rule:** if any bullet feels shaky, revisit the matching section above (the
+three-seasons game for standard error, the columns list for t/p/$R^2$) and its
+practice before moving to the capstone — which assumes you can read all of these
+cold.
+
+## Where this goes next
+
+You can now score lines, derive the estimator, and decode both R output and journal
+tables — every skill the course set out to teach. One module remains: the
+[capstone](../04-capstone-reading-a-real-regression/lesson.qmd) points all of it at a
+*real* regression end-to-end and finishes with a cumulative problem set spanning the
+whole course. First, do this module's [practice problems](practice.qmd).

@@ -1,0 +1,238 @@
+---
+title: "Practice: Fitting a line by descent"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order. The numerical gradient tool, to paste into any starter:
+
+```r
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+## Problem 1 — the toy example, new numbers
+
+Fit a line to $x = (1, 2, 3, 4)$, $y = (5, 7, 9, 11)$ — the line $y = 3 + 2x$ — with
+from-scratch descent ($\alpha = 0.05$, 3000 steps, start $(0,0)$). What coefficients
+should it find, and what should the MSE be there?
+
+```{webr}
+#| autorun: false
+# p1-starter
+x <- c(1, 2, 3, 4); y <- c(5, 7, 9, 11)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The points are exactly on $y = 3 + 2x$, so descent finds intercept $\approx 3$, slope
+$\approx 2$, with MSE $\approx 0$.
+
+```{r p1-answer}
+x <- c(1, 2, 3, 4); y <- c(5, 7, 9, 11)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:3000) b <- b - 0.05 * gradient(mse, b)
+c(intercept = b[1], slope = b[2], mse = mse(b))   # ~ (3, 2, 0)
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+The MSE loss for a candidate line is written below with its **core expression blanked**.
+Supply it.
+
+> ```
+> mse <- function(b) {
+>   predictions <- b[1] + b[2] * x     # the line's predictions
+>   your step here                     # turn predictions and y into the mean squared error
+> }
+> ```
+
+```{webr}
+#| autorun: false
+# p2-starter — complete mse(), then Run to fit
+x <- c(1, 2, 3, 4); y <- c(5, 7, 9, 11)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing line is the mean of the squared misses: `mean((predictions - y)^2)`. Subtract
+the actual values to get the misses, **square** them (so they can't cancel), and average.
+
+```{r p2-answer}
+x <- c(1, 2, 3, 4); y <- c(5, 7, 9, 11)
+mse <- function(b) {
+  predictions <- b[1] + b[2] * x
+  mean((predictions - y)^2)
+}
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:3000) b <- b - 0.05 * gradient(mse, b)
+b   # ~ (3, 2)
+```
+:::
+
+## Problem 3 — noisy data, and reading the leftover error
+
+Fit this **noisy** dataset and report both the coefficients and the final MSE. Is the
+MSE zero? Say, in one sentence, why or why not.
+
+```{webr}
+#| autorun: false
+# p3-starter
+x <- c(1, 2, 3, 4, 5); y <- c(2.1, 3.9, 6.2, 7.8, 10.1)   # ~ line 0 + 2x, with scatter
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+x <- c(1, 2, 3, 4, 5); y <- c(2.1, 3.9, 6.2, 7.8, 10.1)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:5000) b <- b - 0.02 * gradient(mse, b)
+c(intercept = b[1], slope = b[2], mse = mse(b))
+```
+The MSE is small but **not zero**: the five points don't lie exactly on any straight
+line (there's scatter), so even the best line misses each point a little, and those
+leftover squared misses can't be driven to zero. Best means lowest achievable, not zero.
+:::
+
+## Problem 4 — spot the error
+
+A colleague's line-fitter drifts to nonsense. Their loss has **exactly one mistake** —
+find it and fix it.
+
+```{webr}
+#| autorun: false
+# p4-starter — run it (bad result), then fix the one mistake in mse()
+x <- c(1, 2, 3, 4); y <- c(5, 7, 9, 11)
+mse <- function(b) mean(b[1] + b[2] * x - y)     # <- one mistake here
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:2000) b <- b - 0.05 * gradient(mse, b)
+b
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: the misses are **not squared** — `mean(b[1] + b[2]*x - y)` averages the raw
+misses, which can cancel (positive and negative misses offset). That "loss" isn't a bowl;
+it slopes off to $-\infty$, so descent chases the intercept downward forever. Square the
+misses:
+
+```{r p4-answer}
+x <- c(1, 2, 3, 4); y <- c(5, 7, 9, 11)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)   # squared: a real bowl
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:2000) b <- b - 0.05 * gradient(mse, b)
+b   # ~ (3, 2)
+```
+:::
+
+## Problem 5 — a fit that blows up *(uses Module 1's learning-rate lesson)*
+
+Take the good fitter from Problem 1 but crank the learning rate up to $\alpha = 1.5$.
+Predict what happens (recall Module 1), then run it and read the coefficients.
+
+```{webr}
+#| autorun: false
+# p5-starter — same data, reckless learning rate
+x <- c(1, 2, 3, 4); y <- c(5, 7, 9, 11)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Module 1's warning strikes: too large a learning rate makes each step overshoot the
+bottom of the error bowl and land farther up the far wall, so the coefficients explode to
+huge (often `NaN`/`Inf`) values instead of settling.
+
+```{r p5-answer}
+x <- c(1, 2, 3, 4); y <- c(5, 7, 9, 11)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:2000) b <- b - 1.5 * gradient(mse, b)
+b   # huge / NaN — diverged
+```
+The fix is the same as in Module 1: lower the learning rate until the steps settle
+instead of overshoot.
+:::
+
+## Problem 6 — transfer: match the standard tool
+
+R's `lm()` fits a line by the exact least-squares formula (no descent). Fit the noisy
+data below with your from-scratch descent, then compare your coefficients to `lm()`'s.
+They should match — another independent confirmation of your rebuild.
+
+```{webr}
+#| autorun: false
+# p6-starter — compare your descent to R's lm()
+x <- c(-2, -1, 0, 1, 2); y <- c(5.1, 3.0, 0.8, -1.1, -3.2)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p6-answer}
+x <- c(-2, -1, 0, 1, 2); y <- c(5.1, 3.0, 0.8, -1.1, -3.2)
+mse <- function(b) mean((b[1] + b[2] * x - y)^2)
+gradient <- function(f, v, h = 1e-5)
+  sapply(seq_along(v), function(i) {
+    up <- v; dn <- v; up[i] <- up[i] + h; dn[i] <- dn[i] - h; (f(up) - f(dn)) / (2 * h)
+  })
+b <- c(0, 0); for (t in 1:5000) b <- b - 0.05 * gradient(mse, b)
+
+rbind(from_scratch = b,
+      lm = unname(coef(lm(y ~ x))))    # intercept, slope — should match
+```
+Your descent and `lm()`'s exact formula agree: that's four routes now (your descent, R's
+`optim()`, scipy's L-BFGS-B, and `lm()`'s formula) all reaching the same bottom of the
+same squared-error bowl. Different methods, one answer — which is exactly the confidence
+an equivalence check buys you.
+:::

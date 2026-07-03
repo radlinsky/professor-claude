@@ -1,0 +1,44 @@
+---
+title: "Roadmap"
+---
+
+How every module depends on the others. Blue nodes are reusable
+[foundations](../../foundations/README.md) modules shared across courses; arrows mean
+"needed for".
+
+```{mermaid}
+flowchart TD
+    classDef foundation fill:#e8f0fe,stroke:#4285f4
+
+    F1["derivative-as-slope<br/>(measure a slope numerically)"]:::foundation
+    F2["vectors-and-summation<br/>(x_i, n, Σ, a vector of numbers)"]:::foundation
+    M1["01 · Rolling downhill<br/>(x ← x − α f′(x), the learning rate)"]
+    M2["02 · The gradient<br/>(∇f, a vector of partial slopes)"]
+    M3["03 · Fitting a line by descent<br/>(MSE bowl, matches a real optimizer)"]
+    M4["04 · Capstone<br/>(decode optim() / scipy.minimize)"]
+
+    F1 --> M1
+    F1 --> M2
+    F2 --> M2
+    M1 --> M2
+    M2 --> M3
+    M3 --> M4
+```
+
+## Suggested order
+
+1. Foundation: [derivative-as-slope](../../foundations/derivative-as-slope/lesson.qmd) —
+   new? take it fully; done before? skim its pronunciation table.
+2. Foundation: [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) —
+   same rule.
+3. [01 · Rolling downhill](modules/01-rolling-downhill/lesson.qmd)
+   (+ [practice](modules/01-rolling-downhill/practice.qmd))
+4. [02 · The gradient](modules/02-the-gradient/lesson.qmd)
+   (+ [practice](modules/02-the-gradient/practice.qmd))
+5. [03 · Fitting a line by descent](modules/03-fitting-a-line-by-descent/lesson.qmd)
+   (+ [practice](modules/03-fitting-a-line-by-descent/practice.qmd))
+6. [04 · Capstone — decode a real optimizer](modules/04-capstone-decode-the-optimizer/lesson.qmd)
+   (+ [practice](modules/04-capstone-decode-the-optimizer/practice.qmd))
+
+After each lesson, do its practice page before moving on — the problems are the part that
+makes it stick. External videos/posts for each module: [resources](resources.md).

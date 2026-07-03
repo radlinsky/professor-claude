@@ -1,0 +1,201 @@
+---
+title: "Practice: The mean, variance & covariance"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+---
+
+```{r setup}
+#| message: false
+# Packages this practice set uses. Missing ones are installed automatically.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Four mushrooms weigh $x = (3, 1, 4, 2)$ grams. By hand: find $\bar{x}$, the four
+deviations, and $s_x^2$. Check with `mean()` and `var()`.
+
+```{r p1-starter}
+# Starter — copy this to begin
+x <- c(3, 1, 4, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Mean: $3 + 1 + 4 + 2 = 10$, divided by 4 → $\bar{x} = 2.5$.
+
+Deviations: $3 - 2.5 = 0.5$; $1 - 2.5 = -1.5$; $4 - 2.5 = 1.5$; $2 - 2.5 = -0.5$.
+(Sanity check: $0.5 - 1.5 + 1.5 - 0.5 = 0$ ✓.)
+
+Squared: $0.25, 2.25, 2.25, 0.25$. Sum: $5$. Divide by $n - 1 = 3$:
+$s_x^2 = 5/3 \approx 1.67$.
+
+```{r p1-answer}
+x <- c(3, 1, 4, 2)
+mean(x)          # 2.5
+x - mean(x)      # 0.5 -1.5  1.5 -0.5
+var(x)           # 1.6667 = 5/3
+```
+:::
+
+## Problem 2 — faded worked example (covariance by hand)
+
+Three plots got $x = (1, 3, 5)$ units of fertilizer and yielded $y = (2, 2, 8)$
+crates. Below is the covariance worked out — but the **core step is blanked**. Fill
+in ONLY the blanked line (the paired-deviation products and their sum), then finish
+the last line.
+
+> $\bar{x} = 3$, $\bar{y} = 4$.
+> Deviations: $x - \bar{x} = (-2,\, 0,\, 2)$ and $y - \bar{y} = (-2,\, -2,\, 4)$.
+> **`<your step here>`** — multiply each *pair* of deviations, then add the products:
+> $\sum (x_i - \bar{x})(y_i - \bar{y}) = \underline{\phantom{00}}$
+> Finally divide by $n - 1 = 2$: $\;s_{xy} = \underline{\phantom{00}}$.
+
+```{r p2-starter}
+# Starter — copy this to check your two blanks
+x <- c(1, 3, 5)
+y <- c(2, 2, 8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the heart of covariance — pair up each plot's two deviations and
+multiply: $(-2)(-2) = 4$, $(0)(-2) = 0$, $(2)(4) = 8$. Sum: $4 + 0 + 8 = 12$.
+
+Divide by $n - 1 = 2$: $s_{xy} = 12 / 2 = 6$. Positive — more-fertilized plots tend
+to be the higher-yielding ones.
+
+```{r p2-answer}
+x <- c(1, 3, 5); y <- c(2, 2, 8)
+n <- length(x)
+sum((x - mean(x)) * (y - mean(y))) / (n - 1)   # 6
+cov(x, y)                                       # 6 — same
+```
+:::
+
+## Problem 3 — greek vs. latin
+
+A paper writes: "heights are distributed with mean $\mu = 170$ and variance
+$\sigma^2 = 81$; in our sample of $n = 40$ we observed $\bar{x} = 172.1$ and
+$s^2 = 76.4$." In plain English: what is the difference between $\mu$ and $\bar{x}$
+here, and between $\sigma^2$ and $s^2$? Which pair would change if they re-ran the
+study on 40 new people?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mu$ and $\sigma^2$ (Greek) are the *true* mean and variance of the whole
+population — fixed but unknown quantities the paper is assuming or estimating.
+$\bar{x}$ and $s^2$ (Latin) are *computed from the 40 sampled people* — estimates of
+$\mu$ and $\sigma^2$.
+
+A new sample of 40 people would give new values of $\bar{x}$ and $s^2$ (they bounce
+around from sample to sample), while $\mu$ and $\sigma^2$ would stay exactly what
+they were. The Greek-vs-Latin letter code is how papers silently tell you which kind
+of quantity each symbol is.
+:::
+
+## Problem 4 — sign of the covariance, no arithmetic
+
+For each pair, say whether the covariance should be positive, near zero, or
+negative — *before* computing anything:
+
+a. hours studied & exam score
+b. car weight & fuel efficiency (miles per gallon)
+c. shoe size & R programming skill
+
+Then verify (b) in R with the built-in `mtcars` data (`wt` and `mpg`).
+
+::: {.callout-note collapse="true" title="Answer"}
+a. Positive — above-average studiers tend to score above average (deviations share
+   a sign, products positive).
+b. Negative — heavier-than-average cars tend to have below-average mpg.
+c. Near zero — no reason for the deviations to align.
+
+```{r p4-answer}
+cov(mtcars$wt, mtcars$mpg)   # about -5.1: negative, as predicted
+cor(mtcars$wt, mtcars$mpg)   # about -0.87: and strongly so
+```
+
+Note how the correlation (unit-free, in [−1, 1]) is much easier to interpret than
+the raw covariance (whose units are tons·mpg!).
+:::
+
+## Problem 5 — spot the error
+
+A colleague computes the variance of $x = (4, 8, 12)$ like this. It contains
+**exactly one mistake** — find it, then give the correct $s_x^2$.
+
+> "Mean is $(4 + 8 + 12)/3 = 8$. Deviations $-4, 0, 4$; squared $16, 0, 16$; they
+> sum to $32$. There are $n = 3$ values, so the variance is $32 / 3 \approx 10.67$."
+
+```{r p5-starter}
+# Starter — copy this to check the corrected answer
+x <- c(4, 8, 12)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Everything is right up to the last step. The mistake is dividing by $n = 3$ instead
+of $n - 1 = 2$: **sample** variance uses $n - 1$. The correct value is
+$32 / 2 = 16$, not $10.67$. (Dividing by $n$ would be the *population* variance,
+which assumes you have the entire population, not a sample.)
+
+```{r p5-answer}
+x <- c(4, 8, 12)
+n <- length(x)
+sum((x - mean(x))^2) / (n - 1)   # 16 — the correct sample variance
+var(x)                            # 16 — R agrees (it uses n - 1)
+```
+:::
+
+## Problem 6 — the formula IS the function (in R)
+
+Starter below. Compute the covariance of `x` and `y` **without** `cov()` — build it
+straight from the formula $s_{xy} = \frac{1}{n-1}\sum (x_i - \bar{x})(y_i - \bar{y})$
+— then confirm against `cov(x, y)`.
+
+```{r p6-starter}
+# Starter data — your job: covariance by hand, then check with cov()
+set.seed(42)
+x <- rnorm(500, mean = 10, sd = 2)
+y <- 3 * x + rnorm(500, sd = 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p6-answer}
+set.seed(42)
+x <- rnorm(500, mean = 10, sd = 2)
+y <- 3 * x + rnorm(500, sd = 5)
+n <- length(x)
+
+# Straight from the formula:
+# each x-deviation times its paired y-deviation, summed, divided by n - 1
+by_hand <- sum((x - mean(x)) * (y - mean(y))) / (n - 1)
+
+c(by_hand = by_hand, built_in = cov(x, y))   # identical
+```
+
+If you can write this line, you can *read* the covariance formula in any paper —
+they are the same statement in two languages.
+:::
+
+## Problem 7 — a gentle cliffhanger
+
+Using the `mtcars` variables again: compute `cov(mtcars$wt, mtcars$mpg) /
+var(mtcars$wt)`. Keep that number. Then run `coef(lm(mpg ~ wt, data = mtcars))` and
+compare. (Explaining WHY those match is the whole point of the
+[simple-linear-regression course](../../courses/simple-linear-regression/syllabus.md).)
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p7-answer}
+cov(mtcars$wt, mtcars$mpg) / var(mtcars$wt)   # -5.344
+coef(lm(mpg ~ wt, data = mtcars))             # slope: -5.344
+```
+
+They're identical: the regression slope IS covariance divided by variance,
+$\hat{\beta}_1 = s_{xy}/s_x^2$. You just computed your first regression coefficient
+from raw ingredients — the course shows where that formula comes from and why it's
+the "best" line.
+:::

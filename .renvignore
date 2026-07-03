@@ -1,0 +1,6 @@
+# Keep renv's dependency scanner out of the equivalence harness. The generators use
+# real reference libraries (pracma, numpy, …) that are AUTHORING-TIME tools living in
+# the gitignored equivalence/env/, not course dependencies. Without this, renv would
+# report the project "out-of-sync" for pracma and a stray renv::snapshot() could add
+# it to renv.lock, which must stay render-infrastructure only.
+equivalence/

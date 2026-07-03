@@ -1,0 +1,187 @@
+---
+title: "Practice: Capstone — the whole model, mixed"
+subtitle: "No hints about which idea each problem needs — recalling that is the test."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+These draw on every module, in mixed order — figuring out *which* idea each one needs is
+part of the test, so there are no "uses Module N" labels. A helper to paste as needed:
+`sigmoid <- function(z) 1 / (1 + exp(-z))`.
+
+## Problem 1
+
+A logistic model gives a subject the linear score $z = -0.5$. What is the predicted
+probability, and is the subject more or less likely than not to have the outcome?
+
+```{webr}
+#| autorun: false
+# p1-starter
+sigmoid <- function(z) 1 / (1 + exp(-z))
+z <- -0.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p1-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+sigmoid(-0.5)   # ~0.378
+```
+$\sigma(-0.5) \approx 0.378$ — **less** likely than not, because the score is negative
+(any $z < 0$ gives a probability below $0.5$).
+:::
+
+## Problem 2
+
+A published logistic model reports two coefficients: $\beta_{\text{age}} = 1.10$ and
+$\beta_{\text{dose}} = -0.30$. Convert each to an odds ratio, and say in one sentence what
+each tells you about the effect of that predictor on the odds of the outcome.
+
+```{webr}
+#| autorun: false
+# p2-starter
+b_age  <- 1.10
+b_dose <- -0.30
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p2-answer}
+c(OR_age = exp(1.10), OR_dose = exp(-0.30))   # 3.004, 0.741
+```
+Age: odds ratio $e^{1.10} \approx 3.0$ — each extra unit of age **triples** the odds of the
+outcome (above 1 → raises the odds). Dose: odds ratio $e^{-0.30} \approx 0.74$ — each extra
+unit of dose multiplies the odds by about $0.74$, a roughly **26% drop** (below 1 → lowers
+the odds).
+:::
+
+## Problem 3
+
+For a tiny dataset $x = (0, 1, 2)$, $y = (0, 1, 1)$, compute the log-likelihood at the
+coefficients $\beta = (-0.5, 1)$. Show the three predicted probabilities as part of your
+answer.
+
+```{webr}
+#| autorun: false
+# p3-starter
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(0, 1, 2); y <- c(0, 1, 1)
+b <- c(-0.5, 1)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+x <- c(0, 1, 2); y <- c(0, 1, 1); b <- c(-0.5, 1)
+p <- sigmoid(b[1] + b[2] * x)
+round(p, 4)                                       # 0.3775, 0.6225, 0.8176
+sum(y * log(p) + (1 - y) * log(1 - p))            # log-likelihood ~ -1.150
+```
+Predicted probabilities $0.378, 0.622, 0.818$. Each point contributes the log of the
+probability it assigned to the outcome that happened: the failure ($y=0$, $x=0$) contributes
+$\log(1 - 0.378)$, the two successes contribute $\log(0.622)$ and $\log(0.818)$. The sum is
+about $-1.150$.
+:::
+
+## Problem 4 — spot the error
+
+A colleague summarizes a logistic fit: "Adding the predictor `dose` **raised** the residual
+deviance from a null deviance of $30$ to a residual deviance of $42$, so `dose` clearly
+**improves** the model." The statement contains **exactly one conceptual mistake** — find
+it and explain the correct reading.
+
+::: {.callout-note collapse="true" title="Answer"}
+Two things are tangled, but the single mistake is the claim that a **higher** residual
+deviance means a **better** model. Deviance is $-2 \times$ log-likelihood, so **lower**
+deviance is better (higher log-likelihood, more probable data). Adding a useful predictor
+should *reduce* the residual deviance below the null deviance, not raise it. If the residual
+deviance ($42$) were genuinely *above* the null deviance ($30$), that would signal the model
+got *worse* — the opposite of what the colleague concluded. (In a correct fit like the
+lesson's, the null deviance $43.2$ dropped to a residual deviance $19.2$ — a *drop* is the
+improvement.)
+:::
+
+## Problem 5
+
+A logistic model of germination has fitted log-odds $= -2 + 0.8x$, where $x$ is temperature
+in some units. Predict the germination probability at $x = 3$, and show the two-step route
+(score, then probability) you used.
+
+```{webr}
+#| autorun: false
+# p5-starter
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- -2; b1 <- 0.8
+x <- 3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p5-answer}
+sigmoid <- function(z) 1 / (1 + exp(-z))
+b0 <- -2; b1 <- 0.8; x <- 3
+score <- b0 + b1 * x        # log-odds: -2 + 0.8(3) = 0.4
+sigmoid(score)              # probability ~ 0.599
+```
+Step 1 — the score (log-odds): $-2 + 0.8(3) = 0.4$. Step 2 — squash with the sigmoid:
+$\sigma(0.4) \approx 0.599$. So about a **60%** germination probability at $x = 3$. (A
+positive score, so above $0.5$, as expected.)
+:::
+
+## Problem 6 — interpretation
+
+Two logistic models are fit to the same 0/1 outcome on the same 32 subjects. Model A uses
+predictor $x_1$ and has residual deviance $27$; Model B uses predictor $x_2$ and has
+residual deviance $21$. Both start from the same null deviance of $43$. Which predictor
+explains the outcome better, and roughly how confident should you be that either helps at
+all? Answer in two or three sentences.
+
+::: {.callout-note collapse="true" title="Answer"}
+Model B fits better: its residual deviance ($21$) is lower than Model A's ($27$), and lower
+deviance means higher log-likelihood — the observed outcomes are more probable under Model
+B. Both predictors help *something*, since each cut the deviance below the null value of
+$43$ (Model A by $16$, Model B by $22$) — a drop in deviance is the improvement from adding
+the predictor. Model B's larger drop makes it the stronger single predictor of the two.
+:::
+
+## Problem 7 — decode a fresh artifact
+
+Here is a real logistic regression you haven't seen — predicting whether a car has a
+**straight engine** (`vs = 1`) from its fuel economy (`mpg`), on the built-in `mtcars`
+data. Read the output and answer: (a) the fitted coefficient for `mpg` and its odds ratio;
+(b) is higher `mpg` associated with higher or lower odds of a straight engine, and is it
+statistically significant; (c) did adding `mpg` improve the fit over the null model?
+
+```{r p7-artifact}
+# A fresh glm fit to decode (you have every tool for this now)
+summary(glm(vs ~ mpg, data = mtcars, family = binomial))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p7-answer}
+fit <- glm(vs ~ mpg, data = mtcars, family = binomial)
+c(coef_mpg = coef(fit)["mpg"], odds_ratio_mpg = exp(coef(fit)["mpg"]))
+c(null_deviance = fit$null.deviance, residual_deviance = fit$deviance)
+```
+(a) The `mpg` coefficient is $\hat\beta \approx 0.430$ (on the log-odds scale); its odds
+ratio is $e^{0.430} \approx 1.54$.
+
+(b) **Higher** odds — the coefficient is positive, so each extra mpg multiplies the odds of
+a straight engine by about $1.54$ (a ~54% rise in the odds). It's statistically significant:
+$z \approx 2.72$, $p \approx 0.007$ (well under $0.05$, flagged `**`).
+
+(c) **Yes** — adding `mpg` dropped the deviance from a null $43.86$ to a residual $25.53$
+(a fall of about $18$). Lower deviance means a better fit, so fuel economy is a useful
+predictor of engine type.
+
+Reading a fresh `glm` summary and pulling out the coefficient, the odds ratio, the
+significance, and the deviance improvement — that's the whole point of the course, and you
+just did it on data you'd never seen.
+:::

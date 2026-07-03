@@ -1,0 +1,315 @@
+---
+title: "Rolling downhill: finding a minimum one step at a time"
+subtitle: "Use the slope as a compass — step against it, and you walk to the bottom"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Loads of applied math boils down to one question: *what input makes this quantity as
+small as possible?* The smallest prediction error, the lowest cost, the best fit. This
+module builds the workhorse answer — **gradient descent** — in its simplest form: one
+input, one curve, find the bottom. The recipe is almost embarrassingly simple: stand
+somewhere on the curve, measure the slope, take a step *downhill*, repeat. The rest of
+the course scales this exact move up to real problems.
+
+**Builds on:** [the derivative as a slope you can measure](../../../../foundations/derivative-as-slope/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Three quick recalls from the foundation this module stands on. Produce each answer
+before opening it.
+
+**1.** *(derivative-as-slope)* How do you *measure* the slope of a function $f$ at a
+point $x$ numerically, in one line of R?
+
+::: {.callout-note collapse="true" title="Answer"}
+The central difference: `(f(x + h) - f(x - h)) / (2 * h)` for a small `h` (say
+`1e-5`) — rise over the run, looking a small step each way. See
+[derivative-as-slope](../../../../foundations/derivative-as-slope/lesson.qmd).
+:::
+
+**2.** *(derivative-as-slope)* At the very bottom of a U-shaped curve, what is the
+slope? And just to the *left* of the bottom, is the slope positive or negative?
+
+::: {.callout-note collapse="true" title="Answer"}
+At the bottom the slope is **zero**. Just to the left it's **negative** (the curve is
+still heading downhill as $x$ increases). This sign pattern is the compass this whole
+module rides on.
+:::
+
+**3.** *(baseline)* If you're standing on a hillside and the ground slopes *up* to your
+right (increasing $x$), which way do you step to go *down* — left or right?
+
+::: {.callout-note collapse="true" title="Answer"}
+Left — *opposite* the uphill direction. "Downhill is the opposite of the slope" is the
+entire idea, in plain words.
+:::
+
+## A tiny example first
+
+Here's a bowl-shaped curve: $f(x) = (x - 4)^2 + 1$. Its lowest point is at $x = 4$
+(where the squared term is zero), and we want to *find* that bottom without knowing the
+answer in advance — just by feeling our way downhill.
+
+Start at $x = 1$. Measure the slope there. The slope of this curve at $x = 1$ is $-6$
+(steeply downhill — you can measure it with last module's tool). Negative slope means
+"downhill is to the *right*", so we should increase $x$. Here's the move: **step
+against the slope**, by an amount scaled down by a small factor we'll call the
+*learning rate*, $\alpha = 0.1$:
+
+$$
+x_{\text{new}} = x_{\text{old}} - \alpha \times (\text{slope}) = 1 - 0.1 \times (-6) = 1 + 0.6 = 1.6
+$$
+
+Subtracting a negative moved us *right*, toward the bottom — exactly what we wanted.
+Now repeat from $x = 1.6$: the slope there is $2(1.6 - 4) = -4.8$, so
+$x_{\text{new}} = 1.6 - 0.1 \times (-4.8) = 2.08$. Again: from $2.08$ the slope is
+$-3.84$, giving $2.46$. The steps are $1 \to 1.6 \to 2.08 \to 2.46 \to \dots$ — each
+one closer to $4$, and each one *smaller* than the last, because the curve flattens as
+we near the bottom (smaller slope → smaller step). We coast to a stop right at the
+minimum.
+
+The same thing in R, so you can watch every step:
+
+```{r toy-example}
+# The bowl and a way to measure its slope (from the foundation)
+f        <- function(x) (x - 4)^2 + 1
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+x  <- 1        # start here
+lr <- 0.1      # learning rate: how much of the slope to step by
+for (step in 1:4) {
+  slope <- slope_at(f, x)
+  x     <- x - lr * slope    # step downhill (against the slope)
+  cat("step", step, ": x =", round(x, 3), " (slope was", round(slope, 2), ")\n")
+}
+# 1.6, 2.08, 2.464, ... marching toward the bottom at x = 4
+```
+
+## Getting a feel for it
+
+**A ball rolling into a valley.** Picture the curve as the cross-section of a valley
+and set a ball down on the slope. Gravity pulls it downhill, and the *steeper* the
+ground, the harder it accelerates. Gradient descent is that ball, but taking discrete
+steps: at each spot it checks how steep the ground is and in which direction, then
+hops downhill accordingly. Where the valley is steep (far from the bottom) it takes big
+hops; where it flattens out (near the bottom) the hops shrink to nothing and it settles.
+(Where the picture bends: a real ball has momentum and can roll *through* the bottom and
+up the other side; plain gradient descent has no momentum — each step is decided fresh
+from the slope right where it stands.)
+
+**Why step *against* the slope, and why scale it down?** The slope points in the
+*uphill* direction (positive slope = uphill to the right), and we want *down* — so we
+move the opposite way, which is the minus sign in the update. And why multiply by a
+small $\alpha$ instead of stepping by the whole slope? Because the slope only tells you
+the direction and steepness *right where you're standing* — it doesn't know there's a
+bottom ahead. Trust it a little (a small step), re-measure, trust it a little more. Take
+the whole slope in one leap and you can overshoot the bottom entirely and end up higher
+than you started.
+
+**What the steps feel like.** With a sensible learning rate the moves start big and
+automatically taper — $0.6$, then $0.48$, then $0.38$ in our example — because the slope
+itself shrinks as the ground flattens near the bottom. You don't have to *tell* it to
+slow down; the geometry does it for you. That self-tapering is why "just keep stepping"
+actually converges instead of rattling around forever.
+
+## What the notation is going to say
+
+The formula below says: "to get your next position, take your current position and
+subtract the learning rate times the slope at your current position." The minus is
+"go downhill, opposite the slope"; the learning rate is "take a modest step, don't
+lurch." Do it over and over and you're doing the $1 \to 1.6 \to 2.08 \to \dots$ walk we
+just did by hand.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $f(x)$ | "eff of ex" | the curve we're minimizing (the thing we want small) | $(x-4)^2 + 1$ |
+| $x_t$ | "ex sub tee" | our position after $t$ steps ($t$ is the step counter) | $x_0 = 1$, $x_1 = 1.6$, … |
+| $f'(x_t)$ | "eff prime of ex sub tee" | the slope at our current position (measured numerically) | $f'(1) = -6$ |
+| $\alpha$ | "alpha" | the *learning rate*: the fraction of the slope we step by | $0.1$ |
+| $x_{t+1}$ | "ex sub tee plus one" | our position after the next step | $x_1 = 1.6$ |
+| $\leftarrow$ | "gets updated to" | assignment — replace the old value with the new one | $x \leftarrow 1.6$ |
+
+## The formal version
+
+One step of gradient descent, in one dimension:
+
+$$
+x_{t+1} = x_t - \alpha \, f'(x_t)
+$$
+
+Reading it aloud: "ex sub tee-plus-one equals ex sub tee, minus alpha times eff-prime
+of ex sub tee" — or in everyday words: "your next spot is your current spot, moved
+against the slope by a fraction alpha of it."
+
+Mapping it onto the toy example, first step ($t = 0$, starting at $x_0 = 1$):
+
+- $f'(x_0)$ is the slope at $x = 1$ → $-6$
+- $\alpha \, f'(x_0)$ is $0.1 \times (-6)$ → $-0.6$
+- $x_1 = x_0 - (-0.6) = 1 + 0.6$ → $1.6$, matching our hand step exactly.
+
+Run that update in a loop and you have the whole algorithm:
+
+```{r formal-check}
+f        <- function(x) (x - 4)^2 + 1
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+gradient_descent_1d <- function(f, x, lr, n_steps) {
+  for (t in 1:n_steps) x <- x - lr * slope_at(f, x)   # the update rule, repeated
+  x
+}
+gradient_descent_1d(f, x = 1, lr = 0.1, n_steps = 100)   # ~4, the true minimum
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The bowl-shaped curve (x-4)^2+1 with the gradient-descent path drawn as points hopping down the curve toward the minimum at x=4."
+# explore-1 — LIVE: watch gradient descent walk down the bowl. Each dot is one step.
+# PREDICT: starting at x = 1 with lr = 0.1, will 15 steps be enough to basically reach
+# the bottom at x = 4? Write your guess, then run.
+f        <- function(x) (x - 4)^2 + 1
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+x <- 1; lr <- 0.1; n <- 15          # <-- try changing lr and n
+path <- numeric(n + 1); path[1] <- x
+for (t in 1:n) { x <- x - lr * slope_at(f, x); path[t + 1] <- x }
+
+curve(f, from = -1, to = 9, lwd = 2, ylab = "f(x)",
+      main = sprintf("lr = %.2f : after %d steps, x = %.3f", lr, n, x))
+points(path, f(path), pch = 16, col = "firebrick")
+lines(path, f(path), col = "firebrick", lty = 3)
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Three gradient-descent paths on the same bowl for small, good, and too-large learning rates, showing crawling, converging, and overshooting."
+# explore-2 — LIVE: the learning rate is everything. Run three rates side by side.
+# PREDICT: which rate below never settles down? Guess, then run and read the paths.
+f        <- function(x) (x - 4)^2 + 1
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+run <- function(lr, n = 20, x = 1) {
+  p <- numeric(n + 1); p[1] <- x
+  for (t in 1:n) { x <- x - lr * slope_at(f, x); p[t + 1] <- x }
+  p
+}
+
+curve(f, from = -2, to = 10, lwd = 2, ylab = "f(x)", main = "same start, three learning rates")
+for (lr in c(0.01, 0.1, 1.02)) {              # crawl / good / overshoots & grows
+  p <- run(lr); lines(p, f(p), lwd = 2, lty = 2)
+  points(p, f(p), pch = 16)
+}
+legend("top", legend = c("0.01 crawls", "0.1 converges", "1.02 diverges"), bty = "n")
+```
+
+That second plot is the whole drama of the learning rate: too small and you barely
+move; just right and you glide to the bottom; too big and each step overshoots *farther*
+than the last, climbing the walls instead of settling.
+
+## Common traps
+
+**Trap: "a bigger learning rate always gets there faster."** Tempting — bigger steps,
+fewer of them, right? But past a threshold the step overshoots the bottom and lands
+*higher* up the opposite wall; the next step overshoots even more, and the value
+explodes. Try it: from $x = 1$ on our bowl, $\alpha = 1.02$ sends $x$ to
+$1 - 1.02(-6) = 7.12$, then the slope there ($+6.24$) throws it to
+$7.12 - 1.02(6.24) = 0.75$, then further out again — diverging, not converging.
+`gradient_descent_1d(f, 1, lr = 1.02, n_steps = 20)` runs away to a huge number. The
+right rate is a Goldilocks choice, not "as big as possible."
+
+**Trap: "gradient descent always finds the lowest point of the whole curve."** On a
+single bowl, yes. But on a curve with several dips, the ball settles into whichever
+valley it happened to start above — a *local* minimum, not necessarily the deepest one.
+Our $(x-4)^2 + 1$ has just one valley so it's safe here; real problems can have many,
+which is why where you *start* can matter. *(Optional: this is why people run descent
+from several starting points — worth knowing, not needed to follow this course.)*
+
+## Check yourself
+
+**1.** Minimize $f(x) = (x - 2)^2$ (bottom at $x = 2$) with gradient descent starting
+from $x = 5$, learning rate $0.1$, for 50 steps. Where does it end up?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to solve, right here
+f        <- function(x) (x - 2)^2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+It converges to about **2**, the bottom of the bowl.
+
+```{r check1-answer}
+f        <- function(x) (x - 2)^2
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+x <- 5; lr <- 0.1
+for (t in 1:50) x <- x - lr * slope_at(f, x)
+x   # ~2
+```
+Starting to the right of the bottom, the slope is positive (uphill to the right), so
+subtracting it moves $x$ *left*, back toward 2. The compass works from either side.
+:::
+
+**2.** In the update $x_{t+1} = x_t - \alpha f'(x_t)$, why is there a *minus* sign and
+not a plus?
+
+::: {.callout-note collapse="true" title="Answer"}
+Because the slope $f'(x_t)$ points *uphill*, and we want to go *downhill* — the opposite
+direction. Subtracting the slope moves us against it, toward smaller $f$. (A plus sign
+gives *gradient ascent*, which climbs to a maximum instead.)
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what gradient
+descent does and why the learning rate has to be neither too big nor too small.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Gradient descent finds the bottom of a curve by repeatedly measuring the slope where it
+stands and stepping in the downhill (opposite) direction. The learning rate sets the
+step size: too small and it barely moves and takes forever; too big and it overshoots
+the bottom and can spiral outward instead of settling.
+:::
+
+## What you can now do
+
+- **Run gradient descent in one dimension**: from a starting point, repeatedly measure
+  the slope and step against it by a learning rate, in R with a short loop.
+- **Explain the update rule** $x \leftarrow x - \alpha f'(x)$ — why it's a minus, and
+  what $\alpha$ controls.
+- **Diagnose the learning rate**: recognize crawling (too small), converging (good), and
+  diverging/oscillating (too big) from the path.
+- **State the one caveat**: descent settles into whatever valley it starts above.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+and [Explore it](#explore-it) — the next module puts a *second* knob on the problem and
+everything here has to still hold.
+
+## Where this goes next
+
+Real problems have more than one number to tune. Next we minimize a curve that lives
+over *two* inputs at once, where "the slope" becomes a little bundle of slopes called the
+**gradient**: [the gradient — downhill in more than one direction](../02-the-gradient/lesson.qmd).
+Ready for more reps first? Do the [practice problems](practice.qmd).

@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit auto-reviews PRs once the CodeRabbit GitHub App is installed on the
+# repo (free for public repos). This file just steers those reviews toward the
+# teaching contract instead of generic code nits.
+language: en-US
+
+reviews:
+  profile: assertive             # more thorough / more findings
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "**/*.{qmd,md}"
+      instructions: |
+        This is teaching material for ONE learner: a strong R programmer whose
+        math is rusty AP Calculus A/B + one intro stats course and who cannot
+        comfortably read formal notation (see
+        .claude/course-authoring/learner-profile.md). Review against the teaching
+        contract in TEACHING.md: material follows the golden order (warm-up →
+        toy example → intuition → notation → pronunciation table → formal version
+        → explore → traps → check yourself → recap); every symbol is introduced
+        before use and stays accessible to that learner; anchors/derivations
+        aren't skipped. Flag notation or leaps too advanced for the profile.
+        Do not restate TEACHING.md's rules — reference them.
+    - path: "**/*.qmd"
+      instructions: |
+        Learner-editable cells should be base-R `{webr}`; hidden setup, worked
+        answers, and non-WebR code stay baked `{r}`
+        (.claude/course-authoring/interactive-webr.md). No page sets its own
+        `format:`. New pages must be registered in the root `_quarto.yml`.
