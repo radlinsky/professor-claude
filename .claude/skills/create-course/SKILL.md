@@ -91,6 +91,9 @@ baseline up to the target.
 5. Classify each module with the **genericity rule** (`.claude/course-authoring/course-structure.md`
    §Genericity): would it appear essentially unchanged in a course about a different
    paper?
+   - Already the subject of an **existing course**? (a whole method, e.g. "fitting
+     a line", "gradient descent" — not a generic concept) → mark it `prereq-course`:
+     link that course, reuse its anchors, do NOT re-teach it or foundation-ize it.
    - Generic → it is a **foundation module**. Open `foundations/README.md`:
      - Already exists there? → REUSE: it becomes a link; you will not write it.
      - Doesn't exist? → you will author it into `foundations/<slug>/`.
@@ -101,8 +104,9 @@ baseline up to the target.
 
 **GATE 2:** ☐ Every target-list item is covered by exactly one module. ☐ Every module
 either sits at the baseline or has all its prerequisites in earlier modules. ☐ Each
-module is labeled `reuse-foundation` / `new-foundation` / `course`. ☐ The last module
-is the capstone. ☐ Total module count is 3–8.
+module is labeled `reuse-foundation` / `new-foundation` / `course` / `prereq-course`.
+☐ The last module is the capstone. ☐ Total module count is 3–8 (prereq courses don't
+count toward it — they're linked, not authored).
 
 ---
 
@@ -114,15 +118,19 @@ Follow the exact file formats in `.claude/course-authoring/course-structure.md`.
 
 1. `courses/<course-slug>/syllabus.md` — course goal (your Gate-1 sentence), a
    **How to take this course** box (the spacing/mastery schedule — format in
-   `course-structure.md`), then a **Prerequisites from the foundations library**
-   section (one row per foundation module: relative link to its `lesson.qmd`, one
-   line on *why this course needs it*, and "already done it? skim its pronunciation
-   table as a refresher"), then one section per course module: title, "why you need
-   this", concepts covered, rough time estimate.
+   `course-structure.md`), then — if Phase 2 found any `prereq-course` items — a
+   **Before you start: course(s) this one builds on** section linking each
+   (format in `course-structure.md`; omit the section entirely if none), then a
+   **Prerequisites from the foundations library** section (one row per foundation
+   module: relative link to its `lesson.qmd`, one line on *why this course needs
+   it*, and "already done it? skim its pronunciation table as a refresher"), then
+   one section per course module: title, "why you need this", concepts covered,
+   rough time estimate.
 2. `courses/<course-slug>/00-roadmap.qmd` — a Mermaid `flowchart TD` where each node is
-   a module (foundation nodes visually distinct, e.g. different class/style), each
-   edge means "needed for", and below the diagram a numbered "suggested order" list
-   with the same relative links as the syllabus.
+   a module (foundation nodes blue `:::foundation`; any `prereq-course` nodes green
+   `:::priorcourse`, label prefixed `course:`), each edge means "needed for", and
+   below the diagram a numbered "suggested order" list with the same relative links
+   as the syllabus.
 3. Scaffold the folders now: `courses/<course-slug>/` with empty `modules/NN-<slug>/`
    directories; `foundations/<slug>/` directories for any `new-foundation` modules.
    Then register every page you are about to create in the **root `/_quarto.yml`**
@@ -251,8 +259,8 @@ explicit TODO. ☐ Zero unverified URLs anywhere.
 3. If any lesson added an R package (a non-empty `needed` vector), run
    `Rscript -e 'renv::snapshot()'` so `renv.lock` records it.
 4. Register:
-   - Add the course row to `courses/README.md` (link, teaches, source, foundation
-     prerequisites, status `not started`).
+   - Add the course row to `courses/README.md` (link, teaches, source, prerequisite
+     courses (`—` if none), foundation prerequisites, status `not started`).
    - In `foundations/README.md`: add rows for new foundation modules (Status
      `not started`); append this course to the *Used by* column of every foundation
      module the course links to. Never modify existing *Status* values.

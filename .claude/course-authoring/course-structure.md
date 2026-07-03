@@ -107,6 +107,14 @@ rules: `.claude/course-authoring/interactive-webr.md`.
 - **Answers are hidden for a reason.** Commit to an answer (or a prediction) before
   you click — that's the part that makes it stick.
 
+## Before you start: course(s) this one builds on   <!-- OMIT this whole section if none -->
+
+This course reuses the anchors of course(s) you should have met already instead
+of re-teaching them:
+
+- [**<Course Title>**](../<course-slug>/syllabus.md) — <the anchor it reuses, and
+  the one-line contrast with this course>.
+
 ## Prerequisites from the foundations library
 
 Take these first, in this order. Already done one (check its Status in
@@ -139,13 +147,20 @@ format: html
 How every module depends on the others. Foundation modules are reusable
 building blocks shared across courses.
 
+<!-- Add this sentence ONLY if the course has prerequisite courses: -->
+This course also **builds on** [<Course Title>](../<course-slug>/syllabus.md)
+(<the anchor>) and reuses its anchors rather than re-teaching them; if rusty,
+skim its syllabus first.
+
 ​```{mermaid}
 flowchart TD
     classDef foundation fill:#e8f0fe,stroke:#4285f4
+    classDef priorcourse fill:#e6f4ea,stroke:#34a853
     F1["vectors-and-summation"]:::foundation
-    F2["mean-variance-covariance"]:::foundation
+    C1["course: gradient-descent<br/>(step along the slope)"]:::priorcourse
     M1["01 · least-squares idea"]
-    F1 --> F2 --> M1
+    F1 --> M1
+    C1 --> M1
 ​```
 
 ## Suggested order
@@ -154,7 +169,10 @@ flowchart TD
 2. ...
 ```
 
-(Use `{mermaid}` executable cells; arrows mean "needed for".)
+(Use `{mermaid}` executable cells; arrows mean "needed for". Foundation nodes are
+blue `:::foundation`; prerequisite-COURSE nodes are green `:::priorcourse` and
+prefix the label with `course:` — see the genericity rule for when a building
+block is a prerequisite course rather than a foundation.)
 
 ## Capstone (required last module of every course)
 
@@ -218,9 +236,20 @@ Rules of thumb: if you must mention the paper/method to motivate every example, 
 a course module. If the concept has a Khan Academy page, it's probably a foundation
 module.
 
+### …or a prerequisite course (the third option)
+
+Before classifying a building block as foundation vs. course module, check whether
+an **existing course** already teaches it as its own subject — not a generic
+Khan-Academy concept, but a whole method (e.g. "fitting a line", "gradient
+descent"). If one does, the block is neither: declare that course a **prerequisite
+course**, reuse its anchors, and do NOT re-teach it or promote it to foundations.
+Surface it in the syllabus's *Before you start* section and as a green
+`:::priorcourse` node in the roadmap. (Example: `logistic-regression` builds on
+`simple-linear-regression` and `gradient-descent`.)
+
 ## Index tables
 
-- `courses/README.md` columns: `Course | Teaches | Source | Foundation prerequisites | Status`
+- `courses/README.md` columns: `Course | Teaches | Source | Prerequisite courses | Foundation prerequisites | Status` (`Prerequisite courses` = `—` when none)
 - `foundations/README.md` columns: `Module | Concepts covered | Used by | Status`
 - Status values (learner-owned; initialize to `not started`, never overwrite later):
   `not started` / `in progress` / `done`.
