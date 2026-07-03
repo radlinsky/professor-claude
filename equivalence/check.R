@@ -38,7 +38,7 @@ targets <- list(
        fn = function(inp) list(coef = gradient_descent_reimpl(inp$x, inp$y, inp$lr, inp$n_iter)))
 )
 
-cat("== Professor Fable — equivalence checks ==\n\n")
+cat("== Professor Claude — equivalence checks ==\n\n")
 results <- lapply(targets, function(t) {
   if (!file.exists(t$path)) {
     cat(sprintf("[MISSING] %s — run equivalence/generate/regenerate-all.sh\n", t$path))

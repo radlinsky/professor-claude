@@ -1,4 +1,4 @@
-# Professor Fable 🧮
+# Professor Claude 🧮
 
 A personal, Claude-powered **applied math & statistics school**. Give it an academic
 paper (or just name a method/concept), and Claude designs a complete course that

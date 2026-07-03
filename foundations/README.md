@@ -7,6 +7,10 @@ the same prerequisite.
 a course about a *different* paper or method (e.g., summation notation, variance,
 matrix multiplication, the chain rule). Method-specific material stays in its course.
 
+**Source license:** foundation modules are paper-agnostic and have no `syllabus.md`, so
+they carry no source-license verdict — `n/a` by construction (see
+`.claude/course-authoring/source-licensing.md`).
+
 Claude: **check this table before writing any prerequisite module.** If a module
 already covers the concept, link to it from the new course and add that course to its
 *Used by* column. The *Status* column belongs to the learner (`not started` /

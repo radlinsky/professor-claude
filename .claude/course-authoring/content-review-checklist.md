@@ -120,6 +120,14 @@ re-render, and re-check.
     (You cannot execute `{webr}` cells while auditing — that is a manual/CI check. Audit
     the WIRING and the split, not in-browser execution.)
 
+13. **The source-license verdict is present and honest.**
+    The `syllabus.md` carries a `**Source license:**` line in the
+    `.claude/course-authoring/source-licensing.md` format. Confirm the verdict actually
+    fits the source (a paper with a plain `©` line or a repo with no LICENSE is FLAG, not
+    `n/a`), and that any **flagged / copyleft / restrictive** verdict carries the
+    `confirmed by human YYYY-MM-DD` token — a flag without it is a defect (and CI fails
+    it). A missing line, or one that overstates a restricted source as OK, is a defect.
+
 ## Reporting
 
 List each defect as: file path, exact offending quote, why it is wrong, minimal fix.

@@ -18,6 +18,16 @@ rebuild it, or clone/analyze any repo:
 A concept with no external artifact (e.g. "teach me the Kalman filter" from general
 knowledge) has no source to license — record `n/a — no external source` and proceed.
 
+## Scope & enforcement
+
+- **Foundations** (`foundations/*`) are paper-agnostic building blocks with no
+  `syllabus.md`, so they have **no verdict slot — `n/a` by construction.** Nothing to
+  record; CI does not check them.
+- **How this is enforced:** the skill intake gate (a human confirms every FLAG) plus the
+  CI backstop (`license-check.yml`) are the mechanism — deliberately **no programmatic
+  intake hook** (decided for issue #1: a hook is unwarranted machinery for a single
+  operator; the gate + CI cover it).
+
 ## How to detect, per input kind
 
 - **`source-papers/*.pdf`** — check the first + last page and the page footers for a

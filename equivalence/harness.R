@@ -1,6 +1,6 @@
 # equivalence/harness.R
 #
-# Authoring-time EQUIVALENCE HARNESS for Professor Fable.
+# Authoring-time EQUIVALENCE HARNESS for Professor Claude.
 #
 # The idea: heavy reference libraries (in any language) are run ONCE at authoring
 # time; their outputs are frozen into JSON fixtures checked into the repo. This file

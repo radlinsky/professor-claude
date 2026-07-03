@@ -1,4 +1,4 @@
-# Professor Fable
+# Professor Claude
 
 This repo generates **applied math/stats courses** tailored to one specific learner.
 Every course teaches the fundamentals needed to understand a statistical method or
@@ -23,7 +23,7 @@ real thing.
 ## Repo map
 
 ```
-professor_fable/
+professor_claude/
 ├── TEACHING.md                # THE teaching contract (see above)
 ├── CLAUDE.md                  # this file
 ├── README.md                  # human-facing overview
