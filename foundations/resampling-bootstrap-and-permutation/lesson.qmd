@@ -1,0 +1,531 @@
+---
+title: "Resampling: the bootstrap & permutation tests"
+subtitle: "Get a standard error or a null when no formula exists — by redrawing and reshuffling your own data"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. This whole
+# module is ABOUT randomness, so set.seed() is what makes every histogram, CI, and
+# p-value reproducible. Base R only, nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Sometimes you can look up a formula for the wobble of a statistic — for the sample
+*mean*, the standard error is $s/\sqrt{n}$, and you're done. But for a **median**, a
+**correlation**, a **90th percentile**, or the gap between two groups, there is often
+no clean formula at all. **Resampling** is the escape hatch: instead of deriving the
+wobble on paper, you *manufacture* it from the one sample you already have — by
+redrawing it (the **bootstrap**) or reshuffling it (a **permutation test**). It's the
+same simulate-and-summarize engine you already met, turned loose on real data when the
+population is a mystery.
+
+This lesson stays with neutral, hand-checkable examples (a few measurements, two small
+groups) and base R. Two building blocks are **borrowed, not re-taught**: what a
+*standard error* is (the wobble of a statistic across redraws) and what a *p-value*
+is (how surprising your result would be if nothing were going on). Here you only learn
+the two resampling *recipes* that produce them, and the one loop pattern behind both.
+
+**Builds on:**
+[randomness, samples & sampling distributions](../randomness-samples-and-sampling-distributions/lesson.qmd)
+— we reuse the **standard error** (the spread of a statistic across redraws) and the
+`replicate()` + histogram engine, and do not re-derive them; and
+[hypothesis tests, p-values & confidence intervals](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+— we reuse what a **p-value** and a **confidence interval** *mean*, and only supply the
+resampling recipe that produces them.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — produce each answer from memory, then check.
+
+**1.** *(sampling distributions)* In one sentence, what is the **standard error** of a
+statistic, and how did you *simulate* one — the `replicate()` recipe?
+
+::: {.callout-note collapse="true" title="Answer"}
+The **standard error** is the *wobble of the statistic itself* — how much a number you
+compute from data (a mean, a slope) would bounce around if you redrew the sample many
+times. You simulated it by drawing many fresh samples, recording the statistic each time,
+and taking the `sd()` of that list:
+`sd(replicate(2000, mean(rnorm(25, 100, 15))))`. This lesson keeps that exact engine but
+feeds it *your own data* instead of a known population. Shaky? Revisit
+[randomness, samples & sampling distributions](../randomness-samples-and-sampling-distributions/lesson.qmd).
+:::
+
+**2.** *(hypothesis tests)* In one sentence, what is a **p-value** — and what is the
+"null" it's measured against?
+
+::: {.callout-note collapse="true" title="Answer"}
+A **p-value** is the probability of seeing a result *at least as extreme* as the one you
+got, **if the null hypothesis were true** — the null being the boring "nothing is going
+on" world (no effect, no difference). Small p-value → your result would be surprising in
+that boring world. Here you'll *build* that boring world by hand, by shuffling labels.
+Shaky? Revisit
+[hypothesis tests, p-values & confidence intervals](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd).
+:::
+
+**3.** In R, what is the difference between `sample(x, 4, replace = TRUE)` and
+`sample(x, 4, replace = FALSE)`?
+
+```{webr}
+#| autorun: false
+# warmup3-starter — edit and Run to see the difference
+x <- c(3, 5, 8, 9)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`replace = TRUE` draws **with replacement** — each pick is put back before the next, so
+the same value can appear more than once (and some can be missed). `replace = FALSE`
+draws **without replacement** — each value can be used at most once, so drawing all 4
+just *reshuffles* the four values into a new order. Those two switches are the whole
+lesson: the bootstrap uses `replace = TRUE`; the permutation test uses `replace = FALSE`.
+:::
+
+## A tiny example first
+
+You measured **five** things — call them a sample: **4, 7, 6, 9, 5**. Their average is
+$(4+7+6+9+5)/5 = 31/5 = 6.2$. That 6.2 is your one estimate. But you know from the last
+module that if you could redraw a *fresh* sample of five, you'd get a slightly different
+average — the estimate has a wobble (a standard error). The problem: **you can't redraw.**
+You don't have the population; you have these five numbers and nothing else.
+
+**The bootstrap's one idea: pretend your sample *is* the population.** To fake a redraw,
+reach into your own five numbers and pull out five again — *with replacement*, so some
+repeat and some go missing. That faked sample is called a **bootstrap resample**. Compute
+its average, and you have one faked redraw of the statistic. Do it thousands of times and
+you've faked the whole sampling distribution — no formula, no real population needed.
+
+Let's make one resample by hand-in-R (a fixed seed so you see these exact draws):
+
+```{r toy-example}
+mysample <- c(4, 7, 6, 9, 5)
+mean(mysample)                 # 6.2 — our one estimate
+
+set.seed(1)
+# ONE bootstrap resample: draw 5 from our own 5, WITH replacement
+b1 <- sample(mysample, size = 5, replace = TRUE)
+b1                             # 4 9 4 7 5  -- the 4 repeats, the 6 went missing
+mean(b1)                       # 5.8 -- a faked "redraw" of the average
+
+set.seed(2)
+b2 <- sample(mysample, size = 5, replace = TRUE)
+b2                             # 5 4 5 4 9  -- different again
+mean(b2)                       # 5.4
+```
+
+Two faked redraws gave **5.8** and **5.4** — both near 6.2, both a little off. Nothing
+was measured twice; the *resample* changed, so the faked average changed. Repeat that a
+few thousand times and the spread of those faked averages *is* the standard error — the
+wobble you couldn't compute by formula.
+
+## Getting a feel for it
+
+**The bootstrap mental picture: photocopy your sample into a giant bag, then redraw.**
+Imagine your five numbers, each photocopied a million times and dumped into a huge bag.
+That bag is your best guess at the population — it has the same shape as your data because
+it *is* your data, just repeated. Now draw five from the bag: because the bag is enormous,
+drawing "with replacement" from your five numbers gives the same thing as drawing five
+from that bag. Each draw is a plausible alternate sample you *might* have collected. The
+histogram of the statistic across those draws is your faked sampling distribution. Where
+the analogy strains: the real population might contain values your five numbers never
+saw (a rare huge outlier), and the bag can never invent one — so the bootstrap can only
+be as honest as the sample it's copying. That's the root of its small-$n$ limitation.
+
+**Why redraw *with* replacement, and why that's the whole trick.** If you drew your five
+numbers *without* replacement, you'd just get the same five in a new order — the average
+would be 6.2 every single time, wobble zero, useless. Replacement is what lets some values
+repeat and others drop out, which is exactly the kind of luck-of-the-draw variation you'd
+have gotten from real redraws. The bootstrap steals the *shape* of sampling variation
+from the only sample you have.
+
+**The permutation mental picture: if the label doesn't matter, you can swap it.** Now a
+different question — a *comparison*. Group A came out to 7 on average, group B to 4; the
+gap is 3. Is a gap of 3 a real effect, or just which numbers happened to land in which
+group? Here's the "no effect" world made concrete: if the group label truly did nothing,
+then a value's label is arbitrary — you could **shuffle** all the labels onto the pooled
+values and the gap should look about the same. So reshuffle the labels many times, compute
+the gap each time, and you've built the "no effect" distribution *by hand*. If your real
+gap of 3 sits way out in the tail of that shuffled pile, the label mattered. (This is
+where we hand off to the [p-value module](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd):
+"how far out in the tail" *is* the p-value — we just build the pile here.)
+
+**What the numbers will feel like.** Our bootstrap of the mean of five numbers gives a
+standard error around 0.76 and a 95% range of roughly 4.8 to 7.8 — a wide net, because
+five numbers don't pin down much. Our permutation gap of 3 turns out to be the *biggest*
+gap any reshuffle can produce, so it will look genuinely extreme. Both feel intuitive once
+you watch the histograms below.
+
+## What the notation is going to say
+
+There is almost no new notation here — resampling is a *procedure*, not a formula. The one
+new symbol is a star: $\bar{x}^{*}$ ("x-bar-star") is the statistic computed on **one
+resample** rather than on the original data, and the star is the universal flag for "this
+came from a resample, not the real sample." The bootstrap standard error is then the same
+sentence as last module — the standard deviation of the statistic across redraws — only
+the redraws are faked: **take your resampled statistics $\bar{x}^{*}_1, \dots, \bar{x}^{*}_R$
+and compute their `sd()`.** The 95% confidence interval is just the middle 95% of that same
+pile: chop off the lowest 2.5% and the highest 2.5% with `quantile(., c(.025, .975))`.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\bar{x}$ | "ex bar" | the statistic on the **original** sample (in R: `mean(x)`) | 6.2 |
+| $\bar{x}^{*}$ | "ex bar star" | the same statistic on **one resample**; the star means "from a resample" | 5.8 for the first resample |
+| $\bar{x}^{*}_1, \dots, \bar{x}^{*}_R$ | "ex bar star sub one … up to sub R" | the resampled statistic from resample 1, 2, …, $R$ — the pile we histogram | 5.8, 5.4, … |
+| $\mathrm{SE}$ | "the standard error" | the wobble of the statistic — here the `sd()` of the resampled pile | ≈ 0.76 |
+| $n$ | "en" | the sample size — how many numbers we resample each time (in R: `length(x)`) | 5 |
+| $R$ | "big R" | how many resamples we take (in R: `replicate(R, ...)`) | 2000 |
+| $d$ | "dee" | the observed statistic in a comparison — here the gap between two group means | 3 |
+| $d^{*}$ | "dee star" | the gap computed after **shuffling the labels** — one draw from the "no effect" pile | between $-3$ and $3$ |
+| $q_{2.5\%},\, q_{97.5\%}$ | "the 2.5th and 97.5th percentiles" | the cutoffs below which 2.5% / 97.5% of the pile sits — the CI endpoints (in R: `quantile(pile, c(.025, .975))`) | ≈ 4.8 and 7.8 |
+| $\binom{6}{3}$ | "six choose three" | the number of ways to pick 3 of 6 things (here, which 3 values get label A) | 20 |
+
+The star ($^{*}$) is the only convention to memorize: **starred = computed on resampled
+data.** Everything else — $\bar{x}$, $\mathrm{SE}$, $n$, $R$ — you already read fluently
+from the last module.
+
+## The formal version
+
+There is no equation to derive — resampling replaces the derivation. Instead, here are the
+two recipes as procedures, each mapped onto the toy numbers and sanity-checked in R.
+
+### Recipe 1 — the bootstrap (a standard error and a CI, from your data alone)
+
+1. **Resample:** draw $n$ values from your sample *with replacement*.
+2. **Recompute:** compute your statistic on that resample → one $\bar{x}^{*}$.
+3. **Repeat** $R$ times (a few thousand) → the pile $\bar{x}^{*}_1, \dots, \bar{x}^{*}_R$.
+4. **Summarize:** the **standard error** is the `sd()` of the pile; the **95% CI** is its
+   middle 95%, `quantile(pile, c(.025, .975))`.
+
+$$
+\mathrm{SE}_{\text{boot}} \;=\; \mathrm{sd}\big(\bar{x}^{*}_1,\; \dots,\; \bar{x}^{*}_R\big)
+\qquad
+\text{95\% CI} \;=\; \big[\,q_{2.5\%},\; q_{97.5\%}\,\big]
+$$
+
+Reading it aloud: "the bootstrap standard error is the standard deviation of the starred
+x-bars; the 95% interval runs from the 2.5th percentile to the 97.5th percentile of that
+same pile" — everyday words: **"redraw your own data thousands of times, and read the
+spread and the middle 95% straight off the resulting histogram."**
+
+```{r boot-recipe}
+mysample <- c(4, 7, 6, 9, 5)
+
+set.seed(42)
+# Steps 1-3: resample-with-replacement, recompute the mean, repeat 2000 times.
+# replicate() is the "do this whole thing R times" tool from the last module.
+boot_means <- replicate(2000, mean(sample(mysample, size = 5, replace = TRUE)))
+
+# Step 4: read the answers off the pile
+sd(boot_means)                          # ~0.758  -- the bootstrap STANDARD ERROR
+quantile(boot_means, c(0.025, 0.975))   # ~4.8 to 7.8 -- the 95% percentile CI
+```
+
+**Sanity check against the one formula we do have.** For the mean, the last module's
+shortcut $s/\sqrt{n}$ should land near the bootstrap SE:
+
+```{r boot-sanity}
+mysample <- c(4, 7, 6, 9, 5)
+sd(mysample) / sqrt(length(mysample))   # ~0.86 -- the formula SE for the mean
+# vs the bootstrap SE ~0.758 above: close. The bootstrap agrees with the formula
+# WHERE a formula exists -- which is why we trust it where one does NOT.
+```
+
+### Recipe 2 — the permutation test (build the "no effect" null by shuffling)
+
+1. **Observe:** compute the statistic on the real groups → the observed $d$.
+2. **Pool & shuffle:** put all the values in one pot and randomly reassign the labels
+   (`sample()` without replacement — a shuffle).
+3. **Recompute:** compute the same statistic under the shuffle → one $d^{*}$.
+4. **Repeat** $R$ times → the "no effect" pile $d^{*}_1, \dots, d^{*}_R$.
+5. **Locate:** see where the observed $d$ falls in that pile. (Turning "how far out" into
+   a p-value is the [hypothesis-tests module's](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+   job; we only build the pile and point at $d$.)
+
+```{r perm-recipe}
+groupA <- c(6, 8, 7)   # e.g. a treated group
+groupB <- c(3, 5, 4)   # e.g. a control group
+
+obs_diff <- mean(groupA) - mean(groupB)   # step 1: observed gap
+obs_diff                                   # 3
+
+all_vals <- c(groupA, groupB)              # pool the 6 values
+labels   <- rep(c("A", "B"), each = 3)     # their real labels: A A A B B B
+
+set.seed(1)
+one_shuffle <- sample(labels)              # step 2: shuffle the labels (no replacement)
+one_shuffle                                # "A" "B" "A" "B" "A" "B"
+mean(all_vals[one_shuffle == "A"]) - mean(all_vals[one_shuffle == "B"])   # step 3: 1
+```
+
+Under that one shuffle the gap was only **1** — smaller than the real **3**. Now do it
+thousands of times to build the whole "no effect" pile:
+
+```{r perm-null}
+groupA <- c(6, 8, 7); groupB <- c(3, 5, 4)
+obs_diff <- mean(groupA) - mean(groupB)
+all_vals <- c(groupA, groupB)
+labels   <- rep(c("A", "B"), each = 3)
+
+set.seed(42)
+# steps 2-4: shuffle labels, recompute the gap, 2000 times -> the "no effect" pile
+perm_diffs <- replicate(2000, {
+  s <- sample(labels)                                  # reshuffle the labels
+  mean(all_vals[s == "A"]) - mean(all_vals[s == "B"])  # the gap under "no effect"
+})
+
+mean(perm_diffs)                       # ~0: the no-effect pile is centered on zero
+range(perm_diffs)                      # -3 to 3: the biggest gap ANY shuffle can make
+mean(abs(perm_diffs) >= abs(obs_diff)) # ~0.103: fraction of shuffles as extreme as 3
+```
+
+Mapping it onto the numbers: with only six values split 3-and-3, there are exactly
+$\binom{6}{3} = 20$ ways to hand out the labels. The observed split (A gets the three
+largest) is the *single* most extreme one, giving the biggest possible gap of 3. So the
+observed $d = 3$ sits at the very edge of the shuffled pile — the label really did seem to
+matter. (**Exactly** 2 of the 20 splits reach a gap of $\pm 3$, so the exact two-sided
+tail is $2/20 = 0.10$ — the simulation's 0.103 nails it.)
+
+::: {.callout-tip collapse="true" title="The universal loop pattern (concept 4) — memorize this shape"}
+Every resampling method — bootstrap, permutation, and dozens you'll meet later — is the
+**same three-line loop**:
+
+```r
+pile <- replicate(R, {          # 1. REPEAT R times:
+  resampled <- <redraw or reshuffle the data>   # 2. make a fake dataset
+  <compute a statistic on it>                    # 3. return one number
+})
+<summarize the pile>            # 4. sd(), quantile(), or "where does the observed fall?"
+```
+
+Only line 2 changes: **`sample(x, replace = TRUE)` for the bootstrap**, **`sample(labels)`
+(a shuffle) for a permutation test.** Learn the shape once and every resampling method is a
+fill-in-the-blank.
+:::
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Histogram of 2000 bootstrap sample means in a bell around 6.2, with dashed lines marking the 2.5% and 97.5% percentiles near 4.8 and 7.8"
+# explore-1 — LIVE the bootstrap: watch the faked sampling distribution and its CI.
+# TRY IT: change mysample, or swap mean for median, and re-run.
+# PREDICT: will the CI get WIDER or NARROWER if you make the sample bigger? Guess, then run.
+set.seed(42)
+mysample   <- c(4, 7, 6, 9, 5)
+boot_means <- replicate(2000, mean(sample(mysample, length(mysample), replace = TRUE)))
+ci <- quantile(boot_means, c(0.025, 0.975))
+
+hist(boot_means, breaks = 30, col = "steelblue",
+     main = sprintf("bootstrap SE = %.2f;  95%% CI = [%.1f, %.1f]",
+                    sd(boot_means), ci[1], ci[2]),
+     xlab = "resampled mean (x-bar-star) over 2000 resamples")
+abline(v = ci, col = "red", lwd = 2, lty = 2)   # the 2.5% and 97.5% cutoffs
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the bootstrap works for statistics with NO clean SE formula.
+# The MEDIAN has no tidy s/sqrt(n). The recipe does not care -- swap mean -> median.
+# PREDICT: which pile is spread wider, the mean's or the median's? Write it, then run.
+set.seed(42)
+mysample <- c(4, 7, 6, 9, 5)
+boot_mean   <- replicate(2000, mean(  sample(mysample, length(mysample), replace = TRUE)))
+boot_median <- replicate(2000, median(sample(mysample, length(mysample), replace = TRUE)))
+
+c(SE_of_mean   = sd(boot_mean),      # ~0.76 -- also gettable from a formula
+  SE_of_median = sd(boot_median))    # ~1.10 -- NO clean formula; only resampling gives it
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Histogram of 2000 permutation gaps centered on zero, spanning -3 to 3, with a red line at the observed gap of 3 sitting at the far right edge"
+# explore-3 — LIVE the permutation test: build the "no effect" pile, then locate d.
+# TRY IT: edit groupA/groupB and re-run -- watch where the red line lands.
+# PREDICT: if you make the two groups nearly identical, will the red line be in the
+# MIDDLE of the pile or at the EDGE? Guess, then run.
+set.seed(42)
+groupA <- c(6, 8, 7); groupB <- c(3, 5, 4)
+obs_diff <- mean(groupA) - mean(groupB)
+all_vals <- c(groupA, groupB); labels <- rep(c("A", "B"), each = 3)
+
+perm_diffs <- replicate(2000, {
+  s <- sample(labels)
+  mean(all_vals[s == "A"]) - mean(all_vals[s == "B"])
+})
+
+hist(perm_diffs, breaks = 20, col = "seagreen",
+     main = "the 'no effect' pile (shuffled labels)",
+     xlab = "gap between group means under a random shuffle")
+abline(v = obs_diff, col = "red", lwd = 3)   # the observed gap: far out at the edge
+```
+
+The observed red line sits at the extreme right edge of the shuffled pile: a gap that big
+almost never happens when the labels are meaningless, so the label looks like it matters.
+**How extreme "extreme enough" is** — turning the picture into a p-value and a decision —
+is the [hypothesis-tests module's](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+job; resampling's job is just to build the pile.
+
+## When resampling beats a formula — and when it fails
+
+**When it wins (concept 5, the payoff).** Reach for resampling whenever your statistic has
+**no clean standard-error formula or closed form**: a median, a trimmed mean, a
+correlation, a ratio, the difference of two medians, a 90th percentile, the output of a
+messy multi-step pipeline. The bootstrap gives you a standard error and a CI for *any* of
+them with the same three-line loop; the permutation test gives you a null for *any*
+comparison by shuffling the labels. You trade a page of derivation (which may not even
+exist) for a few thousand cheap redraws.
+
+**When it fails.** Resampling is not magic — two limits to respect:
+
+- **Small $n$.** The bootstrap can only reshuffle the values you *have*; it can never
+  invent a value your sample missed. With very few data points the faked distribution is
+  coarse and can badly understate the true wobble. Watch how few *distinct* answers a
+  bootstrap of just three numbers can even produce:
+
+  ```{r limit-small-n}
+  tiny <- c(4, 7, 6)                # only 3 data points
+  set.seed(42)
+  bt <- replicate(2000, mean(sample(tiny, 3, replace = TRUE)))
+  length(unique(bt))               # only 9 distinct means possible -- a coarse, chunky pile
+  ```
+
+- **Dependence.** Both recipes assume the data points are *interchangeable* — that
+  reshuffling or redrawing them is fair. If the observations are **linked** (measurements
+  over time, repeated readings on the same subject, spatial neighbors), a naive shuffle
+  breaks a real structure and the answer is wrong. Plain resampling wants roughly
+  independent, exchangeable data; dependent data needs specialized variants (block
+  bootstrap, restricted permutations) beyond this module.
+
+## Common traps
+
+**Trap 1 — "the bootstrap draws *without* replacement, like an ordinary sample."**
+Tempting, because that's what a normal `sample()` call defaults to. But without replacement
+you'd draw all $n$ of your values every time — just in a new order — so every resampled
+mean would be **identical** and the standard error would come out **exactly zero**. Watch
+the bug on our five numbers:
+
+```{r trap1-numbers}
+mysample <- c(4, 7, 6, 9, 5)
+set.seed(42)
+buggy <- replicate(2000, mean(sample(mysample, 5, replace = FALSE)))  # WRONG: no replacement
+sd(buggy)          # 0 -- every resample is just a reordering, so every mean is 6.2
+# Correct version uses replace = TRUE, giving sd ~0.758 as we saw.
+```
+
+Zero wobble is the tell-tale sign you forgot `replace = TRUE`. **Bootstrap = with
+replacement, always.**
+
+**Trap 2 — "a permutation test just shuffles the numbers around within each group."**
+People reach for resampling and shuffle the wrong thing. Reordering the values *inside*
+each group changes nothing — a group's mean doesn't care what order its numbers sit in —
+so every gap stays exactly the observed 3 and you learn nothing about the null. Watch it
+fail:
+
+```{r trap2-numbers}
+A <- c(6, 8, 7); B <- c(3, 5, 4)      # the two groups
+set.seed(42)
+within <- replicate(2000, mean(sample(A)) - mean(sample(B)))  # WRONG: shuffle within groups
+sd(within)                            # 0 -- every gap is still 3; nothing was learned
+```
+
+The permutation test instead keeps the six values fixed and **reassigns which group each
+belongs to** — shuffling the A/B *labels* across the pooled values — because the hypothesis
+being tested is precisely "the *label* doesn't matter." Shuffle the labels, not the numbers
+within a group.
+
+## Check yourself
+
+**1.** You have the sample `x <- c(10, 12, 15, 11, 13)`. Write the R to bootstrap the
+**standard error of the mean** with 2000 resamples, and to get a 95% percentile CI.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to solve, right here
+set.seed(42)
+x <- c(10, 12, 15, 11, 13)
+# your job: replicate( ... mean(sample(x, ..., replace = TRUE)) ... ), then sd() and quantile()
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The three-line loop, with `replace = TRUE` and the pooled summaries:
+
+```{r check1-answer}
+set.seed(42)
+x <- c(10, 12, 15, 11, 13)
+boot <- replicate(2000, mean(sample(x, length(x), replace = TRUE)))
+sd(boot)                           # ~0.75 -- the bootstrap SE of the mean
+quantile(boot, c(0.025, 0.975))    # ~10.8 to 13.8 -- the 95% percentile CI
+```
+
+The whole method is "resample with replacement, recompute the mean, repeat, summarize."
+:::
+
+**2.** In a permutation test, you shuffle the labels **without** replacement (a plain
+`sample(labels)`). But the bootstrap draws **with** replacement. In one sentence each, why
+does each recipe need the setting it uses?
+
+::: {.callout-note collapse="true" title="Answer"}
+The **permutation** test asks "does the label matter?", so it keeps the exact same set of
+values and only *reassigns* them — a shuffle, which is sampling the labels **without**
+replacement (every value gets exactly one label). The **bootstrap** asks "how much would
+my estimate wobble across fresh samples?", so it must let values repeat and drop out to
+mimic real sampling variation — which requires drawing **with** replacement (without it,
+every resample is identical and the wobble is a fake zero).
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the bootstrap is
+and why you'd use it instead of a formula.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The bootstrap treats your one sample as a stand-in for the whole population and fakes many
+fresh samples by redrawing from it *with replacement*, so the spread of the statistic
+across those fake redraws estimates its standard error and confidence interval. You reach
+for it when your statistic — a median, a correlation, some messy pipeline — has no clean
+formula for its wobble, because the same three-line resampling loop works for any statistic
+at all.
+:::
+
+## What you can now do
+
+- **Sample with vs without replacement** on purpose — knowing `replace = TRUE` lets values
+  repeat and `replace = FALSE` merely reshuffles, and knowing which recipe needs which.
+- **Bootstrap a standard error and a percentile CI** for *any* statistic: resample with
+  replacement, recompute, repeat with `replicate()`, then `sd()` and
+  `quantile(., c(.025, .975))`.
+- **Run a permutation test by hand** — pool the values, shuffle the labels to build the
+  "no effect" pile, and locate where the observed statistic falls in it.
+- **Recognize the one universal loop** (`replicate` → resample → compute a statistic →
+  summarize) behind every resampling method, and swap only the "resample" line.
+- **Judge when resampling is the right tool** — when no clean formula exists — and when to
+  distrust it (very small $n$, dependent/non-exchangeable data).
+
+If any of these feels shaky, revisit [The formal version](#the-formal-version) and
+[Common traps](#common-traps) before continuing — anything that quantifies uncertainty
+without a formula assumes all of these.
+
+## Where this goes next
+
+Resampling is the quiet workhorse under a huge range of modern methods: any time a paper
+reports a standard error or confidence interval for something with no textbook formula, or
+a p-value from "we permuted the labels 10,000 times," this is the machinery. The bootstrap
+reuses the last module's simulate-and-take-`sd()` engine when you can't name the population;
+the permutation test reuses the p-value idea when you can't write down a null by formula.
+Ready for more reps? Do the [practice problems](practice.qmd).

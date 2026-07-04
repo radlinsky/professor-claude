@@ -1,0 +1,228 @@
+---
+title: "Practice: Resampling — the bootstrap & permutation tests"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). This module is about randomness, so every drawing chunk sets its own seed.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+A fresh sample of five: `x <- c(10, 12, 15, 11, 13)`. Bootstrap the **standard error of
+the mean** with 2000 resamples, and report a 95% percentile confidence interval. Use
+`set.seed(42)` so your numbers match.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+set.seed(42)
+x <- c(10, 12, 15, 11, 13)
+# your job: bootstrap the mean, then sd() and quantile(., c(.025, .975))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The three-line loop: resample **with replacement**, recompute the mean, repeat; then read
+the spread and the middle 95% off the pile.
+
+```{r p1-answer}
+set.seed(42)
+x <- c(10, 12, 15, 11, 13)
+boot <- replicate(2000, mean(sample(x, length(x), replace = TRUE)))
+sd(boot)                           # ~0.75 -- the bootstrap SE of the mean
+quantile(boot, c(0.025, 0.975))    # ~10.8 to 13.8 -- the 95% percentile CI
+```
+
+The sample mean is $(10+12+15+11+13)/5 = 12.2$, and the CI sits symmetrically around it —
+the resampling just measures how far the mean could wobble.
+:::
+
+## Problem 2 — fill in the missing step
+
+Here is a bootstrap of the mean of `s <- c(4, 8, 6, 10)`, worked out — but the **core
+move is blanked**. Fill in ONLY the blanked line.
+
+> The sample mean is $(4+8+6+10)/4 = 7$. To fake many redraws:
+> **`<your step here>`** — build a pile of 2000 resampled means, each from a
+> resample-with-replacement of `s`.
+> Then `sd(pile)` is the bootstrap SE (~1.1) and `quantile(pile, c(.025, .975))` is the CI.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blanked line
+set.seed(42)
+s <- c(4, 8, 6, 10)
+# pile <- replicate( ... )   # <- fill this in
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked line is the whole bootstrap engine — `replicate()` wrapped around a
+resample-with-replacement and a `mean()`:
+
+```{r p2-answer}
+set.seed(42)
+s <- c(4, 8, 6, 10)
+pile <- replicate(2000, mean(sample(s, length(s), replace = TRUE)))   # the missing step
+sd(pile)                           # ~1.08 -- bootstrap SE
+quantile(pile, c(0.025, 0.975))    # 5 to 9 -- 95% CI
+```
+
+The key detail is `replace = TRUE` inside `sample()` — that is what lets values repeat
+and produces a non-zero wobble.
+:::
+
+## Problem 3 — bootstrap a statistic with no formula
+
+You have six measurements: `d <- c(2, 5, 3, 8, 4, 6)`. The **median** has no clean
+standard-error formula. Bootstrap its standard error and a 95% CI (2000 resamples,
+`set.seed(42)`), and say in one line why you *had* to resample here.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: bootstrap the MEDIAN
+set.seed(42)
+d <- c(2, 5, 3, 8, 4, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Same loop as the mean — only the statistic changes from `mean` to `median`, which is
+exactly the point: the recipe doesn't care which statistic you feed it.
+
+```{r p3-answer}
+set.seed(42)
+d <- c(2, 5, 3, 8, 4, 6)
+boot_med <- replicate(2000, median(sample(d, length(d), replace = TRUE)))
+sd(boot_med)                           # ~1.08 -- SE of the median
+quantile(boot_med, c(0.025, 0.975))    # 2.5 to 7 -- 95% CI for the median
+```
+
+The observed median is 4.5. You *had* to resample because there is no tidy $s/\sqrt{n}$
+for the median — the bootstrap is the only easy way to get its wobble.
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants a bootstrap standard error for the mean of `y <- c(4, 7, 6, 9, 5)` and
+writes the following. It contains **exactly one mistake**. Find it, explain why it's
+wrong, and fix it.
+
+> "I'll redraw my sample 2000 times and take the sd of the means:
+> `sd(replicate(2000, mean(sample(y, 5, replace = FALSE))))`.
+> That gives a standard error of 0 — great, my estimate is perfectly precise!"
+
+```{webr}
+#| autorun: false
+# p4-starter — run the buggy line, then the fix, and compare
+set.seed(42)
+y <- c(4, 7, 6, 9, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is **`replace = FALSE`**. Drawing all 5 values without replacement just
+*reorders* them, so every resample has the same five numbers and therefore the identical
+mean 6.2 — the sd of a constant is 0. That zero is a red flag, not a triumph: it means the
+bootstrap never varied. Fix it with `replace = TRUE`, which lets values repeat and produces
+real sampling variation.
+
+```{r p4-answer}
+set.seed(42)
+y <- c(4, 7, 6, 9, 5)
+sd(replicate(2000, mean(sample(y, 5, replace = FALSE))))   # 0 -- the bug: no variation
+sd(replicate(2000, mean(sample(y, 5, replace = TRUE))))    # ~0.76 -- the correct SE
+```
+
+Bootstrap = **with replacement, always.**
+:::
+
+## Problem 5 — mixing it with hypothesis tests *(uses [hypothesis-tests-p-values-and-confidence-intervals](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)'s p-value)*
+
+Two small groups: `gA <- c(9, 11, 10)` and `gB <- c(6, 5, 7)`. Build the "no effect" pile
+by shuffling the labels (3000 shuffles, `set.seed(42)`), then compute a two-sided p-value
+as the fraction of shuffles whose gap is at least as extreme as the observed gap. The
+p-value *definition* is the hypothesis-tests module's; your job is to feed it the shuffled
+pile.
+
+**PREDICT** first: the observed gap is $10 - 6 = 4$. With three-and-three values, do you
+expect the observed gap to land in the middle of the shuffled pile or at its edge?
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+set.seed(42)
+gA <- c(9, 11, 10); gB <- c(6, 5, 7)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Pool the six values, shuffle the labels (no replacement), recompute the gap, repeat; then
+the p-value is just "what fraction of the shuffled pile is as extreme as the real gap" —
+the definition from the [hypothesis-tests module](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd).
+
+```{r p5-answer}
+set.seed(42)
+gA <- c(9, 11, 10); gB <- c(6, 5, 7)
+obs_diff <- mean(gA) - mean(gB)          # 4
+all_vals <- c(gA, gB); labels <- rep(c("A", "B"), each = 3)
+
+perm_diffs <- replicate(3000, {
+  s <- sample(labels)                                  # shuffle the labels
+  mean(all_vals[s == "A"]) - mean(all_vals[s == "B"])
+})
+mean(abs(perm_diffs) >= abs(obs_diff))   # ~0.10 -- the two-sided permutation p-value
+```
+
+The observed gap of 4 is the *biggest* gap the six values can produce, so it sits at the
+edge of the pile. Exactly 2 of the $\binom{6}{3} = 20$ possible splits reach $\pm 4$, so
+the exact two-sided p is $2/20 = 0.10$ — the simulation lands right on it. The resampling
+built the null; the p-value idea came from the hypothesis-tests module.
+:::
+
+## Problem 6 — transfer: a confidence interval for a difference of medians
+
+New context. You have two groups and want a CI for the **difference of their medians** —
+a quantity with no textbook standard-error formula:
+
+```{webr}
+#| autorun: false
+# p6-starter — bootstrap the DIFFERENCE OF MEDIANS and give a 95% CI
+set.seed(42)
+gX <- c(3, 7, 5, 9, 6)
+gY <- c(2, 4, 3, 5, 6)
+# hint: resample EACH group with replacement, take median(bx) - median(by), repeat
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The bootstrap generalizes with no new ideas: resample **each** group with replacement,
+compute the difference of medians on the resamples, repeat, and read the CI off the pile.
+
+```{r p6-answer}
+set.seed(42)
+gX <- c(3, 7, 5, 9, 6)
+gY <- c(2, 4, 3, 5, 6)
+median(gX) - median(gY)                  # observed: 6 - 4 = 2
+
+boot_diff <- replicate(2000, {
+  bx <- sample(gX, length(gX), replace = TRUE)
+  by <- sample(gY, length(gY), replace = TRUE)
+  median(bx) - median(by)
+})
+sd(boot_diff)                            # ~1.6 -- SE of the difference of medians
+quantile(boot_diff, c(0.025, 0.975))     # ~ -1 to 5 -- 95% CI
+```
+
+The CI includes 0, so with only five values per group the difference of medians isn't
+pinned down away from zero. Notice you never needed a formula — the same resample-recompute-
+summarize loop handled a two-group difference of medians exactly as it handled one mean.
+:::
