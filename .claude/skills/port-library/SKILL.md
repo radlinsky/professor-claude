@@ -51,7 +51,8 @@ on. Phases P1–P3 are this skill's job; P4 runs the `create-course` pipeline.
 2. Write the algorithm as a **numbered list of update steps** in your own words — the
    thing the course will rebuild. Be concrete: each step is an assignment or an update
    rule, not a paragraph.
-3. **Detect what is actually runnable** (this decides the validation tier in P3):
+3. **Detect what is actually runnable** (this decides the validation tier in P3; tiers
+   defined in `equivalence/README.md` §Validation tiers):
    - Can you install and RUN the real reference on simulated inputs, in any language?
      (R package → separate lib; Python → venv; C/C++/Fortran → compile a driver — recipes
      in `equivalence/README.md`.) → aim for **full** tier.
@@ -105,11 +106,12 @@ tolerance — the thing a `{webr}` lesson later lets the learner re-run. Follow
 1. Write `equivalence/reimplementations/<slug>.R` (the P2 function).
 2. Write a generator `equivalence/generate/<slug>_<tier>_<ref>.{R,py,c,…}` at the
    **strongest tier P1 supports**, emitting `equivalence/fixtures/<slug>.json` with
-   `meta` (record `tier` and `source`+version), `inputs`, `reference`. Reference libs
+   `meta`, `inputs`, `reference` per `equivalence/README.md` §Fixture format. Reference libs
    install into the gitignored `equivalence/env/` — never renv.lock (`.renvignore`
    guards this).
 3. Wire it into `equivalence/check.R` (a `source(...)` line + one `targets` entry) and
-   into `equivalence/generate/regenerate-all.sh`.
+   into `equivalence/generate/regenerate-all.sh`, and update `equivalence/README.md`
+   (target count in §Run the checks, and the tier examples if yours adds one).
 4. Regenerate, then run `Rscript equivalence/check.R` — it must report the new target
    PASS. Tune the fixture `tolerance` (and the reimplementation's own hyperparameters,
    e.g. an iteration count) so the check passes **honestly** — set the knob explicitly,
@@ -125,6 +127,9 @@ fixture records the tier actually used and the reference source+version. ☐ Not
 ## Phase P4 — Build the course (delegate to create-course)
 
 **Goal:** the taught course, using everything above.
+
+Open `.claude/skills/create-course/SKILL.md` and execute phases 3–8 **with their GATEs**;
+the deltas below modify those phases, they do not replace them.
 
 Run **`create-course` phases 3–8** (syllabus & roadmap → lessons → practice → resources
 → verify & register → content review) with the P2 decomposition as the module list. Do
@@ -142,7 +147,7 @@ not re-derive the pipeline or the teaching contract — follow `create-course`. 
   `check.R`/CI). The learner watches their rebuild land on the real optimizer's answer.
 - **The real library is static.** Where the reference exists but can't run in the browser
   (compiled / non-wasm — `docs/webr-decision.md` §3), show it as a baked `{r}` chunk
-  under the "runs on your machine, not here" callout (`interactive-webr.md`).
+  under the static-fallback callout per `interactive-webr.md`.
 - **The capstone decodes the real source.** "Return to the source" (per
   `course-structure.md` §Capstone) decodes the actual library signature / paper equations
   the port started from, backlinking each term to the module that rebuilt it.
