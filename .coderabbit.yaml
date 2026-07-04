@@ -32,3 +32,7 @@ reviews:
         answers, and non-WebR code stay baked `{r}`
         (.claude/course-authoring/interactive-webr.md). No page sets its own
         `format:`. New pages must be registered in the root `_quarto.yml`.
+        `edit: true` is the r-wasm/live DEFAULT for `{webr}` cells and need NOT be
+        declared — do NOT flag a starter for omitting it; every module in this repo
+        relies on the default. Solve-it starters use `autorun: false`; cells that
+        compute the concept both ways or that the learner tweaks use `autorun: true`.
