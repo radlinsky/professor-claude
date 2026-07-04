@@ -277,10 +277,12 @@ explicit TODO. ☐ Zero unverified URLs anywhere.
 **Goal:** catch the math/notation defects that render perfectly green. A course that
 compiles is not a course that is correct — this gate is the difference.
 
-**Preferred: dispatch the `course-auditor` agent** (`.claude/agents/course-auditor.md`)
-on every new lesson/practice file — it re-derives nothing, reads with genuinely
-fresh eyes, and reports defects with evidence. Fix every confirmed defect, re-render
-(back through Phase 7), and re-dispatch until it reports clean.
+If a Task/Agent tool is available, dispatch the **`course-auditor` agent**
+(`.claude/agents/course-auditor.md`) on every new lesson/practice file — it
+re-derives nothing, reads with genuinely fresh eyes, and reports defects with
+evidence (self-review is NOT permitted when dispatch is possible). Fix every
+confirmed defect, re-render (back through Phase 7), and re-dispatch until it
+reports clean.
 
 Fallback (no Task/Agent tool available): read
 `.claude/course-authoring/content-review-checklist.md` and run it yourself against
