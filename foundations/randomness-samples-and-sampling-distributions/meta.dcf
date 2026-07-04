@@ -1,0 +1,4 @@
+ShortName: Randomness & sampling distributions
+Concepts: Population vs one sample vs a statistic; why a statistic is random (redraw → different number); simulating re-runs (`replicate()` + `sample()`/`rnorm()`) and histogramming the statistic (the sampling distribution); the standard error as the `sd()` of that histogram (and why it is NOT the `sd()` of the data); the bell emerging for means (CLT as an observation); what a confidence interval is trying to capture (concept only)
+BuildsOn: [mean-variance-covariance](mean-variance-covariance/lesson.qmd), [probability-and-odds](probability-and-odds/lesson.qmd)
+UsedBy: —

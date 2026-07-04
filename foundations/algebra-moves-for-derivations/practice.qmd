@@ -1,0 +1,187 @@
+---
+title: "Practice: The algebra moves a derivation is made of"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Expand $(a + b)^2$ into its three terms for $a = 2$ and $b = 4$, by hand. Then check
+both forms in R and confirm they agree.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+a <- 2
+b <- 4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The move is *expanding* (Move 1): $(a+b)^2 = a^2 + 2ab + b^2$. Term by term with
+$a = 2, b = 4$: $a^2 = 4$, $2ab = 2\times2\times4 = 16$, $b^2 = 16$; total $4 + 16 + 16 = 36$.
+And the square form: $(2 + 4)^2 = 6^2 = 36$. Same number, so the expansion is correct.
+
+```{r p1-answer}
+a <- 2; b <- 4
+c(squared  = (a + b)^2,                 # 36
+  expanded = a^2 + 2 * a * b + b^2)     # 36 — expand and factor are the same value
+```
+:::
+
+## Problem 2 — fill in the missing step (collect like terms)
+
+Here is a two-line simplification of $4x + 7 + 3x - 2$ — but the **core move is blanked**.
+Fill in ONLY the blanked line: what has to happen to turn the scattered form into the
+collected one?
+
+> Start: $4x + 7 + 3x - 2$.
+> **`<your step here>`** — gather the like terms.
+> Result: $7x + 5$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your collected form at x = 3
+x <- 3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is **collecting like terms** (Move 2): add the coefficients of the
+$x$-terms, $4x + 3x = 7x$, and add the plain numbers, $7 - 2 = 5$, giving $7x + 5$. It's
+legal because addition can be reordered and regrouped freely. Check at $x = 3$: the
+scattered form is $12 + 7 + 9 - 2 = 26$; the collected form is $21 + 5 = 26$.
+
+```{r p2-answer}
+x <- 3
+c(scattered = 4 * x + 7 + 3 * x - 2,    # 26
+  collected = 7 * x + 5)                # 26 — same value, tidier form
+```
+:::
+
+## Problem 3 — substitute, then simplify
+
+You know $u = 3t - 2$. Substitute it into $2u + 5$ and simplify to a single expression in
+$t$. Do it by hand (naming each move), then check at $t = 5$ in R.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: build u from t, then compare 2u+5 to your simplified form
+t <- 5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+- **Substitute** (in a bracket): $2u + 5 = 2(3t - 2) + 5$.
+- **Expand** the bracket (Move 1, simple case — multiply the 2 through): $6t - 4 + 5$.
+- **Collect like terms** (Move 2): $-4 + 5 = 1$, giving $6t + 1$.
+
+Check at $t = 5$: $u = 3\times5 - 2 = 13$, so $2u + 5 = 26 + 5 = 31$; and $6t + 1 = 30 + 1 = 31$.
+
+```{r p3-answer}
+t <- 5
+u <- 3 * t - 2                 # the substituted expression: u = 13
+c(before = 2 * u + 5,          # 31
+  after  = 6 * t + 1)          # 31 — substitute, expand, collect: value unchanged
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague expanded a square like this. It contains **exactly one mistake** — find it,
+say why it's wrong with the numbers, and give the corrected expansion.
+
+> "$(a + b)^2 = a^2 + b^2$. So for $a = 3, b = 4$ it's $9 + 16 = 25$."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to see the correct and wrong forms side by side
+a <- 3
+b <- 4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is dropping the cross term: $(a+b)^2$ is **not** $a^2 + b^2$; it's
+$a^2 + 2ab + b^2$. The missing $2ab$ is the whole error. With $a = 3, b = 4$ the correct
+value is $(3+4)^2 = 7^2 = 49$, while the colleague's $a^2 + b^2 = 25$ — short by exactly
+$2ab = 2\times3\times4 = 24$. Squaring does not distribute across a plus; the square of a
+sum always carries the cross term.
+
+```{r p4-answer}
+a <- 3; b <- 4
+c(correct = (a + b)^2,     # 49
+  wrong   = a^2 + b^2,     # 25 -- missing 2ab
+  cross   = 2 * a * b)     # 24 -- the term that was dropped
+```
+:::
+
+## Problem 5 — mixing it with a sum *(uses [vectors-and-summation](../vectors-and-summation/lesson.qmd)'s sum rules)*
+
+Simplify $\sum_{i=1}^{n} (3x_i + 2)$ into a form using $\sum x_i$ and $n$, then evaluate it
+for $x = (1, 2, 3)$. **PREDICT** the number first, then run.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+x <- c(1, 2, 3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Chain the sum moves from [vectors & summation](../vectors-and-summation/lesson.qmd):
+
+- **Split** the sum (Rule 1): $\sum (3x_i + 2) = \sum 3x_i + \sum 2$.
+- **Pull the constant out** (Rule 2): $\sum 3x_i = 3\sum x_i$.
+- **Sum a constant** (Rule 3): $\sum_{i=1}^{n} 2 = 2n$.
+
+So $\sum (3x_i + 2) = 3\sum x_i + 2n$. For $x = (1,2,3)$: $\sum x_i = 6$ and $n = 3$, giving
+$3\times6 + 2\times3 = 18 + 6 = 24$.
+
+```{r p5-answer}
+x <- c(1, 2, 3)
+n <- length(x)
+c(direct    = sum(3 * x + 2),         # 24
+  simplified = 3 * sum(x) + 2 * n)    # 24 — split, factor, sum-the-constant
+```
+:::
+
+## Problem 6 — a gentle cliffhanger (completing the square)
+
+Someone rewrites $x^2 + 4x + 1$ as $(x + 2)^2 - 3$ and calls the move "completing the
+square." You met the *name* in the lesson but didn't drill the mechanics. **Predict:**
+without doing the full derivation, can you confirm the two forms are equal by plugging in
+$x = 5$? Then run the starter and say what "completing the square" bought here.
+
+```{webr}
+#| autorun: false
+# p6-starter — check the two forms agree at x = 5 (and try other x values too)
+x <- 5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+At $x = 5$: the original is $25 + 20 + 1 = 46$; the completed-square form is
+$(5+2)^2 - 3 = 49 - 3 = 46$ — equal, so the rewrite is legal. You can verify the identity
+without deriving it, exactly the checking habit from the lesson. *Why do it:* the completed
+form $(x+2)^2 - 3$ makes the smallest possible value obvious — $(x+2)^2$ is never negative,
+so the whole thing bottoms out at $-3$, reached when $x = -2$. That "read the minimum off a
+square" payoff is why the move appears in derivations that hunt for a minimum — the full
+mechanics wait for a lesson that needs them.
+
+```{r p6-answer}
+x <- 5
+c(original  = x^2 + 4 * x + 1,     # 46
+  completed = (x + 2)^2 - 3)       # 46 — same value; the square makes the minimum readable
+```
+:::

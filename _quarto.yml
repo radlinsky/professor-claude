@@ -2,24 +2,71 @@ project:
   type: website
   output-dir: _site
   render:
-    - foundations/reading-math-notation/lesson.qmd
-    - foundations/reading-math-notation/practice.qmd
-    - foundations/reading-math-notation/resources.md
-    - foundations/vectors-and-summation/lesson.qmd
-    - foundations/vectors-and-summation/practice.qmd
-    - foundations/vectors-and-summation/resources.md
-    - foundations/mean-variance-covariance/lesson.qmd
-    - foundations/mean-variance-covariance/practice.qmd
-    - foundations/mean-variance-covariance/resources.md
+    # >>> generated: foundation render list (scripts/gen-indexes.R) — do not edit by hand
+    - foundations/algebra-moves-for-derivations/lesson.qmd
+    - foundations/algebra-moves-for-derivations/practice.qmd
+    - foundations/algebra-moves-for-derivations/resources.md
     - foundations/derivative-as-slope/lesson.qmd
     - foundations/derivative-as-slope/practice.qmd
     - foundations/derivative-as-slope/resources.md
+    - foundations/distance-similarity-and-geometry/lesson.qmd
+    - foundations/distance-similarity-and-geometry/practice.qmd
+    - foundations/distance-similarity-and-geometry/resources.md
+    - foundations/distributions-and-densities/lesson.qmd
+    - foundations/distributions-and-densities/practice.qmd
+    - foundations/distributions-and-densities/resources.md
     - foundations/exponentials-and-logs/lesson.qmd
     - foundations/exponentials-and-logs/practice.qmd
     - foundations/exponentials-and-logs/resources.md
+    - foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd
+    - foundations/hypothesis-tests-p-values-and-confidence-intervals/practice.qmd
+    - foundations/hypothesis-tests-p-values-and-confidence-intervals/resources.md
+    - foundations/likelihood-and-log-likelihood/lesson.qmd
+    - foundations/likelihood-and-log-likelihood/practice.qmd
+    - foundations/likelihood-and-log-likelihood/resources.md
+    - foundations/linear-combinations-and-data-matrices/lesson.qmd
+    - foundations/linear-combinations-and-data-matrices/practice.qmd
+    - foundations/linear-combinations-and-data-matrices/resources.md
+    - foundations/loss-functions-and-optimization/lesson.qmd
+    - foundations/loss-functions-and-optimization/practice.qmd
+    - foundations/loss-functions-and-optimization/resources.md
+    - foundations/matrices-and-linear-transforms/lesson.qmd
+    - foundations/matrices-and-linear-transforms/practice.qmd
+    - foundations/matrices-and-linear-transforms/resources.md
+    - foundations/mean-variance-covariance/lesson.qmd
+    - foundations/mean-variance-covariance/practice.qmd
+    - foundations/mean-variance-covariance/resources.md
+    - foundations/model-fit-error-and-validation/lesson.qmd
+    - foundations/model-fit-error-and-validation/practice.qmd
+    - foundations/model-fit-error-and-validation/resources.md
+    - foundations/paper-and-proof-conventions/lesson.qmd
+    - foundations/paper-and-proof-conventions/practice.qmd
+    - foundations/paper-and-proof-conventions/resources.md
+    - foundations/partial-derivatives-and-the-gradient/lesson.qmd
+    - foundations/partial-derivatives-and-the-gradient/practice.qmd
+    - foundations/partial-derivatives-and-the-gradient/resources.md
+    - foundations/priors-posteriors-and-updating/lesson.qmd
+    - foundations/priors-posteriors-and-updating/practice.qmd
+    - foundations/priors-posteriors-and-updating/resources.md
     - foundations/probability-and-odds/lesson.qmd
     - foundations/probability-and-odds/practice.qmd
     - foundations/probability-and-odds/resources.md
+    - foundations/randomness-samples-and-sampling-distributions/lesson.qmd
+    - foundations/randomness-samples-and-sampling-distributions/practice.qmd
+    - foundations/randomness-samples-and-sampling-distributions/resources.md
+    - foundations/reading-math-notation/lesson.qmd
+    - foundations/reading-math-notation/practice.qmd
+    - foundations/reading-math-notation/resources.md
+    - foundations/resampling-bootstrap-and-permutation/lesson.qmd
+    - foundations/resampling-bootstrap-and-permutation/practice.qmd
+    - foundations/resampling-bootstrap-and-permutation/resources.md
+    - foundations/variance-structure-and-standardization/lesson.qmd
+    - foundations/variance-structure-and-standardization/practice.qmd
+    - foundations/variance-structure-and-standardization/resources.md
+    - foundations/vectors-and-summation/lesson.qmd
+    - foundations/vectors-and-summation/practice.qmd
+    - foundations/vectors-and-summation/resources.md
+    # <<< generated: foundation render list
     - courses/simple-linear-regression/syllabus.md
     - courses/simple-linear-regression/00-roadmap.qmd
     - courses/simple-linear-regression/modules/01-least-squares-idea/lesson.qmd
@@ -63,30 +110,15 @@ website:
     contents:
       - section: "Foundations"
         contents:
-          - section: "Reading math notation"
+          # >>> generated: foundation sidebar (scripts/gen-indexes.R) — do not edit by hand
+          - section: "Algebra moves for derivations"
             contents:
               - text: "Lesson"
-                href: foundations/reading-math-notation/lesson.qmd
+                href: foundations/algebra-moves-for-derivations/lesson.qmd
               - text: "Practice"
-                href: foundations/reading-math-notation/practice.qmd
+                href: foundations/algebra-moves-for-derivations/practice.qmd
               - text: "Resources"
-                href: foundations/reading-math-notation/resources.md
-          - section: "Vectors, subscripts & Σ"
-            contents:
-              - text: "Lesson"
-                href: foundations/vectors-and-summation/lesson.qmd
-              - text: "Practice"
-                href: foundations/vectors-and-summation/practice.qmd
-              - text: "Resources"
-                href: foundations/vectors-and-summation/resources.md
-          - section: "The mean, variance & covariance"
-            contents:
-              - text: "Lesson"
-                href: foundations/mean-variance-covariance/lesson.qmd
-              - text: "Practice"
-                href: foundations/mean-variance-covariance/practice.qmd
-              - text: "Resources"
-                href: foundations/mean-variance-covariance/resources.md
+                href: foundations/algebra-moves-for-derivations/resources.md
           - section: "The derivative as a slope"
             contents:
               - text: "Lesson"
@@ -95,6 +127,22 @@ website:
                 href: foundations/derivative-as-slope/practice.qmd
               - text: "Resources"
                 href: foundations/derivative-as-slope/resources.md
+          - section: "Distance, similarity & geometry"
+            contents:
+              - text: "Lesson"
+                href: foundations/distance-similarity-and-geometry/lesson.qmd
+              - text: "Practice"
+                href: foundations/distance-similarity-and-geometry/practice.qmd
+              - text: "Resources"
+                href: foundations/distance-similarity-and-geometry/resources.md
+          - section: "Distributions & densities"
+            contents:
+              - text: "Lesson"
+                href: foundations/distributions-and-densities/lesson.qmd
+              - text: "Practice"
+                href: foundations/distributions-and-densities/practice.qmd
+              - text: "Resources"
+                href: foundations/distributions-and-densities/resources.md
           - section: "Exponentials and logs"
             contents:
               - text: "Lesson"
@@ -103,6 +151,86 @@ website:
                 href: foundations/exponentials-and-logs/practice.qmd
               - text: "Resources"
                 href: foundations/exponentials-and-logs/resources.md
+          - section: "Hypothesis tests, p-values & CIs"
+            contents:
+              - text: "Lesson"
+                href: foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd
+              - text: "Practice"
+                href: foundations/hypothesis-tests-p-values-and-confidence-intervals/practice.qmd
+              - text: "Resources"
+                href: foundations/hypothesis-tests-p-values-and-confidence-intervals/resources.md
+          - section: "Likelihood & log-likelihood"
+            contents:
+              - text: "Lesson"
+                href: foundations/likelihood-and-log-likelihood/lesson.qmd
+              - text: "Practice"
+                href: foundations/likelihood-and-log-likelihood/practice.qmd
+              - text: "Resources"
+                href: foundations/likelihood-and-log-likelihood/resources.md
+          - section: "Linear combinations & the data matrix"
+            contents:
+              - text: "Lesson"
+                href: foundations/linear-combinations-and-data-matrices/lesson.qmd
+              - text: "Practice"
+                href: foundations/linear-combinations-and-data-matrices/practice.qmd
+              - text: "Resources"
+                href: foundations/linear-combinations-and-data-matrices/resources.md
+          - section: "Loss functions & optimization"
+            contents:
+              - text: "Lesson"
+                href: foundations/loss-functions-and-optimization/lesson.qmd
+              - text: "Practice"
+                href: foundations/loss-functions-and-optimization/practice.qmd
+              - text: "Resources"
+                href: foundations/loss-functions-and-optimization/resources.md
+          - section: "Matrices & linear transforms"
+            contents:
+              - text: "Lesson"
+                href: foundations/matrices-and-linear-transforms/lesson.qmd
+              - text: "Practice"
+                href: foundations/matrices-and-linear-transforms/practice.qmd
+              - text: "Resources"
+                href: foundations/matrices-and-linear-transforms/resources.md
+          - section: "The mean, variance & covariance"
+            contents:
+              - text: "Lesson"
+                href: foundations/mean-variance-covariance/lesson.qmd
+              - text: "Practice"
+                href: foundations/mean-variance-covariance/practice.qmd
+              - text: "Resources"
+                href: foundations/mean-variance-covariance/resources.md
+          - section: "Model fit, error & validation"
+            contents:
+              - text: "Lesson"
+                href: foundations/model-fit-error-and-validation/lesson.qmd
+              - text: "Practice"
+                href: foundations/model-fit-error-and-validation/practice.qmd
+              - text: "Resources"
+                href: foundations/model-fit-error-and-validation/resources.md
+          - section: "Paper & proof conventions"
+            contents:
+              - text: "Lesson"
+                href: foundations/paper-and-proof-conventions/lesson.qmd
+              - text: "Practice"
+                href: foundations/paper-and-proof-conventions/practice.qmd
+              - text: "Resources"
+                href: foundations/paper-and-proof-conventions/resources.md
+          - section: "Partial derivatives & the gradient"
+            contents:
+              - text: "Lesson"
+                href: foundations/partial-derivatives-and-the-gradient/lesson.qmd
+              - text: "Practice"
+                href: foundations/partial-derivatives-and-the-gradient/practice.qmd
+              - text: "Resources"
+                href: foundations/partial-derivatives-and-the-gradient/resources.md
+          - section: "Priors, posteriors & updating"
+            contents:
+              - text: "Lesson"
+                href: foundations/priors-posteriors-and-updating/lesson.qmd
+              - text: "Practice"
+                href: foundations/priors-posteriors-and-updating/practice.qmd
+              - text: "Resources"
+                href: foundations/priors-posteriors-and-updating/resources.md
           - section: "Probability, odds & log-odds"
             contents:
               - text: "Lesson"
@@ -111,6 +239,47 @@ website:
                 href: foundations/probability-and-odds/practice.qmd
               - text: "Resources"
                 href: foundations/probability-and-odds/resources.md
+          - section: "Randomness & sampling distributions"
+            contents:
+              - text: "Lesson"
+                href: foundations/randomness-samples-and-sampling-distributions/lesson.qmd
+              - text: "Practice"
+                href: foundations/randomness-samples-and-sampling-distributions/practice.qmd
+              - text: "Resources"
+                href: foundations/randomness-samples-and-sampling-distributions/resources.md
+          - section: "Reading math notation"
+            contents:
+              - text: "Lesson"
+                href: foundations/reading-math-notation/lesson.qmd
+              - text: "Practice"
+                href: foundations/reading-math-notation/practice.qmd
+              - text: "Resources"
+                href: foundations/reading-math-notation/resources.md
+          - section: "Resampling: bootstrap & permutation"
+            contents:
+              - text: "Lesson"
+                href: foundations/resampling-bootstrap-and-permutation/lesson.qmd
+              - text: "Practice"
+                href: foundations/resampling-bootstrap-and-permutation/practice.qmd
+              - text: "Resources"
+                href: foundations/resampling-bootstrap-and-permutation/resources.md
+          - section: "Variance structure & standardization"
+            contents:
+              - text: "Lesson"
+                href: foundations/variance-structure-and-standardization/lesson.qmd
+              - text: "Practice"
+                href: foundations/variance-structure-and-standardization/practice.qmd
+              - text: "Resources"
+                href: foundations/variance-structure-and-standardization/resources.md
+          - section: "Vectors, subscripts & Σ"
+            contents:
+              - text: "Lesson"
+                href: foundations/vectors-and-summation/lesson.qmd
+              - text: "Practice"
+                href: foundations/vectors-and-summation/practice.qmd
+              - text: "Resources"
+                href: foundations/vectors-and-summation/resources.md
+          # <<< generated: foundation sidebar
       - section: "Simple Linear Regression"
         contents:
           - courses/simple-linear-regression/syllabus.md

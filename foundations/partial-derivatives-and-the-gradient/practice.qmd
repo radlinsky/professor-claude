@@ -1,0 +1,287 @@
+---
+title: "Practice: Partial derivatives, and the gradient"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer. The gradient tool from the lesson is re-supplied in each starter so you
+can copy it straight in.
+
+## Problem 1 — the toy example, new numbers
+
+A two-dial machine with cost $g(a, b) = 3a^2 + b^2$. At the point $(1, 2)$, find the two
+partial derivatives by hand (the exact partials of $3a^2 + b^2$ are $6a$ and $2b$), then
+assemble the gradient. Check with the `grad()` tool.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+g <- function(p) 3*p[1]^2 + p[2]^2
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + h
+    p_minus <- p; p_minus[j] <- p_minus[j] - h
+    (f(p_plus) - f(p_minus)) / (2 * h)
+  })
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Partial in $a$ (freeze $b = 2$): $6a = 6\times1 = 6$.
+Partial in $b$ (freeze $a = 1$): $2b = 2\times2 = 4$.
+So $\nabla g(1, 2) = (6, 4)$.
+
+```{r p1-answer}
+g <- function(p) 3*p[1]^2 + p[2]^2
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + h
+    p_minus <- p; p_minus[j] <- p_minus[j] - h
+    (f(p_plus) - f(p_minus)) / (2 * h)
+  })
+}
+grad(g, c(1, 2))     # 6 4 — matches the hand answer
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+Here is the gradient of $f(a, b) = a^2 + b^2$ at $(5, -1)$ worked out — but the **core
+step is blanked**. Fill in ONLY the blanked line: the two partial derivatives.
+
+> The gradient collects one partial per input. The exact partials of $a^2 + b^2$ are $2a$
+> and $2b$.
+> **`<your step here>`** — freeze the other input and read each slope:
+> $\dfrac{\partial f}{\partial a} = \underline{\phantom{00}}$ (at $a = 5$),
+> $\dfrac{\partial f}{\partial b} = \underline{\phantom{00}}$ (at $b = -1$).
+> Collect them into $\nabla f(5, -1) = (\underline{\phantom{00}},\ \underline{\phantom{00}})$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your two partials
+f <- function(p) p[1]^2 + p[2]^2
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + h
+    p_minus <- p; p_minus[j] <- p_minus[j] - h
+    (f(p_plus) - f(p_minus)) / (2 * h)
+  })
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the heart of the gradient — one held-still slope per input:
+
+- $\dfrac{\partial f}{\partial a} = 2a = 2\times5 = 10$ (freeze $b = -1$).
+- $\dfrac{\partial f}{\partial b} = 2b = 2\times(-1) = -2$ (freeze $a = 5$).
+
+So $\nabla f(5, -1) = (10, -2)$. The $b$-entry is negative: from here, pushing $b$ up
+(toward 0) actually *lowers* the cost — you're on the $b < 0$ side of the bowl.
+
+```{r p2-answer}
+f <- function(p) p[1]^2 + p[2]^2
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + h
+    p_minus <- p; p_minus[j] <- p_minus[j] - h
+    (f(p_plus) - f(p_minus)) / (2 * h)
+  })
+}
+grad(f, c(5, -1))     # 10 -2 — same as the hand answer
+```
+:::
+
+## Problem 3 — a full problem with a mixed term
+
+A cost surface where the two dials interact: $h(a, b) = a^2 + a\,b + b^2$. Now the partial
+in $a$ *depends on $b$* (and vice versa). The exact partials are
+$\partial h/\partial a = 2a + b$ and $\partial h/\partial b = a + 2b$.
+
+(a) Find $\nabla h$ at $(1, 1)$ by hand, then check.
+(b) Find $\nabla h$ at $(0, 0)$. What does the result say about that point?
+
+```{webr}
+#| autorun: false
+# p3-starter — edit and Run to solve, right here
+h_fun <- function(p) p[1]^2 + p[1]*p[2] + p[2]^2
+grad <- function(f, p, delta = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + delta
+    p_minus <- p; p_minus[j] <- p_minus[j] - delta
+    (f(p_plus) - f(p_minus)) / (2 * delta)
+  })
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) At $(1, 1)$: $\partial h/\partial a = 2a + b = 2 + 1 = 3$; $\partial h/\partial b =
+a + 2b = 1 + 2 = 3$. So $\nabla h(1, 1) = (3, 3)$.
+
+(b) At $(0, 0)$: both partials are $0$, so $\nabla h(0, 0) = (0, 0)$ — **flat in every
+direction**. That marks a bottom (or top). For this bowl-like surface it's the bottom.
+
+```{r p3-answer}
+h_fun <- function(p) p[1]^2 + p[1]*p[2] + p[2]^2
+grad <- function(f, p, delta = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + delta
+    p_minus <- p; p_minus[j] <- p_minus[j] - delta
+    (f(p_plus) - f(p_minus)) / (2 * delta)
+  })
+}
+grad(h_fun, c(1, 1))     # 3 3
+grad(h_fun, c(0, 0))     # 0 0 — flat in every direction: a bottom
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants the partial derivative of $f(a, b) = a^2 + b^2$ with respect to $a$ at
+the point $(2, 3)$, and writes the following. It contains **exactly one mistake** — find
+it, explain why it's wrong, and give the correct value.
+
+> "The partial in $a$ is just rise over run for a tiny step. I'll step the whole point by
+> $h$ in *both* coordinates and divide by $2h$:
+> $\dfrac{f(2+h,\ 3+h) - f(2-h,\ 3-h)}{2h}$. That gives **10**, so
+> $\partial f/\partial a = 10$."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to see the two computations side by side
+f <- function(a, b) a^2 + b^2
+h <- 1e-5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is **moving both inputs at once**. A partial derivative in $a$ must hold $b$
+*still* and nudge only $a$: the correct step is $f(2+h, 3)$ minus $f(2-h, 3)$, with $b$
+identical in both terms. By stepping $b$ too, the colleague measured a *diagonal* slope,
+not the $a$-partial. Their **10** is actually $\partial f/\partial a + \partial f/\partial b
+= 4 + 6$ — the two partials added, which is a different quantity entirely.
+
+The correct partial: $\partial f/\partial a = 2a = 2\times2 = 4$.
+
+```{r p4-answer}
+f <- function(a, b) a^2 + b^2
+h <- 1e-5
+
+# The colleague's (wrong) both-move step:
+(f(2 + h, 3 + h) - f(2 - h, 3 - h)) / (2 * h)   # 10 — a diagonal slope, NOT the a-partial
+
+# The correct a-partial: hold b = 3 still, nudge only a:
+(f(2 + h, 3) - f(2 - h, 3)) / (2 * h)           # 4 — this is partial f / partial a
+```
+:::
+
+## Problem 5 — how steep is the climb? *(uses [vectors & summation](../vectors-and-summation/lesson.qmd)'s vector length)*
+
+The gradient is a vector, so it has a **length** — and that length is exactly *how steep*
+the steepest climb is. For $f(a, b) = a^2 + b^2$ at the point $(3, 4)$:
+
+(a) Find $\nabla f(3, 4)$ (the exact partials are $2a$ and $2b$).
+(b) Using the vector-length formula $\|\mathbf{v}\| = \sqrt{\sum v_i^2}$ from
+    [vectors & summation](../vectors-and-summation/lesson.qmd), compute $\|\nabla f\|$ — the
+    steepness.
+
+**PREDICT** first: write down the two gradient entries and guess the length, then run.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+f <- function(p) p[1]^2 + p[2]^2
+grad <- function(f, p, delta = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + delta
+    p_minus <- p; p_minus[j] <- p_minus[j] - delta
+    (f(p_plus) - f(p_minus)) / (2 * delta)
+  })
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $\partial f/\partial a = 2a = 6$; $\partial f/\partial b = 2b = 8$. So
+$\nabla f(3, 4) = (6, 8)$.
+
+(b) Its length is the same Pythagorean distance from
+[vectors & summation](../vectors-and-summation/lesson.qmd):
+$\|\nabla f\| = \sqrt{6^2 + 8^2} = \sqrt{36 + 64} = \sqrt{100} = 10$. So the steepest climb
+from $(3, 4)$ rises at a rate of 10 — steeper than at $(3, 2)$, where it was only
+$\sqrt{6^2 + 4^2} \approx 7.21$, because you're farther out on the wall of the bowl.
+
+```{r p5-answer}
+f <- function(p) p[1]^2 + p[2]^2
+grad <- function(f, p, delta = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + delta
+    p_minus <- p; p_minus[j] <- p_minus[j] - delta
+    (f(p_plus) - f(p_minus)) / (2 * delta)
+  })
+}
+g <- grad(f, c(3, 4))
+g                    # 6 8
+sqrt(sum(g^2))       # 10 — the vector length = the steepness of the climb
+```
+:::
+
+## Problem 6 — a gentle cliffhanger (three knobs, then walking downhill)
+
+Everything so far had two dials so we could draw the surface. But the `grad()` tool never
+cared how many there were — it runs one central difference *per coordinate*, however many
+you give it. Consider a three-dial cost $f(a, b, c) = a^2 + b^2 + c^2$ at the point
+$(1, 2, 3)$.
+
+**Predict:** the exact partials are $2a$, $2b$, $2c$. What will $\nabla f(1, 2, 3)$ be —
+and which direction, $+\nabla f$ or $-\nabla f$, would you step in to make the cost
+*smaller*? Then run the starter.
+
+```{webr}
+#| autorun: false
+# p6-starter — grad() handles any number of coordinates. Run it on a length-3 point.
+f <- function(p) p[1]^2 + p[2]^2 + p[3]^2
+grad <- function(f, p, delta = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + delta
+    p_minus <- p; p_minus[j] <- p_minus[j] - delta
+    (f(p_plus) - f(p_minus)) / (2 * delta)
+  })
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\nabla f(1, 2, 3) = (2a, 2b, 2c) = (2, 4, 6)$ — three entries, one per dial, and the tool
+produces them with no change at all. All three are positive, so **stepping in the
+$-\nabla f$ direction**, $(-2, -4, -6)$, is the way to make the cost smaller: downhill is
+the negative of the gradient.
+
+```{r p6-answer}
+f <- function(p) p[1]^2 + p[2]^2 + p[3]^2
+grad <- function(f, p, delta = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + delta
+    p_minus <- p; p_minus[j] <- p_minus[j] - delta
+    (f(p_plus) - f(p_minus)) / (2 * delta)
+  })
+}
+grad(f, c(1, 2, 3))      # 2 4 6 — the gradient in three dimensions
+-grad(f, c(1, 2, 3))     # -2 -4 -6 — the downhill direction
+```
+
+**You can't fully solve this next part yet:** *how big* a step to take in the $-\nabla f$
+direction, and how to repeat it until you reach the bottom, is the **gradient-descent**
+recipe — a whole course of its own. This lesson gives you the compass ($-\nabla f$ points
+downhill); the next one teaches you how to walk.
+:::

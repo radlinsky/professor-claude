@@ -1,0 +1,225 @@
+---
+title: "Practice: Distance, similarity & the geometry of data"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Two new towns: $\mathbf{C} = (2, 1)$ and $\mathbf{D} = (5, 5)$. By hand, compute the
+Euclidean distance between them (square the coordinate gaps, add, take the square root).
+Then check with `dist()`.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+C <- c(2, 1)
+D <- c(5, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Gaps: $5 - 2 = 3$ and $5 - 1 = 4$. Square them: $3^2 = 9$ and $4^2 = 16$. Add:
+$9 + 16 = 25$. Square-root: $\sqrt{25} = 5$. So the distance is **5** — the same 3-4-5
+triangle as the lesson, just shifted on the map.
+
+```{r p1-answer}
+C <- c(2, 1)
+D <- c(5, 5)
+sqrt(sum((C - D)^2))              # 5 — by hand
+as.numeric(dist(rbind(C, D)))    # 5 — built-in, same answer
+```
+:::
+
+## Problem 2 — fill in the missing step (the norm of a vector)
+
+Here is the **length (norm)** of the vector $\mathbf{v} = (5, 12)$ worked out — but the
+**core step is blanked**. Fill in ONLY the blanked line.
+
+> The norm is the vector's distance from the origin $(0, 0)$, so it's Pythagoras with
+> the origin as the other point.
+> **`<your step here>`** — square each coordinate and add them:
+> $5^2 + 12^2 = \underline{\phantom{000}}$.
+> Then take the square root of that sum to get $\lVert \mathbf{v} \rVert$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your blanked step
+v <- c(5, 12)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is "square each coordinate and add": $5^2 + 12^2 = 25 + 144 = 169$.
+Then $\lVert \mathbf{v} \rVert = \sqrt{169} = 13$. That sum-of-squares-then-root is
+exactly the distance recipe with the origin as the second point.
+
+```{r p2-answer}
+v <- c(5, 12)
+sum(v^2)                              # 169 — the blanked step (square, add)
+sqrt(sum(v^2))                        # 13 — the norm (length) of v
+as.numeric(dist(rbind(c(0, 0), v)))   # 13 — same, as distance from the origin
+```
+:::
+
+## Problem 3 — Euclidean vs Manhattan in 3-D
+
+Two points now have **three** coordinates: $\mathbf{p} = (1, 2, 2)$ and
+$\mathbf{q} = (3, 5, 8)$. Compute BOTH their Euclidean distance (square the gaps, add,
+root) and their Manhattan distance (add the *absolute* gaps). You can't draw the
+triangle any more — but the recipe doesn't care.
+
+**PREDICT** first: which will be larger, Euclidean or Manhattan? Write it down, then run.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: Euclidean AND Manhattan distance
+p <- c(1, 2, 2)
+q <- c(3, 5, 8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Gaps: $3-1 = 2$, $5-2 = 3$, $8-2 = 6$.
+
+- **Euclidean:** square and add — $2^2 + 3^2 + 6^2 = 4 + 9 + 36 = 49$; root:
+  $\sqrt{49} = 7$.
+- **Manhattan:** add the absolute gaps — $|2| + |3| + |6| = 2 + 3 + 6 = 11$.
+
+Manhattan (11) is larger than Euclidean (7) — always true, because the straight-line
+path never exceeds the grid-walking path (the shortcut across the hypotenuse beats
+walking the legs).
+
+```{r p3-answer}
+p <- c(1, 2, 2)
+q <- c(3, 5, 8)
+sqrt(sum((p - q)^2))                                  # 7  — Euclidean
+sum(abs(p - q))                                       # 11 — Manhattan
+as.numeric(dist(rbind(p, q)))                         # 7  — built-in Euclidean
+as.numeric(dist(rbind(p, q), method = "manhattan"))  # 11 — built-in Manhattan
+```
+:::
+
+## Problem 4 — spot the error (adding the gaps)
+
+A colleague computed the straight-line distance between $\mathbf{A} = (0, 0)$ and
+$\mathbf{B} = (3, 4)$ like this — it contains **exactly one mistake**. Find it, explain
+why it's wrong, and give the corrected distance.
+
+> "The east gap is 3 and the north gap is 4, so the distance is just $3 + 4 = 7$."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to see the two competing distances
+A <- c(0, 0)
+B <- c(3, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is **adding the gaps instead of squaring-adding-rooting them**. Adding the
+gaps ($3 + 4 = 7$) gives the *Manhattan* distance — the path that walks east then north,
+along the two legs. The straight-line (Euclidean) distance cuts across the hypotenuse
+and is shorter: $\sqrt{3^2 + 4^2} = \sqrt{9 + 16} = \sqrt{25} = \mathbf{5}$, not 7.
+
+```{r p4-answer}
+A <- c(0, 0)
+B <- c(3, 4)
+sum(abs(A - B))          # 7 — the colleague's number: Manhattan, not straight-line
+sqrt(sum((A - B)^2))     # 5 — the correct Euclidean distance
+```
+:::
+
+## Problem 5 — mixing it with vectors & summation *(uses [vectors-and-summation](../vectors-and-summation/lesson.qmd)'s dot product)*
+
+Find the **shadow length** (projection) of $\mathbf{a} = (3, 3)$ onto the direction
+$\mathbf{b} = (4, 0)$ — how far $\mathbf{a}$ reaches along $\mathbf{b}$. Use the
+formula $(\mathbf{a} \cdot \mathbf{b}) / \lVert \mathbf{b} \rVert$, building the dot
+product $\mathbf{a} \cdot \mathbf{b}$ as the sum-of-products you learned in
+vectors & summation.
+
+**PREDICT** first: $\mathbf{b}$ points straight east, so the shadow should equal one of
+$\mathbf{a}$'s coordinates — which one? Then compute and check.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+a <- c(3, 3)
+b <- c(4, 0)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The dot product is the sum-of-products from vectors & summation:
+$\mathbf{a} \cdot \mathbf{b} = 3\times4 + 3\times0 = 12 + 0 = 12$. The norm of
+$\mathbf{b}$ is $\lVert \mathbf{b} \rVert = \sqrt{4^2 + 0^2} = \sqrt{16} = 4$. So the
+shadow length is $12 / 4 = \mathbf{3}$ — which is exactly $\mathbf{a}$'s east coordinate,
+as predicted (a shadow cast onto the east-axis is just the east component).
+
+```{r p5-answer}
+a <- c(3, 3)
+b <- c(4, 0)
+dp <- sum(a * b)          # 12 — the dot product (vectors & summation)
+len_b <- sqrt(sum(b^2))   # 4  — the norm of b
+dp / len_b                # 3  — the shadow length of a along b
+```
+
+The `sum(a * b)` line is precisely the dot product from
+[vectors & summation](../vectors-and-summation/lesson.qmd); the projection just rescales
+it by $\mathbf{b}$'s length.
+:::
+
+## Problem 6 — a transfer: correlation distance (interpretation)
+
+Three sensors record a reading at three times:
+
+- Sensor **X**: $(1, 2, 3)$ — rising.
+- Sensor **Y**: $(2, 4, 6)$ — also rising, but on a bigger scale.
+- Sensor **Z**: $(3, 2, 1)$ — falling.
+
+**Euclidean** distance would call X and Z fairly close (their numbers overlap) and X and
+Y far (Y's numbers are much bigger). But sometimes you care about the *pattern* — does
+the reading rise and fall together? — not the raw size. That's what **correlation
+distance**, $1 - r$, measures ($r$ is the correlation from
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd)). Without
+computing exact numbers: rank the pairs (X&Y, X&Z) from *most* similar to *least*
+similar by **correlation distance**, and say why. Then run the starter to confirm.
+
+```{webr}
+#| autorun: false
+# p6-starter — edit and Run to check your ranking
+X <- c(1, 2, 3)
+Y <- c(2, 4, 6)
+Z <- c(3, 2, 1)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+X and Y move in **perfect lockstep** (Y is just X doubled — both rise by the same
+proportion each step), so their correlation is $r = 1$ and the correlation distance is
+$1 - 1 = 0$: as similar as it gets, *despite* Y's much larger raw numbers. X and Z move
+in **exact opposition** (X rises while Z falls), so $r = -1$ and the correlation
+distance is $1 - (-1) = 2$: as dissimilar as it gets. So by correlation distance:
+**X&Y most similar (0), X&Z least similar (2)** — the opposite of what raw Euclidean
+size might suggest. This is exactly the "scale/pattern" distinction from the lesson:
+correlation distance ignores overall size and asks only about the shared up-and-down
+pattern.
+
+```{r p6-answer}
+X <- c(1, 2, 3)
+Y <- c(2, 4, 6)
+Z <- c(3, 2, 1)
+1 - cor(X, Y)    # 0 — perfectly aligned pattern (Y is X scaled up)
+1 - cor(X, Z)    # 2 — perfectly opposed pattern
+```
+:::

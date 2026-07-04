@@ -1,0 +1,532 @@
+---
+title: "Hypothesis tests, p-values & confidence intervals"
+subtitle: "How to tell a real signal from noise — and read the Estimate / SE / statistic / p columns any model table hands you"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install. The seed matters here: this lesson SIMULATES a
+# p-value, so set.seed(42) is what makes the simulated numbers reproducible.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Every model table you'll ever read — from a `t.test`, a regression, a survival model,
+anything — ends in the same four columns: an **Estimate**, its **standard error**, a
+**statistic**, and a **p-value**. Those four numbers all answer one question: *is this
+a real effect, or could plain noise have produced it?* This lesson builds that whole
+machine from a tiny hand-checkable example, **simulating** the p-value so you watch it
+appear instead of taking it on faith, and finishes with a confidence interval — the
+same information as a range. After this you can read those four columns in *any* table,
+whatever method produced them.
+
+**Builds on:**
+[randomness, samples & sampling distributions](../randomness-samples-and-sampling-distributions/lesson.qmd)
+— we reuse the **standard error** (the wobble of a statistic across redraws); this
+lesson does not re-derive it — and
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd) — a p-value is a
+probability, so we lean on "probability of the opposite is one minus" and "a
+probability lives in [0, 1]".
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each answer from memory, then check.
+
+**1.** From [sampling distributions](../randomness-samples-and-sampling-distributions/lesson.qmd):
+in one sentence, what is the **standard error** of a statistic — and is it the same
+thing as the spread of your raw data?
+
+::: {.callout-note collapse="true" title="Answer"}
+The **standard error (SE)** is the *wobble of the statistic itself* — how much your
+computed number (a mean, a slope, …) would bounce around if you redrew the sample many
+times. It is **not** `sd(data)` (the spread of the raw numbers); it's the spread of the
+*statistic* across redraws, and it shrinks as the sample grows. Shaky? Revisit
+[sampling distributions](../randomness-samples-and-sampling-distributions/lesson.qmd).
+We *reuse* the SE here; we do not re-derive it.
+:::
+
+**2.** From [probability & odds](../probability-and-odds/lesson.qmd): a result has
+probability $0.03$ of happening. What is the probability it does **not** happen, and
+what is the smallest and largest a probability can ever be?
+
+::: {.callout-note collapse="true" title="Answer"}
+Not-happening: $1 - 0.03 = 0.97$ ("probability of the opposite is one minus"). A
+probability always lives in $[0, 1]$ — never below 0, never above 1. A p-value *is* a
+probability, so it obeys both facts. See
+[probability & odds](../probability-and-odds/lesson.qmd).
+:::
+
+**3.** In R, if `x <- c(3, 1, 4, 0, 2)`, what do `mean(x)`, `sd(x)`, and `length(x)`
+give? (Estimate the mean in your head first.)
+
+```{webr}
+#| autorun: false
+# warmup3-starter — edit and Run to check
+x <- c(3, 1, 4, 0, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`mean(x)` is $(3+1+4+0+2)/5 = 10/5 = 2$; `length(x)` is `5`; `sd(x)` is about `1.58`.
+These three are all we need to build a test statistic below — you already know how to
+compute every ingredient.
+:::
+
+## A tiny example first
+
+You tried a new plant fertilizer. On **5 plants** you measured the *extra* growth
+(treated minus untreated), in cm:
+
+$$
+d = (3,\; 1,\; 4,\; 0,\; 2)
+$$
+
+The **boring default** — the thing you'd believe if you had no evidence — is that the
+fertilizer does *nothing*: the true average extra growth is **0 cm**. Call that the
+**null**. The **alternative** — "something's going on" — is that the true average extra
+growth is **not** 0. Your job is to decide which the data supports.
+
+**Step 1 — the estimate.** Average the five numbers: $(3+1+4+0+2)/5 = 10/5 = 2$ cm.
+So our best guess at the effect is **2 cm**. But is 2 cm a real signal, or just five
+noisy plants that happened to lean positive?
+
+**Step 2 — the noise size (the SE).** The five numbers wobble; their standard
+deviation is about $1.58$ cm. The wobble of the *average of five* — the **standard
+error**, which you met in the sampling-distributions module — is the data's spread
+divided by the square root of the sample size: $1.58 / \sqrt{5} \approx 0.71$ cm.
+(That's the shortcut for a mean's SE from that module; we're *using* it, not
+re-deriving it.)
+
+**Step 3 — distance in noise units (the test statistic).** Now the key move: measure
+the estimate **in units of its own noise**. How many standard errors is our 2 cm away
+from the boring value of 0? Divide: $2 / 0.71 \approx 2.83$. So our estimate sits about
+**2.83 standard errors** above "no effect." That single number — estimate divided by
+its SE — is the **test statistic**. Big (far from 0) means "hard to explain by noise";
+small (near 0) means "noise could easily do this."
+
+The same computations in R, so you can check every step:
+
+```{r toy-example}
+# The toy data: extra growth (cm) for 5 plants, treated minus untreated
+d <- c(3, 1, 4, 0, 2)
+n <- length(d)
+
+# Step 1 — the estimate: our best guess at the effect
+est <- mean(d)                 # 2 — average extra growth
+est
+
+# Step 2 — the noise size: the SE of a mean is sd(data) / sqrt(n)
+#          (REUSED from the sampling-distributions module — not re-derived here)
+se <- sd(d) / sqrt(n)          # 1.5811 / sqrt(5) = 0.7071
+se
+
+# Step 3 — the test statistic: the estimate measured in SE units
+tstat <- est / se              # 2 / 0.7071 = 2.8284
+tstat
+```
+
+## Getting a feel for it
+
+**The analogy: is the fish bigger than the tremor in your hands?** Picture holding a
+fishing rod. The line always twitches a little — wind, current, your unsteady grip.
+That background jiggle is the **noise** (the SE). A tug is only worth believing when
+it's *large compared to the constant jiggle*. A statistician's test statistic is
+exactly "size of the tug, measured in jiggles": `estimate / SE`. Our 2 cm tug is about
+2.83 jiggles' worth — enough to make you sit up. If instead the plants had jiggled by 2
+cm on their own (a big SE), the same 2 cm estimate would be only *one* jiggle, and you'd
+shrug. (Where the analogy strains: a real fish either is or isn't there, but the
+"effect" here is a fixed unknown number, and it's our *estimate* of it that jiggles —
+still, "signal versus background shake" is the right feel.)
+
+**Why divide by the SE — why not just look at the 2 cm?** Because 2 cm means nothing on
+its own. Two cm of extra growth is *huge* if plants normally vary by a hair, and
+*trivial* if they routinely swing 10 cm either way. Dividing by the SE cancels the
+units and puts every effect on one universal ruler: "how many noise-widths from
+boring?" That's why a test statistic has no units — it's a pure count of standard
+errors, and a "2.83" from a plant study and a "2.83" from a totally different study
+carry the same weight of evidence. This is *the* reason every model table computes
+`estimate / SE`.
+
+**What the number feels like.** As a rough calibration you'll sharpen below: a test
+statistic near **0** means the estimate is well within the noise (boring is plausible);
+around **±2** it's getting hard to blame on noise; beyond that, harder still. Our
+**2.83** is past 2 — the data are leaning "real effect." But "past 2" is a hunch, not a
+verdict. To turn the statistic into an actual *chance*, we simulate.
+
+## What the notation is going to say
+
+The formula for the test statistic will just say: *take your estimate, and divide it by
+its standard error* — the "2 divided by 0.71 gives 2.83" we already did. Then the
+p-value will say, in words: *pretend the boring null is exactly true, imagine running
+the whole study over and over in that pretend world, and ask how often pure noise would
+throw up a statistic as far from 0 as the one you actually got.* We won't reach for a
+formula for that probability at all — we'll **simulate** it, generating thousands of
+"null worlds" and counting.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $H_0$ | "H-nought" / "the null hypothesis" | the boring default: no effect / nothing going on | true effect $= 0$ cm |
+| $H_1$ or $H_a$ | "H-one" / "H-A" / "the alternative" | "something's going on" — the effect is not the null value | true effect $\neq 0$ |
+| $\hat{\theta}$ | "theta hat" | our estimate of the effect from data (the hat means "estimated") | $2$ cm |
+| $\mathrm{SE}$ | "the standard error" | the wobble of the estimate — its spread across redraws ([sampling distributions](../randomness-samples-and-sampling-distributions/lesson.qmd)) | $\approx 0.71$ cm |
+| $t$ | "the test statistic" (here a *t*-statistic) | distance from the null in noise units: estimate $\div$ SE | $\approx 2.83$ |
+| $p$ | "the p-value" | chance of a statistic this extreme (or more) **if $H_0$ were true** | $\approx 0.045$ |
+| $\alpha$ | "alpha" | the cutoff we compare $p$ against — the false-alarm rate we'll tolerate | $0.05$ |
+| $\neq$ | "is not equal to" | "different from" (used for a two-sided alternative) | effect $\neq 0$ |
+| $\mid$ | "given" | "conditional on" — $P(A \mid B)$ is the chance of A once B is assumed true ([probability & odds](../probability-and-odds/lesson.qmd)) | $P(\text{data} \mid H_0)$ |
+| $\iff$ | "if and only if" | the two sides are the *same fact* — each is true exactly when the other is | CI excludes null $\iff p < 0.05$ |
+| $\bar{d}$ | "d bar" | the mean of the $d$ values (in R: `mean(d)`) | $2$ |
+| $n$ | "en" | how many data points (in R: `length(d)`) | $5$ |
+| $\pm$ | "plus-or-minus" | the value both added and subtracted (give-or-take) | $2 \pm 1.41$ |
+| $\sqrt{n}$ | "the square root of n" | in R: `sqrt(n)` | $\sqrt{5} \approx 2.24$ |
+
+Greek $\alpha$ is the line *we* draw in advance; $p$ is what the data *report back*.
+A hat ($\hat{\theta}$) always means "estimated from data," never a known truth.
+
+## The formal version
+
+**The test statistic** is one short formula:
+
+$$
+t = \frac{\hat{\theta}}{\mathrm{SE}}
+$$
+
+Reading it aloud: "t equals theta-hat over the standard error" — or in everyday words:
+**"how many standard errors is our estimate away from the boring value of zero?"** (When
+the null value isn't 0, you subtract it first: $(\hat{\theta} - \text{null})/\mathrm{SE}$;
+here the null *is* 0, so it drops out.)
+
+Mapping it onto the toy numbers:
+
+- $\hat{\theta}$ is the "average the 5 numbers → 2" step → $2$
+- $\mathrm{SE}$ is the "$1.58 / \sqrt{5}$" step → $0.71$
+- $t = 2 / 0.71 \approx 2.83$ — our estimate is about 2.83 SEs above no-effect.
+
+**The p-value — simulate it, don't derive it.** The p-value answers: *if the null were
+exactly true (fertilizer does nothing), how often would pure noise hand me a statistic
+at least as far from 0 as 2.83?* We build that "null world" and count. In the null
+world the true effect is 0, but each plant still wobbles with the same noise size, so we
+draw 5 fresh noisy numbers centered at 0, recompute the statistic, and repeat thousands
+of times:
+
+```{r simulate-p}
+# SIMULATE the p-value. The seed is set INSIDE the chunk so the printed number is
+# exactly reproducible no matter what ran before.
+set.seed(42)
+d <- c(3, 1, 4, 0, 2)
+n <- length(d)
+est <- mean(d)
+s   <- sd(d)                     # the noise size we'll reuse in the null world
+se  <- s / sqrt(n)
+tstat <- est / se                # 2.8284 — the statistic we actually observed
+
+# The null world: true effect = 0, same noise. Redraw 5 plants, recompute t, 20000x.
+sim_stats <- replicate(20000, {
+  d_null <- rnorm(n, mean = 0, sd = s)      # no real effect, same wobble
+  mean(d_null) / (sd(d_null) / sqrt(n))     # the statistic in this null world
+})
+
+# p-value = fraction of null worlds with a statistic AS FAR from 0 as ours (either side)
+p_two <- mean(abs(sim_stats) >= abs(tstat))
+p_two                             # ~0.0447 — noise alone rarely reaches 2.83
+```
+
+The simulated **two-sided p-value is about 0.045**: in a world where the fertilizer does
+nothing, only about 4–5 times in 100 would pure noise fake a statistic this far from 0.
+That's the whole meaning of a p-value — *a chance computed under the pretend-null world,
+not a chance that the null is true.*
+
+::: {.callout-tip collapse="true" title="One-sided vs two-sided, in plain words"}
+We counted null worlds *as far from 0 in either direction* (`abs(...) >= abs(tstat)`) —
+that's a **two-sided** test, the default: it asks "is the effect different from 0?"
+without pre-committing to a direction. A **one-sided** test asks only "is the effect
+*bigger* than 0?" and counts only null worlds at least as *high* as ours
+(`sim_stats >= tstat`), giving about $0.022$ here — half the two-sided value. Use
+one-sided only when the opposite direction would be genuinely uninteresting or
+impossible, and decide *before* seeing the data; sneaking to one-sided afterward to
+halve your p is a classic abuse.
+:::
+
+**The decision — reject or fail to reject.** Before looking, you pick a cutoff $\alpha$
+(alpha) — the conventional choice is **0.05**. The rule: if $p < \alpha$, you **reject
+the null** ("the data are too surprising for 'nothing going on'"); if $p \geq \alpha$,
+you **fail to reject** it ("noise could plausibly explain this — not enough evidence").
+Our $p \approx 0.045 < 0.05$, so we **reject the null**: the fertilizer looks real. Two
+cautions baked into the language: "fail to reject" is *not* "prove the null true" (you
+just didn't find enough evidence), and 0.05 is a *convention*, not a law of nature — a
+$p$ of 0.049 and 0.051 are nearly identical evidence, so never treat the cutoff as a
+cliff.
+
+::: {.callout-note title="Sanity check against R's built-in test"}
+Everything above is exactly what a one-sample *t*-test does, so R's `t.test` should
+reproduce our statistic and land on nearly the same p-value (it uses a bell-curve
+formula where we simulated — the two agree closely):
+
+```{r ttest-check}
+d <- c(3, 1, 4, 0, 2)
+tt <- t.test(d)                  # H0: true mean = 0, two-sided
+c(statistic = unname(tt$statistic),   # 2.8284 — matches our est/SE exactly
+  p_value   = tt$p.value)             # 0.0474 — matches our simulated ~0.045
+```
+
+Our hand-built statistic (2.83) matches to the digit; our simulated p (≈0.045) matches
+the formula's 0.047. The scary table column is just the arithmetic you did by hand.
+:::
+
+**The confidence interval — the same story as a range.** Instead of a yes/no verdict,
+report a *range* for the true effect: the estimate give-or-take about two standard
+errors. The rule of thumb is
+
+$$
+\hat{\theta} \pm 2\,\mathrm{SE}
+$$
+
+Reading it aloud: "theta-hat plus-or-minus two standard errors" — *"the truth is
+probably within about two noise-widths of our estimate."* For us:
+$2 \pm 2(0.71) = 2 \pm 1.41$, i.e. about $(0.59,\; 3.41)$. (R's `t.test` uses a slightly
+larger multiplier for small $n$ and reports $(0.04,\; 3.96)$; the "$\pm 2\,\mathrm{SE}$"
+rule is the pocket version.) The picture: a net cast around your estimate, wide enough
+to usually catch the hidden true value — the idea the sampling-distributions module
+introduced; here we finally *read* the endpoints.
+
+**The bridge that ties it all together: the CI excludes the null $\iff$ $p < 0.05$.**
+Look at our interval $(0.59, 3.41)$ — it does **not** contain 0, the null value. That is
+the *same fact* as $p < 0.05$, seen two ways: if 0 is outside the "give or take 2 SE"
+range, then our estimate is more than 2 SEs from 0, which is exactly the test statistic
+being big. **A 95% CI that excludes the null value and a p below 0.05 always travel
+together.** This is why a table's CI and its p-value never disagree — they're one
+computation wearing two outfits.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the test statistic IS estimate / SE. Change the data in d and Run.
+# PREDICT: if you make every number in d bigger (say add 5 to each), does t go UP,
+# DOWN, or stay put? (Hint: the estimate moves but so does... nothing about the SE,
+# since SE depends on the SPREAD, not the center.) Commit, then run.
+d <- c(3, 1, 4, 0, 2)
+n <- length(d)
+
+est <- mean(d)
+se  <- sd(d) / sqrt(n)
+tstat_by_hand <- est / se                 # our formula
+tstat_builtin <- unname(t.test(d)$statistic)  # R's t.test statistic
+
+c(by_hand = tstat_by_hand, built_in = tstat_builtin)   # identical
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Histogram of simulated test statistics under the null, with vertical lines marking the observed statistic; the shaded tails beyond it are the p-value."
+# explore-2 — LIVE: WATCH the p-value appear. This is the whole idea in one picture:
+# the bell is the null world's statistics; our observed 2.83 sits far in the tail.
+# TRY IT: change d to c(1, 0, 2, 0, 1) (a weaker effect) and Run — see the line slide
+# toward the middle and the tails (the p-value) grow.
+set.seed(42)
+d <- c(3, 1, 4, 0, 2)
+n <- length(d); s <- sd(d)
+tstat <- mean(d) / (s / sqrt(n))
+
+sim <- replicate(20000, {
+  z <- rnorm(n, 0, s)
+  mean(z) / (sd(z) / sqrt(n))
+})
+p_two <- mean(abs(sim) >= abs(tstat))
+
+hist(sim, breaks = 60, col = "grey85", border = "white",
+     main = sprintf("Null world of statistics — p (two-sided) = %.3f", p_two),
+     xlab = "test statistic when the null is true")
+abline(v = c(-tstat, tstat), col = "firebrick", lwd = 2, lty = 2)
+# Everything BEYOND the red lines (both tails) is "as extreme as ours" = the p-value.
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: the CI-excludes-null <-> p<0.05 bridge, and the false-alarm rate.
+# PREDICT: for d below, will the +-2SE interval EXCLUDE 0? And will p be under 0.05?
+# These are two ways to ask "do we reject?", so they must AGREE (both TRUE or both
+# FALSE). Write both guesses, then run.
+d <- c(3, 1, 4, 0, 2)
+n <- length(d)
+est <- mean(d); se <- sd(d) / sqrt(n)
+
+ci <- c(lower = est - 2 * se, upper = est + 2 * se)   # the rule-of-thumb interval
+ci
+0 < ci["lower"] || 0 > ci["upper"]                   # does the interval EXCLUDE the null 0? (reject)
+t.test(d)$p.value < 0.05                              # and is p under 0.05? (reject) — same answer
+```
+
+## Common traps
+
+**Trap 1 — "the p-value is the probability the null is true."** This is the single most
+common misreading. The p-value is computed *assuming the null is already true* — it's
+"how surprising is my data in the null world," **not** "how likely is the null." Our
+$p \approx 0.045$ does **not** mean "a 4.5% chance the fertilizer is useless." It means:
+*if* the fertilizer were useless, data this extreme would show up only about 4.5% of the
+time. The probability the null is true isn't even something this machinery computes.
+(Read it back through [probability & odds](../probability-and-odds/lesson.qmd): a p-value
+is $P(\text{data this extreme} \mid H_0)$, a *conditional* probability, and the thing
+people want, $P(H_0 \mid \text{data})$, is the flipped condition — a different number.)
+
+**Trap 2 — "fail to reject means the null is proven true."** When $p \geq 0.05$ people
+say "so there's no effect." But failing to reject only means *not enough evidence* — the
+effect might be real and just too small for your sample to catch (a **missed signal**).
+Numeric proof: shrink our study to a weaker, noisier effect $d = (1, 0, 2, 0, 1)$ and the
+statistic falls to about 2.1 and the p-value rises to about 0.10 — above the 0.05 line,
+so this time we do **not** reject — yet a genuine effect could still be lurking; you
+simply couldn't see it through the noise with 5 plants. Absence of evidence is not
+evidence of absence.
+
+```{r trap2-weaker}
+# The weaker, noisier effect from Trap 2 — recompute so every number is honest.
+d2 <- c(1, 0, 2, 0, 1)
+n2 <- length(d2)
+tstat2 <- mean(d2) / (sd(d2) / sqrt(n2))
+c(statistic = tstat2,                 # ~2.14 — still near 2, NOT below it
+  p_value   = t.test(d2)$p.value)     # ~0.099 — above 0.05, so we fail to reject
+```
+
+::: {.callout-tip title="The two ways to be wrong: Type I and Type II"}
+Because the data are random, any decision rule sometimes errs, in two flavors:
+
+- **Type I error — a false alarm.** You reject the null when it was actually true. The
+  cutoff $\alpha = 0.05$ *is* your chosen false-alarm rate: in a world where the null
+  holds, you'll wrongly "find an effect" about 5% of the time. That's not a bug — it's
+  the price you set. (You can watch it: simulate many null worlds and about 5% cross the
+  reject line.)
+- **Type II error — a missed signal.** You fail to reject when there really was an
+  effect — Trap 2's plant example. Smaller effects, more noise, or fewer data points all
+  make misses more likely.
+
+The tension: lowering $\alpha$ (say to 0.01) makes false alarms rarer but missed signals
+*more* common, and vice versa. There's no free lunch — you trade one error for the
+other. Fire alarm as anchor: too sensitive → it shrieks at toast (Type I); too dull → it
+sleeps through a real fire (Type II).
+:::
+
+## Reading any model table
+
+The payoff, and the reason this module is method-agnostic: **every** model summary —
+`t.test`, `lm`, `glm`, a survival model, anything — reports the same four columns, and
+you now read them the same way *regardless of the method*:
+
+| Column | Usual header | What it is | The move |
+|---|---|---|---|
+| **Estimate** | `Estimate`, `coef`, `mean of x` | the effect size, $\hat{\theta}$ | your best guess |
+| **Std. Error** | `Std. Error`, `SE` | the wobble of that estimate | the noise size |
+| **statistic** | `t value`, `z value`, `statistic` | Estimate ÷ SE | distance from null in noise units |
+| **p-value** | `Pr(>|t|)`, `p.value` | chance this extreme if null true | small ⇒ reject |
+
+Here's that layout printed for our toy test — the same four numbers you built by hand,
+in the shape a paper would show them:
+
+```{r any-table}
+d <- c(3, 1, 4, 0, 2)
+n <- length(d)
+est <- mean(d); se <- sd(d) / sqrt(n)
+data.frame(
+  Estimate  = est,                 # 2.0000
+  Std.Error = se,                  # 0.7071
+  statistic = est / se,            # 2.8284
+  p.value   = t.test(d)$p.value    # 0.0474
+)
+```
+
+Whatever the method computing them, that's the reading: is the estimate big *relative to
+its own noise*, and is that too big to blame on chance? (What each specific model plugs
+in for "estimate" and "SE" — that's a job for the course teaching that model, not this
+foundation.)
+
+## Check yourself
+
+**1.** A study reports Estimate $= 0.8$, SE $= 0.5$. Compute the test statistic. Is it
+past the rough "±2" line? Would you expect to reject at 0.05?
+
+::: {.callout-note collapse="true" title="Answer"}
+$t = 0.8 / 0.5 = 1.6$ — *not* past 2. The estimate is only 1.6 noise-widths from 0, so
+noise could plausibly produce it; you'd expect $p > 0.05$ and would **fail to reject**.
+(Fail to reject means "not enough evidence," not "the effect is zero.")
+:::
+
+**2.** A colleague reads "$p = 0.03$" and says "so there's a 3% chance the null is
+true." What's wrong, and what does $p = 0.03$ actually mean?
+
+::: {.callout-note collapse="true" title="Answer"}
+Wrong: the p-value is not the probability the null is true. $p = 0.03$ means *if the
+null were true, data at least this extreme would occur only 3% of the time*. It's a
+statement computed **inside** the null world (a conditional probability given $H_0$), not
+a statement about how likely $H_0$ is — that's Trap 1.
+:::
+
+**3.** A 95% confidence interval for an effect comes out as $(-0.4, 3.5)$. Without any
+other information, is $p$ below or above 0.05? Why?
+
+```{webr}
+#| autorun: false
+# check3-starter — the interval is given; reason it out, no computation needed
+ci <- c(-0.4, 3.5)
+null_value <- 0
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The interval **contains** the null value 0 (since $-0.4 < 0 < 3.5$), so $p$ is **above**
+0.05 — fail to reject. "CI excludes the null" and "$p < 0.05$" always travel together;
+here the CI *includes* the null, so the p-value is on the not-significant side.
+:::
+
+**4.** In your own words: explain to a colleague, in two sentences, what a p-value is
+and why a small one makes you doubt the null.
+
+::: {.callout-note collapse="true" title="A model answer"}
+A p-value is the chance you'd see a result at least this extreme *if the boring null
+hypothesis were actually true* — it measures how surprising your data would be in a
+world with no real effect. A small p-value means "noise almost never fakes something
+this big," so the null becomes hard to believe and you reject it — while a large one
+just means noise could easily have done it, so you can't rule the null out.
+:::
+
+## What you can now do
+
+- **State a null and an alternative** for a question — the boring "nothing going on"
+  default versus "something's going on" — and say which the data support.
+- **Build a test statistic** as estimate ÷ SE and read it as "distance from the null in
+  noise units," reusing the SE from the sampling-distributions module.
+- **Explain a p-value correctly** as "chance of a result this extreme *if the null were
+  true*" — and simulate one — without confusing it with "the chance the null is true."
+- **Make and phrase a decision** — reject vs. fail-to-reject at the 0.05 convention, one-
+  vs. two-sided in plain words — and name Type I (false alarm) and Type II (missed
+  signal) errors.
+- **Read a confidence interval** as estimate ± ~2 SE, use "the CI excludes the null
+  value $\iff$ $p < 0.05$" to cross-check it, and read the Estimate / SE / statistic / p
+  columns of *any* model table, whatever method produced them.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — anything that reports a
+p-value or an interval assumes all of these.
+
+## Where this goes next
+
+Every method that fits a model — regression, generalized linear models, survival,
+mixed models — hands back exactly the four columns you just learned to read; the method
+only changes *what goes into* the estimate and its SE, never how you interpret them.
+When a course decodes a specific model's output, this is the lens it assumes. Ready for
+more reps? Do the [practice problems](practice.qmd).

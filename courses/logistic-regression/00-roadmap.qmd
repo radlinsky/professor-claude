@@ -6,6 +6,10 @@ How every module depends on the others. Blue nodes are reusable
 [foundations](../../foundations/README.md) modules shared across courses; arrows
 mean "needed for".
 
+Like every course, this one assumes the notation grammar in
+[reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) — take it
+first if the symbols aren't yet second nature.
+
 This course also **builds on two earlier courses** and reuses their anchors rather
 than re-teaching them: [Simple Linear Regression](../simple-linear-regression/syllabus.md)
 (the line $\beta_0 + \beta_1 x$; reading model output) and
@@ -31,6 +35,7 @@ flowchart TD
     M3["03 · Likelihood & gradient ascent<br/>(maximize the log-likelihood)"]
     M4["04 · Capstone<br/>(decode glm(family = binomial))"]
 
+    F1 --> F2
     F1 --> M1
     C1 --> M1
     M1 --> M2

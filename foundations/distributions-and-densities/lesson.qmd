@@ -1,0 +1,411 @@
+---
+title: "Distributions and densities"
+subtitle: "Which values are common vs rare — the bell curve, why AREA is probability, and R's d/p/q/r question-askers"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — a live `{webr}` cell does NOT see anything defined here, so
+# every teaching cell below re-states its own data. Base R is all we need (dnorm/pnorm/
+# qnorm/rnorm and hist all ship with R), so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+A **distribution** is the answer to one plain question: *across all the values a
+quantity can take, which are common and which are rare?* Measure a hundred commute
+times, a thousand test scores, ten thousand coin-flip counts — pile them up and a
+shape emerges. That shape *is* the distribution. This module turns that pile-up into
+something you can compute with: a smooth curve, the famous **bell curve** (the
+*normal* distribution), and the four everyday questions R lets you ask any
+distribution with its `dnorm`/`pnorm`/`qnorm`/`rnorm` family.
+
+The one idea that trips everyone up — and the one this module drills — is that for a
+smooth curve **the AREA under the curve is a probability, but the HEIGHT of the curve
+is not.** Get that straight and the rest is bookkeeping.
+
+**Builds on:** [mean, variance & covariance](../mean-variance-covariance/lesson.qmd)
+— the normal curve's two knobs are exactly the mean (center) and the standard
+deviation (spread) you already know; [probability, odds & log-odds](../probability-and-odds/lesson.qmd)
+— probability as a number in $[0,1]$; and [the derivative as a slope](../derivative-as-slope/lesson.qmd)
+— soft, for the companion "area under a curve" picture of an integral we lean on when
+we say area = probability. This module does **not** cover likelihood or
+sampling-distributions/standard-error — those are separate modules; we only point at
+them.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** For `x <- c(28, 30, 32, 29, 31, 30)`, what is the **mean** $\bar{x}$? Say the
+recipe in words, then give the number.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+x <- c(28, 30, 32, 29, 31, 30)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"Add them all up and divide by how many": $28+30+32+29+31+30 = 180$, and $180 / 6 =
+\mathbf{30}$. In R that's `mean(x)`. Shaky? Revisit
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd).
+:::
+
+**2.** A probability is a number that must live between two bounds — which two? And in
+plain words, what does a probability of $0.68$ mean?
+
+::: {.callout-note collapse="true" title="Answer"}
+Every probability sits in $[0, 1]$ (0 = impossible, 1 = certain). A probability of
+$0.68$ means "about 68 times out of 100" — roughly two-thirds of the time. Revisit
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd) if that felt slow.
+:::
+
+**3.** You have the *idea* of an integral from calculus: if you draw a curve and shade
+the region between it and the horizontal axis, what does that shaded region's **area**
+represent, loosely? (One word will do.)
+
+::: {.callout-note collapse="true" title="Answer"}
+**Area.** The integral of a curve between two points is just "the area under it,
+between those two points." We use nothing more mechanical than that all lesson — the
+companion to the slope picture in
+[the derivative as a slope](../derivative-as-slope/lesson.qmd). If the word "integral"
+scares you, mentally replace it with "area under the curve" every time.
+:::
+
+## A tiny example first
+
+You clock your morning commute on **six** days. In minutes:
+
+$$
+28,\quad 30,\quad 32,\quad 29,\quad 31,\quad 30.
+$$
+
+Which values are common, which are rare? Just *count how many times each shows up* —
+that count is called a **frequency**:
+
+- 28 minutes: happened **once**
+- 29 minutes: **once**
+- 30 minutes: **twice** (the most common — the peak)
+- 31 minutes: **once**
+- 32 minutes: **once**
+
+Draw those counts as bars over a number line and you have a **histogram** — the crudest
+possible picture of a distribution. The tallest bar sits at 30 (the common value); the
+edges (28 and 32) are shorter (rarer). That "tall in the middle, shorter at the edges"
+shape is the seed of the bell curve.
+
+Turn the counts into **proportions** and you have probabilities: 30 minutes happened 2
+times out of 6, a proportion of $2/6 \approx 0.33$; each of the others happened 1 in 6,
+$\approx 0.17$. Those six proportions add to exactly 1 — the commute *had* to be one of
+these values. **That "everything adds to 1" is the rule every distribution obeys.**
+
+The same thing in R, so you can check every count:
+
+```{r toy-example}
+# Six commute times, in minutes
+x <- c(28, 30, 32, 29, 31, 30)
+
+table(x)          # frequency of each value: 30 appears twice, the rest once
+mean(x)           # 30 — the balance point / center
+sd(x)             # ~1.41 — the spread (standard deviation)
+
+table(x) / length(x)   # proportions: 0.1667 ... 0.3333 ... — they sum to 1
+sum(table(x) / length(x))   # 1 — a distribution's proportions always total 1
+```
+
+## Getting a feel for it
+
+**(a) The mental picture — a crowd finding its seats.** Picture a thousand people
+filing into a long, narrow stadium whose seats are labelled by value (commute time,
+say). Everyone sits in the row matching their own value. Popular values fill up into
+tall stacks of people; rare values stay nearly empty. Look down from above and the
+skyline of stacks *is* the distribution — a rough shape you'd sketch as a curve:
+high where the crowd piled up, low where it thinned out. A **histogram** is that
+skyline drawn with a handful of wide bars; a **density curve** is the same skyline
+after you let the crowd grow to infinity and shrink the bars to zero width, so the
+jagged tops smooth into one continuous line.
+
+Where the analogy strains: real people are countable, so a histogram bar is an honest
+"how many." A smooth density curve pretends the value can be *any* real number (30.0000…
+minutes), so no single exact value has a headcount anymore — which is exactly why we
+have to switch from "height = how many" to "area = how much probability." That switch
+is the whole point of the next beat.
+
+**(b) Why AREA and not height.** Once the curve is smooth, ask "what's the probability
+the commute is *exactly* 30.000000 minutes?" The honest answer is essentially zero —
+there are infinitely many nearby values (30.0001, 29.9998, …) and no single razor-thin
+one carries any real weight. So a smooth curve can't put probability *at a point*.
+What it can do is put probability *over a stretch*: "between 29 and 31 minutes." And
+the natural way to measure "how much curve sits over the stretch from 29 to 31" is the
+**area** of that slice — base times height, summed up. Height alone tells you nothing
+until you multiply it by a width to get an area. That is why the curve's height is
+called a **density** (probability *per unit width*, like people-per-row), never a
+probability itself — and why the total area under the whole curve is exactly 1 (all the
+probability there is).
+
+**(c) What the numbers feel like.** For our commute curve (centered at 30), the height
+right at the peak is about $0.13$ — and $0.13$ is emphatically **not** "a 13% chance of
+commuting exactly 30 minutes." It's a density: to turn it into a probability you'd
+multiply by a width. Take a 1-minute-wide sliver around 30 (from 29.5 to 30.5): its
+area is roughly height × width $\approx 0.13 \times 1 = 0.13$, and *that* 0.13 is a
+genuine probability (about a 13% chance the commute lands in that one-minute window).
+Widen the window and the probability grows; the whole area totals 1. Densities can even
+be bigger than 1 (a very sharp, narrow peak can tower above height 1) — impossible for
+a probability, and the surest proof that height is not probability. You'll see all of
+this move in **Explore it**.
+
+## What the notation is going to say
+
+The curve we'll write down is the **normal** (bell) curve. Its formula takes a value
+$x$ and returns the curve's **height** there — the density. The formula has exactly two
+tuning knobs: $\mu$ (the center, where the peak sits) and $\sigma$ (the spread, how wide
+the bell is). For our commute story we'll set the center to 30 and the spread to 3, and
+the formula will say, in plain English: *"you're highest right at the center 30, and
+you fall off — fast at first, then gently — the farther $x$ gets from 30, and how fast
+you fall off is set by the spread."* Feeding in $x = 30$ (the center) gives the tallest
+height; feeding in $x = 36$ (two spreads out) gives a much smaller one. We will never
+read a single height as a probability — only areas between two $x$ values are that.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x$ | "ex" | a value the quantity can take (here: a commute time) | e.g. $x = 30$ minutes |
+| $\bar{x}$ | "ex bar" | the mean (average) of the data (in R: `mean(x)`) | 30 |
+| $\mu$ | "mew" | the distribution's true center — the peak of the bell (in R: the `mean` argument) | 30 |
+| $\sigma$ | "sigma (lowercase)" | the distribution's spread — the standard deviation, how wide the bell is (in R: the `sd` argument) | 3 |
+| $\sigma^2$ | "sigma squared" | the variance — spread squared | 9 |
+| $f(x)$ | "eff of ex" | the **density**: the curve's HEIGHT at $x$ — probability per unit width, NOT a probability (in R: `dnorm(x, mu, sigma)`) | $f(30) \approx 0.133$ |
+| $P(a < X < b)$ | "the probability that X is between a and b" | the AREA under the curve from $a$ to $b$ — a genuine probability in $[0,1]$ | $P(27<X<33)\approx 0.68$ |
+| $\int_a^b f(x)\,dx$ | "the integral from a to b of f of x dee-ex" | the area under the curve $f$ between $a$ and $b$ — exactly that probability | the shaded slice |
+| $X \sim N(\mu, \sigma^2)$ | "X is distributed normal with mean mew and variance sigma squared" | $X$ follows a bell curve centered at $\mu$ with spread $\sigma$ | commute $\sim N(30, 9)$ |
+| $e$ | "ee" | the constant $\approx 2.718$ (see [exponentials & logs](../exponentials-and-logs/lesson.qmd)) | inside the formula |
+| $\pi$ | "pie" | the constant $\approx 3.14159$ | inside the formula |
+| $q$ | "cue" | a value you ask about (a quantile / cutoff) | $q = 33$ in `pnorm(33, ...)` |
+| $p$ | "pee" | a probability, a number in $[0,1]$ (here, an area to the left) | $p = 0.5$ in `qnorm(0.5, ...)` |
+| $n$ | "en" | how many random draws you ask for | $n = 5$ in `rnorm(5, ...)` |
+
+The height $f(x)$ and the area $P(a<X<b)$ are **different kinds of thing**: a height is
+a density (can exceed 1), an area is a probability (never exceeds 1). Keeping those two
+rows apart in your head is 90% of this module.
+
+## The formal version
+
+The normal (bell) curve's height at a value $x$, for center $\mu$ and spread $\sigma$,
+is:
+
+$$
+f(x) = \frac{1}{\sigma\sqrt{2\pi}}\; e^{-\frac{1}{2}\left(\frac{x-\mu}{\sigma}\right)^2}
+$$
+
+You do **not** need to memorize or hand-compute this — `dnorm()` does it for you. But
+it's worth reading the two pieces, because each maps onto something you already feel:
+
+- The exponent $-\tfrac{1}{2}\left(\tfrac{x-\mu}{\sigma}\right)^2$ is the whole shape.
+  $x-\mu$ is "how far $x$ is from the center"; dividing by $\sigma$ measures that
+  distance *in spreads*; squaring makes it symmetric (left and right of center fall off
+  the same) and the minus sign flips it upside-down so the curve is **highest at the
+  center** ($x=\mu$ makes the exponent 0, and $e^0 = 1$, the peak) and drops toward 0
+  as $x$ runs away from $\mu$. That squared-then-negated bump is the bell.
+- The front factor $\tfrac{1}{\sigma\sqrt{2\pi}}$ is just a scaler chosen so the
+  **total area under the whole curve comes out to exactly 1** — the "all probability
+  adds to 1" rule, enforced. Bigger $\sigma$ shrinks the peak height (a wider bell must
+  be shorter to keep the same area of 1).
+
+Reading it aloud: "eff of ex equals one over sigma-root-two-pi, times e to the minus
+one-half times (x minus mew over sigma) squared" — or in everyday words: **"start
+tallest at the center, and fall off symmetrically the farther you get from it, scaled
+so the whole area is 1."**
+
+Mapping it onto the toy example ($\mu = 30$, $\sigma = 3$):
+
+- At the center, $x = 30$: the exponent's $x-\mu$ is 0, so $e^0 = 1$ and the height is
+  just the front factor — the tallest point. `dnorm(30, 30, 3)` returns $\approx
+  0.133$.
+- Six minutes out, $x = 36$ (two spreads away): the exponent is
+  $-\tfrac{1}{2}(6/3)^2 = -2$, so the height is far smaller. `dnorm(36, 30, 3)`
+  returns $\approx 0.018$ — rarer, exactly as the picture promised.
+
+Sanity check that the height is really "per unit width," not a probability: a 1-minute
+sliver around the center (29.5 to 30.5) has area $\approx$ height × width $= 0.133
+\times 1 = 0.133$, and the exact area `pnorm(30.5, 30, 3) - pnorm(29.5, 30, 3)` is
+$0.1324$ — essentially the same. Height times a width gives a probability; height alone
+does not.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A bell-shaped normal density curve centered at 30, with the region from 27 to 33 shaded; the shaded area is labelled 0.68, the probability."
+# explore-1 — LIVE: the curve, and AREA = probability.
+# TRY IT: change lo and hi (the shaded window), then Run — watch the area change.
+# PREDICT: the window 27..33 is one spread (3) either side of center 30. What
+# fraction of the area do you expect it to hold? Commit to a number, then run.
+mu <- 30; sigma <- 3
+xs <- seq(20, 40, length.out = 400)
+plot(xs, dnorm(xs, mu, sigma), type = "l", lwd = 2,
+     xlab = "commute time (min)", ylab = "density = height f(x)",
+     main = "Normal curve: area under a slice IS the probability")
+
+lo <- 27; hi <- 33                       # the window we want the probability for
+gx <- seq(lo, hi, length.out = 200)
+polygon(c(lo, gx, hi), c(0, dnorm(gx, mu, sigma), 0), col = "grey80", border = NA)
+lines(xs, dnorm(xs, mu, sigma), lwd = 2) # redraw the curve on top of the shading
+
+area <- pnorm(hi, mu, sigma) - pnorm(lo, mu, sigma)  # the shaded area = P(lo < X < hi)
+text(mu, 0.05, paste0("area = ", round(area, 3)))
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: HEIGHT is a density, NOT a probability.
+# The height at the center is > 0.13 but shrinks as you widen the spread — because a
+# wider bell must be shorter to keep its total area at 1.
+# PREDICT: which is a bigger HEIGHT at the center: spread 1 or spread 6? Then run.
+c(height_at_center_spread1 = dnorm(30, 30, 1),   # ~0.399 — tall, narrow bell
+  height_at_center_spread6 = dnorm(30, 30, 6))   # ~0.066 — short, wide bell
+
+# A height can even EXCEED 1 (impossible for a probability) when the bell is very sharp:
+dnorm(0, 0, 0.3)   # ~1.33 — a density above 1, the clearest proof height != probability
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: the four questions you can ask a distribution (d / p / q / r).
+# PREDICT before running: qnorm(0.5, 30, 3) asks "which value splits the area in half?"
+# For a symmetric bell centered at 30, what must that value be? Write it, then run.
+dnorm(30, 30, 3)          # d = DENSITY (height) at 30
+pnorm(33, 30, 3)          # p = PROBABILITY area to the LEFT of 33 (i.e. P(X < 33))
+qnorm(0.5, 30, 3)         # q = QUANTILE: the value with 0.5 of the area to its left
+set.seed(42)
+rnorm(5, 30, 3)           # r = RANDOM draws from the distribution
+```
+
+**The four questions, in one breath.** Every distribution in R ships as a family of
+four functions sharing one root name (`norm` for normal). They are the four things you
+can ask:
+
+- **`dnorm(x, ...)`** — **d**ensity: "how *tall* is the curve at $x$?" (the height
+  $f(x)$; not a probability).
+- **`pnorm(q, ...)`** — **p**robability: "how much area lies to the *left* of $q$?"
+  i.e. $P(X < q)$. To get the area of a slice $a$ to $b$, subtract:
+  `pnorm(b) - pnorm(a)`.
+- **`qnorm(p, ...)`** — **q**uantile: the inverse of `pnorm` — "which value has
+  probability $p$ to its left?" (`qnorm(0.5)` is the median/center; `qnorm(0.975)` is
+  the value with 97.5% below it).
+- **`rnorm(n, ...)`** — **r**andom: "give me $n$ fresh draws from this distribution."
+
+## A whole zoo, same grammar (name-drop only)
+
+The normal is one curve among many. There's the **t** (a heavier-tailed cousin of the
+normal), **chi-squared** (spread of squared things), **binomial** (counts of
+successes in a fixed number of yes/no trials), **Poisson** (counts of rare events in a
+window), and more. You don't need any of their details here. The one thing to carry
+away: **they all speak the same d/p/q/r grammar** — `dbinom`/`pbinom`/`qbinom`/`rbinom`,
+`dt`/`pt`/`qt`/`rt`, and so on. Learn the four questions once and you can interrogate
+any distribution R knows.
+
+## Common traps
+
+**Trap 1 — "the curve's height at a point is the probability of that point."** It is
+tempting because for a *histogram* the bar height really is a count/proportion. But a
+smooth curve's height is a **density** — probability *per unit width* — and a single
+exact point has zero width, hence zero probability. Numbers: `dnorm(30, 30, 3)` is
+$0.133$, which is **not** "a 13.3% chance of exactly 30 minutes"; the actual
+probability of any single exact value is 0. Only an *area* over a stretch is a
+probability: `pnorm(30.5, 30, 3) - pnorm(29.5, 30, 3)` $= 0.132$ is the real
+probability of "between 29.5 and 30.5." Height needs a width multiplied in before it
+becomes a probability. (And a density can exceed 1 — `dnorm(0, 0, 0.3)` $= 1.33$ — which
+no probability ever can.)
+
+**Trap 2 — "`pnorm` gives the probability *at* the value."** `pnorm(33, 30, 3)` is
+$0.841$ — that is the area to the **left** of 33 (i.e. $P(X < 33)$), the whole
+cumulative pile up to 33, not the chance of landing on 33. To get the probability of a
+*slice* you must subtract two `pnorm`s: $P(27 < X < 33)$ is
+`pnorm(33, 30, 3) - pnorm(27, 30, 3)` $= 0.841 - 0.159 = 0.683$. Reading a single
+`pnorm` as a slice probability double-counts everything below the lower edge.
+
+## Check yourself
+
+**1.** For a normal curve with center $\mu = 30$ and spread $\sigma = 3$, what does
+`dnorm(30, 30, 3)` return — and is that number a probability? What single R expression
+would give the *probability* that a value falls between 29.5 and 30.5?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your answer
+mu <- 30; sigma <- 3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`dnorm(30, 30, 3)` returns $\approx 0.133$ — the **height** (density) at the center. It
+is **not** a probability (densities can even exceed 1). The probability of the slice
+29.5 to 30.5 is an **area**: `pnorm(30.5, 30, 3) - pnorm(29.5, 30, 3)` $\approx 0.132$.
+The density and that slice-probability are numerically close here only because the slice
+is exactly 1 unit wide (area $\approx$ height × width).
+:::
+
+**2.** `pnorm(33, 30, 3)` returns $0.841$. In one sentence, what does that number mean —
+and what does it *not* mean?
+
+::: {.callout-note collapse="true" title="Answer"}
+It means "about 84.1% of the area lies to the left of 33," i.e. $P(X < 33) = 0.841$ —
+the chance a value is *below* 33. It does **not** mean the probability of landing
+*exactly on* 33 (that's 0), nor the probability of a slice around 33.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why the AREA under
+a density curve is a probability but the HEIGHT is not.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The curve's height is a *density* — a per-unit-width rate, like people-per-row — so it
+only becomes a probability once you multiply it by a width, i.e. take the area of a
+slice. A single exact value has zero width and therefore zero probability; probability
+lives in the area over a *range* of values, and the whole area under the curve adds to 1.
+:::
+
+## What you can now do
+
+- **Read a pile of numbers as a distribution** — count frequencies into a histogram,
+  and picture the smooth density curve it approaches.
+- **Keep density and probability straight** — say why the curve's HEIGHT is a density
+  (per unit width, can exceed 1) and only the AREA under a stretch is a probability.
+- **Describe a normal curve by its two knobs** — the center $\mu$ (the mean) and the
+  spread $\sigma$ (the standard deviation), and predict how the curve moves when each
+  changes.
+- **Ask a distribution the four questions in R** — `dnorm` (height), `pnorm` (area to
+  the left), `qnorm` (the value at a given left-area), `rnorm` (random draws) — and
+  build a slice probability as `pnorm(b) - pnorm(a)`.
+- **Recognize the wider zoo** — t, chi-squared, binomial, Poisson — as other curves
+  spoken with the same d/p/q/r grammar.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+and [The formal version](#the-formal-version) before continuing — anything that reasons
+about "how likely is a value" leans on all of these.
+
+## Where this goes next
+
+Distributions are the vocabulary of every statistical claim: a p-value, a confidence
+interval, a model's assumed noise — all are statements about areas under some curve.
+Two ideas built directly on this one, each its own module: **likelihood** (turning the
+density around to ask "how well does this curve explain the data I saw?") and the
+**sampling distribution / standard error** (the distribution of a *summary* like the
+mean, not of raw values). We deliberately did not touch those here. Ready for more
+reps? Do the [practice problems](practice.qmd).

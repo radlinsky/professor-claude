@@ -1,0 +1,59 @@
+name: index-check
+
+# Read-only validation job — least-privilege token.
+permissions:
+  contents: read
+
+# Backstop for issue #51: the foundation<->course link web is kept by hand in several
+# places (the two README index tables, each syllabus prereq table, each roadmap's
+# Mermaid nodes). Nothing else reconciles them, so a rename or a deleted course rots
+# links silently. This mirrors license-check.yml / render.yml — the same CI guard aimed
+# at the index web. The check itself is base-R only (scripts/check-indexes.R).
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'foundations/**'
+      - 'courses/**'
+      - '_quarto.yml'
+      - 'scripts/check-indexes.R'
+      - 'scripts/gen-indexes.R'
+      - '.github/workflows/index-check.yml'
+  pull_request:
+    paths:
+      - 'foundations/**'
+      - 'courses/**'
+      - '_quarto.yml'
+      - 'scripts/check-indexes.R'
+      - 'scripts/gen-indexes.R'
+      - '.github/workflows/index-check.yml'
+
+# Keep only the latest run per ref; drop superseded ones.
+concurrency:
+  group: index-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  index-check:
+    runs-on: ubuntu-latest
+    # Base R only — skip the renv autoloader in .Rprofile (no package restore needed).
+    env:
+      RENV_CONFIG_AUTOLOADER_ENABLED: FALSE
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.5.2'
+          use-public-rspm: true
+
+      - name: Generated-index drift check (foundation blocks match meta.dcf)
+        # Fails if a PR hand-edited a generated block (between the `# >>> generated`
+        # markers) or added a foundation module without regenerating. Fix: run
+        # `Rscript scripts/gen-indexes.R` and commit the result.
+        run: Rscript scripts/gen-indexes.R --check
+
+      - name: Index-consistency check (foundation<->course links, Used-by, Status)
+        run: Rscript scripts/check-indexes.R

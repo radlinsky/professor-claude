@@ -105,13 +105,19 @@ baseline up to the target.
    - Not generic → **course module**, authored into `courses/<slug>/modules/`.
    (The capstone is always a course module.)
 6. Topologically sort: every module comes after all modules it depends on. Foundation
-   modules always come before the course modules that need them.
+   modules always come before the course modules that need them — and among foundations,
+   consult the **Builds on** column of `foundations/README.md` so a foundation always
+   comes after the foundations it builds on (e.g. probability-and-odds after
+   exponentials-and-logs). reading-math-notation is the standing first prerequisite and
+   sorts to the front.
 
 **GATE 2:** ☐ Every target-list item is covered by exactly one module. ☐ Every module
 either sits at the baseline or has all its prerequisites in earlier modules. ☐ Each
 module is labeled `reuse-foundation` / `new-foundation` / `course` / `prereq-course`.
 ☐ The last module is the capstone. ☐ Total module count is 3–8 (prereq courses don't
-count toward it — they're linked, not authored).
+count toward it — they're linked, not authored). ☐ foundations/README.md consulted;
+every reuse/new-foundation label and every foundation Builds-on edge reflected in the
+module order.
 
 ---
 
@@ -126,26 +132,35 @@ Follow the exact file formats in `.claude/course-authoring/course-structure.md`.
    `course-structure.md`), then — if Phase 2 found any `prereq-course` items — a
    **Before you start: course(s) this one builds on** section linking each
    (format in `course-structure.md`; omit the section entirely if none), then a
-   **Prerequisites from the foundations library** section (one row per foundation
-   module: relative link to its `lesson.qmd`, one line on *why this course needs
-   it*, and "already done it? skim its pronunciation table as a refresher"), then
+   **Prerequisites from the foundations library** section (reading-math-notation is
+   always row 1 — the standing first prerequisite; then the remaining foundations
+   ordered by the **Builds on** column so none precedes one it depends on. One row per
+   foundation module: relative link to its `lesson.qmd`, one line on *why this course
+   needs it*, and "already done it? skim its pronunciation table as a refresher"), then
    one section per course module: title, "why you need this", concepts covered,
    rough time estimate.
 2. `courses/<course-slug>/00-roadmap.qmd` — a Mermaid `flowchart TD` where each node is
    a module (foundation nodes blue `:::foundation`; any `prereq-course` nodes green
-   `:::priorcourse`, label prefixed `course:`), each edge means "needed for", and
-   below the diagram a numbered "suggested order" list with the same relative links
-   as the syllabus.
+   `:::priorcourse`, label prefixed `course:`), each edge means "needed for" (including
+   foundation→foundation edges drawn from the **Builds on** column — see
+   `course-structure.md` §00-roadmap), and below the diagram a numbered "suggested
+   order" list with the same relative links as the syllabus.
 3. Scaffold the folders now: `courses/<course-slug>/` with empty `modules/NN-<slug>/`
    directories; `foundations/<slug>/` directories for any `new-foundation` modules.
-   Then register every page you are about to create in the **root `/_quarto.yml`**
-   (render list + a sidebar section) — see `.claude/course-authoring/course-structure.md`. Do NOT
-   create a per-course `_quarto.yml`.
+   Then register every **course** page you are about to create in the **root
+   `/_quarto.yml`** (render list + a sidebar section) — see
+   `.claude/course-authoring/course-structure.md`. Do NOT create a per-course
+   `_quarto.yml`. For each `new-foundation` module, do NOT hand-add rows: write
+   `foundations/<slug>/meta.dcf` (`ShortName`, `Concepts`, `BuildsOn`, `UsedBy`) and
+   run `Rscript scripts/gen-indexes.R`, which regenerates the foundation render list +
+   sidebar and the `foundations/README.md` table row (sorted by slug, between the
+   generated markers).
 
 **GATE 3:** ☐ Both files exist and every module from Phase 2 appears in both. ☐ The
 syllabus has the How-to-take box. ☐ All foundation links are relative paths that
-resolve (check with `ls`). ☐ The root `/_quarto.yml` lists every chapter/file you
-are about to create.
+resolve (check with `ls`). ☐ The root `/_quarto.yml` lists every course chapter/file
+you are about to create, and every `new-foundation` module has a `meta.dcf` with
+`Rscript scripts/gen-indexes.R` run (`--check` clean).
 
 ---
 
@@ -171,8 +186,9 @@ Location rules:
 - Foundation lessons must be paper-agnostic: neutral examples, no mention of the
   course, paper, or external project that prompted them.
 - Write into `foundations/<slug>/lesson.qmd` or
-  `courses/<course-slug>/modules/NN-<slug>/lesson.qmd`. New foundation modules also
-  get registered in the root `/_quarto.yml`.
+  `courses/<course-slug>/modules/NN-<slug>/lesson.qmd`. New foundation modules are
+  registered via their `foundations/<slug>/meta.dcf` + `Rscript scripts/gen-indexes.R`
+  (not by hand-editing `/_quarto.yml`).
 - The capstone lesson follows `course-structure.md` §Capstone instead of the
   standard template (it decodes the source; it does not introduce new concepts).
 - If a COURSE-REQUEST provided applied-practice pointers, end the matching modules'
@@ -269,14 +285,22 @@ explicit TODO. ☐ Zero unverified URLs anywhere.
 4. Register:
    - Add the course row to `courses/README.md` (link, teaches, source, prerequisite
      courses (`—` if none), foundation prerequisites, status `not started`).
-   - In `foundations/README.md`: add rows for new foundation modules (Status
-     `not started`); append this course to the *Used by* column of every foundation
-     module the course links to. Never modify existing *Status* values.
+     `courses/README.md` is hand-edited (courses are not generated).
+   - For new foundation modules: create/edit each `foundations/<slug>/meta.dcf` and
+     append this course to the `UsedBy` field of every foundation module the course
+     links to, then run `Rscript scripts/gen-indexes.R` — it regenerates the
+     `foundations/README.md` table (new rows default to Status `not started`) and the
+     `_quarto.yml` foundation blocks. Never hand-edit between the generated markers.
+     The generator preserves each existing *Status* value; verify with
+     `Rscript scripts/gen-indexes.R --check` (exit 0).
 
 (The final report to the user happens in Phase 8, after the content review.)
 
 **GATE 7:** ☐ Render green (or inability honestly reported). ☐ Callouts collapsed.
-☐ `renv.lock` snapshotted if packages were added. ☐ Both README indexes updated.
+☐ `renv.lock` snapshotted if packages were added. ☐ `courses/README.md` updated by
+hand; each new foundation module has a `meta.dcf` and `Rscript scripts/gen-indexes.R`
+was run. ☐ `Rscript scripts/gen-indexes.R --check` exits 0. ☐ Existing rows' *Status*
+values byte-identical to before (only NEW rows carry `not started`).
 
 ---
 

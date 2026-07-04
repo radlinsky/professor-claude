@@ -1,0 +1,284 @@
+---
+title: "Practice: Linear combinations & the data matrix"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Three items, each with a `units` count and a 0/1 `flag`. The scoring rule: base of 4,
+add 3 per unit, add 2 if flagged. Build the data matrix (remember the all-1s column for
+the base), then score every row as one dot product per row. Check with `%*%`.
+
+$$
+\text{weights} = (\underbrace{4}_{\text{base}},\ \underbrace{3}_{\text{per unit}},\ \underbrace{2}_{\text{flag}}), \qquad
+\begin{array}{c|cc}
+\text{item} & \text{units} & \text{flag} \\ \hline
+1 & 2 & 1 \\
+2 & 5 & 0 \\
+3 & 1 & 1
+\end{array}
+$$
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+units <- c(2, 5, 1)
+flag  <- c(1, 0, 1)
+beta  <- c(4, 3, 2)   # base, per-unit, flag
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Build the matrix with an all-1s column so the base of 4 rides along, then dot each row
+with the weights:
+
+- Item 1: $4\times1 + 3\times2 + 2\times1 = 4 + 6 + 2 = 12$
+- Item 2: $4\times1 + 3\times5 + 2\times0 = 4 + 15 + 0 = 19$
+- Item 3: $4\times1 + 3\times1 + 2\times1 = 4 + 3 + 2 = 9$
+
+So the scores are $(12, 19, 9)$.
+
+```{r p1-answer}
+units <- c(2, 5, 1)
+flag  <- c(1, 0, 1)
+beta  <- c(4, 3, 2)
+
+X <- cbind(one = 1, units = units, flag = flag)   # all-1s column carries the base
+X %*% beta                                         # 12, 19, 9
+c(sum(X[1, ] * beta), sum(X[2, ] * beta), sum(X[3, ] * beta))  # 12 19 9 — same, by hand
+```
+:::
+
+## Problem 2 — fill in the missing step (indicator columns)
+
+A 3-level category `grade` takes values `("lo", "hi", "mid", "hi")` across 4 rows, with
+**`hi` chosen as the reference** level. Here is the build of its indicator columns — but
+the **core step is blanked**. Fill in ONLY the blanked line: the two 0/1 columns.
+
+> With an all-1s column already in the matrix, a 3-level category needs $3 - 1 = 2$
+> indicator columns, and `hi` is the reference (it gets no column of its own).
+> **`<your step here>`** — build `gradeLo` (1 where grade is "lo", else 0) and
+> `gradeMid` (1 where grade is "mid", else 0):
+> $\texttt{gradeLo} = (\underline{\phantom{0}},\underline{\phantom{0}},\underline{\phantom{0}},\underline{\phantom{0}})$,
+> $\texttt{gradeMid} = (\underline{\phantom{0}},\underline{\phantom{0}},\underline{\phantom{0}},\underline{\phantom{0}})$.
+> Every row that is `hi` shows 0 in both columns — that's how the reference is absorbed.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your two columns
+grade <- c("lo", "hi", "mid", "hi")
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the heart of turning a category into numbers — one 0/1 column per
+non-reference level:
+
+- `gradeLo` = 1 where `grade == "lo"`, else 0 $= (1, 0, 0, 0)$
+- `gradeMid` = 1 where `grade == "mid"`, else 0 $= (0, 0, 1, 0)$
+
+Rows 2 and 4 (both `hi`) are 0 in both columns — `hi` is the reference, folded into the
+base. R's `model.matrix()` builds the identical pair when `hi` is the first factor level:
+
+```{r p2-answer}
+grade <- c("lo", "hi", "mid", "hi")
+gradeLo  <- as.integer(grade == "lo")    # 1 0 0 0
+gradeMid <- as.integer(grade == "mid")   # 0 0 1 0
+rbind(gradeLo, gradeMid)
+
+# model.matrix agrees (hi = reference because it's the first level here):
+g <- factor(grade, levels = c("hi", "lo", "mid"))
+model.matrix(~ g)                         # (Intercept), glo, gmid
+```
+:::
+
+## Problem 3 — score a table with a category
+
+A data matrix `X` holds an all-1s column, a numeric column `x1`, and a 0/1 column `catB`
+(1 for category B, 0 for the reference category A). The weights are base 1, `x1` weight
+2, `catB` weight 4. Score all three rows **by hand** as one dot product per row, then
+confirm in R.
+
+$$
+X = \begin{bmatrix} 1 & 3 & 0 \\ 1 & 1 & 1 \\ 1 & 2 & 1 \end{bmatrix}, \qquad
+\boldsymbol{\beta} = (1,\ 2,\ 4)
+$$
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: score each row (dot product), then check with %*%
+X <- matrix(c(1, 3, 0,
+              1, 1, 1,
+              1, 2, 1), nrow = 3, byrow = TRUE)
+beta <- c(1, 2, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Each score is the row dotted with the weights — base, plus 2 per unit of `x1`, plus 4 if
+`catB` is 1:
+
+- Row 1 (cat A): $1\times1 + 2\times3 + 4\times0 = 1 + 6 + 0 = 7$
+- Row 2 (cat B): $1\times1 + 2\times1 + 4\times1 = 1 + 2 + 4 = 7$
+- Row 3 (cat B): $1\times1 + 2\times2 + 4\times1 = 1 + 4 + 4 = 9$
+
+So the scores are $(7, 7, 9)$. Rows 1 and 2 tie at 7 from opposite directions — row 1
+has more `x1`, row 2 gets the category-B bump.
+
+```{r p3-answer}
+X <- matrix(c(1, 3, 0,
+              1, 1, 1,
+              1, 2, 1), nrow = 3, byrow = TRUE)
+beta <- c(1, 2, 4)
+X %*% beta                                   # 7, 7, 9
+apply(X, 1, function(r) sum(r * beta))       # 7 7 9 — one dot product per row
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague turns a 3-level category `size` = ("S", "M", "L") into columns for a matrix
+that already has an all-1s column. Their reasoning contains **exactly one mistake** —
+find it, explain why it's wrong, and fix it.
+
+> "There are 3 levels, so I'll make 3 indicator columns: `isS`, `isM`, `isL`, one per
+> level. Each row gets a 1 in exactly one of them. Then I stack them next to the all-1s
+> column and I'm done."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to see the redundancy for yourself
+size <- c("S", "M", "L", "M", "S")
+isS <- as.integer(size == "S")
+isM <- as.integer(size == "M")
+isL <- as.integer(size == "L")
+one <- rep(1, length(size))
+# Compare the all-1s column to isS + isM + isL:
+# cbind(one, isS + isM + isL)   # <- uncomment and Run
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is making **3** indicator columns for a 3-level category *when an all-1s
+column is already present*. A $k$-level category needs $k - 1$ columns, not $k$. With all
+three, `isS + isM + isL` equals 1 in every row — exactly the all-1s column — so the
+columns are redundant and the weights can't be pinned down (you could move weight
+between the base and `isS` and get identical scores).
+
+The fix: drop one level to be the **reference** (say S), keeping only `isM` and `isL`.
+Then S is absorbed into the base, and the `isM`, `isL` weights read as differences from
+S.
+
+```{r p4-answer}
+size <- c("S", "M", "L", "M", "S")
+isS <- as.integer(size == "S"); isM <- as.integer(size == "M"); isL <- as.integer(size == "L")
+one <- rep(1, length(size))
+cbind(one, redundant_sum = isS + isM + isL)   # the sum IS the all-1s column: redundant
+# Correct: keep only the k-1 = 2 non-reference columns
+cbind(isM, isL)                                # S is the reference, absorbed into the base
+```
+:::
+
+## Problem 5 — mixing it with vectors & summation *(uses [vectors-and-summation](../vectors-and-summation/lesson.qmd)'s dot product)*
+
+A data matrix `X` has an all-1s column, a numeric `size` column, and a 0/1 `pro` column;
+the weights are $\boldsymbol{\beta} = (5, 3, 7)$. Compute the scores $\mathbf{X}\boldsymbol{\beta}$
+two ways — (a) directly with `%*%`, and (b) as an explicit **dot product** per row using
+`sum(...)`, the sum-of-products from vectors & summation — and confirm they agree.
+
+$$
+X = \begin{bmatrix} 1 & 4 & 1 \\ 1 & 2 & 0 \end{bmatrix}, \qquad \boldsymbol{\beta} = (5, 3, 7)
+$$
+
+**PREDICT** first: what will the two scores be? Write them down, then run.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+X <- matrix(c(1, 4, 1,
+              1, 2, 0), nrow = 2, byrow = TRUE)
+beta <- c(5, 3, 7)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+A linear combination per row is *literally* the dot product from vectors & summation,
+$\sum_j X_{ij}\beta_j$:
+
+- Row 1 (pro = 1): $5\times1 + 3\times4 + 7\times1 = 5 + 12 + 7 = 24$
+- Row 2 (pro = 0): $5\times1 + 3\times2 + 7\times0 = 5 + 6 + 0 = 11$
+
+So $\mathbf{X}\boldsymbol{\beta} = (24, 11)$.
+
+```{r p5-answer}
+X <- matrix(c(1, 4, 1,
+              1, 2, 0), nrow = 2, byrow = TRUE)
+beta <- c(5, 3, 7)
+
+X %*% beta                                        # 24, 11
+c(sum(X[1, ] * beta), sum(X[2, ] * beta))         # 24, 11 — dot product per row, spelled out
+```
+
+The `sum(X[i, ] * beta)` line is exactly the dot product from
+[vectors & summation](../vectors-and-summation/lesson.qmd); `%*%` just does it for every
+row at once.
+:::
+
+## Problem 6 — a gentle cliffhanger (an interaction column)
+
+So far every weight has meant the same thing for every row. But suppose you want the
+per-hour rate to be **different for tier B than for tier A**. The tool is an
+**interaction column**: the entry-by-entry product of `hours` and the `tierB` indicator.
+
+For `hours = (4, 2, 6, 3)` and `tierB = (0, 1, 0, 1)`, first build the interaction
+column `hours * tierB`. Then score the four rows with weights base 10, per-hour 2,
+tier-B 5, **and interaction 1**. **Predict:** which rows will the interaction term change
+the score of, and which will it leave untouched? Then run to find out.
+
+```{webr}
+#| autorun: false
+# p6-starter — build the interaction column, then score with the 4 weights
+hours <- c(4, 2, 6, 3)
+tierB <- c(0, 1, 0, 1)
+beta  <- c(10, 2, 5, 1)   # base, per-hour, tier-B, interaction
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The interaction column is `hours * tierB` = $(0, 2, 0, 3)$ — it equals `hours` where the
+tier is B, and 0 everywhere else. So the interaction term only moves the tier-B rows
+(rows 2 and 4); the tier-A rows (1 and 3) are untouched, because their interaction entry
+is 0.
+
+Stack `(one, hours, tierB, interaction)` and dot with $(10, 2, 5, 1)$:
+
+- Row 1 (A): $10 + 2\times4 + 5\times0 + 1\times0 = 18$
+- Row 2 (B): $10 + 2\times2 + 5\times1 + 1\times2 = 10 + 4 + 5 + 2 = 21$
+- Row 3 (A): $10 + 2\times6 + 5\times0 + 1\times0 = 22$
+- Row 4 (B): $10 + 2\times3 + 5\times1 + 1\times3 = 10 + 6 + 5 + 3 = 24$
+
+```{r p6-answer}
+hours <- c(4, 2, 6, 3)
+tierB <- c(0, 1, 0, 1)
+inter <- hours * tierB               # (0, 2, 0, 3) — the interaction column
+X     <- cbind(one = 1, hours = hours, tierB = tierB, inter = inter)
+beta  <- c(10, 2, 5, 1)
+X %*% beta                           # 18, 21, 22, 24
+```
+
+The cliffhanger: with the interaction, a tier-B task now effectively earns $2 + 1 = 3$
+per hour instead of 2 — the per-hour rate *bends by group*. **Choosing** good weights
+for columns like these is exactly the job a specific method takes on; here you've built
+the columns it would act on.
+:::

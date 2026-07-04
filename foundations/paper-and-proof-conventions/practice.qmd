@@ -1,0 +1,196 @@
+---
+title: "Practice: Reading a methods section — the conventions"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Most are reading/translation exercises (this is a
+reading module); a couple hand you R to *feel* an asymptotic word. Try each honestly, then open
+the answer.
+
+## Problem 1 — the toy example, a new jar
+
+The lesson felt "iid" and "consistent" with a fair coin (jar = {0, 1}, true center 0.5). Redo
+the same idea with a **fair six-sided die** (jar = {1, 2, 3, 4, 5, 6}). The true center (average
+of 1..6) is 3.5. Draw 5 iid rolls and take their mean; then watch the mean settle toward 3.5 as
+$n$ grows. **PREDICT** first: will 5 rolls land close to 3.5, or is 5 too few to count on?
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+set.seed(42)
+rolls <- sample(1:6, size = 5, replace = TRUE)   # 5 iid rolls: same die, put it back each time
+rolls
+mean(rolls)
+# now loop n = 5, 50, 500, 5000 and print the mean each time
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Five rolls is far too few to count on — the sample mean bounces around. But as $n$ grows the
+mean homes in on 3.5, exactly the "consistent as $n \to \infty$" promise, now for a die instead
+of a coin. Each roll is iid: the *same* die (identically distributed) rolled *separately*
+(independent), with `replace = TRUE` standing in for "the die is unchanged between rolls."
+
+```{r p1-answer}
+set.seed(42)
+rolls <- sample(1:6, size = 5, replace = TRUE)
+rolls           # 1 5 1 1 2
+mean(rolls)     # 2.0 — nowhere near 3.5; five rolls is noisy
+
+set.seed(42)
+for (n in c(5, 50, 500, 5000)) {
+  cat(sprintf("n = %5d   mean roll = %.3f\n", n, mean(sample(1:6, n, replace = TRUE))))
+}
+# n =     5   mean roll = 2.000
+# n =    50   mean roll = 3.340
+# n =   500   mean roll = 3.492
+# n =  5000   mean roll = 3.457
+```
+
+At $n = 5$ the mean was 2.0 (way off); by $n = 500$ it's 3.492, hugging the true 3.5.
+:::
+
+## Problem 2 — fill in the missing step (decode an excerpt)
+
+Here is an invented one-line excerpt with a **word-for-word translation**, but the translation
+of one phrase is **blanked**. Supply ONLY the blanked translation.
+
+> **Excerpt:** "WLOG assume the errors have mean 0. It suffices to show the estimator is
+> unbiased; the rest follows."
+
+> **Translation:** "We simplify by shifting the errors to average 0 — and this costs us nothing,
+> because the general case works the same way after undoing the shift.
+> **`<your step here>`** — proving *that* smaller claim is enough to prove the whole result.
+> Everything else is a direct consequence."
+
+What single ritual phrase does the blanked sentence translate, and what is its plain-English
+meaning?
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked line translates **"it suffices to show the estimator is unbiased."** Plain English:
+"proving this one smaller claim (that the estimator is unbiased) is *enough* — we don't need to
+attack the big result directly; establishing the smaller claim gets us there." The phrase tells
+you the proof has just **swapped to an easier target**. (The other two phrases were already
+translated: "WLOG" = the cost-free simplification, "the rest follows" = a logic connector, no new
+fact.)
+:::
+
+## Problem 3 — sort the sentences into the four beats
+
+A methods section contains these five sentences (invented). Label each with the beat it belongs
+to — **model**, **estimation**, **inference**, or **validation** — and give a one-line reason.
+
+> **(a)** "Assume $x_1, \dots, x_n$ are iid with finite variance."
+> **(b)** "We estimate the center by minimizing the sum of squared deviations."
+> **(c)** "Across 1000 simulated datasets, the method recovered the true value 96% of the time."
+> **(d)** "The estimator is consistent, with error of order $O(1/\sqrt{n})$."
+> **(e)** "Let the true center be denoted $\mu$, the quantity we wish to recover."
+
+::: {.callout-note collapse="true" title="Answer"}
+- **(a) Model** — it states the assumptions about the data (iid, finite variance): the fine
+  print the guarantees ride on.
+- **(b) Estimation** — it gives the *recipe* for computing an answer (minimize squared
+  deviations): how you get a number.
+- **(c) Validation** — simulation evidence that the method behaves as claimed: "does it actually
+  work?"
+- **(d) Inference** — a claim about *trust* in the answer: consistency (homes in as $n$ grows)
+  plus an error *rate* ($O(1/\sqrt{n})$: 4× the data ≈ half the error).
+- **(e) Model** — it defines the object being estimated ($\mu$, the true center); part of the
+  setup of *what we're assuming/targeting*.
+
+The skill is spotting *what each sentence is for*: assumptions and the target object = model;
+the recipe = estimation; trust/error claims = inference; evidence-it-works = validation.
+:::
+
+## Problem 4 — spot the error *(from the lesson's proof-trust trap)*
+
+A colleague explains how they read the paper's main result. Their reasoning contains **exactly
+one mistake** — find it, say why it's wrong, and give the correct reading.
+
+> "Theorem 1 states the estimator is consistent, and a full proof follows, ending in a little
+> $\square$ box. I couldn't follow the algebra in the proof, so I concluded I'm not allowed to
+> rely on the consistency result — if you can't verify the proof yourself, you can't use the
+> theorem."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the conclusion **"if you can't verify the proof yourself, you can't use the
+theorem."** That inverts the whole point of the boxed-result convention. A **Theorem** is a
+result the authors (and reviewers) have *already* verified — the proof is *their* justification,
+and the $\square$ box marks where it ends. You are invited to read the **statement**, trust it,
+and use it, skipping the proof on a first pass; you trace the proof only when you specifically
+want the *why* or intend to audit it. So the correct reading is the reverse: not following the
+algebra is *fine* — the result is still yours to rely on, and the $\square$ is precisely your cue
+that it's safe to skip ahead. (This is Trap 2 from the lesson: "a proof I can't follow means I
+can't trust or use the result" — tempting, but backwards.)
+:::
+
+## Problem 5 — mixing it with reading math notation *(uses [reading-math-notation](../reading-math-notation/lesson.qmd)'s glyph decoding)*
+
+Reading a full asymptotic sentence needs *both* skills at once: the glyphs (from
+[reading math notation](../reading-math-notation/lesson.qmd)) and the conventions (this lesson).
+Decode this invented sentence completely — read every symbol aloud, then say what the whole
+sentence *promises*:
+
+> "As $n \to \infty$, $\hat{\theta} \to \theta$, with error $O(1/\sqrt{n})$."
+
+::: {.callout-note collapse="true" title="Answer"}
+**Symbol-by-symbol** (glyphs are [reading math notation](../reading-math-notation/lesson.qmd)
+territory; the arrow, infinity, the hat accent, big-O are all decoded there or in this lesson):
+
+- "$n \to \infty$" — "as $n$ goes to infinity" = as the sample size grows without bound.
+- "$\hat{\theta}$" — "theta-hat": our *estimate* (the hat = "estimated from data") of the
+  unknown true value.
+- "$\theta$" — "theta": the true, unknown value we're after.
+- "$\hat{\theta} \to \theta$" — "theta-hat goes to theta": the estimate approaches the truth.
+- "$O(1/\sqrt{n})$" — "big-oh of one-over-root-n": the error shrinks *like* one over the square
+  root of $n$.
+
+**What it promises, in plain words:** "The more data you collect, the closer the estimate gets
+to the true value (that's **consistency**), and the typical error shrinks like $1/\sqrt{n}$ — so
+gathering **4×** the data roughly **halves** the error." You needed reading-math-notation for the
+$\hat{}$, $\to$, $\infty$, $\sqrt{}$ glyphs and this lesson for what "$\to \infty$",
+"consistency," and big-O *mean*.
+:::
+
+## Problem 6 — a gentle transfer (an assumption you must check)
+
+New context: you want to apply a method whose guarantees are stated **"under Assumptions
+A1–A2,"** where:
+
+> **(A1)** The observations are iid.
+> **(A2)** The variance is finite.
+
+Your actual data are **daily temperature readings from a single weather station, one per day for
+a year**. For each assumption, decide whether your data plausibly satisfies it, and say what
+follows for the paper's guarantees if one fails. (No code — this is a reading-and-judgment
+problem, exactly what the assumption-list convention is *for*.)
+
+::: {.callout-note collapse="true" title="Answer"}
+**A1 (iid) — almost certainly violated.** Daily temperatures are *not independent*: a warm day
+is very likely followed by another warm day (strong day-to-day carry-over), and they're arguably
+*not identically distributed* either, because summer and winter days come from seasonally
+different "jars." So the "same jar, separate draws, none nudging another" promise fails on both
+counts.
+
+**A2 (finite variance) — plausibly fine.** Temperatures don't swing to unbounded extremes, so a
+finite variance is a reasonable assumption here.
+
+**What follows:** because the guarantees are stated *"under A1–A2,"* and **A1 fails**, the
+paper's promises (e.g. its consistency or error-rate claims) **may simply not hold for your
+data** — quietly, with nothing in the result itself to warn you. That is exactly why the
+assumption list is the *stop-and-check* bucket: reading it against your own situation is how you
+learn whether a method's guarantees are actually yours to keep.
+:::

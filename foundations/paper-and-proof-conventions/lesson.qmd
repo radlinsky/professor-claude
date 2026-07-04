@@ -1,0 +1,503 @@
+---
+title: "Reading a methods section: the conventions papers never explain"
+subtitle: "What 'iid', a boxed theorem, 'WLOG', 'as n → ∞', and an assumption list are actually telling you — so you can read a methods section without decoding every glyph"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the two live cells below re-state their own data. Base R is
+# all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The two code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit either
+one and re-run. The first run downloads a small R engine, so give it a few seconds. This
+lesson is mostly reading, though — most of it has no code at all.
+:::
+
+## Where we're going
+
+A methods section is written in a private dialect. Not the *symbols* — a separate lesson
+handles those — but the **conventions**: little words and rituals every author assumes you
+already know. "Assume the data are iid." "Theorem 1." "WLOG, take the mean to be zero." "As
+$n \to \infty$, the estimator is consistent." "Under Assumptions A1–A3…" None of it is
+explained, because to the author it's as ordinary as saying "hello."
+
+This lesson decodes that dialect so a methods section becomes *readable* — so you know which
+sentences you can trust and skip, which you must check, and how the section is laid out. We
+will **not** re-teach any symbols (that's [reading math notation](../reading-math-notation/lesson.qmd)),
+and we will **not** teach any statistics — not what a distribution is, not how inference
+works. This is purely about the *reading conventions* wrapped around that content.
+
+**Builds on:** [reading math notation](../reading-math-notation/lesson.qmd) — that lesson
+teaches the glyphs ($\bar{x}$, subscripts, $\to$, $\infty$); this one teaches the *words and
+rituals* those glyphs sit inside.
+
+## Warm-up: do you remember?
+
+Three quick reps first — answer from memory, then check.
+
+**1.** In a formula, an accent on a letter is an *operator* — it tells you to do something to
+the letter underneath. What does the **bar** in $\bar{x}$ tell you to do, and what does the
+**hat** in $\hat{\beta}$ signal?
+
+::: {.callout-note collapse="true" title="Answer"}
+The bar means "take the average": $\bar{x}$ is the mean of the $x$ values. The hat means
+"estimated from data": $\hat{\beta}$ ("beta hat") is our data-based *guess* at the true, unknown
+$\beta$. Both are covered in [reading math notation](../reading-math-notation/lesson.qmd) — revisit
+if either felt shaky. We lean on the hat idea below when a paper says an *estimator* is
+"consistent."
+:::
+
+**2.** Read this aloud and say what each piece means: $n \to \infty$.
+
+::: {.callout-note collapse="true" title="Answer"}
+"$n$ goes to infinity" — the arrow $\to$ means "approaches / goes to," and $\infty$ is the
+infinity symbol, meaning "grows without bound." So $n \to \infty$ is "imagine the sample size
+getting larger and larger, forever." The glyphs are
+[reading math notation](../reading-math-notation/lesson.qmd); what this phrase *means for a
+method* is the whole "Asymptotics in words" section below.
+:::
+
+**3.** True or false, in one line: the letter $n$ in a stats paper almost always stands for
+**the number of data points**.
+
+::: {.callout-note collapse="true" title="Answer"}
+True. $n$ is the sample size — how many observations you have (in R, `length(x)` or `nrow(df)`).
+Nearly every convention in this lesson is a statement about what happens as that $n$ changes
+or about what the $n$ data points are assumed to be.
+:::
+
+## A tiny example first
+
+Here is an invented two-sentence excerpt — the kind of thing that opens a real methods
+section. Nothing here refers to any real method; it's a stand-in so we can point at the
+conventions:
+
+> **Setup.** Let $x_1, \dots, x_n$ be iid draws. We estimate the center by the sample mean
+> $\bar{x}$ and show below that $\bar{x}$ is consistent as $n \to \infty$.
+
+Read as a decoder, sentence by sentence:
+
+- **"$x_1, \dots, x_n$"** — "$n$ data points, labelled 1 through $n$." Just a list of
+  observations. (Glyph-level; [reading math notation](../reading-math-notation/lesson.qmd).)
+- **"iid draws"** — the key convention: each data point is an **independent, identically
+  distributed** draw. Picture *one jar* of numbered balls; you reach in, read a ball, *put it
+  back*, and draw again. Every draw comes from the **same** jar (identically distributed) and
+  no draw is nudged by the ones before it (independent). That's it — "iid" is a one-word
+  promise about how the data were generated.
+- **"the sample mean $\bar{x}$"** — their chosen recipe for the center (the average).
+- **"consistent as $n \to \infty$"** — a *promise about behaviour*: as you collect more and
+  more data, this recipe's answer homes in on the true value. We'll make that concrete in a
+  moment.
+
+Let's *feel* "iid" and "consistent" with the simplest possible jar: a fair coin, written as
+0 (tails) and 1 (heads). Each flip is an iid draw from the same 50/50 jar. Flip it 8 times:
+
+```{r toy-example}
+set.seed(42)                          # so you and I get the same "random" flips
+draws <- sample(c(0, 1), size = 8, replace = TRUE)  # replace = TRUE => same jar every draw
+draws                                 # 0 0 0 0 1 1 1 1
+
+mean(draws)                           # the sample mean of these 8 flips: 0.5
+```
+
+Eight flips gave a sample mean of exactly `0.5` here — but that was luck of the draw; with a
+different seed you'd get 0.375 or 0.625. The **consistency** promise is not about 8 flips; it's
+about what happens as the number of flips grows. The true center of a fair coin is 0.5. Watch
+the sample mean settle toward it as $n$ climbs:
+
+```{r consistency-table}
+set.seed(42)
+for (n in c(10, 100, 1000, 10000)) {
+  m <- mean(sample(c(0, 1), size = n, replace = TRUE))  # sample mean of n iid flips
+  cat(sprintf("n = %6d   sample mean = %.4f\n", n, m))
+}
+# n =     10   sample mean = 0.5000
+# n =    100   sample mean = 0.5700
+# n =   1000   sample mean = 0.4980
+# n =  10000   sample mean = 0.4970
+```
+
+At $n = 100$ the estimate wandered to 0.57; by $n = 1000$ and $n = 10000$ it's hugging 0.5.
+*That* is what "consistent as $n \to \infty$" is promising in words: pour in more iid data
+and the estimate closes in on the truth. (It doesn't march there smoothly — 0.5700 is
+farther off than the $n=10$ result here — the promise is about the long run, not every step.)
+
+## Getting a feel for it
+
+**The mental picture: a methods section is a contract with fine print.** When you sign a
+contract, you don't re-derive property law — you *trust* the boxed clauses and *check* the
+conditions that apply to you. A methods section is the same. The **boxed results** (theorems,
+lemmas) are clauses you're invited to trust; the **assumption list** is the fine print you
+must check against your own situation; the **proofs** are the lawyer's justification you can
+skip unless you're auditing. Reading well means knowing which is which. (Where the analogy
+strains: a paper's clauses are only as good as its assumptions — an unmet assumption voids the
+guarantee, quietly, with no one to sue.)
+
+**Why do papers bury all this in conventions instead of spelling it out?** For the same reason
+R has `mean()` instead of making you type `sum(x)/length(x)` every time: *compression among
+people who share the vocabulary.* "iid" packs a whole sentence about data generation into three
+letters. "Theorem" packs "here is a claim we have proven, so you may rely on it." "WLOG" packs
+"we're about to simplify in a way that costs no generality." Once you hold the expansions, the
+density stops being a wall and becomes a shorthand you can read at speed.
+
+**What these conventions "feel like" in practice.** They sort every sentence into one of three
+buckets, and knowing the bucket tells you how hard to read:
+
+- **Trust-and-move-on** — a boxed theorem/lemma/corollary result, and its QED. You read the
+  *statement*, note what it guarantees, and keep going. The proof is optional.
+- **Stop-and-check** — the assumption list ("Assume iid", "Assume the variance is finite").
+  These are the conditions the guarantees ride on; if your data breaks one, the guarantee may
+  not hold for you. Never skim these.
+- **Reading-glue** — the ritual phrases ("it follows that", "it suffices to show", "WLOG",
+  "by construction"). They don't add facts; they signpost the *logic* connecting the facts.
+
+## What the notation is going to say
+
+There isn't a single formula to unveil here — this lesson's "formal version" is a **glossary of
+conventions**, because the conventions *are* the content. Below, each convention gets its
+plain-English expansion and, where it helps, a tiny invented excerpt showing it in the wild.
+Read the table first (it's your quick-reference card), then the walkthrough that expands each
+row with an example.
+
+## How to read the symbols
+
+Every convention, phrase, and symbol this lesson uses gets a row. The right column says how to
+read it *in a methods section*, not a toy number — because these are reading conventions, not
+quantities.
+
+| Symbol / phrase | How to say it | What it's telling you |
+|---|---|---|
+| $n$ | "en" | the sample size — how many data points (in R: `length(x)` / `nrow(df)`) |
+| $x_1, \dots, x_n$ | "ex-one through ex-en" | a list of $n$ data points, labelled 1 to $n$ (a subscript index — [reading math notation](../reading-math-notation/lesson.qmd)) |
+| $p$ | "pee" | the number of unknowns/parameters a method must estimate (used in "$n > p$": more data than unknowns) |
+| $\bar{x}$ | "ex-bar" | the sample mean (average); the bar accent = "take the average" ([reading math notation](../reading-math-notation/lesson.qmd)) |
+| $\hat{\beta}$ | "beta-hat" | an *estimate* of the true (Greek) $\beta$; the hat accent = "estimated from data" ([reading math notation](../reading-math-notation/lesson.qmd)) |
+| $\mu$, $\theta$ | "mew" / "theta" | Greek letters standing for a *true, unknown* value a method targets (e.g. the true center) |
+| $\hat{\theta}$ | "theta-hat" | our data-based *estimate* of the true $\theta$ (hat = "estimated from data") |
+| $\sqrt{n}$, $\log$ | "root-en" / "log" | square root of $n$, and the logarithm — plain math glyphs that appear inside big-O rates ([reading math notation](../reading-math-notation/lesson.qmd)) |
+| iid | "eye-eye-dee" | data points are **i**ndependent and **i**dentically **d**istributed: same jar, separate draws (the "identically" = same source; the "independent" = no draw sways another) |
+| $n \to \infty$ | "n goes to infinity" | "imagine the sample size growing without bound" — the setup for every asymptotic claim ([reading math notation](../reading-math-notation/lesson.qmd) owns the $\to$ and $\infty$ glyphs) |
+| $\to$ | "goes to / approaches" | one thing settles toward another (here: an estimate toward a true value) |
+| $\infty$ | "infinity" | grows without bound; "arbitrarily large" |
+| Theorem | "theorem" | a proven headline result you are invited to **trust** — the paper's main promise |
+| Lemma | "lemma" | a smaller proven result, usually a stepping-stone *toward* a theorem |
+| Corollary | "corollary" | a result that drops out **for free** right after a theorem ("and therefore…") |
+| Proof … $\square$ | "proof … (QED)" | the justification for a boxed result; the box $\square$ (or "QED") marks **"proof ends here"** — safe to skip to |
+| consistent | "consistent" | an estimator whose answer homes in on the true value as $n$ grows (a reading-level promise about behaviour) |
+| $O(\cdot)$ | "big-oh of …" | **how fast** a quantity grows or shrinks with $n$, ignoring constants — a rate label, e.g. $O(n)$ = "grows in step with $n$" |
+| WLOG | "without loss of generality" | "we simplify now; it costs us nothing — the general case follows the same way" |
+| it suffices to show | "it suffices to show" | "proving this smaller claim is enough to prove the whole thing" |
+| it follows that | "it follows that" | "the next statement is a direct consequence of the last" (a logic connector, not a new fact) |
+| by construction | "by construction" | "this is true simply because of how we *built* the object — no extra argument needed" |
+
+## The formal version (the convention glossary, expanded)
+
+No single equation — instead, the six convention families, each with an invented excerpt. This
+is the reference you'll come back to.
+
+### 1. iid — the promise about your data
+
+Almost every methods section opens by stating how the data are assumed to arise, and the
+workhorse assumption is **iid**: *independent, identically distributed*.
+
+> Let $y_1, \dots, y_n$ be iid.
+
+Reading it aloud: "$y$-one through $y$-$n$ are independent and identically distributed" — in
+everyday words: **"$n$ data points, each a fresh draw from the same source, none influencing
+another."** Unpack the two halves:
+
+- **Identically distributed** — every observation comes from the *same* jar (same underlying
+  process). If half your data came from one machine and half from a differently-calibrated
+  one, they are *not* identically distributed.
+- **Independent** — knowing one observation tells you nothing about the next. Measurements on
+  the *same* person over time, or repeated votes by the *same* household, are typically *not*
+  independent.
+
+**Why papers state it up front:** every guarantee that follows leans on it. It's the first line
+of the fine print — the condition that makes the sample-mean-settles-to-the-truth story (and
+most others) go through. When you read "assume iid," your job is to ask *"is that plausible for
+the data I'd feed this method?"*
+
+### 2. Theorem / Lemma / Corollary / Proof — the boxed results and what each is *for*
+
+These are the paper's load-bearing claims, dressed in a house style. The names tell you the
+*role*, so you can read strategically:
+
+- **Theorem** — a main, proven result. The headline promise. Read the statement carefully;
+  it's usually *why the method works*.
+- **Lemma** — a smaller proven result that exists to *support* a theorem. A stepping-stone. You
+  can often note its conclusion and move on.
+- **Corollary** — a result that falls out of a theorem almost for free ("and as an immediate
+  consequence…"). Read it as "bonus guarantee."
+- **Proof** — the argument that the boxed claim is true. It ends with a little box $\square$ (or
+  the letters **QED**, Latin for "which was to be shown"). **The single most useful reading
+  move in this whole lesson: when you hit "Proof," you may skip to the $\square$ and keep the
+  result.** The result is trustworthy *because* the proof exists — you don't have to walk it to
+  use it.
+
+An invented excerpt showing the whole ritual:
+
+> **Lemma 1.** Under the setup above, the sample mean is unbiased.
+> *Proof.* [several lines of algebra] $\square$
+>
+> **Theorem 1.** Under the setup above, the sample mean is consistent as $n \to \infty$.
+> *Proof.* By Lemma 1 and [more lines] … $\square$
+>
+> **Corollary 1.** In particular, the estimate's error shrinks toward zero as more data arrive.
+
+Reading strategy in one breath: **read every boxed statement; skip every proof on the first
+pass** (dip in only if you need to know *why*, or to audit). The QED box is your permission to
+skip.
+
+### 3. The ritual phrases — reading glue, not facts
+
+These recur in every proof and derivation. They connect statements; they do not introduce data
+or results. Knowing them stops you re-reading a sentence hunting for content that isn't there.
+
+- **"it follows that"** — "the next line is a direct logical consequence of the previous one."
+  A connector. (Note: our own [teaching contract](../../TEACHING.md) bans this phrase in
+  *teaching* material precisely because it hides a step the learner needs — but *papers* use it
+  constantly, so you must be able to read it.)
+- **"WLOG"** (without loss of generality) — "we're about to make a simplifying choice — e.g.
+  'assume the mean is 0' — and it costs nothing, because the general case works out the same
+  way after undoing the simplification." When you see WLOG, relax: the author is making their
+  life (and yours) easier, not skipping a case that matters.
+- **"it suffices to show"** — "instead of proving the big claim directly, we'll prove this
+  smaller claim, which is enough." It tells you the proof just *changed targets* to something
+  easier.
+- **"by construction"** — "this holds simply because of how we defined/built the thing — there's
+  nothing more to prove." E.g., "the weights sum to 1 by construction" means "we *built* them
+  to sum to 1."
+
+A tiny excerpt with three of them:
+
+> WLOG assume the data are centered at 0. It suffices to show the estimator's average error is
+> 0; the rest follows. By construction, each weight is non-negative, so it follows that the
+> weighted sum is non-negative.
+
+Decoded: "We simplify by centering (costs nothing). We've swapped the goal to an easier one.
+The weights are non-negative because we built them that way, and therefore the sum is too."
+
+### 4. Asymptotics in words — "as $n \to \infty$", consistency, and big-O
+
+This is the family that scares readers most, so hold it at **reading level only** — you need to
+know what the *words* promise, not how to prove any of it.
+
+- **"as $n \to \infty$"** ("as n goes to infinity") — "imagine the sample size growing without
+  bound." A framing phrase: whatever comes next is a statement about the *large-sample* behaviour
+  of the method, not about your particular 30-row dataset. Real datasets are finite, so read it
+  as *"the more data you have, the more this holds."*
+- **consistency** — an estimator (a recipe like $\bar{x}$ that guesses a true value from data)
+  is **consistent** if its answer homes in on the true value as $n \to \infty$. We *saw* this:
+  the coin's sample mean crept toward 0.5 as $n$ grew. "Consistent" is the paper promising "feed
+  it enough data and it stops being wrong."
+- **big-O**, written $O(\cdot)$ ("big-oh of …") — a label for **how fast** something grows or
+  shrinks *with $n$*, ignoring constant factors. Read it as a *speed tag*:
+  - $O(n)$ ("big-oh of n") — grows *in step with* $n$: double the data, double the cost.
+  - $O(n^2)$ ("big-oh of n-squared") — grows with the *square* of $n$: double the data,
+    **quadruple** the cost. Much worse for large $n$.
+  - $O(1/n)$ — *shrinks* like one-over-$n$: more data makes this (often an error) smaller.
+
+  The constants are deliberately dropped because big-O answers only *"how does it scale?"*, not
+  *"exactly how big?"* Here's the scaling made visible — same $n$, three growth rates:
+
+```{r bigo-table}
+n <- c(1, 2, 4, 8, 16)
+rbind(n        = n,
+      `O(n)`   = n,        # linear: tracks n
+      `O(n^2)` = n^2)      # quadratic: blows up
+#        [,1] [,2] [,3] [,4] [,5]
+# n         1    2    4    8   16
+# O(n)      1    2    4    8   16
+# O(n^2)    1    4   16   64  256
+```
+
+From $n=1$ to $n=16$, the $O(n)$ row grew 16×, but the $O(n^2)$ row grew 256×. *That* gap — not
+the exact numbers — is the entire content of a big-O statement: it's telling you which curve the
+cost (or error) rides as data grows. An invented excerpt:
+
+> The estimator is consistent, with error of order $O(1/\sqrt{n})$, and the algorithm runs in
+> $O(n \log n)$ time.
+
+Read purely as promises: "as data grows the estimate homes in (consistent); its error shrinks
+roughly like one-over-root-$n$ (so 4× the data ≈ half the error); and the compute cost grows a
+bit faster than linearly." You need none of the proofs to *use* those three facts.
+
+### 5. Assumption lists — the fine print, and why you check it
+
+Most methods parcel their required conditions into a labelled list — **A1, A2, A3** or
+**Assumption 1, 2, 3** — usually right before the theorems. Every guarantee is then stated
+"under Assumptions A1–A3." An invented list:
+
+> **Assumptions.**
+> **(A1)** The observations $x_1,\dots,x_n$ are iid.
+> **(A2)** The variance is finite.
+> **(A3)** The sample size satisfies $n > p$ (more observations than unknowns).
+
+**Why they're pulled out into a list:** so the guarantees can name them ("under A1–A3, Theorem 1
+holds") and so *you can check them against your own situation.* This is the stop-and-check
+bucket. If your data violate A1 (say, repeated measures on the same subject, so not
+independent), the paper's promises may simply not apply to you — quietly, with no warning in the
+result itself. **Checking the assumptions is how you find out whether a method's guarantees are
+yours to keep.** Reading move: whenever a theorem says "under A2," jump back to what A2 *is* and
+ask "does my data satisfy that?"
+
+### 6. Anatomy of a methods section — a reading map
+
+Methods sections, wildly different in topic, almost always march in the same four beats. Knowing
+the beats turns "wall of text" into "I know where I am":
+
+1. **Model** — *what is assumed about the world/data.* The setup: "let the data be iid," the
+   assumption list, the object being estimated. (Answers: *what are we assuming?*)
+2. **Estimation** — *how we compute an answer from data.* The recipe/estimator, the objective it
+   optimizes, the algorithm. (Answers: *how do we get a number?*)
+3. **Inference** — *how sure we are.* Standard errors, confidence statements, the theorems about
+   consistency and error rates. (Answers: *how much can we trust the number?*)
+4. **Validation** — *evidence it works.* Simulations, comparisons, real-data checks. (Answers:
+   *does it actually behave as claimed?*)
+
+Use it as a *table of contents in your head*: when you're lost, ask "which of the four am I in?"
+The iid statement and assumption list live in **Model**; the estimator lives in **Estimation**;
+consistency and big-O error rates live in **Inference**; the "we ran 1000 simulations" lives in
+**Validation**. (Not every paper labels the beats, and some reorder or merge them — treat the map
+as the common case, not a law.)
+
+## Explore it
+
+Two live cells — the only runnable ideas in this reading-heavy lesson. Both let you *feel* an
+asymptotic word rather than just read it.
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: "consistent as n -> infinity", felt.
+# Each row draws n iid fair-coin flips (same jar, replace = TRUE) and averages them.
+# The true center is 0.5. Watch the sample mean settle toward it as n grows.
+# TRY IT: change the ns, or the jar (e.g. sample(1:6, ...) for a fair die, true mean 3.5).
+# PREDICT: at n = 100000, will the mean be closer to 0.5 than at n = 100? Commit, then run.
+set.seed(42)
+for (n in c(10, 100, 1000, 10000, 100000)) {
+  m <- mean(sample(c(0, 1), size = n, replace = TRUE))
+  cat(sprintf("n = %7d   sample mean = %.4f\n", n, m))
+}
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two curves against n from 1 to 20: a straight line labelled O(n) rising gently, and a steep curve labelled O(n squared) rising far faster, illustrating that quadratic cost outgrows linear cost as n increases."
+# explore-2 — LIVE: what a big-O label is telling you — how cost SCALES with n.
+# TRY IT: add an O(n^3) curve (n^3), or an O(log n) curve (log(n)), and re-plot.
+# PREDICT: at n = 20, roughly how many times taller is the O(n^2) curve than the O(n) one?
+n <- 1:20
+plot(n, n^2, type = "l", lwd = 2, col = "firebrick",
+     xlab = "n (sample size)", ylab = "relative cost",
+     main = "big-O: how cost grows with n")
+lines(n, n, lwd = 2, col = "steelblue")
+legend("topleft", legend = c("O(n^2)  quadratic", "O(n)  linear"),
+       col = c("firebrick", "steelblue"), lwd = 2, bty = "n")
+```
+
+## Common traps
+
+**Trap 1 — "iid is just a fancy word for 'random,' so it's always satisfied."** It's tempting
+because both words gesture at "not rigged." But iid is *two specific promises*, and real data
+break them all the time. Repeated measurements on the same subject violate **independence**
+(today's reading is tied to yesterday's). Data pooled from two different instruments violate
+**identically distributed** (two jars, not one). Concretely: if you flip a *fair* coin (jar =
+50/50) 500 times and average, you head toward 0.5 — but if you secretly swap in a biased coin
+(a *second* jar) halfway through, the two halves aren't identically distributed and "the sample
+mean → 0.5" promise dies. "iid" is a checkable claim about *how the data arose*, not a synonym
+for "random."
+
+**Trap 2 — "a proof I can't follow means I can't trust or use the result."** The opposite is
+true, and it's the whole point of the boxed-result convention. A **Theorem** is a result the
+authors (and reviewers) have already verified via the proof; the box $\square$ marks where that
+verification ends. You are *invited* to read the statement, trust it, and use it — skipping the
+proof entirely on a first pass. Trace the proof only when you specifically need to know *why* it
+holds or want to audit it. Treating every unread proof as a blocker is what makes methods
+sections feel impossible; the convention exists precisely so you don't have to.
+
+## Check yourself
+
+**1.** A paper's setup says: "Let $r_1, \dots, r_n$ be iid." In one sentence each, say what the
+**"independent"** part and the **"identically distributed"** part are each promising about the
+$r$ values.
+
+::: {.callout-note collapse="true" title="Answer"}
+**Independent:** no $r$ value is influenced by any other — knowing one tells you nothing about
+the next (no carry-over, no clustering). **Identically distributed:** every $r$ comes from the
+*same* underlying source/jar — none is drawn from a different or shifted process. Together:
+"$n$ fresh draws from one common source, none nudging another."
+:::
+
+**2.** You're reading a proof and hit the sentence: "WLOG, assume the data are centered at 0. It
+suffices to show the average error is 0." Translate both ritual phrases into plain English, and
+say whether this sentence adds a new *fact* or just steers the *argument*.
+
+::: {.callout-note collapse="true" title="Answer"}
+"WLOG, assume the data are centered at 0" = "we'll simplify by shifting the data to have mean 0;
+this costs nothing because the general case follows the same way after shifting back." "It
+suffices to show the average error is 0" = "proving *that smaller claim* is enough to prove the
+whole result." Neither adds a fact about the data — both are **argument-steering** glue: one
+makes a cost-free simplification, the other swaps the proof's target for an easier one.
+:::
+
+**3.** A methods section states: "The estimator is consistent, and the algorithm runs in
+$O(n^2)$ time." Which of the four methods-section beats (model / estimation / inference /
+validation) does *each* clause belong to, and what does each clause promise in plain words?
+
+::: {.callout-note collapse="true" title="Answer"}
+"The estimator is **consistent**" is an **inference** claim: as the sample size grows, the
+estimate homes in on the true value (feed it enough data and it stops being wrong). "Runs in
+$O(n^2)$ **time**" is really an **estimation/algorithm** claim: the compute cost grows with the
+*square* of $n$, so doubling the data roughly *quadruples* the runtime. (Runtime is sometimes
+folded into the estimation description; the key skill is spotting that one clause is about
+*trust in the answer* and the other about *cost to compute it*.)
+:::
+
+**4.** In your own words: explain to a colleague, in two sentences, what the "Proof … $\square$"
+convention lets a reader *do*, and why that's safe.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The "Proof … $\square$" box marks a self-contained justification for a stated result, and the
+$\square$ (or "QED") tells you exactly where it ends — so on a first read you can jump from the
+result straight past the proof to the box and keep going. It's safe because the result is
+trustworthy *because* the proof exists and has been checked; you only need to walk through it if
+you specifically want to understand or audit *why* it holds.
+:::
+
+## What you can now do
+
+- **Decode "iid"** — expand it to its two promises (independent; identically distributed = same
+  jar, separate draws) and judge whether a given dataset plausibly satisfies each.
+- **Read theorem/lemma/corollary/proof strategically** — trust a boxed statement, recognise the
+  role each label plays, and use the $\square$/QED box as permission to skip a proof on a first
+  pass.
+- **Translate the ritual phrases** — "it follows that", "WLOG", "it suffices to show", and "by
+  construction" — as logic glue, not new facts.
+- **Read asymptotics at the right level** — say what "as $n \to \infty$", "consistent", and a
+  big-O rate (e.g. $O(n)$ vs $O(n^2)$) each *promise*, without needing to prove any of them.
+- **Navigate a methods section** — find the assumption list and check it against your own data,
+  and locate where you are via the model → estimation → inference → validation map.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version-the-convention-glossary-expanded) before continuing —
+every future methods section you read leans on these reading habits.
+
+## Where this goes next
+
+With these conventions in hand, a methods section stops being a wall and becomes a document you
+can *navigate*: you know which sentences to trust, which to check, and which are just glue. The
+actual *content* those conventions wrap — what a distribution is, how estimation and inference
+really work — is taught in the statistics and method modules; this lesson only hands you the
+reading key. Ready for more reps? Do the [practice problems](practice.qmd).

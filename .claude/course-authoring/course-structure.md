@@ -8,8 +8,9 @@ Exact layouts, file formats, and naming rules. Copy these; do not improvise.
   `kalman-filter-basics`, `mixed-effects-models`.
 - Course modules: numbered in learning order, zero-padded —
   `modules/01-least-squares-idea/`, `modules/02-deriving-the-ols-formulas/`.
-- Foundation modules: kebab-case, **not numbered** (the library is a pool, not a
-  sequence) — `foundations/mean-variance-covariance/`.
+- Foundation modules: kebab-case, **not numbered** (a pool with declared prerequisite
+  edges, not a numbered sequence) — `foundations/mean-variance-covariance/`. The edges
+  live in the `Builds on` column of `foundations/README.md` (see §Index tables).
 
 ## Folder layouts
 
@@ -36,8 +37,15 @@ foundations/<module-slug>/
 └── resources.md         # verified links for just this module
 ```
 
-New foundation modules must also be registered in the root `_quarto.yml` (see below)
-and added to the `foundations/README.md` index table.
+A new foundation module is **generated** into the two shared index files, not
+hand-registered: add `foundations/<slug>/meta.dcf` (`ShortName`, `Concepts`,
+`BuildsOn`, `UsedBy` — see below) and run `Rscript scripts/gen-indexes.R`. The
+generator rewrites the foundation render list + sidebar in the root `_quarto.yml` and
+the table body in `foundations/README.md`, sorted by slug, between `# >>> generated` /
+`<!-- >>> generated -->` sentinel markers. **Never hand-edit between those markers** —
+CI (`Rscript scripts/gen-indexes.R --check`) fails on drift. The learner-owned
+**Status** cell is preserved across regeneration (a brand-new module defaults to `not
+started`). Courses are NOT generated — register a course by hand as described below.
 
 ## Registering a course in the root `_quarto.yml`
 
@@ -99,12 +107,17 @@ Example — adding a course with two modules:
 ```
 
 A new **foundation** module gets the same nested shape — its own `section:`
-(short name, no number) under the `"Foundations"` section:
+(short name, no number) under the `"Foundations"` section — but you do **not** type
+it by hand. The block below is what `Rscript scripts/gen-indexes.R` emits from the
+module's `meta.dcf` `ShortName` (the render-list entries and the `foundations/README.md`
+table row are generated the same way). Edit `meta.dcf` and re-run the generator; the
+region between the `# >>> generated: foundation sidebar` markers is machine-owned:
 
 ```yaml
       - section: "Foundations"
         contents:
-          - section: "<Short module name>"
+          # >>> generated: foundation sidebar (scripts/gen-indexes.R) — do not edit by hand
+          - section: "<ShortName from meta.dcf>"
             contents:
               - text: "Lesson"
                 href: foundations/<module-slug>/lesson.qmd
@@ -112,6 +125,18 @@ A new **foundation** module gets the same nested shape — its own `section:`
                 href: foundations/<module-slug>/practice.qmd
               - text: "Resources"                   # inside the module section
                 href: foundations/<module-slug>/resources.md
+          # <<< generated: foundation sidebar
+```
+
+The per-module metadata file is `read.dcf` format — one leading space indents any
+continuation line of a long `Concepts:` value:
+
+```text
+ShortName: Matrices & linear transforms
+Concepts: A matrix as a grid/stack of rows, matrix × vector as one dot product per
+ row, the transpose and why it appears, and the inverse as "undo"
+BuildsOn: [vectors-and-summation](vectors-and-summation/lesson.qmd)
+UsedBy: —
 ```
 
 Do not create a `_quarto.yml` inside a course or foundation folder — a nested one
@@ -164,6 +189,7 @@ table as a refresher instead.
 
 | Module | Why this course needs it |
 |---|---|
+| [reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) | The standing first prerequisite — it decodes the accents, Greek letters, subscripts, and operators every other formula uses. New? take it fully; done before? skim its symbol table. |
 | [<name>](../../foundations/<slug>/lesson.qmd) | <one line> |
 
 ## Course modules
@@ -174,6 +200,12 @@ table as a refresher instead.
 **You'll learn:** <comma-separated concepts>
 **Time:** ~<X> min lesson + ~<X> min practice
 ```
+
+**reading-math-notation is the standing first prerequisite of *every* course.** It is
+always row 1 of the prerequisites table above, with the wording shown (identical across
+courses), regardless of what else the course needs. It does NOT get a Mermaid node in
+the roadmap (avoid clutter), but each roadmap's intro prose links it once. In
+`courses/README.md`, list it first in the course's foundation-prerequisites cell.
 
 ## `00-roadmap.qmd` format
 
@@ -213,6 +245,13 @@ flowchart TD
 blue `:::foundation`; prerequisite-COURSE nodes are green `:::priorcourse` and
 prefix the label with `course:` — see the genericity rule for when a building
 block is a prerequisite course rather than a foundation.)
+
+**Foundation-to-foundation edges:** when a roadmap shows two foundation modules and one
+**Builds on** the other (per the `Builds on` column of `foundations/README.md`), draw
+that edge too — e.g. `F1 --> F2` for exponentials-and-logs → probability-and-odds — not
+just the foundation→module edges. Otherwise the diagram shows them as independent
+siblings when one actually depends on the other, and a learner may take them out of
+order.
 
 ## Capstone (required last module of every course)
 
@@ -290,7 +329,16 @@ Surface it in the syllabus's *Before you start* section and as a green
 ## Index tables
 
 - `courses/README.md` columns: `Course | Teaches | Source | Prerequisite courses | Foundation prerequisites | Status` (`Prerequisite courses` = `—` when none)
-- `foundations/README.md` columns: `Module | Concepts covered | Used by | Status`
+- `foundations/README.md` columns: `Module | Concepts covered | Builds on | Used by | Status`
+  - The table **body is generated** — `Concepts covered`, `Builds on`, and `Used by`
+    come from each module's `foundations/<slug>/meta.dcf` (`Concepts`, `BuildsOn`,
+    `UsedBy`), and `Status` is preserved from the current table. Edit `meta.dcf` and run
+    `Rscript scripts/gen-indexes.R`; never hand-edit rows between the `<!-- >>> generated -->`
+    markers. `Status` stays learner-owned and is not stored in `meta.dcf`.
+  - `Builds on` = kebab-slug link(s) to the foundation module(s) this one leans on, `—`
+    for a root. **Sync rule:** a module's `Builds on` cell (i.e. its `meta.dcf` `BuildsOn`)
+    must always match the **Builds on:** line inside its own `lesson.qmd` — edit both
+    together, never one alone.
 - Status values (learner-owned; initialize to `not started`, never overwrite later):
   `not started` / `in progress` / `done`.
 

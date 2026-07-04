@@ -1,0 +1,4 @@
+ShortName: Resampling: bootstrap & permutation
+Concepts: Sampling with vs without replacement (`sample(x, replace=)`), the bootstrap (redraw your sample with replacement, histogram the statistic, read a percentile CI via `quantile(., c(.025,.975))`), the permutation test (shuffle labels to build the "no effect" null and locate the observed statistic), the universal `replicate()` → compute-a-statistic → summarize loop, and when resampling beats a formula (no clean SE/closed form) plus its limits (small n, dependence)
+BuildsOn: [randomness-samples-and-sampling-distributions](randomness-samples-and-sampling-distributions/lesson.qmd), [hypothesis-tests-p-values-and-confidence-intervals](hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+UsedBy: —

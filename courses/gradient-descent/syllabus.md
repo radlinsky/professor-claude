@@ -34,6 +34,7 @@ refresher instead.
 
 | Module | Why this course needs it |
 |---|---|
+| [reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) | The standing first prerequisite — it decodes the accents, Greek letters, subscripts, and operators every other formula uses. New? take it fully; done before? skim its symbol table. |
 | [derivative-as-slope](../../foundations/derivative-as-slope/lesson.qmd) | Gradient descent's compass is the slope of a curve; this teaches how to *measure* one numerically — the tool every module here reuses. |
 | [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) | With more than one knob, the slope becomes a *vector* of slopes (the gradient), and the loss is a *sum* over data points. |
 

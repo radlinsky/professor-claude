@@ -45,6 +45,7 @@ table as a refresher instead.
 
 | Module | Why this course needs it |
 |---|---|
+| [reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) | The standing first prerequisite — it decodes the accents, Greek letters, subscripts, and operators every other formula uses. New? take it fully; done before? skim its symbol table. |
 | [exponentials-and-logs](../../foundations/exponentials-and-logs/lesson.qmd) | The sigmoid is built from $e^{-z}$; log-odds and the log-likelihood are built from the natural log. You need $e^x$, $\log$, and the log rules fluently. |
 | [probability-and-odds](../../foundations/probability-and-odds/lesson.qmd) | Logistic regression predicts a *probability*, and the quantity it models linearly is the *log-odds*. This teaches probability, odds, and the odds↔probability conversion. |
 | [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) | The log-likelihood is a $\Sigma$ over every data point; you'll read $x_i$, $y_i$, $n$ throughout. |
