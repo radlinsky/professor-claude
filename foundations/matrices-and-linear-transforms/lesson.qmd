@@ -1,0 +1,473 @@
+---
+title: "Matrices, and what it means to multiply them"
+subtitle: "How a table of numbers acts on a vector — the machinery papers write as Ax, XᵀX, and A⁻¹"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+A **matrix** is a table of numbers — rows and columns of them — and almost every
+statistical method eventually packs its data into one. The magic isn't the table
+itself; it's what *multiplying* by a matrix does: it takes a whole vector of numbers
+and transforms it into a new one, in a single stroke. Once you can read `A %*% x`,
+`t(X) %*% X`, and `solve(A)` as ordinary R you already understand, the matrix
+notation in papers ($A\mathbf{x}$, $X^\top X$, $A^{-1}$) stops being a wall.
+
+This lesson stays with concrete, hand-checkable tables (recipes, prices, batches) and
+base R. We will *not* touch eigenvalues, decompositions, or any regression framing —
+just the five moves you need to read matrix notation: building one, multiplying it by
+a vector, multiplying two of them, flipping one over (transpose), and undoing one
+(inverse).
+
+**Builds on:** [vectors & summation](../vectors-and-summation/lesson.qmd) — matrix
+multiplication is just one dot product per row, and a dot product is a sum of products
+($\sum_i a_i b_i$); and [reading math notation](../reading-math-notation/lesson.qmd)
+(soft — for the symbol conventions like subscripts and bold letters).
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each answer from memory, then check.
+
+**1.** For `a <- c(2, 1, 1)` and `b <- c(3, 4, 5)`, what single number is the **dot
+product** of `a` and `b`? Say the formula in words, then give the value.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+a <- c(2, 1, 1)
+b <- c(3, 4, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"Multiply the paired entries and add them up": $2\times3 + 1\times4 + 1\times5 =
+6 + 4 + 5 = 15$. In R that's `sum(a * b)`, which is exactly what the dot product means.
+This one operation — a **sum of products** — is the entire engine of matrix
+multiplication below. Shaky? Revisit
+[vectors & summation](../vectors-and-summation/lesson.qmd).
+:::
+
+**2.** Read this aloud and give its value for the same `b <- c(3, 4, 5)`:
+$\sum_{i=1}^{n} b_i$. What are $\sum_{i=1}^{n} b_i$ and $n$ here?
+
+::: {.callout-note collapse="true" title="Answer"}
+"The sum from i equals 1 to n of b-sub-i" — add them all: $3 + 4 + 5 = 12$, with
+$n = 3$. In R: `sum(b)` and `length(b)`. See
+[vectors & summation](../vectors-and-summation/lesson.qmd).
+:::
+
+**3.** In R, `x[3]` picks the third entry of a vector. If `A` is a table of numbers,
+how do you think you'd pick the number in **row 2, column 3**?
+
+::: {.callout-note collapse="true" title="Answer"}
+`A[2, 3]` — row index first, then column index. That two-number address is the whole
+idea of a matrix: every entry has a *(row, column)* label. We'll write it $A_{ij}$ in
+math ("A-sub-i-j"), which is just `A[i, j]` in R clothing — subscript addressing like
+this is [reading math notation](../reading-math-notation/lesson.qmd) territory.
+:::
+
+## A tiny example first
+
+You run a tiny bakery with **two recipes**. Each recipe needs some cups of three
+ingredients — flour, sugar, butter:
+
+- **Recipe 1** needs 2 flour, 1 sugar, 1 butter.
+- **Recipe 2** needs 1 flour, 2 sugar, 0 butter.
+
+Stack those two rows into a grid and you have a **matrix** — call it $A$. It has 2
+rows (one per recipe) and 3 columns (one per ingredient), so we say it's a "2 by 3"
+matrix:
+
+$$
+A = \begin{bmatrix} 2 & 1 & 1 \\ 1 & 2 & 0 \end{bmatrix}
+$$
+
+The number in **row 1, column 2** is 1 (recipe 1 uses 1 cup of sugar). The number in
+**row 2, column 3** is 0 (recipe 2 uses no butter). That's all a matrix is: a labelled
+grid, read *(row, column)*.
+
+**Now the useful part — matrix times vector.** Suppose the three ingredients cost 3, 4,
+5 dollars per cup. Put those prices in a vector $\mathbf{x} = (3, 4, 5)$. What does each
+recipe *cost*? You'd take each recipe's row and dot it with the prices:
+
+- Recipe 1: $2\times3 + 1\times4 + 1\times5 = 6 + 4 + 5 = \mathbf{15}$.
+- Recipe 2: $1\times3 + 2\times4 + 0\times5 = 3 + 8 + 0 = \mathbf{11}$.
+
+So $A$ times the price vector gives a new vector $(15, 11)$ — the cost of each recipe.
+**Matrix times vector = one dot product per row.** That single idea is the heart of
+everything below.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The recipe matrix: 2 rows (recipes) x 3 columns (ingredients).
+# byrow = TRUE fills row-by-row, so it reads like the grid above.
+A <- matrix(c(2, 1, 1,
+              1, 2, 0), nrow = 2, byrow = TRUE)
+A
+
+dim(A)        # 2 3  -> two rows, three columns
+A[1, 2]       # 1  -> row 1, column 2 (recipe 1's sugar)
+A[2, 3]       # 0  -> row 2, column 3 (recipe 2's butter)
+
+# Prices per ingredient
+x <- c(3, 4, 5)
+
+# Matrix times vector: %*% does one dot product per row automatically
+A %*% x       # 15  (recipe 1's cost) and 11 (recipe 2's cost)
+
+# Same thing, one row at a time, to prove %*% is just dot products:
+sum(A[1, ] * x)   # 15
+sum(A[2, ] * x)   # 11
+```
+
+## Getting a feel for it
+
+**A matrix is a machine that eats a vector and spits out a vector.** The picture to
+hold: feed the price vector $(3, 4, 5)$ into the box labelled $A$, and out comes the
+cost vector $(15, 11)$. Change the prices and different costs come out; the *box*
+(the recipes) stays the same. A matrix isn't really a static table — it's a **rule for
+transforming one list of numbers into another**. That's why the topic is called
+"linear transforms": each matrix is one transformation. (Where the analogy strains: a
+matrix can only do *linear* transformations — scale-and-add — never anything with a
+square or a curve in it. Doubling every price exactly doubles every cost, always.)
+
+**Why one dot product per row?** Because each row is a self-contained little recipe,
+and a dot product is exactly the "how much does this cost" question: pair each
+ingredient's amount with its price, multiply, and add. Row 1 asks the cost question
+for recipe 1; row 2 asks it for recipe 2. Stacking the answers gives the output
+vector. The rows never interact — that's why a matrix with more rows just produces a
+longer answer, one entry per row.
+
+**Why the column count has to match.** Recipe 1 lists 3 ingredient amounts, so the
+price vector *must* have 3 entries — you can't dot a length-3 row with a length-2
+list; there'd be a leftover number with nothing to pair. This is the whole reason
+matrix shapes have to "line up," which we'll pin down in a moment. For now: **the
+number of columns of the matrix must equal the length of the vector it eats.**
+
+**What the output feels like.** Our costs came out as $(15, 11)$ — recipe 1 is the
+pricier one, and that feels right: it uses more total, pricier ingredients. Drop
+butter's price to 0 and recipe 1's cost falls to 10 while recipe 2 (which uses no
+butter) doesn't move at all. The output vector is just "the same question answered for
+every row," so it always has one entry per row of the matrix.
+
+## What the notation is going to say
+
+When a paper writes $A\mathbf{x}$ (a matrix $A$ times a vector $\mathbf{x}$, with no
+symbol between them — the invisible "×" is just "apply the matrix"), it means exactly
+what we just did by hand: *go down the rows of $A$, and for each row take its dot
+product with $\mathbf{x}$; collect those numbers into a new vector.* In our example
+$A\mathbf{x}$ is the "$2\times3 + 1\times4 + 1\times5 = 15$, then
+$1\times3 + 2\times4 + 0\times5 = 11$" we already computed — the answer is $(15, 11)$.
+The transpose $A^\top$ and the inverse $A^{-1}$ we'll meet the same way: a familiar R
+call dressed in a symbol.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $A$ | "the matrix A" | a table of numbers, rows × columns (in R: `matrix(...)`) | the 2×3 recipe grid |
+| $A_{ij}$ | "A-sub-i-j" | the entry in row $i$, column $j$ (in R: `A[i, j]`) | $A_{12} = 1$, $A_{23} = 0$ |
+| $\mathbf{x}$ (bold) | "the vector x" | a whole column of numbers at once (an R vector!) | the prices $(3, 4, 5)$ |
+| $x_j$ | "x-sub-j" | the $j$-th entry of the vector $\mathbf{x}$ (in R: `x[j]`) | $x_2 = 4$ |
+| $n \times p$ | "n by p" | a matrix's shape: $n$ rows, $p$ columns | $A$ is $2 \times 3$ |
+| $A\mathbf{x}$ | "A times x" | matrix times vector: one dot product per row (in R: `A %*% x`) | $(15, 11)$ |
+| $AB$ | "A times B" | matrix times matrix: every row of $A$ dotted with every column of $B$ (in R: `A %*% B`) | (below) |
+| $B_{jk}$ | "B-sub-j-k" | the entry in row $j$, column $k$ of $B$ (in R: `B[j, k]`) | used in $AB$ below |
+| $\sum_{j=1}^{p}$ | "the sum from j equals 1 to p" | add the term to its right once per column $j$ — a dot product ([vectors & summation](../vectors-and-summation/lesson.qmd)) | $\sum_j A_{1j}x_j = 15$ |
+| $A^\top$ or $A'$ | "A transpose" | the matrix flipped so rows become columns (in R: `t(A)`) | a 3×2 grid |
+| $A^\top A$ or $A'A$ | "A transpose A" | a matrix times its own flip — always square and symmetric | 3×3 (below) |
+| $I$ | "the identity matrix" | the matrix that changes nothing, 1s on the diagonal, 0s elsewhere (in R: `diag(n)`) | `diag(3)` |
+| $A^{-1}$ | "A inverse" | the matrix that undoes $A$: $A^{-1}A = I$ (in R: `solve(A)`) | (below, for a square $A$) |
+
+Bold lowercase ($\mathbf{x}$) is a vector; a capital letter ($A$, $I$) is a matrix.
+When two symbols sit side by side with nothing between them ($A\mathbf{x}$, $AB$),
+that juxtaposition *is* the multiply — the same "implied multiplication" as $2x$
+meaning $2 \times x$.
+
+## The formal version
+
+**Matrix times vector.** The output's $i$-th entry is the dot product of row $i$ with
+the vector:
+
+$$
+(A\mathbf{x})_i = \sum_{j=1}^{p} A_{ij}\, x_j
+$$
+
+Reading it aloud: "the i-th entry of A-x equals the sum, from j equals 1 to p, of
+A-sub-i-j times x-sub-j" — or in everyday words: **"walk along row $i$, multiply each
+matrix entry by the matching vector entry, and add them up."** The sum runs over $j$
+(the columns) because that's what a dot product does; there's a separate answer for
+each row $i$. Mapping onto the toy example, row $i = 1$ gives
+$A_{11}x_1 + A_{12}x_2 + A_{13}x_3 = 2\cdot3 + 1\cdot4 + 1\cdot5 = 15$ — the "$15$" we
+got by hand.
+
+**Matrix times matrix.** Now multiply $A$ (2×3) by another matrix $B$. Think of $B$ as
+holding several *different* vectors side by side, one per column — say two price lists,
+"weekday" and "weekend." You just do the matrix-times-vector move once per column of
+$B$. Entry $(i, k)$ of the answer is **row $i$ of $A$ dotted with column $k$ of $B$**:
+
+$$
+(AB)_{ik} = \sum_{j=1}^{p} A_{ij}\, B_{jk}
+$$
+
+Reading it aloud: "the (i, k) entry of A-B equals the sum over j of A-sub-i-j times
+B-sub-j-k" — everyday words: **"row $i$ of $A$, dotted with column $k$ of $B$."**
+
+Here's the shape rule that falls straight out of "the row and column must have equal
+length": for row $i$ of $A$ (length = $A$'s column count) to dot with column $k$ of
+$B$ (length = $B$'s row count), **$A$'s column count must equal $B$'s row count.** In
+shorthand, an $n \times p$ matrix can only multiply a $p \times m$ matrix — the two
+inner numbers ($p$ and $p$) must match, and the answer is $n \times m$ (the two outer
+numbers). This matching-up is called **conformability**; when the inner numbers
+disagree, the multiplication is simply undefined and R throws a "non-conformable"
+error. A matrix-times-*vector* is just the special case where $B$ has one column
+($p \times 1$).
+
+Let's compute an $AB$ by hand, then check it. Take
+
+$$
+B = \begin{bmatrix} 1 & 0 \\ 2 & 1 \\ 0 & 3 \end{bmatrix}
+\quad (3\times 2), \qquad A\ \text{is}\ 2\times 3,\ \text{so}\ AB\ \text{is}\ 2\times 2.
+$$
+
+- $(AB)_{11}$ = row 1 of $A$ · column 1 of $B$ = $2\cdot1 + 1\cdot2 + 1\cdot0 = 4$
+- $(AB)_{12}$ = row 1 of $A$ · column 2 of $B$ = $2\cdot0 + 1\cdot1 + 1\cdot3 = 4$
+- $(AB)_{21}$ = row 2 of $A$ · column 1 of $B$ = $1\cdot1 + 2\cdot2 + 0\cdot0 = 5$
+- $(AB)_{22}$ = row 2 of $A$ · column 2 of $B$ = $1\cdot0 + 2\cdot1 + 0\cdot3 = 2$
+
+So $AB = \begin{bmatrix} 4 & 4 \\ 5 & 2 \end{bmatrix}$. Sanity check in R:
+
+```{r ab-check}
+A <- matrix(c(2, 1, 1,
+              1, 2, 0), nrow = 2, byrow = TRUE)
+B <- matrix(c(1, 0,
+              2, 1,
+              0, 3), nrow = 3, byrow = TRUE)
+
+A %*% B        # matches our hand answer: 4 4 / 5 2
+```
+
+**Transpose — flip rows and columns.** The transpose $A^\top$ turns each row into a
+column (and each column into a row): a $2\times3$ becomes a $3\times2$. Entry $(i, j)$
+of $A$ lands at entry $(j, i)$ of $A^\top$ — that's the whole rule, "swap the address."
+
+$$
+A = \begin{bmatrix} 2 & 1 & 1 \\ 1 & 2 & 0 \end{bmatrix}
+\qquad\Longrightarrow\qquad
+A^\top = \begin{bmatrix} 2 & 1 \\ 1 & 2 \\ 1 & 0 \end{bmatrix}
+$$
+
+Why do papers write $A^\top A$ (or $A'A$ — the prime is an older notation for the same
+flip) *everywhere*? Because it's a compact way to say "dot every column of $A$ with
+every other column of $A$" — all the pairwise sums-of-products among the columns, laid
+out in one square, symmetric grid. Whatever $A$'s shape, $A^\top A$ is always square
+($p \times p$) and always conformable, which is exactly why it shows up whenever
+someone needs a square matrix built from rectangular data. Let's build ours:
+
+```{r transpose-check}
+A <- matrix(c(2, 1, 1,
+              1, 2, 0), nrow = 2, byrow = TRUE)
+
+t(A)              # the flip: a 3x2 matrix
+
+t(A) %*% A        # A-transpose-A: a 3x3 SYMMETRIC matrix
+#      [,1] [,2] [,3]
+# [1,]    5    4    2
+# [2,]    4    5    1
+# [3,]    2    1    1
+# Symmetric: entry (1,2) = entry (2,1) = 4, and so on. Always true for t(A) %*% A.
+```
+
+**The identity, and the inverse.** Among all matrices there's one that changes
+nothing: the **identity** $I$, with 1s down the diagonal and 0s everywhere else.
+Multiplying by $I$ is like multiplying a number by 1 — you get back exactly what you
+started with. And just as every nonzero number $c$ has a reciprocal $1/c$ that undoes
+multiplication ($c \times \tfrac{1}{c} = 1$), a square matrix $A$ can have an
+**inverse** $A^{-1}$ that undoes it: $A^{-1}A = I$. If $A$ transforms $\mathbf{v}$
+into $\mathbf{w}$, then $A^{-1}$ transforms $\mathbf{w}$ back into $\mathbf{v}$.
+
+We need a *square* matrix for an inverse to make sense (undoing has to land you back
+where you started). Take
+$M = \begin{bmatrix} 2 & 1 \\ 1 & 1 \end{bmatrix}$. In R:
+
+```{r inverse-check}
+I3 <- diag(3)     # the 3x3 identity: 1s on the diagonal, 0s elsewhere
+I3
+
+A <- matrix(c(2, 1, 1,
+              1, 2, 0), nrow = 2, byrow = TRUE)
+A %*% diag(3)     # multiplying by I changes NOTHING: we get A back
+
+M <- matrix(c(2, 1,
+              1, 1), nrow = 2, byrow = TRUE)
+solve(M)          # the inverse — clean integers here: 1 -1 / -1 2
+M %*% solve(M)    # M times its inverse = the identity (1s on diagonal)
+
+# "Undo" in action: transform v, then invert to recover it
+v <- c(3, 5)
+w <- M %*% v      # 11, 8  -- M sends v to w
+solve(M) %*% w    # 3, 5   -- the inverse brings w back to v
+```
+
+`solve()` is R's inverse (its name comes from *solving* $A\mathbf{x} = \mathbf{b}$,
+which the inverse does). Reading $A^{-1}$ aloud: "A inverse" — the matrix that undoes
+$A$.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: matrix times vector IS one dot product per row.
+# TRY IT: change the prices in x, or edit a recipe row in A, then Run.
+# PREDICT: if you set x <- c(1, 1, 1), what will A %*% x give? (Hint: it counts
+# total cups per recipe.) Commit to an answer, then run.
+A <- matrix(c(2, 1, 1,
+              1, 2, 0), nrow = 2, byrow = TRUE)
+x <- c(3, 4, 5)
+
+built_in <- A %*% x                              # R's matrix multiply
+by_hand  <- c(sum(A[1, ] * x), sum(A[2, ] * x))  # the same, dot product per row
+
+cbind(built_in = built_in, by_hand = by_hand)    # identical columns
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: order matters! A %*% B is NOT the same as B %*% A.
+# PREDICT: A is 2x3 and B is 3x2. What SHAPE is A %*% B? What shape is B %*% A?
+# Write both down, then run and see they differ in shape AND numbers.
+A <- matrix(c(2, 1, 1,
+              1, 2, 0), nrow = 2, byrow = TRUE)
+B <- matrix(c(1, 0,
+              2, 1,
+              0, 3), nrow = 3, byrow = TRUE)
+
+A %*% B      # a 2x2 result
+B %*% A      # a 3x3 result -- completely different: matrix multiply is not commutative
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: the inverse undoes the matrix. Then break it.
+# PREDICT: solve(M) %*% M -- what matrix should you get back? Write it, then run.
+M <- matrix(c(2, 1,
+              1, 1), nrow = 2, byrow = TRUE)
+
+solve(M) %*% M          # the identity: undoing then doing = no change
+
+# Now try a SINGULAR matrix (row 2 is exactly 2x row 1) -- uncomment and Run:
+# S <- matrix(c(1, 2,
+#               2, 4), nrow = 2, byrow = TRUE)
+# solve(S)              # ERROR: "system is exactly singular" -- no inverse exists
+```
+
+## Common traps
+
+**Trap 1 — "matrix multiplication is commutative, so $AB = BA$."** With ordinary
+numbers $3 \times 4 = 4 \times 3$, so it's tempting to assume matrices behave the same.
+They do not — order changes both the numbers *and often the shape*. With our $A$
+(2×3) and $B$ (3×2), $AB$ is a 2×2 matrix but $BA$ is a 3×3 matrix — they can't even
+be compared, let alone equal. Even when both orders are defined and same-shape, the
+entries usually differ, because "row $i$ of $A$ dotted with column $k$ of $B$" is a
+different computation from "row $i$ of $B$ dotted with column $k$ of $A$." Always keep
+the order the paper wrote.
+
+**Trap 2 — "every square matrix has an inverse."** Nonzero numbers always have a
+reciprocal, so it feels like square matrices should too. But a matrix whose rows carry
+redundant information has *no* inverse — it's called **singular**. Take
+$S = \begin{bmatrix} 1 & 2 \\ 2 & 4 \end{bmatrix}$: row 2 is exactly twice row 1, so
+$S$ throws away information (it squashes different inputs onto the same output), and
+there's no way to undo that. `solve(S)` doesn't return a matrix — it errors with
+"system is exactly singular." This is the matrix version of "you can't divide by
+zero," and it's precisely why papers fuss over whether a matrix is *invertible*.
+
+## Check yourself
+
+**1.** For the matrix below and the vector $\mathbf{u} = (4, 5)$, compute $C\mathbf{u}$
+by hand (two dot products), then check in R.
+
+$$
+C = \begin{bmatrix} 1 & 2 \\ 3 & 0 \end{bmatrix}
+$$
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+C <- matrix(c(1, 2,
+              3, 0), nrow = 2, byrow = TRUE)
+u <- c(4, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Row 1 · $\mathbf{u}$: $1\times4 + 2\times5 = 4 + 10 = 14$. Row 2 · $\mathbf{u}$:
+$3\times4 + 0\times5 = 12 + 0 = 12$. So $C\mathbf{u} = (14, 12)$. In R,
+`C %*% u` returns 14 and 12 — one dot product per row, exactly as by hand.
+:::
+
+**2.** A matrix $X$ is $5 \times 3$ (5 rows, 3 columns). What shape is $X^\top X$? Is
+it guaranteed to be square? Could you form $X X$ (i.e. $X$ times $X$)?
+
+::: {.callout-note collapse="true" title="Answer"}
+$X^\top$ is $3 \times 5$, so $X^\top X$ is $(3\times5)\times(5\times3) = 3 \times 3$ —
+the inner numbers (5 and 5) match, and the result is the square of the *column* count.
+$X^\top X$ is always square. But $X X$ is $(5\times3)\times(5\times3)$: the inner
+numbers are 3 and 5, which disagree, so $X X$ is **not conformable** and undefined.
+That's why the transpose is there — it makes the shapes line up.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what it means to
+multiply a matrix by a vector, and why the vector's length has to match the matrix's
+number of columns.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Multiplying a matrix by a vector runs one dot product per row: each row is paired
+up entry-by-entry with the vector, multiplied, and summed, giving one output number
+per row. The vector must have one entry for every column, because otherwise a row
+entry would have no vector entry to pair with — the dot product wouldn't line up.
+:::
+
+## What you can now do
+
+- **Build and read a matrix in R** — create one with `matrix(..., byrow = TRUE)`, read
+  its shape with `dim()`, and pull entry $(i, j)$ with `A[i, j]`.
+- **Multiply a matrix by a vector by hand**, as one dot product per row, and get the
+  same answer as `%*%`.
+- **Multiply two matrices** as row-by-column dot products, and check *conformability*
+  (inner dimensions must match) before you even start.
+- **Take a transpose** with `t()`, and explain why $X^\top X$ is always a square,
+  symmetric matrix that papers lean on.
+- **Recognize the identity and the inverse** — that $I$ changes nothing, that
+  $A^{-1}$ undoes $A$ via `solve()`, and that a *singular* matrix has no inverse.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — anything that packs data
+into a matrix assumes all of these.
+
+## Where this goes next
+
+Matrices are the language every multi-variable method is written in: once several
+predictors, several observations, or several equations enter the picture, they get
+stacked into a matrix and the method is written as a few matrix operations. The moves
+here — $A\mathbf{x}$, $AB$, $A^\top$, $A^{-1}$ — are the alphabet for reading those.
+Ready for more reps? Do the [practice problems](practice.qmd).
