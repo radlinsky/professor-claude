@@ -112,23 +112,31 @@ recomputation. ☐ New content follows the current templates.
 
 Check on every change; act when files were added/renamed/removed:
 
-- Root `_quarto.yml`: add/fix each page in BOTH the render list and the sidebar
-  (paths relative to repo root; no per-course `_quarto.yml` — see
-  `course-structure.md`).
-- `courses/README.md` / `foundations/README.md`: update rows (never Status);
-  new foundation modules get a row; new course modules may change the course row's
-  "Teaches" summary. When editing an index table, modify only the cells your change
-  requires — never rewrite the whole table (that is how a learner's Status gets
-  clobbered).
+- Root `_quarto.yml`: add/fix each **course** page in BOTH the render list and the
+  sidebar (paths relative to repo root; no per-course `_quarto.yml` — see
+  `course-structure.md`). The foundation render list + sidebar blocks are GENERATED —
+  never hand-edit between the `# >>> generated` markers.
+- Foundation index/registration: a new foundation module gets a
+  `foundations/<slug>/meta.dcf` (`ShortName`, `Concepts`, `BuildsOn`, `UsedBy`); a
+  foundation whose "Used by" or "Concepts"/"Builds on" changed gets its `meta.dcf`
+  edited. Then run `Rscript scripts/gen-indexes.R`, which regenerates the
+  `foundations/README.md` table (Status preserved; new rows default `not started`) and
+  the `_quarto.yml` foundation blocks. Verify with
+  `Rscript scripts/gen-indexes.R --check` (exit 0).
+- `courses/README.md`: hand-edit rows (courses are not generated); new course modules
+  may change the course row's "Teaches" summary. Modify only the cells your change
+  requires — never rewrite the whole table, and never touch Status.
 - Syllabus and `00-roadmap.qmd` of the affected course: new/renamed modules appear
   in both, with the Mermaid diagram updated.
-- If a changed or added module newly links a foundation module, append this course
-  to that foundation's *Used by* column in `foundations/README.md` (never Status).
+- If a changed or added module newly links a foundation module, append this course to
+  that foundation's `UsedBy` field in its `meta.dcf` and re-run the generator (never
+  touch Status).
 
 **GATE 4:** ☐ `_quarto.yml`, both READMEs, syllabus, and roadmap all agree with the
 new file reality (skip-checked even for edits that "shouldn't" need it).
-☐ Existing rows' *Status* values byte-identical to before the edit (only NEW rows
-carry `not started`).
+☐ If any foundation `meta.dcf` changed, `Rscript scripts/gen-indexes.R` was run and
+`--check` exits 0. ☐ Existing rows' *Status* values byte-identical to before the edit
+(only NEW rows carry `not started`).
 
 ---
 

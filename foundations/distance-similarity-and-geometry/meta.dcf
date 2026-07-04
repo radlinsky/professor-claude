@@ -1,0 +1,4 @@
+ShortName: Distance, similarity & geometry
+Concepts: Euclidean distance via Pythagoras (`dist()`), Manhattan & correlation distance in one breath, a vector's length/norm ($\lVert v\rVert$) as distance from zero, "closer = more similar" and why column scale matters, projection as a shadow ($(\mathbf{a}\cdot\mathbf{b})/\lVert\mathbf{b}\rVert$), orthogonal (dot product 0) = separate information, and seeing high-dimensional points via 2-column slices and summary directions
+BuildsOn: [vectors-and-summation](vectors-and-summation/lesson.qmd), [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd)
+UsedBy: —

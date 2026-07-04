@@ -1,0 +1,4 @@
+ShortName: Linear combinations & the data matrix
+Concepts: A weighted sum of inputs as one number from many (linear combination = dot product), a data table as a matrix (rows = observations, columns = variables), the all-1s column (a base/intercept riding along), $k-1$ indicator (0/1) columns for a $k$-level category (reference absorbed), an interaction column as the product of two columns, reading a weight as "change per unit, others held fixed," and `model.matrix()` as the R bridge
+BuildsOn: [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd), [vectors-and-summation](vectors-and-summation/lesson.qmd), [mean-variance-covariance](mean-variance-covariance/lesson.qmd)
+UsedBy: —

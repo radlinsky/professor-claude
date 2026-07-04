@@ -37,8 +37,15 @@ foundations/<module-slug>/
 └── resources.md         # verified links for just this module
 ```
 
-New foundation modules must also be registered in the root `_quarto.yml` (see below)
-and added to the `foundations/README.md` index table.
+A new foundation module is **generated** into the two shared index files, not
+hand-registered: add `foundations/<slug>/meta.dcf` (`ShortName`, `Concepts`,
+`BuildsOn`, `UsedBy` — see below) and run `Rscript scripts/gen-indexes.R`. The
+generator rewrites the foundation render list + sidebar in the root `_quarto.yml` and
+the table body in `foundations/README.md`, sorted by slug, between `# >>> generated` /
+`<!-- >>> generated -->` sentinel markers. **Never hand-edit between those markers** —
+CI (`Rscript scripts/gen-indexes.R --check`) fails on drift. The learner-owned
+**Status** cell is preserved across regeneration (a brand-new module defaults to `not
+started`). Courses are NOT generated — register a course by hand as described below.
 
 ## Registering a course in the root `_quarto.yml`
 
@@ -100,12 +107,17 @@ Example — adding a course with two modules:
 ```
 
 A new **foundation** module gets the same nested shape — its own `section:`
-(short name, no number) under the `"Foundations"` section:
+(short name, no number) under the `"Foundations"` section — but you do **not** type
+it by hand. The block below is what `Rscript scripts/gen-indexes.R` emits from the
+module's `meta.dcf` `ShortName` (the render-list entries and the `foundations/README.md`
+table row are generated the same way). Edit `meta.dcf` and re-run the generator; the
+region between the `# >>> generated: foundation sidebar` markers is machine-owned:
 
 ```yaml
       - section: "Foundations"
         contents:
-          - section: "<Short module name>"
+          # >>> generated: foundation sidebar (scripts/gen-indexes.R) — do not edit by hand
+          - section: "<ShortName from meta.dcf>"
             contents:
               - text: "Lesson"
                 href: foundations/<module-slug>/lesson.qmd
@@ -113,6 +125,18 @@ A new **foundation** module gets the same nested shape — its own `section:`
                 href: foundations/<module-slug>/practice.qmd
               - text: "Resources"                   # inside the module section
                 href: foundations/<module-slug>/resources.md
+          # <<< generated: foundation sidebar
+```
+
+The per-module metadata file is `read.dcf` format — one leading space indents any
+continuation line of a long `Concepts:` value:
+
+```text
+ShortName: Matrices & linear transforms
+Concepts: A matrix as a grid/stack of rows, matrix × vector as one dot product per
+ row, the transpose and why it appears, and the inverse as "undo"
+BuildsOn: [vectors-and-summation](vectors-and-summation/lesson.qmd)
+UsedBy: —
 ```
 
 Do not create a `_quarto.yml` inside a course or foundation folder — a nested one
@@ -306,9 +330,15 @@ Surface it in the syllabus's *Before you start* section and as a green
 
 - `courses/README.md` columns: `Course | Teaches | Source | Prerequisite courses | Foundation prerequisites | Status` (`Prerequisite courses` = `—` when none)
 - `foundations/README.md` columns: `Module | Concepts covered | Builds on | Used by | Status`
+  - The table **body is generated** — `Concepts covered`, `Builds on`, and `Used by`
+    come from each module's `foundations/<slug>/meta.dcf` (`Concepts`, `BuildsOn`,
+    `UsedBy`), and `Status` is preserved from the current table. Edit `meta.dcf` and run
+    `Rscript scripts/gen-indexes.R`; never hand-edit rows between the `<!-- >>> generated -->`
+    markers. `Status` stays learner-owned and is not stored in `meta.dcf`.
   - `Builds on` = kebab-slug link(s) to the foundation module(s) this one leans on, `—`
-    for a root. **Sync rule:** a module's `Builds on` cell must always match the
-    **Builds on:** line inside its own `lesson.qmd` — edit both together, never one alone.
+    for a root. **Sync rule:** a module's `Builds on` cell (i.e. its `meta.dcf` `BuildsOn`)
+    must always match the **Builds on:** line inside its own `lesson.qmd` — edit both
+    together, never one alone.
 - Status values (learner-owned; initialize to `not started`, never overwrite later):
   `not started` / `in progress` / `done`.
 
