@@ -42,6 +42,9 @@ project:
     - foundations/paper-and-proof-conventions/lesson.qmd
     - foundations/paper-and-proof-conventions/practice.qmd
     - foundations/paper-and-proof-conventions/resources.md
+    - foundations/partial-derivatives-and-the-gradient/lesson.qmd
+    - foundations/partial-derivatives-and-the-gradient/practice.qmd
+    - foundations/partial-derivatives-and-the-gradient/resources.md
     - foundations/priors-posteriors-and-updating/lesson.qmd
     - foundations/priors-posteriors-and-updating/practice.qmd
     - foundations/priors-posteriors-and-updating/resources.md
@@ -209,6 +212,14 @@ website:
                 href: foundations/paper-and-proof-conventions/practice.qmd
               - text: "Resources"
                 href: foundations/paper-and-proof-conventions/resources.md
+          - section: "Partial derivatives & the gradient"
+            contents:
+              - text: "Lesson"
+                href: foundations/partial-derivatives-and-the-gradient/lesson.qmd
+              - text: "Practice"
+                href: foundations/partial-derivatives-and-the-gradient/practice.qmd
+              - text: "Resources"
+                href: foundations/partial-derivatives-and-the-gradient/resources.md
           - section: "Priors, posteriors & updating"
             contents:
               - text: "Lesson"

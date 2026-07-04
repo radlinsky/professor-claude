@@ -1,0 +1,476 @@
+---
+title: "Partial derivatives, and the gradient"
+subtitle: "When a function has more than one knob: the slope along each direction, collected into the vector papers write as ∇f"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+You already know how to measure the **slope** of a function that has *one* input — one
+knob to turn — and you know that the bottom of a valley is where that slope is zero. But
+the functions in real methods almost always have *many* inputs at once: several settings,
+several parameters, several knobs. This lesson answers the natural next question: **what
+does "slope" even mean when there is more than one knob?**
+
+The answer has two parts. First, the **partial derivative**: freeze every knob but one,
+and measure the slope along that single direction — a plain one-input slope in disguise.
+Second, the **gradient**: do that once for each knob and collect all the slopes into a
+vector. That vector points straight uphill, and its negative points straight downhill. We
+will build both from the numeric slope tool you already have, and read the symbol papers
+use for the gradient — $\nabla f$ — as ordinary R you can run.
+
+**Builds on:** [the derivative as a slope](../derivative-as-slope/lesson.qmd) — we reuse
+its numeric `slope_at()` central-difference tool and the fact that *slope zero means
+momentarily flat*; [vectors & summation](../vectors-and-summation/lesson.qmd) — the
+gradient IS a vector, so we lean on `sum`, indexing, and vector length; and
+[loss functions & optimization](../loss-functions-and-optimization/lesson.qmd) — for the
+"why we want slopes" framing: a slope is what tells you which way is downhill toward a
+minimum.
+
+## Warm-up: do you remember?
+
+Before the new material, three quick reps — produce each answer from memory, then check.
+
+**1.** From [the derivative as a slope](../derivative-as-slope/lesson.qmd): the numeric
+slope tool is `slope_at <- function(g, x, h = 1e-5) (g(x + h) - g(x - h)) / (2 * h)`. For
+$g(x) = x^2$, what does `slope_at(g, 3)` give, and what is the exact slope of $x^2$ at
+$x = 3$?
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+slope_at <- function(g, x, h = 1e-5) (g(x + h) - g(x - h)) / (2 * h)
+g <- function(x) x^2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`slope_at(g, 3)` returns essentially **6** — a tiny rise ($g(3+h)$) minus a tiny fall
+($g(3-h)$) divided by the total run $2h$. The exact slope of $x^2$ is $2x$, which is
+$2\times3 = 6$. Shaky on why this measures the slope? Revisit
+[the derivative as a slope](../derivative-as-slope/lesson.qmd).
+:::
+
+**2.** From [loss functions & optimization](../loss-functions-and-optimization/lesson.qmd):
+for a U-shaped curve like $f(x) = x^2$, where along it is the slope exactly **zero**, and
+what is special about that spot?
+
+::: {.callout-note collapse="true" title="Answer"}
+At the very **bottom** of the U — here $x = 0$. The slope is zero because the curve is
+momentarily flat there, neither uphill nor downhill. That "flat at the bottom" fact is
+what lets a slope *point you toward* a minimum. See
+[loss functions & optimization](../loss-functions-and-optimization/lesson.qmd).
+:::
+
+**3.** From [vectors & summation](../vectors-and-summation/lesson.qmd): for the vector
+`v <- c(6, 8)`, what is its **length** (also called its norm) — the everyday "how far from
+the origin" distance? Say the formula in words, then give the value.
+
+```{webr}
+#| autorun: false
+# warmup3-starter — edit and Run to check
+v <- c(6, 8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"Square each entry, add them, take the square root": $\sqrt{6^2 + 8^2} = \sqrt{36 + 64} =
+\sqrt{100} = 10$. In R: `sqrt(sum(v^2))`. This is the same Pythagorean distance you know;
+we'll use it at the end to ask *how steep* the gradient is. See
+[vectors & summation](../vectors-and-summation/lesson.qmd).
+:::
+
+## A tiny example first
+
+Picture a small machine with **two dials**, $a$ and $b$. However you set them, the machine
+reports back a single number — think of it as a "cost". The rule is:
+
+$$
+f(a, b) = a^2 + b^2 .
+$$
+
+(For now just treat that as the machine's readout; we'll unpack the notation soon.) Set
+both dials to zero and the cost is $0^2 + 0^2 = 0$ — the cheapest the machine gets. Set
+$a = 3$, $b = 2$ and the cost is $3^2 + 2^2 = 9 + 4 = 13$.
+
+**One dial at a time — the partial derivative.** Suppose you're standing at $a = 3$,
+$b = 2$, and you ask: *if I nudge only dial $a$ and leave $b$ frozen at 2, how fast does
+the cost change?* That's a plain one-input slope question — the very thing `slope_at()`
+answers — except the "function of one input" is "cost as $a$ varies, with $b$ nailed to 2":
+
+- Nudge $a$ up a hair to $3 + h$: cost is $(3+h)^2 + 2^2$.
+- Nudge $a$ down a hair to $3 - h$: cost is $(3-h)^2 + 2^2$.
+- Rise over run: the $2^2$ cancels, leaving the slope of $a^2$ at $a = 3$, which is 6.
+
+So the slope *along the $a$ direction* is **6**. Do the same for dial $b$ (freeze $a = 3$,
+wiggle $b$): the slope along the $b$ direction is the slope of $b^2$ at $b = 2$, which is
+**4**. These two numbers — 6 and 4 — are the **partial derivatives** at $(3, 2)$.
+
+**Collect them — the gradient.** Stack those two direction-slopes into a vector:
+$(6, 4)$. That vector is the **gradient** at $(3, 2)$. It has one entry per dial, and each
+entry is "how fast cost climbs if I push *that* dial (holding the others still)."
+
+The same computations in R, reusing the exact slope tool from the derivative lesson:
+
+```{r toy-example}
+# The two-dial machine: cost = a^2 + b^2. Written to take a length-2 vector p = c(a, b).
+f <- function(p) p[1]^2 + p[2]^2
+
+# The numeric slope tool from the derivative-as-slope lesson (one input):
+slope_at <- function(g, x, h = 1e-5) (g(x + h) - g(x - h)) / (2 * h)
+
+# Partial in the 'a' direction at (3, 2): freeze b = 2, treat cost as a function of a.
+df_da <- slope_at(function(a) f(c(a, 2)), 3)   # slope of a^2 at a = 3
+df_da                                          # 6
+
+# Partial in the 'b' direction at (3, 2): freeze a = 3, treat cost as a function of b.
+df_db <- slope_at(function(b) f(c(3, b)), 2)   # slope of b^2 at b = 2
+df_db                                          # 4
+
+# The gradient = the two partials collected into one vector:
+c(df_da, df_db)                                # 6 4
+```
+
+## Getting a feel for it
+
+**A surface with one knob per input — the landscape picture.** A one-input function is a
+*curve*: one knob, and the readout traces a line you can walk left and right along. Add a
+second knob and it becomes a *surface* — a landscape. Our $f(a, b) = a^2 + b^2$ is a round
+bowl: the floor is at $(0, 0)$ and the ground rises as you move away in any direction, like
+standing in the bottom of a valley. Dial $a$ is your east-west position and dial $b$ is your
+north-south position; the cost is your **altitude**. (Where the analogy strains: a real
+landscape has exactly two ground directions, but a function can have ten knobs — a
+ten-dimensional landscape you can't draw. The *math* works identically no matter how many
+knobs; the picture is just the 2-knob case you can actually see.)
+
+**Why "hold the others still"?** On a hillside, "what's the slope here?" has no single
+answer — it depends which way you face. Walk due east and you might be climbing; walk due
+north and you might be on the level. So to get *one* number you must commit to *one*
+direction. The partial derivative $\partial f/\partial a$ commits to the pure-$a$ direction:
+face straight along the $a$-axis, freeze every other dial, and read the ordinary
+one-input slope. Freezing the others is not a trick — it's the only way the question
+"the slope" has a definite answer. That's why each partial is *literally* a `slope_at()`
+call on a one-input slice of the surface.
+
+**Why collect them into a vector — and what it points at.** One partial tells you the slope
+along one axis; but you can face *any* direction, not just along an axis. Here's the payoff:
+the gradient vector $(6, 4)$ — the axis-slopes bundled together — points in the direction of
+**steepest ascent**, the single compass bearing that climbs fastest from where you stand.
+Turn it around, $-(6, 4) = (-6, -4)$, and you have **steepest descent** — the fastest way
+*downhill*. That's the whole reason the gradient matters: it's the arrow that says "downhill
+is *that* way," which is exactly what the loss-function story
+([loss functions & optimization](../loss-functions-and-optimization/lesson.qmd)) says you
+want when hunting for a minimum.
+
+**What the numbers feel like.** At $(3, 2)$ the gradient is $(6, 4)$: both entries positive,
+so from here pushing *either* dial up raises the cost — you're on the outside wall of the
+bowl, and every axis climbs. The $a$-entry (6) is bigger than the $b$-entry (4), meaning the
+wall is steeper in the $a$ direction than the $b$ direction — sensible, since you're farther
+from the floor in $a$ (3) than in $b$ (2). Now walk to the very bottom, $(0, 0)$: both
+partials become **zero**, so the gradient is $(0, 0)$ — flat in *every* direction at once.
+That all-zero gradient is the multi-knob version of "slope zero at the bottom," and it's how
+you recognize you've arrived at a valley floor (or a hilltop).
+
+## What the notation is going to say
+
+Two new symbols are coming. The first, $\partial f / \partial a$, is just "the slope of $f$
+when only $a$ moves and everything else is held still" — the **6** we measured by freezing
+$b$. The curly $\partial$ ("partial") is there only to remind you *other knobs exist and are
+frozen*; if the function had a single input it would be the ordinary derivative $df/dx$ you
+already know. The second, $\nabla f$, is a shorthand for "collect every partial into one
+vector" — the $(6, 4)$ we assembled. So the whole story reads: *measure a one-knob slope for
+each knob, then stack them.* Nothing beyond what we just did by hand.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $f(a, b)$ | "eff of a, b" | a function of two inputs — a surface, one knob per input (in R: `f <- function(p) ...`) | $f(a,b) = a^2 + b^2$ |
+| $a, b$ | "a, b" | the two inputs (dials); together the point $(a, b)$ where you stand | $a = 3$, $b = 2$ |
+| $h$ | "aitch" | the tiny step used to measure a slope (in R: `h = 1e-5`) | $10^{-5}$ |
+| $\frac{\partial f}{\partial a}$ | "the partial derivative of f with respect to a" | slope of $f$ when only $a$ moves, all other inputs held still (in R: `slope_at()` on an $a$-only slice) | 6 |
+| $\frac{\partial f}{\partial b}$ | "the partial derivative of f with respect to b" | slope of $f$ when only $b$ moves, all else held still | 4 |
+| $\partial$ | "partial" (the curly-dee) | the "hold the other inputs still" version of the derivative-$d$ | used in $\partial f/\partial a$ |
+| $\nabla f$ | "grad f" / "del f" | the **gradient**: the vector of every partial derivative, one per input (in R: our `grad()` below) | $(6, 4)$ |
+| $-\nabla f$ | "minus grad f" | the gradient flipped — the steepest-**downhill** direction | $(-6, -4)$ |
+| $\nabla f = \mathbf{0}$ | "grad f equals the zero vector" | every partial is zero — flat in every direction: a bottom or top | at $(0, 0)$ |
+| $\Longleftrightarrow$ | "if and only if" | the two sides mean the same thing — each holds exactly when the other does | $\nabla f = \mathbf{0} \Longleftrightarrow$ flat everywhere |
+| $\|\nabla f\|$ | "the norm of grad f" | the length of the gradient vector — *how steep* the steepest climb is (in R: `sqrt(sum(g^2))`) | $\sqrt{6^2+4^2} \approx 7.21$ |
+| $k$ | "kay" | the number of inputs (dials); the gradient has one entry per input | $k = 2$ |
+
+The curly $\partial$ and the ordinary straight $d$ mean the *same operation* — measure a
+slope — the curly one just flags "there are other inputs, and they're frozen." The upside-down
+triangle $\nabla$ ("nabla") is not an operation you compute entry-by-entry in your head;
+read it as a *packaging instruction*: "gather the partials into a vector."
+
+## The formal version
+
+**One partial derivative.** The slope in the $a$ direction is the ordinary one-input slope
+of $f$ measured while $b$ stays put — exactly the difference quotient from the derivative
+lesson, applied to the $a$-slice:
+
+$$
+\frac{\partial f}{\partial a} \;\approx\; \frac{f(a + h,\, b) - f(a - h,\, b)}{2h}
+$$
+
+Reading it aloud: "the partial of f with respect to a is approximately: f at (a plus h, b)
+minus f at (a minus h, b), all over two h" — everyday words: **"nudge only $a$ by a hair
+each way, keep $b$ fixed, and take rise over run."** Notice $b$ is identical in both terms —
+that's "held still." Plugging in our numbers at $(3, 2)$ with $f = a^2 + b^2$: the $b^2$
+appears in both the plus and minus terms and cancels, leaving the slope of $a^2$ at 3, which
+is **6** — the hand answer.
+
+**The gradient.** The gradient just lists the partials, one per input:
+
+$$
+\nabla f(a, b) \;=\; \left( \frac{\partial f}{\partial a},\; \frac{\partial f}{\partial b} \right)
+$$
+
+Reading it aloud: "grad f equals the vector: partial of f with respect to a, partial of f
+with respect to b" — everyday words: **"the gradient is the list of every direction's
+slope."** For a function with $k$ inputs it has $k$ entries, one per input. At $(3, 2)$ it is
+$(6, 4)$ — the vector we stacked. And the "you're at a bottom" condition is simply every
+entry being zero:
+
+$$
+\nabla f = \mathbf{0} \quad\Longleftrightarrow\quad \text{flat in every direction (a bottom or top).}
+$$
+
+At $(0, 0)$ both partials are 0, so $\nabla f = (0, 0)$ — the multi-knob echo of "slope zero
+at the valley floor" from the loss-function lesson. (This lesson *reads* that condition; the
+recipe of setting it to zero and solving for the bottom by algebra belongs to
+[loss functions & optimization](../loss-functions-and-optimization/lesson.qmd), and actually
+*walking* downhill step by step is the gradient-descent course's job — neither is done here.)
+
+**The numeric gradient — one central difference per coordinate.** The single-input
+`slope_at()` measures one direction. To get every direction, we call the same central
+difference once per coordinate, nudging *only that coordinate* each time. An `sapply` loop
+does exactly that — it's `slope_at()` extended from one knob to many:
+
+```{r grad-tool}
+f <- function(p) p[1]^2 + p[2]^2       # cost = a^2 + b^2, taking p = c(a, b)
+
+# grad(): one central difference per coordinate. This EXTENDS the 1-D slope_at()
+# tool — for each coordinate j, nudge only p[j] by +/- h and take rise over run.
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus  <- p; p_plus[j]  <- p_plus[j]  + h   # step ONLY coordinate j up
+    p_minus <- p; p_minus[j] <- p_minus[j] - h   # step ONLY coordinate j down
+    (f(p_plus) - f(p_minus)) / (2 * h)           # rise over run for that coordinate
+  })
+}
+
+grad(f, c(3, 2))     # 6 4  — the gradient, matching our hand answer
+grad(f, c(0, 0))     # 0 0  — flat in every direction: the bottom of the bowl
+-grad(f, c(3, 2))    # -6 -4 — the steepest-DOWNHILL direction from (3, 2)
+```
+
+**Sanity-check against the by-hand partials.** Each entry of `grad()` should equal the
+matching `slope_at()` call on that coordinate's slice — because that's exactly what it is:
+
+```{r grad-sanity}
+f <- function(p) p[1]^2 + p[2]^2
+slope_at <- function(g, x, h = 1e-5) (g(x + h) - g(x - h)) / (2 * h)
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + h
+    p_minus <- p; p_minus[j] <- p_minus[j] - h
+    (f(p_plus) - f(p_minus)) / (2 * h)
+  })
+}
+
+# The gradient, and the two partials computed the 1-D way, side by side:
+rbind(
+  grad     = grad(f, c(3, 2)),
+  slice_by = c(slope_at(function(a) f(c(a, 2)), 3),   # a-slice slope
+               slope_at(function(b) f(c(3, b)), 2))   # b-slice slope
+)                                                     # both rows: 6 4
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the gradient IS one 1-D slope per coordinate.
+# TRY IT: move to a different point, e.g. change p to c(1, -2), then Run.
+# PREDICT: at c(1, -2) for f = a^2 + b^2, the exact partials are 2a and 2b.
+# Write down what grad should be, then run and check.
+f <- function(p) p[1]^2 + p[2]^2
+slope_at <- function(g, x, h = 1e-5) (g(x + h) - g(x - h)) / (2 * h)
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + h
+    p_minus <- p; p_minus[j] <- p_minus[j] - h
+    (f(p_plus) - f(p_minus)) / (2 * h)
+  })
+}
+p <- c(3, 2)
+
+by_hand <- c(slope_at(function(a) f(c(a, p[2])), p[1]),   # a-slice
+             slope_at(function(b) f(c(p[1], b)), p[2]))   # b-slice
+built    <- grad(f, p)
+
+rbind(by_hand = by_hand, grad_tool = built)   # identical rows
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A contour map of the bowl f(a,b)=a^2+b^2 with concentric circles; a red arrow from the point (3,2) points outward away from the center (the uphill gradient), and a blue arrow points inward toward the center (downhill, minus the gradient)."
+# explore-2 — LIVE: the gradient points UPHILL, minus-gradient points DOWNHILL.
+# PREDICT: from (3, 2) on the bowl, will the uphill arrow point toward the center
+# (0,0) or away from it? Commit, then run and look.
+f <- function(p) p[1]^2 + p[2]^2
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + h
+    p_minus <- p; p_minus[j] <- p_minus[j] - h
+    (f(p_plus) - f(p_minus)) / (2 * h)
+  })
+}
+p <- c(3, 2)
+g <- grad(f, p)
+
+# Draw the bowl's contour lines (rings of equal cost), then the two arrows.
+as <- seq(-4, 4, length.out = 60)
+z  <- outer(as, as, function(a, b) a^2 + b^2)
+contour(as, as, z, asp = 1, xlab = "dial a", ylab = "dial b",
+        main = "Bowl contours; red = uphill (grad), blue = downhill (-grad)")
+points(p[1], p[2], pch = 16)
+s <- 0.15                                   # shrink arrows so they fit the plot
+arrows(p[1], p[2], p[1] + s*g[1],  p[2] + s*g[2],  col = "red",  lwd = 2)   # uphill
+arrows(p[1], p[2], p[1] - s*g[1],  p[2] - s*g[2],  col = "blue", lwd = 2)   # downhill
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: grad f = 0 means flat in EVERY direction.
+# PREDICT: at the bottom (0, 0), what will grad(f, c(0, 0)) be? And how steep is the
+# gradient there — what is its length? Write both down, then run.
+f <- function(p) p[1]^2 + p[2]^2
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + h
+    p_minus <- p; p_minus[j] <- p_minus[j] - h
+    (f(p_plus) - f(p_minus)) / (2 * h)
+  })
+}
+
+g_bottom <- grad(f, c(0, 0))
+g_wall   <- grad(f, c(3, 2))
+c(bottom_grad = g_bottom, bottom_steepness = sqrt(sum(g_bottom^2)))  # 0 0 and 0
+c(wall_grad   = g_wall,   wall_steepness   = sqrt(sum(g_wall^2)))    # 6 4 and ~7.21
+```
+
+## Common traps
+
+**Trap 1 — "the partial derivative moves all the inputs at once."** It's tempting to
+nudge $a$ *and* $b$ together, since both are inputs. But a partial derivative freezes every
+input except the one named. Watch what wrongly moving both does at $(3, 2)$: nudge $a$ and
+$b$ together by $h$ and take rise over run, and you get
+$\big(f(3+h, 2+h) - f(3-h, 2-h)\big)/(2h) = \mathbf{10}$ — which is just $6 + 4$, the two
+partials *added*. That's a slope along the diagonal direction, **not** the partial in the
+$a$ direction (6) or the $b$ direction (4). The whole point of $\partial f/\partial a$ is
+"only $a$ moves"; move both and you've measured a different thing entirely.
+
+```{r trap1-numbers}
+f <- function(a, b) a^2 + b^2
+h <- 1e-5
+wrong_both_move <- (f(3 + h, 2 + h) - f(3 - h, 2 - h)) / (2 * h)
+wrong_both_move          # 10 — this is 6 + 4, a diagonal slope, NOT a partial derivative
+```
+
+**Trap 2 — "the gradient is a single slope number."** With one input the derivative is one
+number, so it feels like the gradient should be too. But the gradient is a **vector** — one
+slope *per input*. Our gradient at $(3, 2)$ is $(6, 4)$, two numbers, because there are two
+dials; a machine with five dials has a five-entry gradient. Collapsing it to a single number
+throws away *which direction* is steep. (If you want one summary number, that's the gradient's
+*length* $\|\nabla f\| = \sqrt{6^2 + 4^2} \approx 7.21$ — "how steep," not "which way." They
+answer different questions.)
+
+## Check yourself
+
+**1.** For $f(a, b) = a^2 + b^2$ at the point $(4, 1)$, give the gradient by hand (the exact
+partials of $a^2 + b^2$ are $2a$ and $2b$), then check with the `grad()` tool.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+f <- function(p) p[1]^2 + p[2]^2
+grad <- function(f, p, h = 1e-5) {
+  sapply(seq_along(p), function(j) {
+    p_plus <- p; p_plus[j] <- p_plus[j] + h
+    p_minus <- p; p_minus[j] <- p_minus[j] - h
+    (f(p_plus) - f(p_minus)) / (2 * h)
+  })
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Partial in $a$: $2a = 2\times4 = 8$. Partial in $b$: $2b = 2\times1 = 2$. So the gradient is
+$(8, 2)$. `grad(f, c(4, 1))` returns essentially `8 2`. Both entries are positive, so from
+$(4, 1)$ every dial climbs — you're on the outer wall of the bowl, steeper in $a$ than $b$.
+:::
+
+**2.** A function has gradient $(0, 0)$ at some point. What does that tell you about the
+surface there, in one sentence? Is that point definitely the bottom?
+
+::: {.callout-note collapse="true" title="Answer"}
+It tells you the surface is **flat in every direction** at that point — no direction goes up
+or down, so you can't decrease $f$ by nudging any single dial. It's a bottom *or* a top (or a
+saddle): $\nabla f = \mathbf{0}$ says "flat," not "lowest." For our bowl the only such point is
+the true bottom $(0, 0)$, but "grad = 0" on its own only means flat. (Actually *sorting out*
+bottom-vs-top-vs-saddle is beyond this lesson.)
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the gradient is and
+why it's a vector rather than a single number.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The gradient is the collection of a function's slopes — one slope for each input, measured by
+wiggling that input alone while holding the others still. It has to be a vector because a
+surface can be steep in one direction and flat in another, so a single number couldn't say
+*which way* is uphill; the vector both points uphill and, when you flip its sign, points the
+fastest way down.
+:::
+
+## What you can now do
+
+- **Compute a partial derivative** by hand or with `slope_at()` — freeze every input but one,
+  and read the ordinary one-input slope along that direction.
+- **Assemble the gradient** as the vector of all the partials, using a `grad()` wrapper that
+  runs one central difference per coordinate (the `slope_at()` tool extended to many knobs).
+- **Read the gradient's meaning** — it points straight uphill, its negative $-\nabla f$ points
+  straight downhill, and its length says *how steep* the steepest climb is.
+- **Recognize $\nabla f = \mathbf{0}$** as "flat in every direction" — the multi-knob version
+  of slope-zero-at-the-bottom, marking a valley floor or hilltop.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — anything that optimizes a
+function of several inputs assumes all of these.
+
+## Where this goes next
+
+The gradient is the compass every multi-input optimizer steers by: once you can point to
+"downhill is *that* way" from any spot on a surface, you have what it takes to *walk* toward a
+minimum — repeatedly stepping in the $-\nabla f$ direction, which is the gradient-descent
+idea. This lesson stops at reading the compass; taking the steps (and choosing how big) is the
+next course's job. Ready for more reps? Do the [practice problems](practice.qmd).
