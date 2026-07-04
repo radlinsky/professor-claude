@@ -1,0 +1,36 @@
+---
+title: "Professor Claude"
+subtitle: "A personal applied math & statistics school"
+toc: false
+---
+
+Welcome. This site hosts **example courses** that teach the fundamentals behind a
+statistical method or math concept, working up from building blocks to the real
+thing — with toy numerical examples, plain-English notation decoding, and
+**runnable in-browser R (WebR) cells**. No install needed.
+
+## How to use this site
+
+- **Start in [Foundations](foundations/README.md)** if you want reusable building
+  blocks (vectors and summation, derivatives, likelihood, and so on). Each module
+  has a **Lesson**, **Practice** problems with hidden answers, and curated
+  **Resources**.
+- **Pick a course** from the sidebar to see those blocks assembled into a full
+  method — each opens with a **syllabus** and a **roadmap** showing what depends
+  on what, then runs module by module to a **capstone**.
+- **Run the code.** Cells marked live execute in your browser — edit them, hit
+  **Run**, and see the output change. Nothing to set up.
+- **Read in order.** Lessons follow a fixed spine (intuition → worked example →
+  notation → derivation → practice → self-check); working top to bottom is the
+  intended path.
+
+## Feedback welcome
+
+This is an open project — issues, corrections, and suggestions are genuinely
+welcome. Open one on
+**[GitHub](https://github.com/radlinsky/professor-claude/issues)**.
+
+The whole system is designed to be **retargeted to your own learner** and to
+generate new courses on demand — see the
+[README](https://github.com/radlinsky/professor-claude#make-it-yours) for how to
+make it yours.

@@ -2,6 +2,7 @@ project:
   type: website
   output-dir: _site
   render:
+    - index.qmd                                  # site landing page (hand-registered)
     # >>> generated: foundation render list (scripts/gen-indexes.R) — do not edit by hand
     - foundations/algebra-moves-for-derivations/lesson.qmd
     - foundations/algebra-moves-for-derivations/practice.qmd
@@ -108,6 +109,8 @@ website:
   sidebar:
     style: docked
     contents:
+      - text: "Welcome"
+        href: index.qmd
       - section: "Foundations"
         contents:
           # >>> generated: foundation sidebar (scripts/gen-indexes.R) — do not edit by hand
