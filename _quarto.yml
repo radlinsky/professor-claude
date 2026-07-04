@@ -57,6 +57,9 @@ project:
     - foundations/reading-math-notation/lesson.qmd
     - foundations/reading-math-notation/practice.qmd
     - foundations/reading-math-notation/resources.md
+    - foundations/resampling-bootstrap-and-permutation/lesson.qmd
+    - foundations/resampling-bootstrap-and-permutation/practice.qmd
+    - foundations/resampling-bootstrap-and-permutation/resources.md
     - foundations/variance-structure-and-standardization/lesson.qmd
     - foundations/variance-structure-and-standardization/practice.qmd
     - foundations/variance-structure-and-standardization/resources.md
@@ -252,6 +255,14 @@ website:
                 href: foundations/reading-math-notation/practice.qmd
               - text: "Resources"
                 href: foundations/reading-math-notation/resources.md
+          - section: "Resampling: bootstrap & permutation"
+            contents:
+              - text: "Lesson"
+                href: foundations/resampling-bootstrap-and-permutation/lesson.qmd
+              - text: "Practice"
+                href: foundations/resampling-bootstrap-and-permutation/practice.qmd
+              - text: "Resources"
+                href: foundations/resampling-bootstrap-and-permutation/resources.md
           - section: "Variance structure & standardization"
             contents:
               - text: "Lesson"
