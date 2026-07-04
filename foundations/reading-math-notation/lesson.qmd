@@ -1,0 +1,430 @@
+---
+title: "How to read a formula out loud"
+subtitle: "The unwritten grammar every equation assumes you already know"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+A formula is a **compressed language**. Someone who reads them fluently is running a
+dozen silent conventions in their head — which marks mean "multiply," which letters
+are quantities you'll never observe, how far a symbol's reach extends, what a little
+hat *does* to the letter under it. Nobody writes those rules down, because to the
+people writing papers they're as invisible as spaces between words. To everyone else
+they're why an equation looks like a wall.
+
+This lesson hands you that grammar. It won't teach any one method — it teaches the
+*reading habits* every method assumes, so that when you meet $\hat{\beta}$,
+$\sum_i$, $\mathbb{E}[X]$, or $p \in [0,1]$ later, you already know how to say them out
+loud and what they're asking for. Every formula in every later module leans on this.
+
+**Builds on:** just the baseline. You already read R fluently — and R is the perfect
+bridge, because R forces you to *write out* almost everything math leaves invisible.
+
+## Warm-up: do you remember?
+
+This is the entry point, so there's nothing earlier to recall — just three R reflexes
+the notation leans on. Produce each from memory before opening the answer.
+
+**1.** For `x <- c(2, 4, 6)`, what do `x[2]` and `length(x)` return?
+
+::: {.callout-note collapse="true" title="Answer"}
+`x[2]` is `4` (the 2nd item) and `length(x)` is `3` (how many items). That indexing
+bracket is exactly the subscript $x_i$ you're about to meet, and `length(x)` is the
+$n$ that sits on top of a sum.
+:::
+
+**2.** Is `2 + 3 * 4` equal to `20` or `14`? Why?
+
+::: {.callout-note collapse="true" title="Answer"}
+`14` — multiplication binds before addition ($3 \times 4 = 12$, then $+2$). "What
+binds first?" is a reading habit, and math relies on it even harder than R because it
+often hides the $\times$ sign entirely.
+:::
+
+**3.** What does `log(exp(1))` return in R, and what base is R's `log()`?
+
+::: {.callout-note collapse="true" title="Answer"}
+`1`. R's `log()` is the **natural** log (base $e$) — `log10()` is the base-10 one.
+Papers write $\log$ and almost always mean natural log too; that unspoken default is
+exactly the kind of convention this lesson is about.
+:::
+
+## A tiny example first
+
+Here is a formula you already know cold, dressed in full notation:
+
+$$
+\bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i
+$$
+
+It looks like four moving parts. It says one thing you've typed a thousand times:
+
+> add up the numbers and divide by how many there are.
+
+In R that whole wall is `mean(x)`. Nothing in the formula is new to you — the bar on
+top means "the average of," the big $\sum$ is a `for` loop that adds, the $x_i$ is
+`x[i]`, the $n$ is `length(x)`. **Reading a formula is exactly this move**: take the
+compressed marks, name each one out loud, and watch a plain idea fall out. The rest of
+this lesson is the vocabulary that lets you do it for formulas you *don't* already
+know.
+
+```{r toy-example}
+# The formula, made literal — build the mean from its pieces...
+x <- c(2, 4, 6)
+n <- length(x)          # the n on top of the sum
+sum(x) / n              # (1/n) * sum of x_i  ->  4
+
+# ...and the one-word version the notation is compressing
+mean(x)                 # 4 — identical
+```
+
+## Getting a feel for it
+
+**The mental picture: notation is your R code with the operators turned invisible.**
+Imagine taking `sum(2 * x[i])`, erasing the `*`, erasing the function names, and
+shrinking every variable to a single letter with a little mark on top. That's
+essentially what happened to produce $\sum 2x_i$. Reading notation is running that
+compression *backwards*: put the invisible operators back, expand the letters into
+quantities, and you're holding runnable code again.
+
+**Why it's built this compressed way.** Two reasons, both practical. A formula has to
+fit on a page and be read aloud in a lecture, so anything that can be dropped — the
+multiplication sign, the loop boilerplate, the word "average" — gets dropped. And it
+has to describe a computation for a list of *any* size at once, so concrete numbers
+become indexed letters ($x_i$) and counts become symbols ($n$). Compression plus
+generality: that's the whole design.
+
+**Where the analogy breaks — and this is the hard part.** A programming language has
+*one* meaning per symbol; math notation does not. The same bars $|\cdot|$ mean four
+different things depending on what's inside them; a superscript is usually a power but
+sometimes a label; one author's $r$ is a correlation and another's is a residual. So
+fluent reading isn't memorizing a fixed dictionary — it's reading *around* each symbol,
+using context to pick which meaning is live. This lesson gives you the common meanings
+and the context cues that disambiguate them.
+
+## What the notation is going to say
+
+We'll decode two formulas you'll genuinely meet. The first,
+$\hat{\beta} = \arg\min_{\beta} \sum_i (y_i - \beta_0 - \beta_1 x_i)^2$, says in
+English: *"the slope and intercept I'll report are the pair that make the total
+squared prediction error as small as possible."* The second is a cluster of
+probability shorthand — $\mathbb{E}[X]$, $P(A \mid B)$, $p \in [0,1]$,
+$P(\theta \mid \text{data}) \propto \dots$ — saying *"the long-run average of X,"*
+*"the chance of A once you know B,"* *"p is a number between 0 and 1,"* and
+*"proportional to, up to a constant."* By the end you'll say each of those aloud
+without flinching.
+
+## How to read the symbols
+
+This is the reference heart of the lesson. Every symbol you'll meet in the two
+formulas — and most you'll meet anywhere in these courses — is below, grouped by the
+*job* the mark does. Skim it now; come back to it whenever a formula stumps you.
+
+### Marks that sit *on* a letter (accents = operators)
+
+An accent is a verb applied to the letter under it — it changes what the letter means.
+
+| Symbol | How to say it | What it means | In R |
+|---|---|---|---|
+| $\bar{x}$ | "ex bar" | the mean (average) of the x values | `mean(x)` |
+| $\hat{\beta}$ | "beta hat" | an **estimate from data** — the hat always says "computed from a sample" | `coef(fit)` |
+| $\hat{y}_i$ | "why hat sub eye" | the model's predicted value for observation i | `predict(fit)[i]` |
+| $\tilde{x}$ | "ex tilde" | an adjusted/modified version of x (context says how) | — |
+| $\dot{x}$ | "ex dot" | a rate of change over time (physics-flavored) | — |
+
+### Which alphabet a letter is in (Greek vs Latin)
+
+| Symbol | How to say it | What it means | In R |
+|---|---|---|---|
+| $\mu, \sigma, \beta, \theta$ | "mew, sigma, beta, THAY-ta" | **Greek lowercase = an unknown truth** you never observe (a *parameter*) | — (you estimate it) |
+| $\bar{x}, s, \hat{\beta}$ | "ex bar, ess, beta hat" | **Latin / hatted = computed from your data** (a *statistic*) | `mean(x)`, `sd(x)` |
+| $\Sigma$ vs $\sigma$ | "big sigma / little sigma" | **case matters:** $\Sigma$ is often a sum *or* a covariance matrix; $\sigma$ is a spread | `sum(...)` / — |
+
+: The rule is really *parameter vs statistic*; "Greek = truth" is a strong guess with
+real exceptions ($\pi$, $\alpha$, the operator $\Sigma$). See the deep-dive in this
+module's [resources](resources.md).
+
+### Little numbers beside a letter (sub- vs superscript)
+
+| Symbol | How to say it | What it means | In R |
+|---|---|---|---|
+| $x_i$ | "ex sub eye" | **subscript = an index/label:** the i-th item, or a named slot | `x[i]` |
+| $y_i$ | "why sub eye" | the i-th observed value of a second list y | `y[i]` |
+| $\beta_0, \beta_1$ | "beta zero, beta one" | subscript as a **name**, not a count: intercept, slope | two separate numbers |
+| $x^2$ | "ex squared" | **superscript = a power** (the usual case) | `x^2` |
+| $x^{(i)}$ | "ex super eye" | superscript in **parentheses = a label**, not a power (the i-th one) | `x[[i]]` |
+| $X^\top$ | "ex transpose" | superscript $\top$ = flip a matrix's rows and columns | `t(X)` |
+| $x^{*}$ | "ex star" | superscript star = a special/optimal value | — |
+
+### Relations (how two sides compare)
+
+| Symbol | How to say it | What it means | In R |
+|---|---|---|---|
+| $=$ | "equals" | the two sides are the same number | `==` (test) / `<-` (define) |
+| $:=$ or $\equiv$ | "is defined as" | this is a *definition*, not a fact to prove | `<-` |
+| $\approx$ | "is approximately" | nearly equal | `all.equal(a, b)` |
+| $\propto$ | "is proportional to" | equal **up to some constant multiplier** you're ignoring | `a / b == const` |
+| $\in$ | "is in / is an element of" | belongs to a set or interval | `%in%` |
+
+### Operators that look like functions
+
+| Symbol | How to say it | What it means | In R |
+|---|---|---|---|
+| $n$ | "en" | the number of data points (the count the loop runs to) | `length(x)` |
+| $\sum_{i=1}^{n}$ | "the sum from i equals 1 to n" | add the expression to its right, once per i | `sum(...)` |
+| $\prod_{i=1}^{n}$ | "the product from 1 to n" | multiply instead of add | `prod(...)` |
+| $\mathbb{E}[X]$ | "the expected value of X" | the long-run average of the random quantity X | `mean(x)` (empirically) |
+| $\mathrm{Var}(X)$ | "the variance of X" | the long-run spread of X | `var(x)` |
+| $P(A)$ | "the probability of A" | how likely event A is (a number in $[0,1]$) | — |
+| $P(A \mid B)$ | "the probability of A **given** B" | chance of A once you know B happened | — |
+| $\arg\min_{\beta} f(\beta)$ | "arg min over beta of f" | the **value of $\beta$** that makes $f$ smallest — *not* the smallest $f$ | `beta[which.min(f)]` |
+| $\arg\max$ | "arg max" | the value that makes it largest | `which.max(...)` |
+
+### Grouping, and marks that mean different things by context
+
+| Symbol | How to say it | What it means | In R |
+|---|---|---|---|
+| $\beta_1 x$ | "beta one ex" | **juxtaposition = multiply:** two things written together are multiplied | `b1 * x` |
+| $(\,\cdot\,)$ | "parentheses" | group first — the operator reaches over everything inside | `( )` |
+| $\lvert x \rvert$ | "absolute value of x" | distance from zero (one number) | `abs(x)` |
+| $\lVert \mathbf{x} \rVert$ | "the norm of x" | the length of a vector (double bars) | `sqrt(sum(x^2))` |
+| $\lvert A \rvert$ | "size of A" | the number of elements in a set | `length(A)` |
+| $\mathbf{x}, \mathbf{X}$ | "the vector x / matrix X" | **bold = a whole list/table** at once | an R vector / matrix |
+| $A_{ij}$ | "A sub i j" | the entry in **row i, column j** | `A[i, j]` |
+| $[0, 1]$ vs $(0, 1)$ | "closed / open interval" | square bracket **includes** the endpoint; round **excludes** it | `x >= 0 & x <= 1` |
+
+## The formal version
+
+### Formula 1 — the least-squares line
+
+$$
+\hat{\beta} = \arg\min_{\beta} \sum_{i=1}^{n} \left(y_i - \beta_0 - \beta_1 x_i\right)^2
+$$
+
+**Reading it aloud:** "beta-hat equals arg-min over beta of the sum, from i equals 1
+to n, of the quantity y-sub-i minus beta-zero minus beta-one times x-sub-i, all
+squared." **In everyday words:** "the slope and intercept I'll report are the pair
+that make the total squared prediction error smallest."
+
+Now watch every convention from the table above fire at once:
+
+- $\hat{\beta}$ — the **hat** says these are estimates *from the data*, as opposed to
+  the true $\beta$ we can never see.
+- $\arg\min_{\beta}$ — we want the **value of $\beta$** that minimizes, not the
+  minimum error itself. (The single most common misreading; see the traps.)
+- $\beta_0, \beta_1$ — subscripts here are **names** (intercept, slope), not the i-th
+  item of anything.
+- $\sum_{i=1}^{n}$ — a loop adding one term per data point; it **reaches over the whole
+  squared parenthesis** to its right.
+- $y_i, x_i$ — subscripts here *are* indices: the i-th observation, `y[i]` and `x[i]`.
+- $\beta_1 x_i$ — written together, so **multiply**: `b1 * x[i]`.
+- $(\dots)^2$ — the superscript is a genuine **power**; the parentheses tell it to
+  square the *whole* residual.
+
+**Sanity-check it in R.** "Arg min" is just "try many $\beta$s and keep the best one."
+With a 3-point dataset, scan a grid of slopes and confirm the winner matches `lm()`:
+
+```{r argmin-check}
+x <- c(1, 2, 3)
+y <- c(1, 3, 2)                 # deliberately not a perfect line
+
+# For a fixed intercept, total squared error as a function of the slope b1:
+b0     <- mean(y) - mean(x) * cov(x, y) / var(x)   # least-squares intercept
+slopes <- seq(-2, 3, by = 0.001)
+sse    <- sapply(slopes, function(b1) sum((y - b0 - b1 * x)^2))
+
+c(argmin_slope = slopes[which.min(sse)],   # the VALUE of b1 that wins  (arg min)
+  min_sse      = min(sse),                 # the smallest error itself  (the min)
+  lm_slope     = unname(coef(lm(y ~ x))[2]))  # what lm() reports — should match
+```
+
+The `argmin_slope` and `lm_slope` agree, and notice they are *different* from
+`min_sse`: the arg-min is the slope, the min is the leftover error. Two different
+questions, one symbol apart.
+
+### Formula 2 — the probability shorthand
+
+These four short lines carry most of the probability notation you'll meet:
+
+$$
+p \in [0, 1], \qquad
+\mathbb{E}[X] = \mu, \qquad
+P(A \mid B), \qquad
+P(\theta \mid \text{data}) \propto P(\text{data} \mid \theta)\, P(\theta)
+$$
+
+**Reading them aloud:** "p is in the closed interval zero to one" · "the expected
+value of X equals mew" · "the probability of A given B" · "the probability of theta
+given the data is proportional to the probability of the data given theta, times the
+probability of theta."
+
+- $p \in [0,1]$ — **membership** plus a **closed interval**: $p$ is a number, and it
+  can be exactly 0 or 1 (square brackets include the ends). In R: `p >= 0 & p <= 1`.
+- $\mathbb{E}[X] = \mu$ — $\mathbb{E}[\cdot]$ is an **operator** (long-run average),
+  and the answer is named with a **Greek** letter because it's the *true* mean, not a
+  sample estimate.
+- $P(A \mid B)$ — the **bar means "given":** we've restricted to the world where B
+  already happened.
+- $\propto$ — "**proportional to**": the two sides differ by a constant we're not
+  writing. It is *not* an equals sign, and forgetting that is its own trap below.
+
+## Explore it
+
+R is unusually good at teaching notation, because it refuses to hide the operators
+math leaves out. Run and tweak these.
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: juxtaposition means MULTIPLY. Math writes "beta1 x"; R makes you
+# type the star. PREDICT: what does R do with `beta1 * x`? And what would bare
+# `x(2)` do — multiply, or something else? Commit, then run.
+beta1 <- 3
+x     <- 4
+beta1 * x          # 12 — "beta1 x" in a formula is this
+
+# The gotcha: in R, `name(...)` is a FUNCTION CALL, not multiplication.
+# Math's  x(y + z)  means multiply; R's  x(y + z)  tries to CALL x. Uncomment to see:
+# x(1 + 1)
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the SAME bars |.| mean four different things. Predict each, then
+# run. PREDICT: which of these equals 5?
+abs(-3)                       # |x|  absolute value: distance from 0
+sqrt(sum(c(3, 4)^2))          # ||x|| vector norm (double bars): length of (3,4)
+length(c(10, 20, 30))         # |A|  size of a set
+det(matrix(c(2, 0, 0, 2), 2)) # |A|  determinant of a matrix
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: "arg min" is the WINNING INPUT, not the winning value.
+# PREDICT: which.min returns the position; what slope wins? Edit y and re-run.
+x <- c(1, 2, 3)
+y <- c(1, 3, 2)
+slopes <- seq(-2, 3, by = 0.01)
+sse    <- sapply(slopes, function(b1) sum((y - mean(y) - b1 * (x - mean(x)))^2))
+
+c(arg_min = slopes[which.min(sse)],  # the slope that minimizes  <- arg min
+  the_min = min(sse))                # the minimum error itself   <- NOT arg min
+```
+
+```{webr}
+#| autorun: false
+# explore-4 — LIVE: set/interval membership. PREDICT each TRUE/FALSE before running.
+p <- 0.3
+p >= 0 & p <= 1     # is p in the CLOSED interval [0, 1]?
+2 %in% c(1, 2, 3)   # is 2 an element of {1, 2, 3}?  (the ∈ symbol)
+0 %in% c(1, 2, 3)   # and 0?
+```
+
+## Common traps
+
+**Trap 1 — reading a subscript as a superscript (or vice-versa).** $x_2$ and $x^2$
+look almost the same at a glance and mean completely different things. $x_2$ is the
+**second item** of a list (`x[2]`); for `x <- c(2, 4, 6)` that's `4`. $x^2$ is
+**x squared** (`x^2`); for a single $x = 4$ that's `16`. The little number's *position*
+— below or above — is the whole message. And a superscript *in parentheses*, $x^{(i)}$,
+flips back to being a label ("the i-th one"), not a power at all.
+
+**Trap 2 — thinking $\arg\min$ is the minimum.** $\arg\min_{\beta} f(\beta)$ is the
+**input** $\beta$ that makes $f$ smallest, not the smallest value of $f$. In
+`explore-3` the arg-min was a *slope* (around 0.5) while the min was a *sum of squared
+errors* (a different number entirely). If a formula defines an estimate as an
+$\arg\min$ or $\arg\max$ — as nearly every fitting method does — it's telling you *which
+setting to choose*, and the leftover value is a separate quantity. Say "the beta that
+minimizes," never "the minimum," and you won't slip.
+
+## Check yourself
+
+**1.** Read this aloud, then translate it to one line of R:
+$\;\hat{y}_i = \hat{\beta}_0 + \hat{\beta}_1 x_i$.
+
+```{webr}
+#| autorun: false
+# check1-starter — set the pieces, then write the prediction line and Run.
+b0 <- 2      # beta-hat-zero (intercept)
+b1 <- 3      # beta-hat-one  (slope)
+x  <- c(0, 1, 2)
+# your line here: yhat <- ...
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"why-hat sub eye equals beta-hat-zero plus beta-hat-one times x-sub-eye." Every hat
+means "estimated from data"; the subscripts on $\beta$ are names (intercept, slope);
+$\hat{\beta}_1 x_i$ is written together, so multiply. In R:
+
+```{r check1-answer}
+b0 <- 2; b1 <- 3; x <- c(0, 1, 2)
+yhat <- b0 + b1 * x     # the invisible × becomes an explicit *
+yhat                    # 2 5 8
+```
+:::
+
+**2.** No computing — just interpretation. (a) What's the difference between $\sigma$
+and $s$? (b) Between $x_2$ and $x^2$?
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $\sigma$ (Greek) is the **true, unknown** standard deviation of the population; $s$
+(Latin) is the estimate you **compute from your sample** (`sd(x)`). Same quantity, one
+is truth and one is your data's guess at it. (b) $x_2$ is the **second element** of a
+list (`x[2]`); $x^2$ is **x squared** (`x^2`). Subscript = index, superscript = power.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what "reading a
+formula" actually involves.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Reading a formula is decompressing it: you put back the operators it hides (a $\times$
+between two letters written together, a `for` loop inside a $\sum$) and you check each
+letter's costume — a hat or a Greek letter tells you whether it's data or an unknown
+truth. Then you notice how far each operator reaches, and a plain-English sentence
+falls out.
+:::
+
+## What you can now do
+
+- **Say a formula out loud** — name each accent, subscript, operator, and relation —
+  and turn it into runnable R by making the hidden operators explicit.
+- **Tell data from unknowns at a glance:** a hat or a Latin letter means "computed from
+  a sample"; a bare Greek letter usually means "true but unobserved."
+- **Read a subscript as an index or a name, a superscript as a power or a label,** using
+  position and parentheses as the cue.
+- **Not confuse $\arg\min$ with the minimum,** $\propto$ with $=$, or the four meanings
+  of $\lvert \cdot \rvert$ — reading each symbol *in context*.
+
+If any of these feels shaky, revisit [How to read the symbols](#how-to-read-the-symbols)
+and keep it open as a reference — every later formula is built from these marks.
+
+## Where this goes next
+
+The single most common symbol you just met — the big $\sum$ — gets a whole module of
+its own next: [vectors, subscripts & summation](../vectors-and-summation/lesson.qmd),
+where you'll learn the three algebra moves for reshaping sums that power almost every
+derivation. From there, [mean, variance & covariance](../mean-variance-covariance/lesson.qmd)
+puts these symbols to work on real formulas.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

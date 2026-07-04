@@ -45,7 +45,10 @@ The whole repo is **one** Quarto project — there is a single `/_quarto.yml` at
 repo root, and no per-course or per-foundation `_quarto.yml`. This keeps renv (rooted
 at the repo top) active during every render. When you add a course or foundation
 module, edit `/_quarto.yml` and add each new `.qmd`/`.md` in two places, using paths
-**relative to the repo root**:
+**relative to the repo root**. This includes `resources.md` — lessons and roadmaps
+link to it, and an unregistered page is never rendered, so the link 404s on the live
+site. CI's "Check every page is registered" step fails on any page left out; the only
+files intentionally excluded are the GitHub-facing `README.md` indexes.
 
 1. `project: render:` — the flat list of files to render (no nesting; independent
    of the sidebar).
@@ -57,6 +60,10 @@ module, edit `/_quarto.yml` and add each new `.qmd`/`.md` in two places, using p
    labelled just **Lesson** / **Practice** (the module's `section:` label carries
    the descriptive name). Module labels: courses use `N · Short name` (number in
    learning order); foundation modules use the short name with **no** number.
+   The module's `resources.md` also gets a `text: "Resources"` / `href:` entry so
+   it is a visible nav page, not just an inline link — for a **course** it is the
+   last entry of the course section (a peer of the module `section:`s); for a
+   **foundation** module it sits inside that module's `section:`, after Practice.
 
 Example — adding a course with two modules:
 
@@ -68,6 +75,7 @@ Example — adding a course with two modules:
     - courses/<course-slug>/modules/01-<slug>/practice.qmd
     - courses/<course-slug>/modules/02-<slug>/lesson.qmd
     - courses/<course-slug>/modules/02-<slug>/practice.qmd
+    - courses/<course-slug>/resources.md
 
 # in website.sidebar.contents:
       - section: "<Course Title>"
@@ -86,6 +94,8 @@ Example — adding a course with two modules:
                 href: courses/<course-slug>/modules/02-<slug>/lesson.qmd
               - text: "Practice"
                 href: courses/<course-slug>/modules/02-<slug>/practice.qmd
+          - text: "Resources"                       # peer of the modules, last entry
+            href: courses/<course-slug>/resources.md
 ```
 
 A new **foundation** module gets the same nested shape — its own `section:`
@@ -100,6 +110,8 @@ A new **foundation** module gets the same nested shape — its own `section:`
                 href: foundations/<module-slug>/lesson.qmd
               - text: "Practice"
                 href: foundations/<module-slug>/practice.qmd
+              - text: "Resources"                   # inside the module section
+                href: foundations/<module-slug>/resources.md
 ```
 
 Do not create a `_quarto.yml` inside a course or foundation folder — a nested one

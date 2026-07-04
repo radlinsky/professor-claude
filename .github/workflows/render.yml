@@ -21,6 +21,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Every lesson/practice/resources page under foundations|courses must be in
+      # the _quarto.yml render list, or Quarto never builds it and any link to it
+      # 404s on the live site. The lychee step below only checks links BETWEEN
+      # rendered pages, so it can't catch a target that was never rendered — this
+      # guards the root cause (page exists, not registered). Runs before the slow
+      # render so it fails fast.
+      - name: Check every page is registered in _quarto.yml
+        run: |
+          # README.md files are GitHub-facing repo indexes, not rendered site pages.
+          missing=$(comm -23 \
+            <(find foundations courses \( -name '*.qmd' -o -name '*.md' \) -not -name README.md | sort) \
+            <(grep -oP '(?<=- )(foundations|courses)/\S+\.(qmd|md)' _quarto.yml | sort -u))
+          if [ -n "$missing" ]; then
+            echo "::error::Pages not in _quarto.yml render list:"; echo "$missing"; exit 1
+          fi
+
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
         with:

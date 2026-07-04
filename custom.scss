@@ -1,0 +1,12 @@
+/*-- scss:rules --*/
+
+// Display equations that are wider than the column scroll horizontally
+// instead of overflowing the page / sidebar. MathJax v3 wraps each display
+// block in <mjx-container display="true">.
+mjx-container[display="true"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  // a little breathing room so the scrollbar doesn't clip the equation
+  padding-bottom: 0.25rem;
+}
