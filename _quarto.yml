@@ -18,6 +18,9 @@ project:
     - foundations/exponentials-and-logs/lesson.qmd
     - foundations/exponentials-and-logs/practice.qmd
     - foundations/exponentials-and-logs/resources.md
+    - foundations/likelihood-and-log-likelihood/lesson.qmd
+    - foundations/likelihood-and-log-likelihood/practice.qmd
+    - foundations/likelihood-and-log-likelihood/resources.md
     - foundations/linear-combinations-and-data-matrices/lesson.qmd
     - foundations/linear-combinations-and-data-matrices/practice.qmd
     - foundations/linear-combinations-and-data-matrices/resources.md
@@ -133,6 +136,14 @@ website:
                 href: foundations/exponentials-and-logs/practice.qmd
               - text: "Resources"
                 href: foundations/exponentials-and-logs/resources.md
+          - section: "Likelihood & log-likelihood"
+            contents:
+              - text: "Lesson"
+                href: foundations/likelihood-and-log-likelihood/lesson.qmd
+              - text: "Practice"
+                href: foundations/likelihood-and-log-likelihood/practice.qmd
+              - text: "Resources"
+                href: foundations/likelihood-and-log-likelihood/resources.md
           - section: "Linear combinations & the data matrix"
             contents:
               - text: "Lesson"
