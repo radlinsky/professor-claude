@@ -49,7 +49,7 @@ professor_claude/
 │                              #   harness.R, check.R) — see equivalence/README.md
 ├── .github/workflows/         # CI: equivalence.yml, license-check.yml, render.yml, index-check.yml
 ├── scripts/                   # repo maintenance checks (base R, no deps)
-│   └── check-indexes.R        # index-check CI: foundation↔course links, Used-by, Builds-on, Status
+│   └── check-indexes.R        # index-check CI: foundation↔course links, Used-by, Builds-on (+lesson sync), Status
 ├── docs/                      # decision records (e.g., webr-decision.md)
 ├── foundations/               # SHARED, recyclable prerequisite modules
 │   ├── README.md              # index: module, concepts, used-by, learner status
