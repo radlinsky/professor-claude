@@ -4,8 +4,9 @@ description: >
   Add practice problems (or lesson "check yourself" questions) to an EXISTING course
   or foundation module, without rebuilding the course. Use when the user says "add
   problems to <module>", "more practice on X", "write a few exercises for this
-  lesson", or wants extra reps for a concept that already has a lesson. For building
-  a whole new course from scratch, use create-course instead.
+  lesson", or wants extra reps for a concept that already has a lesson. Tie-breaker:
+  ADDING new problems is add-problems; CHANGING existing problems is update-course.
+  For building a whole new course from scratch, use create-course instead.
 ---
 
 # add-problems

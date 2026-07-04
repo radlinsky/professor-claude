@@ -8,9 +8,11 @@ description: >
   in-browser WebR lessons. Use when the learner says "teach me the math behind <method
   in this library/paper/repo>", "port <library> into a course", "rebuild <algorithm>
   from scratch and show it matches", or points at source code / a paper / a repo URL
-  and wants the method taught. For a course from a concept or paper with NO real
-  implementation to validate against, use create-course. For changing existing material
-  use update-course; for only adding problems use add-problems.
+  and wants the method taught. If ANY validation reference exists — runnable code,
+  reported numbers, or a closed form — port-library applies (its equivalence harness
+  has partial/fallback tiers); only a bare concept with nothing to validate against
+  goes to create-course. For changing existing material use update-course; for only
+  adding problems use add-problems.
 ---
 
 # port-library
