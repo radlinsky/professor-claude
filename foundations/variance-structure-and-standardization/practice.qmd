@@ -56,7 +56,7 @@ $$
 
 > The off-diagonal is $\mathrm{Cov}(x, y) = 2$ (given). The full grid is
 > $\begin{bmatrix} \underline{\phantom{00}} & 2 \\ 2 & \underline{\phantom{00}} \end{bmatrix}$
-> — **`<your step here>`**: the top-left blank is $\mathrm{Var}(x)$ and the bottom-right
+> — the top-left blank is $\mathrm{Var}(x)$ and the bottom-right
 > blank is $\mathrm{Var}(y)$. Compute those two variances.
 
 ```{webr}
