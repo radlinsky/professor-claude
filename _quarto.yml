@@ -54,54 +54,126 @@ website:
     contents:
       - section: "Foundations"
         contents:
-          - foundations/reading-math-notation/lesson.qmd
-          - foundations/reading-math-notation/practice.qmd
-          - foundations/vectors-and-summation/lesson.qmd
-          - foundations/vectors-and-summation/practice.qmd
-          - foundations/mean-variance-covariance/lesson.qmd
-          - foundations/mean-variance-covariance/practice.qmd
-          - foundations/derivative-as-slope/lesson.qmd
-          - foundations/derivative-as-slope/practice.qmd
-          - foundations/exponentials-and-logs/lesson.qmd
-          - foundations/exponentials-and-logs/practice.qmd
-          - foundations/probability-and-odds/lesson.qmd
-          - foundations/probability-and-odds/practice.qmd
+          - section: "Reading math notation"
+            contents:
+              - text: "Lesson"
+                href: foundations/reading-math-notation/lesson.qmd
+              - text: "Practice"
+                href: foundations/reading-math-notation/practice.qmd
+          - section: "Vectors, subscripts & Σ"
+            contents:
+              - text: "Lesson"
+                href: foundations/vectors-and-summation/lesson.qmd
+              - text: "Practice"
+                href: foundations/vectors-and-summation/practice.qmd
+          - section: "The mean, variance & covariance"
+            contents:
+              - text: "Lesson"
+                href: foundations/mean-variance-covariance/lesson.qmd
+              - text: "Practice"
+                href: foundations/mean-variance-covariance/practice.qmd
+          - section: "The derivative as a slope"
+            contents:
+              - text: "Lesson"
+                href: foundations/derivative-as-slope/lesson.qmd
+              - text: "Practice"
+                href: foundations/derivative-as-slope/practice.qmd
+          - section: "Exponentials and logs"
+            contents:
+              - text: "Lesson"
+                href: foundations/exponentials-and-logs/lesson.qmd
+              - text: "Practice"
+                href: foundations/exponentials-and-logs/practice.qmd
+          - section: "Probability, odds & log-odds"
+            contents:
+              - text: "Lesson"
+                href: foundations/probability-and-odds/lesson.qmd
+              - text: "Practice"
+                href: foundations/probability-and-odds/practice.qmd
       - section: "Simple Linear Regression"
         contents:
           - courses/simple-linear-regression/syllabus.md
           - courses/simple-linear-regression/00-roadmap.qmd
-          - courses/simple-linear-regression/modules/01-least-squares-idea/lesson.qmd
-          - courses/simple-linear-regression/modules/01-least-squares-idea/practice.qmd
-          - courses/simple-linear-regression/modules/02-deriving-the-ols-formulas/lesson.qmd
-          - courses/simple-linear-regression/modules/02-deriving-the-ols-formulas/practice.qmd
-          - courses/simple-linear-regression/modules/03-reading-lm-output-and-papers/lesson.qmd
-          - courses/simple-linear-regression/modules/03-reading-lm-output-and-papers/practice.qmd
-          - courses/simple-linear-regression/modules/04-capstone-reading-a-real-regression/lesson.qmd
-          - courses/simple-linear-regression/modules/04-capstone-reading-a-real-regression/practice.qmd
+          - section: "1 · Least-squares idea"
+            contents:
+              - text: "Lesson"
+                href: courses/simple-linear-regression/modules/01-least-squares-idea/lesson.qmd
+              - text: "Practice"
+                href: courses/simple-linear-regression/modules/01-least-squares-idea/practice.qmd
+          - section: "2 · Deriving the OLS formulas"
+            contents:
+              - text: "Lesson"
+                href: courses/simple-linear-regression/modules/02-deriving-the-ols-formulas/lesson.qmd
+              - text: "Practice"
+                href: courses/simple-linear-regression/modules/02-deriving-the-ols-formulas/practice.qmd
+          - section: "3 · Reading lm() output & papers"
+            contents:
+              - text: "Lesson"
+                href: courses/simple-linear-regression/modules/03-reading-lm-output-and-papers/lesson.qmd
+              - text: "Practice"
+                href: courses/simple-linear-regression/modules/03-reading-lm-output-and-papers/practice.qmd
+          - section: "4 · Capstone: a real regression"
+            contents:
+              - text: "Lesson"
+                href: courses/simple-linear-regression/modules/04-capstone-reading-a-real-regression/lesson.qmd
+              - text: "Practice"
+                href: courses/simple-linear-regression/modules/04-capstone-reading-a-real-regression/practice.qmd
       - section: "Gradient Descent, from Scratch"
         contents:
           - courses/gradient-descent/syllabus.md
           - courses/gradient-descent/00-roadmap.qmd
-          - courses/gradient-descent/modules/01-rolling-downhill/lesson.qmd
-          - courses/gradient-descent/modules/01-rolling-downhill/practice.qmd
-          - courses/gradient-descent/modules/02-the-gradient/lesson.qmd
-          - courses/gradient-descent/modules/02-the-gradient/practice.qmd
-          - courses/gradient-descent/modules/03-fitting-a-line-by-descent/lesson.qmd
-          - courses/gradient-descent/modules/03-fitting-a-line-by-descent/practice.qmd
-          - courses/gradient-descent/modules/04-capstone-decode-the-optimizer/lesson.qmd
-          - courses/gradient-descent/modules/04-capstone-decode-the-optimizer/practice.qmd
+          - section: "1 · Rolling downhill"
+            contents:
+              - text: "Lesson"
+                href: courses/gradient-descent/modules/01-rolling-downhill/lesson.qmd
+              - text: "Practice"
+                href: courses/gradient-descent/modules/01-rolling-downhill/practice.qmd
+          - section: "2 · The gradient"
+            contents:
+              - text: "Lesson"
+                href: courses/gradient-descent/modules/02-the-gradient/lesson.qmd
+              - text: "Practice"
+                href: courses/gradient-descent/modules/02-the-gradient/practice.qmd
+          - section: "3 · Fitting a line by descent"
+            contents:
+              - text: "Lesson"
+                href: courses/gradient-descent/modules/03-fitting-a-line-by-descent/lesson.qmd
+              - text: "Practice"
+                href: courses/gradient-descent/modules/03-fitting-a-line-by-descent/practice.qmd
+          - section: "4 · Capstone: decode an optimizer"
+            contents:
+              - text: "Lesson"
+                href: courses/gradient-descent/modules/04-capstone-decode-the-optimizer/lesson.qmd
+              - text: "Practice"
+                href: courses/gradient-descent/modules/04-capstone-decode-the-optimizer/practice.qmd
       - section: "Logistic Regression"
         contents:
           - courses/logistic-regression/syllabus.md
           - courses/logistic-regression/00-roadmap.qmd
-          - courses/logistic-regression/modules/01-from-line-to-probability/lesson.qmd
-          - courses/logistic-regression/modules/01-from-line-to-probability/practice.qmd
-          - courses/logistic-regression/modules/02-odds-log-odds-and-the-logit/lesson.qmd
-          - courses/logistic-regression/modules/02-odds-log-odds-and-the-logit/practice.qmd
-          - courses/logistic-regression/modules/03-likelihood-and-gradient-ascent/lesson.qmd
-          - courses/logistic-regression/modules/03-likelihood-and-gradient-ascent/practice.qmd
-          - courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/lesson.qmd
-          - courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/practice.qmd
+          - section: "1 · From a line to a probability"
+            contents:
+              - text: "Lesson"
+                href: courses/logistic-regression/modules/01-from-line-to-probability/lesson.qmd
+              - text: "Practice"
+                href: courses/logistic-regression/modules/01-from-line-to-probability/practice.qmd
+          - section: "2 · Odds, log-odds & the logit"
+            contents:
+              - text: "Lesson"
+                href: courses/logistic-regression/modules/02-odds-log-odds-and-the-logit/lesson.qmd
+              - text: "Practice"
+                href: courses/logistic-regression/modules/02-odds-log-odds-and-the-logit/practice.qmd
+          - section: "3 · Likelihood & gradient ascent"
+            contents:
+              - text: "Lesson"
+                href: courses/logistic-regression/modules/03-likelihood-and-gradient-ascent/lesson.qmd
+              - text: "Practice"
+                href: courses/logistic-regression/modules/03-likelihood-and-gradient-ascent/practice.qmd
+          - section: "4 · Capstone: a real logistic regression"
+            contents:
+              - text: "Lesson"
+                href: courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/lesson.qmd
+              - text: "Practice"
+                href: courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/practice.qmd
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that
 # lessons can host runnable in-browser WebR chunks with a single, uniform theme.
