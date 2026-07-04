@@ -182,7 +182,6 @@ Must be `.qmd` (not `.md`): Mermaid cells only execute in `.qmd` files.
 ```markdown
 ---
 title: "Roadmap"
-format: html
 ---
 
 How every module depends on the others. Foundation modules are reusable
