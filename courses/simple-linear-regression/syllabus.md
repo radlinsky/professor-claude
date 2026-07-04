@@ -30,6 +30,7 @@ table as a refresher instead.
 
 | Module | Why this course needs it |
 |---|---|
+| [reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) | The standing first prerequisite — it decodes the accents, Greek letters, subscripts, and operators every other formula uses. New? take it fully; done before? skim its symbol table. |
 | [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) | Every regression formula is written with $x_i$, $n$, and Σ; the derivation in Module 2 leans on sum-Rules 1–3. |
 | [mean-variance-covariance](../../foundations/mean-variance-covariance/lesson.qmd) | The slope estimate IS covariance ÷ variance; deviations-from-the-mean do all the work. |
 

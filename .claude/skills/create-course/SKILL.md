@@ -105,13 +105,19 @@ baseline up to the target.
    - Not generic → **course module**, authored into `courses/<slug>/modules/`.
    (The capstone is always a course module.)
 6. Topologically sort: every module comes after all modules it depends on. Foundation
-   modules always come before the course modules that need them.
+   modules always come before the course modules that need them — and among foundations,
+   consult the **Builds on** column of `foundations/README.md` so a foundation always
+   comes after the foundations it builds on (e.g. probability-and-odds after
+   exponentials-and-logs). reading-math-notation is the standing first prerequisite and
+   sorts to the front.
 
 **GATE 2:** ☐ Every target-list item is covered by exactly one module. ☐ Every module
 either sits at the baseline or has all its prerequisites in earlier modules. ☐ Each
 module is labeled `reuse-foundation` / `new-foundation` / `course` / `prereq-course`.
 ☐ The last module is the capstone. ☐ Total module count is 3–8 (prereq courses don't
-count toward it — they're linked, not authored).
+count toward it — they're linked, not authored). ☐ foundations/README.md consulted;
+every reuse/new-foundation label and every foundation Builds-on edge reflected in the
+module order.
 
 ---
 
@@ -126,16 +132,19 @@ Follow the exact file formats in `.claude/course-authoring/course-structure.md`.
    `course-structure.md`), then — if Phase 2 found any `prereq-course` items — a
    **Before you start: course(s) this one builds on** section linking each
    (format in `course-structure.md`; omit the section entirely if none), then a
-   **Prerequisites from the foundations library** section (one row per foundation
-   module: relative link to its `lesson.qmd`, one line on *why this course needs
-   it*, and "already done it? skim its pronunciation table as a refresher"), then
+   **Prerequisites from the foundations library** section (reading-math-notation is
+   always row 1 — the standing first prerequisite; then the remaining foundations
+   ordered by the **Builds on** column so none precedes one it depends on. One row per
+   foundation module: relative link to its `lesson.qmd`, one line on *why this course
+   needs it*, and "already done it? skim its pronunciation table as a refresher"), then
    one section per course module: title, "why you need this", concepts covered,
    rough time estimate.
 2. `courses/<course-slug>/00-roadmap.qmd` — a Mermaid `flowchart TD` where each node is
    a module (foundation nodes blue `:::foundation`; any `prereq-course` nodes green
-   `:::priorcourse`, label prefixed `course:`), each edge means "needed for", and
-   below the diagram a numbered "suggested order" list with the same relative links
-   as the syllabus.
+   `:::priorcourse`, label prefixed `course:`), each edge means "needed for" (including
+   foundation→foundation edges drawn from the **Builds on** column — see
+   `course-structure.md` §00-roadmap), and below the diagram a numbered "suggested
+   order" list with the same relative links as the syllabus.
 3. Scaffold the folders now: `courses/<course-slug>/` with empty `modules/NN-<slug>/`
    directories; `foundations/<slug>/` directories for any `new-foundation` modules.
    Then register every page you are about to create in the **root `/_quarto.yml`**
