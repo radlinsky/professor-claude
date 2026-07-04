@@ -1,0 +1,223 @@
+---
+title: "Practice: Randomness, samples & sampling distributions"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). This module uses randomness, so set.seed(42) fixes every baked answer.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them in an R session (this module lives on
+simulation); only then open the answer. Use `set.seed(42)` so your numbers match ours.
+
+## Problem 1 — the toy example, new numbers
+
+The population is now a measurement machine with true mean $\mu = 50$ and true spread
+$\sigma = 10$ (`rnorm(n, 50, 10)`). Take samples of $n = 16$, and let the statistic be
+the sample mean. Simulate 2000 redraws, histogram the means, and report the **standard
+error** (the `sd()` of those means). **PREDICT** first: will the SE be near 10, or much
+smaller? Write it down, then run.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+set.seed(42)
+sample_means <- replicate(2000, mean(rnorm(16, mean = 50, sd = 10)))
+# your job: sd(sample_means), and hist(sample_means)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The standard error is the standard deviation of the redrawn means. It is **much smaller
+than 10** — the average of 16 numbers wobbles far less than the numbers themselves. The
+mean's shortcut predicts $\mathrm{SE} \approx \sigma/\sqrt{n} = 10/\sqrt{16} = 2.5$, and
+the simulation lands right there.
+
+```{r p1-answer}
+set.seed(42)
+sample_means <- replicate(2000, mean(rnorm(16, mean = 50, sd = 10)))
+sd(sample_means)          # ~2.53 — the standard error, close to the 2.5 shortcut
+mean(sample_means)        # ~50 — the sampling distribution centers on the truth
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+Here is the simulate-and-take-`sd()` recipe for a new setup, with the **core step
+blanked**. Population: $\mu = 8$, $\sigma = 2$, sample size $n = 4$; statistic = the
+mean. Fill in ONLY the blanked line.
+
+> Step 1 — one press of the machine is `mean(rnorm(4, 8, 2))`: draw 4 values, average
+> them.
+> Step 2 — **`<your step here>`**: press the button 2000 times, collecting the mean each
+> time into a vector called `sample_means`.
+> Step 3 — the standard error is `sd(sample_means)`, and the center is
+> `mean(sample_means)`.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your blanked step
+set.seed(42)
+# sample_means <- <your step here>
+# sd(sample_means); mean(sample_means)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the `replicate()` call — the "do this whole thing over and over"
+move that turns one press into a sampling distribution:
+
+```{r p2-answer}
+set.seed(42)
+sample_means <- replicate(2000, mean(rnorm(4, mean = 8, sd = 2)))  # the missing step
+sd(sample_means)          # ~1.03 — the standard error (shortcut: 2/sqrt(4) = 1)
+mean(sample_means)        # ~7.97 — centered on the true mu = 8
+```
+
+Without `replicate()` you'd have a single mean, not a distribution — and no way to see
+the wobble. `replicate(2000, ...)` is what manufactures the redraws.
+:::
+
+## Problem 3 — a proportion is a statistic too
+
+A bag of chips is **30% red, 70% blue**. You draw $n = 40$ chips (with replacement) and
+compute the **proportion red** — code red as 1, blue as 0, and the proportion is just the
+`mean()` of those 0/1s. Simulate 2000 redraws and find the sampling distribution's center
+and standard error. **PREDICT:** roughly what value will the proportions center on?
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: build `props` with replicate(), then its center and SE
+set.seed(42)
+# one draw of 40 chips (red = 1, blue = 0), then the proportion red:
+#   mean(sample(c(1, 0), 40, replace = TRUE, prob = c(0.3, 0.7)))
+# wrap that in replicate(2000, ...) to get `props`, then mean(props) and sd(props)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+A proportion is the mean of 0/1 data, so it is a statistic like any other — random, with
+its own sampling distribution and standard error. The center sits at the true proportion
+0.3; the standard error is the `sd()` of the redrawn proportions.
+
+```{r p3-answer}
+set.seed(42)
+props <- replicate(2000, mean(sample(c(1, 0), 40, replace = TRUE, prob = c(0.3, 0.7))))
+mean(props)   # ~0.303 — centered on the true 30%
+sd(props)     # ~0.071 — the standard error of the proportion
+```
+
+The exact same simulate-and-`sd()` recipe you used for a mean works unchanged for a
+proportion — that's the power of the simulation approach.
+:::
+
+## Problem 4 — spot the error
+
+A colleague reports the uncertainty of a sample mean. Their reasoning contains **exactly
+one mistake** — find it, explain why it's wrong, and give the fix.
+
+> "I drew a sample of $n = 9$ values and computed `sd(x)`, which came out to about 2.57.
+> That `sd` **is** the standard error of my mean, so I'll report the mean give-or-take
+> 2.57."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to see the two DIFFERENT spreads
+set.seed(42)
+x <- rnorm(9, mean = 0, sd = 3)
+# sd(x)            # the spread of the DATA
+# sd(x) / sqrt(9)  # the standard error of the MEAN
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is calling `sd(x)` the standard error. `sd(x) ≈ 2.57` is the spread of the
+**data** — how scattered the 9 raw values are. The standard error is the spread of the
+**mean**, which for the mean is about $s/\sqrt{n}$, far smaller:
+
+```{r p4-answer}
+set.seed(42)
+x <- rnorm(9, mean = 0, sd = 3)
+sd(x)             # ~2.57 — spread of the DATA (what the colleague wrongly reported)
+sd(x) / sqrt(9)   # ~0.86 — the correct standard error of the mean
+```
+
+Reporting 2.57 overstates the mean's wobble by roughly threefold. The fix: divide by
+$\sqrt{n}$ (here $\sqrt{9} = 3$) to get $\mathrm{SE} \approx 0.86$, or simulate redraws
+and take the `sd()` of the means. The tell is always "the spread of *what*?" — the data,
+or the statistic.
+:::
+
+## Problem 5 — mixing it with the mean & standard deviation *(uses [mean-variance-covariance](../mean-variance-covariance/lesson.qmd)'s `sd`)*
+
+You have **one** sample of $n = 100$ measurements from a machine with $\sigma = 4$. You
+cannot redraw — you only have this one dataset. Using the mean's shortcut, turn the
+data's standard deviation (the `sd()` from the mean-variance-covariance module) into the
+standard error of the mean. **PREDICT:** which is bigger, `sd(x)` or the SE?
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run: get sd(x), then convert it to the SE of the mean
+set.seed(42)
+x <- rnorm(100, mean = 20, sd = 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`sd(x)` is the data spread you learned to compute in
+[mean-variance-covariance](../mean-variance-covariance/lesson.qmd); the mean's standard
+error is that divided by $\sqrt{n}$. The SE is much smaller.
+
+```{r p5-answer}
+set.seed(42)
+x <- rnorm(100, mean = 20, sd = 4)
+sd(x)              # ~4.17 — the spread of the DATA (estimates sigma = 4)
+sd(x) / sqrt(100)  # ~0.42 — the standard error of the MEAN
+```
+
+The data spread (~4.17) is about tenfold larger than the SE (~0.42), because $\sqrt{100}
+= 10$. This is the bridge: the standard deviation you already know, divided by $\sqrt{n}$,
+becomes the standard error of the mean — no re-simulation needed when the statistic is a
+mean.
+:::
+
+## Problem 6 — transfer: does the bell always show up?
+
+The Central Limit Theorem says means go bell-shaped — but *how big a sample* it takes
+depends on how weird the population is. Here is a nasty population: **four 0s and one
+100** (extremely lopsided). Simulate the sampling distribution of the mean for a *tiny*
+sample ($n = 2$) and a *larger* one ($n = 50$), and compare their shapes and standard
+errors. **PREDICT:** which one looks more like a bell?
+
+```{webr}
+#| autorun: false
+# p6-starter — your job: histogram the means at n = 2 and n = 50, and compare their sd()
+set.seed(42)
+pop <- c(0, 0, 0, 0, 100)      # a very lopsided population; true mean = 20
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The bell shows up for the *larger* sample. At $n = 2$ the means are lumpy and jagged (few
+possible averages, huge spread); at $n = 50$ they smooth into a bell centered on the true
+mean of 20, with a much smaller standard error.
+
+```{r p6-answer}
+set.seed(42)
+pop <- c(0, 0, 0, 0, 100)          # true mean = 20
+m2  <- replicate(3000, mean(sample(pop,  2, replace = TRUE)))
+m50 <- replicate(3000, mean(sample(pop, 50, replace = TRUE)))
+c(SE_n2 = sd(m2), SE_n50 = sd(m50)) # ~28.7 vs ~5.5 — SE shrinks with n
+c(center_n2 = mean(m2), center_n50 = mean(m50))  # both ~20 — centered on the truth
+```
+
+Two lessons in one: the Central Limit Theorem is an *observation with fine print* — the
+bell is a large-sample tendency, and a lopsided population needs a bigger $n$ before it
+kicks in; and no matter the shape, the standard error keeps shrinking as $n$ grows
+(~28.7 at $n=2$ down to ~5.5 at $n=50$). A later module turns this simulate-the-redraws
+engine into the bootstrap. For now: means steady and bell-ify as samples grow.
+:::
