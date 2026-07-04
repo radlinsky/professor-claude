@@ -75,6 +75,13 @@ pushing.
    last entry of the course section (a peer of the module `section:`s); for a
    **foundation** module it sits inside that module's `section:`, after Practice.
 
+The site's landing page is `/index.qmd` (the repo-root `index.qmd`, Quarto's
+homepage). It is hand-registered once — first in `project: render:` and as the
+first `website: sidebar: contents:` entry (a `text: "Welcome"` link, above the
+`"Foundations"` section) — and is not part of the generated sentinel blocks, so
+`gen-indexes.R` leaves it alone. It links to sections generically, not to
+specific modules, so adding or removing a course never touches it.
+
 Example — adding a course with two modules:
 
 ```yaml
