@@ -1,0 +1,4 @@
+ShortName: Vectors, subscripts & Σ
+Concepts: What a vector is (an R vector!), subscript/index notation ($x_i$), summation notation ($\Sigma$), rules for manipulating sums
+BuildsOn: [reading-math-notation](reading-math-notation/lesson.qmd) (soft — for the symbols)
+UsedBy: [simple-linear-regression](../courses/simple-linear-regression/syllabus.md), [gradient-descent](../courses/gradient-descent/syllabus.md), [logistic-regression](../courses/logistic-regression/syllabus.md)

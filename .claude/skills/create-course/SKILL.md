@@ -147,14 +147,20 @@ Follow the exact file formats in `.claude/course-authoring/course-structure.md`.
    order" list with the same relative links as the syllabus.
 3. Scaffold the folders now: `courses/<course-slug>/` with empty `modules/NN-<slug>/`
    directories; `foundations/<slug>/` directories for any `new-foundation` modules.
-   Then register every page you are about to create in the **root `/_quarto.yml`**
-   (render list + a sidebar section) — see `.claude/course-authoring/course-structure.md`. Do NOT
-   create a per-course `_quarto.yml`.
+   Then register every **course** page you are about to create in the **root
+   `/_quarto.yml`** (render list + a sidebar section) — see
+   `.claude/course-authoring/course-structure.md`. Do NOT create a per-course
+   `_quarto.yml`. For each `new-foundation` module, do NOT hand-add rows: write
+   `foundations/<slug>/meta.dcf` (`ShortName`, `Concepts`, `BuildsOn`, `UsedBy`) and
+   run `Rscript scripts/gen-indexes.R`, which regenerates the foundation render list +
+   sidebar and the `foundations/README.md` table row (sorted by slug, between the
+   generated markers).
 
 **GATE 3:** ☐ Both files exist and every module from Phase 2 appears in both. ☐ The
 syllabus has the How-to-take box. ☐ All foundation links are relative paths that
-resolve (check with `ls`). ☐ The root `/_quarto.yml` lists every chapter/file you
-are about to create.
+resolve (check with `ls`). ☐ The root `/_quarto.yml` lists every course chapter/file
+you are about to create, and every `new-foundation` module has a `meta.dcf` with
+`Rscript scripts/gen-indexes.R` run (`--check` clean).
 
 ---
 
@@ -180,8 +186,9 @@ Location rules:
 - Foundation lessons must be paper-agnostic: neutral examples, no mention of the
   course, paper, or external project that prompted them.
 - Write into `foundations/<slug>/lesson.qmd` or
-  `courses/<course-slug>/modules/NN-<slug>/lesson.qmd`. New foundation modules also
-  get registered in the root `/_quarto.yml`.
+  `courses/<course-slug>/modules/NN-<slug>/lesson.qmd`. New foundation modules are
+  registered via their `foundations/<slug>/meta.dcf` + `Rscript scripts/gen-indexes.R`
+  (not by hand-editing `/_quarto.yml`).
 - The capstone lesson follows `course-structure.md` §Capstone instead of the
   standard template (it decodes the source; it does not introduce new concepts).
 - If a COURSE-REQUEST provided applied-practice pointers, end the matching modules'
@@ -278,18 +285,22 @@ explicit TODO. ☐ Zero unverified URLs anywhere.
 4. Register:
    - Add the course row to `courses/README.md` (link, teaches, source, prerequisite
      courses (`—` if none), foundation prerequisites, status `not started`).
-   - In `foundations/README.md`: add rows for new foundation modules (Status
-     `not started`); append this course to the *Used by* column of every foundation
-     module the course links to. Never modify existing *Status* values. When editing
-     an index table, modify only the cells your change requires — never rewrite the
-     whole table (that is how a learner's Status gets clobbered).
+     `courses/README.md` is hand-edited (courses are not generated).
+   - For new foundation modules: create/edit each `foundations/<slug>/meta.dcf` and
+     append this course to the `UsedBy` field of every foundation module the course
+     links to, then run `Rscript scripts/gen-indexes.R` — it regenerates the
+     `foundations/README.md` table (new rows default to Status `not started`) and the
+     `_quarto.yml` foundation blocks. Never hand-edit between the generated markers.
+     The generator preserves each existing *Status* value; verify with
+     `Rscript scripts/gen-indexes.R --check` (exit 0).
 
 (The final report to the user happens in Phase 8, after the content review.)
 
 **GATE 7:** ☐ Render green (or inability honestly reported). ☐ Callouts collapsed.
-☐ `renv.lock` snapshotted if packages were added. ☐ Both README indexes updated.
-☐ Existing rows' *Status* values byte-identical to before the edit (only NEW rows
-carry `not started`).
+☐ `renv.lock` snapshotted if packages were added. ☐ `courses/README.md` updated by
+hand; each new foundation module has a `meta.dcf` and `Rscript scripts/gen-indexes.R`
+was run. ☐ `Rscript scripts/gen-indexes.R --check` exits 0. ☐ Existing rows' *Status*
+values byte-identical to before (only NEW rows carry `not started`).
 
 ---
 

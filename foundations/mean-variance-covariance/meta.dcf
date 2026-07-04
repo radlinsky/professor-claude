@@ -1,0 +1,4 @@
+ShortName: The mean, variance & covariance
+Concepts: The mean ($\bar{x}$), deviations from the mean, variance ($s^2$), standard deviation, covariance, correlation
+BuildsOn: [vectors-and-summation](vectors-and-summation/lesson.qmd)
+UsedBy: [simple-linear-regression](../courses/simple-linear-regression/syllabus.md)

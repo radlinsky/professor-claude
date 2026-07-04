@@ -12,13 +12,17 @@ on:
     paths:
       - 'foundations/**'
       - 'courses/**'
+      - '_quarto.yml'
       - 'scripts/check-indexes.R'
+      - 'scripts/gen-indexes.R'
       - '.github/workflows/index-check.yml'
   pull_request:
     paths:
       - 'foundations/**'
       - 'courses/**'
+      - '_quarto.yml'
       - 'scripts/check-indexes.R'
+      - 'scripts/gen-indexes.R'
       - '.github/workflows/index-check.yml'
 
 # Keep only the latest run per ref; drop superseded ones.
@@ -40,6 +44,12 @@ jobs:
         with:
           r-version: '4.5.2'
           use-public-rspm: true
+
+      - name: Generated-index drift check (foundation blocks match meta.dcf)
+        # Fails if a PR hand-edited a generated block (between the `# >>> generated`
+        # markers) or added a foundation module without regenerating. Fix: run
+        # `Rscript scripts/gen-indexes.R` and commit the result.
+        run: Rscript scripts/gen-indexes.R --check
 
       - name: Index-consistency check (foundation<->course links, Used-by, Status)
         run: Rscript scripts/check-indexes.R

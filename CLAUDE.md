@@ -48,12 +48,14 @@ professor_claude/
 │                              #   original (fixtures/, generate/, reimplementations/,
 │                              #   harness.R, check.R) — see equivalence/README.md
 ├── .github/workflows/         # CI: equivalence.yml, license-check.yml, render.yml, index-check.yml
-├── scripts/                   # repo maintenance checks (base R, no deps)
+├── scripts/                   # repo maintenance (base R, no deps)
+│   ├── gen-indexes.R          # regenerates the foundation blocks of _quarto.yml + foundations/README.md
+│   │                          #   from each module's meta.dcf (--check = CI drift guard)
 │   └── check-indexes.R        # index-check CI: foundation↔course links, Used-by, Builds-on (+lesson sync), Status
 ├── docs/                      # decision records (e.g., webr-decision.md)
 ├── foundations/               # SHARED, recyclable prerequisite modules
-│   ├── README.md              # index: module, concepts, used-by, learner status
-│   └── <module-slug>/{lesson.qmd, practice.qmd, resources.md}
+│   ├── README.md              # index: module, concepts, used-by, learner status (table body GENERATED)
+│   └── <module-slug>/{lesson.qmd, practice.qmd, resources.md, meta.dcf}  # meta.dcf feeds gen-indexes.R
 ├── courses/
 │   ├── README.md              # index of all courses
 │   └── <course-slug>/         # one folder per course (registered in root _quarto.yml)
