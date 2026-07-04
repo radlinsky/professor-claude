@@ -254,7 +254,8 @@ distance** is $1 - r$, where $r$ is the correlation between the two points' coor
 lists ([mean, variance & covariance](../mean-variance-covariance/lesson.qmd)): it is
 small when the two profiles rise and fall *in the same pattern*, even if one sits higher
 overall. Use Euclidean unless a method explicitly asks for another; `dist()` computes
-all of them via its `method =` argument.
+Euclidean and Manhattan (among others) via its `method =` argument, while correlation
+distance you build yourself as `1 - cor(...)`.
 
 Sanity-check all three in R:
 
