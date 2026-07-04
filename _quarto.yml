@@ -17,6 +17,9 @@ project:
     - foundations/linear-combinations-and-data-matrices/lesson.qmd
     - foundations/linear-combinations-and-data-matrices/practice.qmd
     - foundations/linear-combinations-and-data-matrices/resources.md
+    - foundations/variance-structure-and-standardization/lesson.qmd
+    - foundations/variance-structure-and-standardization/practice.qmd
+    - foundations/variance-structure-and-standardization/resources.md
     - foundations/derivative-as-slope/lesson.qmd
     - foundations/derivative-as-slope/practice.qmd
     - foundations/derivative-as-slope/resources.md
@@ -109,6 +112,14 @@ website:
                 href: foundations/linear-combinations-and-data-matrices/practice.qmd
               - text: "Resources"
                 href: foundations/linear-combinations-and-data-matrices/resources.md
+          - section: "Variance structure & standardization"
+            contents:
+              - text: "Lesson"
+                href: foundations/variance-structure-and-standardization/lesson.qmd
+              - text: "Practice"
+                href: foundations/variance-structure-and-standardization/practice.qmd
+              - text: "Resources"
+                href: foundations/variance-structure-and-standardization/resources.md
           - section: "The derivative as a slope"
             contents:
               - text: "Lesson"

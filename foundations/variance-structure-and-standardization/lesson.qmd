@@ -1,0 +1,555 @@
+---
+title: "Variance structure & standardization"
+subtitle: "Putting different-scale columns on equal footing, reading a whole grid of variances at once, and where spread comes from"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+One variable's spread is a single number — you already have it. But real data arrives
+as a **table** of columns, and the moment there is more than one column, four new
+questions appear: How do I compare a column measured in *square meters* with one
+counted in *bedrooms*? How do I see every pair of columns' co-movement **at once**?
+When a batch of numbers spreads out, how much of that spread is *inside* the groups
+versus *between* them? And what goes wrong when two columns secretly carry the same
+information? This lesson answers all four with small, hand-checkable numbers, and ends
+with the plain-words idea of **borrowing strength** across groups.
+
+Nothing here re-derives a single variance or covariance — that machinery lives in
+[the mean, variance & covariance](../mean-variance-covariance/lesson.qmd), and we lean
+on it constantly. This lesson is about the *structure* that appears once you have many
+columns and many groups.
+
+**Builds on:** [the mean, variance & covariance](../mean-variance-covariance/lesson.qmd)
+— we reuse `mean()`, `var()`, `sd()`, `cov()`, and the deviation-from-the-mean idea on
+every line; and [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd)
+— the covariance matrix is a square grid we read like any other matrix (its diagonal,
+its off-diagonal, its symmetry).
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each answer from memory, then check.
+
+**1.** For `x <- c(2, 4, 6)`, what are the **variance** `var(x)` and the **standard
+deviation** `sd(x)`? Say in one line what the standard deviation *means*.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+x <- c(2, 4, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Deviations are $-2, 0, +2$; squared they are $4, 0, 4$; sum $= 8$; divide by
+$n - 1 = 2$ to get **variance $= 4$**. The **standard deviation** un-squares it:
+$\sqrt{4} = 2$ — "a typical value sits about 2 away from the mean." In R: `var(x)` is
+4 and `sd(x)` is 2. Shaky? Revisit
+[the mean, variance & covariance](../mean-variance-covariance/lesson.qmd).
+:::
+
+**2.** What is the **sign** of `cov(c(1, 3), c(5, 1))`, and what does that sign tell
+you about how the two variables move?
+
+::: {.callout-note collapse="true" title="Answer"}
+It is **negative** (`cov(c(1, 3), c(5, 1))` returns $-4$): when the first variable is
+above its mean the second is below, so they move in *opposite* directions. The sign is
+the trustworthy message of a covariance; its size depends on the units — see
+[the mean, variance & covariance](../mean-variance-covariance/lesson.qmd).
+:::
+
+**3.** If `M` is a square table of numbers (a matrix), what does `diag(M)` pull out,
+and what does it mean for `M` to be *symmetric*?
+
+::: {.callout-note collapse="true" title="Answer"}
+`diag(M)` pulls the **diagonal** — the entries running top-left to bottom-right, the
+$(1,1), (2,2), \dots$ positions. **Symmetric** means entry $(i, j)$ equals entry
+$(j, i)$: the grid is a mirror image across that diagonal. Both ideas come from
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd), and both
+matter the moment we build a covariance *matrix* below.
+:::
+
+## A tiny example first: standardizing (the z-score)
+
+You have data on **5 houses**. Two columns, wildly different scales:
+
+- **area** in square meters: `80, 100, 120, 140, 160`
+- **bedrooms**: `2, 2, 3, 4, 4`
+
+Is a 160 m² house "more extreme" for its size than a 4-bedroom house is for its bed
+count? You can't compare 160 to 4 directly — one is in the hundreds, the other in
+single digits. **Standardizing** rewrites every value as "how many standard deviations
+from its own column's mean," which strips the units away so the columns become
+comparable.
+
+**Area, by hand.** Mean $= (80+100+120+140+160)/5 = 120$. Deviations:
+$-40, -20, 0, 20, 40$. The standard deviation of area works out to about **31.62**
+(square meters). Divide each deviation by that: $-40/31.62 \approx -1.26$,
+$-20/31.62 \approx -0.63$, $0$, $+0.63$, $+1.26$. Those are the **z-scores** for area.
+
+**Bedrooms, by hand.** Mean $= (2+2+3+4+4)/5 = 3$. Deviations: $-1, -1, 0, 1, 1$.
+The standard deviation is exactly **1**. Divide: $-1, -1, 0, 1, 1$ — the z-scores for
+bedrooms.
+
+Now the comparison is fair. The biggest house (160 m²) is $+1.26$ standard deviations
+above average size; the biggest bed count (4) is only $+1$ standard deviation above
+average — so, *relative to its own spread*, the largest house is a touch more extreme
+than the most-bedroomed house. Two different units, one common ruler.
+
+The same computation in R, so you can check every step:
+
+```{r toy-example}
+# Two columns on very different scales
+area <- c(80, 100, 120, 140, 160)   # square meters
+beds <- c(2, 2, 3, 4, 4)            # bedroom counts
+
+# z-score = (value - column mean) / column standard deviation
+z_area <- (area - mean(area)) / sd(area)
+z_beds <- (beds - mean(beds)) / sd(beds)
+
+round(z_area, 2)   # -1.26 -0.63  0.00  0.63  1.26
+z_beds             #  -1    -1     0     1    1
+
+# scale() does exactly this for a whole table at once
+scale(cbind(area, beds))   # same two columns of z-scores, side by side
+```
+
+## Getting a feel for it: standardizing
+
+**The mental picture: everyone runs their own race, then we compare finishing
+positions.** Area and bedrooms are two different races with different track lengths —
+comparing a raw 160 to a raw 4 is like comparing a marathon time to a 100-metre time.
+Standardizing converts each raw value into "how many strides ahead of (or behind) the
+pack you finished, measured in that race's own stride length." A z-score of $+1.26$ and
+a z-score of $+1$ are now on the same footing — both say "above average," and the
+first says "a bit more so." (Where the analogy strains: z-scores can be *any* size,
+positive or negative, whereas a finishing position is bounded — but the "position
+relative to the field" spirit is exactly right.)
+
+**Why subtract the mean, then divide by the standard deviation?** Two separate jobs.
+Subtracting the mean **centers** the column so 0 means "average" — that kills the
+*offset* (a house measured from a different baseline no longer looks systematically
+bigger). Dividing by the standard deviation **rescales** so 1 unit means "one typical
+step of spread" — that kills the *unit* (meters vs. bedrooms stop mattering). Center
+without rescaling and area still dwarfs beds; rescale without centering and the columns
+still sit at different heights. You need both, and the order is center-then-scale.
+
+**What the numbers feel like.** A z-score near 0 is unremarkable; near $\pm 1$ is a
+typical distance from average; past $\pm 2$ is genuinely unusual. Notice a free
+consequence of the recipe: every standardized column has mean 0 and standard deviation
+1, *always* — so any two standardized columns are automatically on the same scale,
+which is the whole point.
+
+## What the notation is going to say: standardizing
+
+The formula below will say: **for each value, subtract its column's mean, then divide
+by its column's standard deviation.** In our toy example that is exactly the "take
+$-40$, divide by $31.62$ to get $-1.26$" we just did — nothing more.
+
+## How to read the symbols
+
+Every symbol used anywhere in this lesson gets a row here.
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x_i$ | "ex sub eye" | the $i$-th value of a column (in R: `x[i]`) | area's 3rd value is 120 |
+| $n$ | "en" | how many data points in a column (in R: `length(x)`) | 5 houses |
+| $n - 1$ | "en minus one" | the divisor for a sample variance / standard deviation | 4 |
+| $\bar{x}$ | "ex bar" | the mean of the column (in R: `mean(x)`) | $\overline{\text{area}} = 120$ |
+| $s$ or $s_x$ | "ess" | the column's standard deviation (in R: `sd(x)`) | $s_{\text{area}} \approx 31.62$ |
+| $s^2$ or $s_x^2$ | "ess squared" | the column's variance (in R: `var(x)`) | $s_{\text{area}}^2 = 1000$ |
+| $z_i$ | "zee sub eye" | the standardized value of $x_i$ (in R: `scale(x)`) | $z_1 \approx -1.26$ for area |
+| $s_{xy}$ or $\mathrm{Cov}(x,y)$ | "the covariance of x and y" | how two columns move together (in R: `cov(x, y)`) | $\mathrm{Cov}(\text{area},\text{beds}) = 30$ |
+| $\Sigma$ (capital) | "the covariance matrix, big-sigma" | the whole grid of every pairwise covariance (in R: `cov(df)`) | the 2×2 grid below |
+| $\Sigma_{jk}$ | "sigma sub j-k" | the entry in row $j$, column $k$ of that grid (in R: `S[j, k]`) | $\Sigma_{12} = 30$ |
+| $r$ | "little r" / "the correlation" | covariance rescaled to $[-1, 1]$ (in R: `cor`) | $\approx 0.95$ (area, beds) |
+
+Careful with $\Sigma$: **capital** $\Sigma$ (big-sigma) here names the covariance
+*matrix*, which is a different job from the summation $\sum$ ("add up") you met in
+[the mean, variance & covariance](../mean-variance-covariance/lesson.qmd). Same Greek
+letter, two uses; papers expect you to tell them apart from context, and we will always
+say "the covariance matrix $\Sigma$" to be safe.
+
+## The formal version: standardizing
+
+$$
+z_i = \frac{x_i - \bar{x}}{s}
+$$
+
+Reading it aloud: "zee-sub-eye equals x-sub-eye minus x-bar, all over ess" — or in
+everyday words: **"how far this value is above or below its column's average, measured
+in standard-deviation steps."**
+
+Mapping it onto the toy example, for area's largest house:
+
+- $x_i - \bar{x}$ is the "$160 - 120 = 40$" step (its deviation from average size)
+- dividing by $s \approx 31.62$ is the "$40 / 31.62 \approx 1.26$" step — the z-score
+
+`scale()` is R's built-in for this, and it does it column-by-column for a whole table.
+
+## A second example: the covariance matrix
+
+One `cov(x, y)` gives *one* co-movement number. With three or more columns you'd need a
+covariance for every pair — tedious, and easy to lose track of. The **covariance
+matrix** computes them all at once and lays them out in a square grid.
+
+Take our two house columns. There are three distinct pieces of information: area's own
+spread, beds' own spread, and how they co-move. `cov()` on the whole data frame packs
+them into a 2×2 grid:
+
+```{r cov-matrix}
+houses <- data.frame(area = c(80, 100, 120, 140, 160),
+                     beds = c(2, 2, 3, 4, 4))
+
+cov(houses)
+#        area beds
+# area   1000   30
+# beds     30    1
+```
+
+**Read the diagonal as "each column's own variance."** The top-left entry, 1000, is
+`var(area)`; the bottom-right, 1, is `var(beds)`. A covariance matrix's diagonal is
+always the individual variances — a column's covariance *with itself* is just its
+variance (set $y = x$ in the covariance formula and you get the variance formula, an
+identity from [the mean, variance & covariance](../mean-variance-covariance/lesson.qmd)).
+
+**Read the off-diagonal as "how the pair co-moves."** The top-right entry, 30, is
+`cov(area, beds)`; the bottom-left is also 30. It appears twice because
+$\mathrm{Cov}(\text{area}, \text{beds})$ and $\mathrm{Cov}(\text{beds}, \text{area})$
+are the same number — which is exactly why the covariance matrix is always **symmetric**
+(entry $(1,2)$ = entry $(2,1)$), the symmetry idea from
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd).
+
+**A trap the matrix makes obvious:** area's variance (1000) towers over beds' (1), and
+their covariance (30) sits in between — but none of these are comparable, because
+they're in different units (square-meters-squared, bedrooms-squared,
+square-meters-times-bedrooms). To compare co-movements you standardize the whole grid
+into the **correlation matrix**, whose diagonal is all 1s and whose off-diagonal lives
+in $[-1, 1]$:
+
+```{r cor-matrix}
+houses <- data.frame(area = c(80, 100, 120, 140, 160),
+                     beds = c(2, 2, 3, 4, 4))
+
+cor(houses)
+#        area   beds
+# area 1.0000 0.9487
+# beds 0.9487 1.0000
+```
+
+The correlation matrix *is* the covariance matrix of the standardized columns — the two
+ideas in this lesson meeting: standardize first, and covariance turns into correlation.
+
+## How to read the covariance matrix (notation)
+
+When a paper writes the covariance matrix $\Sigma$ ("big-sigma"), it means precisely the
+grid you just built: entry $\Sigma_{jk}$ is the covariance between column $j$ and column
+$k$. On the diagonal ($j = k$) that covariance-with-itself *is* the variance of column
+$j$; off the diagonal it's the pairwise co-movement, and $\Sigma_{jk} = \Sigma_{kj}$
+makes it symmetric.
+
+$$
+\Sigma = \begin{bmatrix} s_{\text{area}}^2 & s_{\text{area},\text{beds}} \\ s_{\text{beds},\text{area}} & s_{\text{beds}}^2 \end{bmatrix}
+= \begin{bmatrix} 1000 & 30 \\ 30 & 1 \end{bmatrix}
+$$
+
+Reading it aloud: "the covariance matrix sigma is a grid whose diagonal holds each
+column's variance and whose off-diagonal holds each pair's covariance" — the diagonal is
+"spread of each column on its own," the off-diagonal is "how columns move together."
+
+## A third idea: splitting the spread (within vs. between groups)
+
+Spread doesn't come from nowhere — and often the interesting question is *where it comes
+from*. Suppose you have **6 house prices** (in thousands) from **two neighborhoods**:
+
+- **Neighborhood A:** `100, 110, 120` (mean 110)
+- **Neighborhood B:** `200, 210, 220` (mean 210)
+
+Lump all six together and the grand mean is $(110 + 210)/2 = 160$. The **total spread**
+around that grand mean, as a sum of squared deviations, is:
+
+$$
+(100-160)^2 + (110-160)^2 + \dots + (220-160)^2 = 15400.
+$$
+
+That total splits cleanly into two parts:
+
+- **Within-group spread** — how much prices vary *inside* each neighborhood, measured
+  around each neighborhood's *own* mean. Neighborhood A: $(100-110)^2 + (110-110)^2 +
+  (120-110)^2 = 200$. Neighborhood B: same shape around 210, another 200. **Within total
+  $= 400$.**
+- **Between-group spread** — how much the neighborhoods' *means* differ from the grand
+  mean, counted once per house in the group. Each group is 3 houses: $3(110-160)^2 +
+  3(210-160)^2 = 3(2500) + 3(2500) = 15000$. **Between total $= 15000$.**
+
+And they add back up: $400 + 15000 = 15400$ — the exact total we started with. **All the
+spread is either within a group or between the groups; there is no third bucket.** Here
+almost all of it (15000 of 15400) is *between* — the two neighborhoods are far apart,
+while houses inside a neighborhood barely differ. That's the seed of a huge family of
+methods that ask "is the between-group gap big compared to the within-group noise?"
+
+```{r within-between}
+prices <- c(100, 110, 120, 200, 210, 220)
+group  <- factor(c("A", "A", "A", "B", "B", "B"))
+
+grand <- mean(prices)                       # 160
+total_ss <- sum((prices - grand)^2)         # 15400
+
+# within: deviations around each group's OWN mean, summed
+group_means <- tapply(prices, group, mean)  # A = 110, B = 210
+within_ss <- sum((prices - group_means[group])^2)   # 400
+
+# between: each group mean vs the grand mean, weighted by group size
+sizes <- table(group)                       # 3 and 3
+between_ss <- sum(sizes * (group_means - grand)^2)  # 15000
+
+c(total = total_ss, within = within_ss, between = between_ss)
+within_ss + between_ss                      # 15400 — they add back to the total
+```
+
+**Getting a feel for it.** Picture the six houses strung along a number line, and draw a
+mark at each neighborhood's mean and one big mark at the grand mean. *Within* spread is
+how much houses scatter around their **local** mark; *between* spread is how far the two
+**local** marks sit from the **big** mark. If both neighborhoods were centered at the
+same place, between-spread would vanish and all spread would be within; if every house
+equaled its own neighborhood's mean, within-spread would vanish and all spread would be
+between. Real data sits in the middle, and the split tells you which force dominates.
+(This numbers-first split is all we need here; the machinery that turns it into a formal
+test lives in course-level material, not this foundation.)
+
+## A fourth idea: correlated columns cause trouble (collinearity)
+
+Standardizing and the covariance matrix both assume your columns carry *distinct*
+information. When two columns are near-copies of each other, that assumption breaks — and
+methods that lean on the columns start to wobble. This is **collinearity**.
+
+The cleanest picture: **two knobs wired to the same wheel.** Imagine a machine whose
+output you steer with two dials, but unknown to you the dials are connected to the same
+internal shaft. Turn dial A up by 2 and dial B down by 2 and nothing changes — you get
+the same output. There's no unique "right" setting for the two dials, only their
+*combination* matters, so any recipe trying to pin down each dial separately is stuck.
+
+Concretely: suppose you accidentally record area **twice**, once in square meters and
+once in a made-up "unit" that's exactly $10\times$ the meters. The two columns are
+perfectly correlated (correlation 1). Ask R to explain price using **both**:
+
+```{r collinearity}
+area_m  <- c(80, 100, 120, 140, 160)
+area_x  <- 10 * area_m                 # a perfect copy, just rescaled
+price   <- c(200, 250, 300, 350, 400)
+
+cor(area_m, area_x)                    # 1 — a perfect duplicate
+
+coef(lm(price ~ area_m + area_x))      # area_x comes back NA: R refuses to use both
+```
+
+R hands back an **`NA`** for the second column: it literally cannot split the credit
+between two columns that carry the same information, so it drops one. That `NA` is the
+"two knobs, one wheel" problem made visible. Even when columns are *nearly* (not
+exactly) duplicated, the split becomes unstable — tiny changes in the data swing the
+estimated pieces wildly, even though their combination is nailed down. The fix is almost
+always to notice the redundancy — a correlation matrix with off-diagonal entries near
+$\pm 1$ is the tell — and drop or combine the offending columns before proceeding.
+
+## A fifth idea: pooling / borrowing strength (in words)
+
+Last idea, and this one is *deliberately* words-first — the full machinery is
+course-level. Go back to neighborhoods. Suppose a **new** neighborhood C has exactly
+**one** recorded sale, at 300. Do you believe C's typical price is 300? With a single
+noisy sale, probably not — one house tells you very little.
+
+**Pooling** (also called **shrinkage** or **borrowing strength**) is the idea: don't
+trust a small, noisy group's own average on its own — **blend it toward the overall
+average**, and blend it *more* the less data the group has. It's a compromise between
+two extremes: "every group is an island" (use each group's raw mean, however flimsy) and
+"all groups are identical" (ignore groups, use the grand mean for everyone). Pooling
+sits in between, weighted by how much you trust each group.
+
+A one-line numeric taste (not the real formula, just the shape of the idea): if you
+trust C's lone sale only a little — say weight 0.25 — you'd estimate C's price as a
+weighted blend of its own mean and the grand mean of 160:
+
+```{r shrinkage}
+grand      <- 160     # overall average across neighborhoods
+group_mean <- 300     # C's mean, from a single noisy sale
+weight     <- 0.25    # trust the tiny group only a little
+
+shrunk <- weight * group_mean + (1 - weight) * grand
+shrunk                # 195 — pulled well away from the flimsy 300, toward the overall
+```
+
+The estimate lands at **195**, not 300 — dragged toward the crowd because C's own
+evidence is thin. Give C many sales instead of one and you'd raise the weight, and the
+estimate would stay closer to its own mean. **Borrowing strength** is exactly this: a
+data-poor group leans on the whole to steady its estimate. Why it helps: a single sale
+is mostly noise, and the grand mean is a stable anchor, so the blend is usually closer to
+the truth than either extreme.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: standardizing by hand IS what scale() does. Edit `area` and Run.
+# PREDICT: after standardizing, what will mean(z) and sd(z) be, for ANY column you type?
+# Commit to two numbers, then run.
+area <- c(80, 100, 120, 140, 160)
+
+by_hand <- (area - mean(area)) / sd(area)   # center, then scale
+built_in <- as.vector(scale(area))          # R's shortcut
+
+cbind(by_hand = round(by_hand, 4), built_in = round(built_in, 4))  # identical
+c(mean_of_z = round(mean(by_hand), 10), sd_of_z = sd(by_hand))     # always 0 and 1
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the covariance matrix's diagonal IS each column's variance.
+# PREDICT: change beds to c(1, 2, 3, 4, 5). Will the top-left (area variance) entry
+# change? Will the bottom-right (beds variance) entry change? Commit, then run.
+houses <- data.frame(area = c(80, 100, 120, 140, 160),
+                     beds = c(2, 2, 3, 4, 4))
+
+S <- cov(houses)
+S
+diag(S)                                   # each column's variance
+c(var(houses$area), var(houses$beds))     # same two numbers — the diagonal IS the variances
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Number line of six house prices with each neighborhood's mean marked and the grand mean marked, showing within-group scatter around local means and the gap between local means and the grand mean"
+# explore-3 — LIVE: watch total spread split into within + between.
+# PREDICT: pull the two neighborhoods' means CLOSER (edit B to 120, 130, 140). Will the
+# BETWEEN sum of squares go up or down? Will WITHIN change? Commit, then run.
+prices <- c(100, 110, 120, 200, 210, 220)
+group  <- factor(c("A", "A", "A", "B", "B", "B"))
+
+grand <- mean(prices)
+gm    <- tapply(prices, group, mean)
+within  <- sum((prices - gm[group])^2)
+between <- sum(table(group) * (gm - grand)^2)
+c(total = sum((prices - grand)^2), within = within, between = between)  # 15400 = 400 + 15000
+
+# The picture: prices on a line, each neighborhood mean (blue) and the grand mean (red)
+stripchart(prices ~ group, pch = 16, method = "stack",
+           main = sprintf("within = %g   between = %g", within, between))
+abline(v = gm, col = "steelblue", lty = 2)   # each group's OWN mean
+abline(v = grand, col = "red", lwd = 2)       # the grand mean
+```
+
+## Common traps
+
+**Trap 1 — "I can compare the raw covariances (or variances) across columns to see
+which pair moves together most."** Tempting, because bigger numbers usually mean "more."
+But covariances and variances carry the *units* of their columns, so their sizes are not
+comparable across differently-scaled columns. In our covariance matrix, area's variance
+is **1000** and beds' is **1** — that gap is almost entirely about meters vs. bedrooms,
+not about which column is "more spread out" in any meaningful sense. The covariance
+between them (**30**) can't be judged big or small on its own either. Only after
+standardizing — i.e., reading the **correlation** matrix (area–beds $\approx 0.95$) — are
+the numbers on a common $[-1, 1]$ ruler you can compare.
+
+**Trap 2 — "if the groups differ, most of the spread must be between them."** Tempting,
+because a visible group difference feels like the whole story. But whether *between*
+dominates *within* is a numeric question, not a foregone conclusion. In our neighborhood
+data between-spread (15000) does dwarf within-spread (400) — but shrink the gap between
+the neighborhood means (say both centered near 160) and the between-spread would collapse
+toward 0 while the within-spread stayed at 400, flipping which bucket dominates. You have
+to actually split the total (15400 = 400 + 15000) and look; you can't eyeball it from
+"the groups look different."
+
+## Check yourself
+
+**1.** For the single column `x <- c(10, 20, 30)`, compute its three z-scores by hand
+(mean, then standard deviation, then standardize), and check with `scale()`.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+x <- c(10, 20, 30)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Mean $= (10+20+30)/3 = 20$. Deviations $-10, 0, +10$; squared $100, 0, 100$; sum $200$;
+divide by $n - 1 = 2$ → variance $100$ → standard deviation $\sqrt{100} = 10$.
+Standardize: $-10/10, 0/10, 10/10 = -1, 0, +1$. `scale(x)` returns exactly $-1, 0, 1$.
+:::
+
+**2.** A covariance matrix of three columns is printed below. Which column is most spread
+out on its own? Which *pair* has the largest raw covariance — and can you conclude that
+pair moves together most strongly? (Interpretation, not calculation.)
+
+```
+       a     b     c
+a   4.0   0.5   9.0
+b   0.5   1.0   0.2
+c   9.0   0.2  36.0
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The **diagonal** holds each column's variance, so column **c** (variance 36) is the most
+spread out, then a (4), then b (1). The largest off-diagonal is the a–c entry, **9.0**.
+But you **cannot** conclude a and c "move together most strongly" from the raw
+covariance — its size rides on the columns' units/scales (c's variance alone is 36). To
+rank co-movements fairly you'd convert to the correlation matrix, which divides each
+covariance by the two standard deviations and puts everything on the $[-1, 1]$ ruler.
+This is exactly Trap 1.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what standardizing a
+column does and why you'd bother.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Standardizing rewrites each value as the number of standard-deviation steps it sits above
+or below its column's own mean, so the column ends up centered at 0 with a spread of 1.
+You bother because it strips away units and scale, letting you compare or combine columns
+that were measured in completely different quantities — like square meters and bedroom
+counts — on one common ruler.
+:::
+
+## What you can now do
+
+- **Standardize a column by hand** — subtract the mean, divide by the standard deviation
+  — and say why both steps are needed and what `scale()` does for a whole table.
+- **Read a covariance matrix**: its diagonal is each column's variance, its off-diagonal
+  is each pair's covariance, and it's symmetric — plus why you'd switch to the
+  correlation matrix to compare co-movements.
+- **Split total spread into within-group and between-group** pieces that add back to the
+  total, and read which one dominates.
+- **Spot collinearity** — near-duplicate columns as "two knobs, one wheel" — and
+  recognize the `NA` coefficient / near-$\pm 1$ correlation that flags it.
+- **Explain pooling / borrowing strength** in plain words: blend a small, noisy group's
+  estimate toward the overall average, weighted by how much you trust the group.
+
+If any of these feels shaky, revisit [A tiny example first: standardizing](#a-tiny-example-first-standardizing-the-z-score)
+and [A second example: the covariance matrix](#a-second-example-the-covariance-matrix)
+before continuing — later multi-column methods assume all of these.
+
+## Where this goes next
+
+Every multi-variable method leans on this structure: it standardizes columns so they're
+comparable, reads a covariance or correlation matrix to see how variables relate, and
+worries about collinearity and where spread comes from. With these building blocks — plus
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd) — you're
+ready for methods that decompose or model that whole covariance grid. Ready for more reps?
+Do the [practice problems](practice.qmd).
