@@ -1,0 +1,4 @@
+ShortName: Partial derivatives & the gradient
+Concepts: A function of several inputs as a surface (one knob per input), the partial derivative $\partial f/\partial a$ as the slope along one direction with the others held still, the gradient $\nabla f$ as the vector of all the partials (uphill; $-\nabla f$ downhill), measuring it numerically with one central difference per coordinate (an `sapply` wrapper extending `slope_at()`), and reading $\nabla f = \mathbf{0}$ as "flat in every direction" (a bottom/top)
+BuildsOn: [derivative-as-slope](derivative-as-slope/lesson.qmd), [vectors-and-summation](vectors-and-summation/lesson.qmd), [loss-functions-and-optimization](loss-functions-and-optimization/lesson.qmd)
+UsedBy: —
