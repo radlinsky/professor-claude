@@ -14,6 +14,9 @@ project:
     - foundations/matrices-and-linear-transforms/lesson.qmd
     - foundations/matrices-and-linear-transforms/practice.qmd
     - foundations/matrices-and-linear-transforms/resources.md
+    - foundations/linear-combinations-and-data-matrices/lesson.qmd
+    - foundations/linear-combinations-and-data-matrices/practice.qmd
+    - foundations/linear-combinations-and-data-matrices/resources.md
     - foundations/derivative-as-slope/lesson.qmd
     - foundations/derivative-as-slope/practice.qmd
     - foundations/derivative-as-slope/resources.md
@@ -98,6 +101,14 @@ website:
                 href: foundations/matrices-and-linear-transforms/practice.qmd
               - text: "Resources"
                 href: foundations/matrices-and-linear-transforms/resources.md
+          - section: "Linear combinations & the data matrix"
+            contents:
+              - text: "Lesson"
+                href: foundations/linear-combinations-and-data-matrices/lesson.qmd
+              - text: "Practice"
+                href: foundations/linear-combinations-and-data-matrices/practice.qmd
+              - text: "Resources"
+                href: foundations/linear-combinations-and-data-matrices/resources.md
           - section: "The derivative as a slope"
             contents:
               - text: "Lesson"

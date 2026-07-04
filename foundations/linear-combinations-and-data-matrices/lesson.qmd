@@ -1,0 +1,432 @@
+---
+title: "Linear combinations & the data matrix"
+subtitle: "How a table of data plus a list of weights becomes one number per row — the columns papers pack into X"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Almost every quantitative method eventually does the same humble thing: it takes a
+**data table** — one row per thing you measured, one column per variable — and
+combines each row's numbers into a single number, using a list of **weights**. That
+"multiply each column by its weight and add" move is called a **linear combination**,
+and it's just a dot product wearing work clothes. This lesson shows how the raw data
+table becomes the matrix that combining acts on, and how the tricky-looking columns —
+an all-1s column, 0/1 category columns, a product-of-two-columns — get built. After
+this, when you see a paper stack its variables into a matrix and hit it with a weight
+vector, you'll read it as ordinary R.
+
+We stay with tiny, hand-checkable tables and base R. We will *not* teach the matrix
+*operations* themselves — multiplying, transposing, inverting a matrix — those live in
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd); we only
+*use* `%*%` here and lean on that lesson for what it does. And we make **no** claim
+about how the weights get *chosen* — that's a job for specific methods, not this
+building block.
+
+**Builds on:** [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd)
+— we reuse `%*%` (matrix × vector = one dot product per row) without re-teaching it;
+[vectors & summation](../vectors-and-summation/lesson.qmd) — a dot product is a sum of
+products, $\sum_i a_i b_i$; and
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) — for the idea of
+a column of data as a variable measured across rows.
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each answer from memory, then check.
+
+**1.** For `a <- c(2, 5, 1)` and `b <- c(3, 0, 4)`, what single number is the **dot
+product** of `a` and `b`? Say the formula in words, then give the value.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+a <- c(2, 5, 1)
+b <- c(3, 0, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"Multiply the paired entries and add them up": $2\times3 + 5\times0 + 1\times4 =
+6 + 0 + 4 = 10$. In R that's `sum(a * b)`. This one operation — a **sum of products**
+— is the whole engine of the linear combinations below. Shaky? Revisit
+[vectors & summation](../vectors-and-summation/lesson.qmd).
+:::
+
+**2.** If `A` is a matrix and `v` is a vector, what does `A %*% v` compute, in one
+sentence? What has to be true about the length of `v`?
+
+::: {.callout-note collapse="true" title="Answer"}
+`A %*% v` runs **one dot product per row** of `A`: each row is paired entry-by-entry
+with `v`, multiplied, and summed, giving one output number per row. So `v` must have
+one entry for every **column** of `A`, or the pairing wouldn't line up. That's the
+whole content of [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd).
+:::
+
+**3.** In R, a column of a data frame — like `df$height` — is just a vector of one
+variable's values across all the rows. For `height <- c(2, 4, 6)`, what is
+`mean(height)`, and what does that number describe?
+
+::: {.callout-note collapse="true" title="Answer"}
+`mean(height)` is $(2 + 4 + 6)/3 = 4$ — the balance point of that one column's values.
+Thinking of each column as a variable measured across rows is the mental model from
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd); a data matrix is
+just several such columns side by side.
+:::
+
+## A tiny example first
+
+You track **4 short tasks**. For each you recorded how many **hours** it took and which
+**tier** of difficulty it was (A, B, or C):
+
+| task | hours | tier |
+|---|---|---|
+| 1 | 4 | A |
+| 2 | 2 | B |
+| 3 | 6 | C |
+| 4 | 3 | B |
+
+Now suppose someone hands you a **scoring rule** — a list of weights — and asks for one
+**score** per task. The rule: start at a base of 10, add 2 per hour, add 5 if it's
+tier B, add −3 if it's tier C (tier A adds nothing — it's the baseline).
+
+**Score task 1** (4 hours, tier A): $10 + 2\times4 = 10 + 8 = \mathbf{18}$. Tier A adds
+nothing, so we stop there.
+
+**Score task 2** (2 hours, tier B): $10 + 2\times2 + 5 = 10 + 4 + 5 = \mathbf{19}$.
+
+**Score task 3** (6 hours, tier C): $10 + 2\times6 - 3 = 10 + 12 - 3 = \mathbf{19}$.
+
+**Score task 4** (3 hours, tier B): $10 + 2\times3 + 5 = 10 + 6 + 5 = \mathbf{21}$.
+
+Every score is "multiply each thing by its weight, then add" — a **linear combination**
+of the task's numbers. The catch: "base of 10," "tier B," and "tier C" aren't numbers
+you measured; they're *columns you have to build* so the same multiply-and-add works on
+every row. That's the whole job of this lesson: turn the table into a grid of numbers —
+a **data matrix** — where combining is one dot product per row.
+
+Here's the grid, built column by column, and the scores in R so you can check every
+step:
+
+```{r toy-example}
+# What we measured
+hours <- c(4, 2, 6, 3)
+tier  <- c("A", "B", "C", "B")
+
+# Build the columns the scoring rule needs, one at a time:
+one   <- rep(1, 4)                 # an all-1s column, so the base of 10 rides along
+tierB <- as.integer(tier == "B")  # 1 where tier is B, else 0
+tierC <- as.integer(tier == "C")  # 1 where tier is C, else 0 (tier A is the baseline)
+
+# Stack them into a data matrix: one row per task, one column per variable
+X <- cbind(one = one, hours = hours, tierB = tierB, tierC = tierC)
+X
+
+# The weights, in the SAME order as the columns
+beta <- c(10, 2, 5, -3)   # base, per-hour, tier-B bump, tier-C bump
+
+# One score per row = one dot product per row (matrices & linear transforms)
+X %*% beta                # 18, 19, 19, 21
+
+# Prove it's just multiply-and-add for row 1:
+sum(X[1, ] * beta)        # 18 -> 10*1 + 2*4 + 5*0 + (-3)*0
+```
+
+## Getting a feel for it
+
+**A linear combination is a shopping cart total.** Picture the columns as products on a
+shelf — hours, "is it tier B", "is it tier C" — and the weights as their prices. One
+row is one shopping trip: you take some amount of each product (4 hours, 0 of tier-B,
+0 of tier-C), multiply each amount by its price, and the register adds them into a
+single total. The **all-1s column is the "cover charge"**: a fixed item every trip buys
+exactly one of, so its weight (the base of 10) always lands in the total. Change the
+prices (the weights) and every total shifts; change what's in *this* cart (the row) and
+only this total shifts. The register never does anything but multiply-and-add — that's
+what makes it *linear*. (Where the analogy strains: prices in a real store can't be
+negative, but a weight can — tier C's −3 is a discount, pulling the total down.)
+
+**Why an all-1s column, instead of just adding 10 at the end?** Because it lets the
+*same* dot-product machine handle the base with no special case. If the base were bolted
+on outside the multiply-and-add, every method would need a separate "and then add the
+base" rule. Give the base its own column of 1s and its weight, and it's just one more
+term in the same sum — $10 \times 1$ for every row. One uniform operation, no
+exceptions. That uniformity is precisely why papers write the whole thing as a single
+matrix times a single weight vector.
+
+**Why does a 3-level category (A/B/C) become only *two* 0/1 columns, not three?** Here's
+the trap it dodges. Suppose you made three columns — is-A, is-B, is-C. Every row has
+exactly one of them equal to 1, so is-A + is-B + is-C is a column of all 1s — the same
+as the base column you already have. That redundancy makes the combination ambiguous
+(you could shuffle weight between the base and is-A and get identical scores), which is
+poison for anything that later tries to pin the weights down. Dropping one level — here
+tier A — fixes it: tier A becomes the **reference**, its "effect" folded into the base,
+and B and C are read as *bumps relative to A*. A $k$-level category always needs
+$k-1$ columns. Our tier-B weight of 5 means "a tier-B task scores 5 more than an
+otherwise-identical tier-A task," and tier-C's −3 means "3 fewer than tier A."
+
+**What the scores feel like.** They came out 18, 19, 19, 21 — all clustered near the
+base of 10 plus a couple times the hours, which feels right: hours (weight 2) is the
+main driver, and the tier bumps (+5, −3) nudge from there. Tasks 2 and 3 tie at 19
+from opposite directions: task 3 has far more hours (+12) but the tier-C penalty (−3)
+and no tier-B bonus drag it back to where task 2's fewer hours plus the tier-B bonus
+land. Double every weight and every score's gap from zero doubles; add a task with 0
+hours and tier A and it scores exactly the base, 10.
+
+## What the notation is going to say
+
+The formula below will say: *to score one row, walk across its columns, multiply each
+column's value by that column's weight, and add the results.* For task 1 that's exactly
+the "$10\times1 + 2\times4 + 5\times0 + (-3)\times0 = 18$" we did by hand. Stack all the
+rows and it's "do that for every row" — which, since each row's score is a dot product,
+is precisely the matrix-times-vector `X %*% beta` from
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd).
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\mathbf{X}$ (bold capital) | "the matrix X" | the data matrix: rows = observations, columns = variables (in R: a `matrix`) | the 4×4 grid `X` |
+| $\mathbf{x}_i$ | "ex sub eye" | row $i$ of the data matrix — one observation's values across all columns | row 1 is $(1, 4, 0, 0)$ |
+| $X_{ij}$ | "X-sub-i-j" | the entry in row $i$, column $j$ (in R: `X[i, j]`) | $X_{12} = 4$ (task 1's hours) |
+| $x_j$ | "ex sub jay" | the value in column $j$ of the row being scored | column 2 (hours) of a row |
+| $\beta_j$ | "beta sub jay" | the weight multiplying column $j$ (in R: an entry of `beta`) | $\beta_2 = 2$, per hour |
+| $\beta_0$ | "beta zero" | the weight on the all-1s column (the base / intercept) | $10$ |
+| $\sum_{j=1}^{p}$ | "the sum from j equals 1 to p" | add the term to its right once per column $j$ — a dot product ([vectors & summation](../vectors-and-summation/lesson.qmd)) | $\sum_j X_{1j}\beta_j = 18$ |
+| $p$ | "pee" | the number of columns (variables) in the data matrix | 4 |
+| $\mathbf{X}\boldsymbol{\beta}$ | "X beta" | the whole matrix times the whole weight vector: one linear combination per row (in R: `X %*% beta`) | $(18, 19, 19, 21)$ |
+
+Bold lowercase ($\mathbf{x}_i$) is one row read as a vector; bold capital
+($\mathbf{X}$) is the whole matrix; a plain letter with a subscript ($\beta_j$, $x_j$)
+is a single number. When $\mathbf{X}$ sits right next to $\boldsymbol{\beta}$ with
+nothing between them, that juxtaposition *is* the multiply — the same implied
+multiplication as $2x$ meaning $2\times x$.
+
+## The formal version
+
+Assemble the score for one row, one term at a time. Row $i$ has values
+$x_1, x_2, \dots, x_p$ across its $p$ columns, and there's a weight $\beta_j$ for each
+column. The score is every value times its weight, added up:
+
+$$
+\text{score}_i \;=\; \beta_1 x_1 + \beta_2 x_2 + \dots + \beta_p x_p
+\;=\; \sum_{j=1}^{p} \beta_j\, x_j
+$$
+
+Reading it aloud: "the score for row i equals the sum, from j equals 1 to p, of
+beta-sub-j times ex-sub-j" — or in everyday words: **"multiply each column by its
+weight and add."** That sum-of-products is a dot product, so it's the same engine as
+the warm-up.
+
+The all-1s column is not a special case — it's just column 1 with every value equal to
+1, so its term is $\beta_1 \times 1 = \beta_1$ for every row. That's why the base weight
+is often written $\beta_0$: it's the term that rides in on the column of ones.
+
+Now stack all the rows. Each row's score is a dot product, and "one dot product per
+row" is exactly what matrix-times-vector does, so the whole batch of scores is:
+
+$$
+\mathbf{X}\boldsymbol{\beta}
+$$
+
+Reading it aloud: "X beta" — everyday words: **"the data matrix times the weight
+vector gives one linear combination (one score) per row."** Mapping onto the toy
+example, row $i = 1$ is $\mathbf{x}_1 = (1, 4, 0, 0)$ and
+$\boldsymbol{\beta} = (10, 2, 5, -3)$, so
+$\sum_j X_{1j}\beta_j = 10\cdot1 + 2\cdot4 + 5\cdot0 + (-3)\cdot0 = 18$ — the "18" we got
+by hand. Let's re-do the whole thing through the formula and confirm it matches:
+
+```{r formal-check}
+X <- cbind(one   = rep(1, 4),
+           hours = c(4, 2, 6, 3),
+           tierB = as.integer(c("A","B","C","B") == "B"),
+           tierC = as.integer(c("A","B","C","B") == "C"))
+beta <- c(10, 2, 5, -3)
+
+# The whole batch of scores, straight from X %*% beta:
+as.vector(X %*% beta)                       # 18 19 19 21
+
+# The same scores, spelled out as one dot product (sum of products) per row:
+apply(X, 1, function(row) sum(row * beta))  # 18 19 19 21 — identical
+```
+
+### Reading a weight: "change per unit, others held fixed"
+
+Because each column contributes its own term and nothing else, a weight has a clean
+reading: **$\beta_j$ is how much the score changes when column $j$ goes up by one and
+every other column stays put.** Bump task 1's hours from 4 to 5 and only the
+$\beta_2 x_2 = 2\times\text{hours}$ term moves — up by exactly $\beta_2 = 2$. A 0/1
+column reads the same way: flipping tier-B from 0 to 1 (holding hours fixed) adds
+exactly $\beta_3 = 5$, which is why we call it "5 more than tier A."
+
+```{r held-fixed-check}
+beta <- c(10, 2, 5, -3)
+row1  <- c(1, 4, 0, 0)   # task 1 as it is
+row1b <- c(1, 5, 0, 0)   # same task, one more hour
+sum(row1b * beta) - sum(row1 * beta)   # 2 — exactly beta for the hours column
+```
+
+### The R bridge: `model.matrix()`
+
+Building the all-1s and 0/1 columns by hand gets tedious, so base R has a function that
+does it from a formula: `model.matrix()`. Shown here **neutrally** — it's just a
+column-builder; it makes *no* decision about what the columns are for. Notice it
+produces exactly the grid we built by hand: an intercept column of 1s, the numeric
+column as-is, and $k-1$ indicator columns for the $k$-level category (tier A absorbed as
+the reference).
+
+```{r model-matrix}
+hours <- c(4, 2, 6, 3)
+tier  <- factor(c("A", "B", "C", "B"), levels = c("A", "B", "C"))
+
+model.matrix(~ hours + tier)   # (Intercept), hours, tierB, tierC — our grid exactly
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: a linear combination IS one dot product per row.
+# TRY IT: change a weight in beta, or a value in the matrix, then Run.
+# PREDICT: set beta <- c(0, 0, 0, 0). What will every score be? Commit, then run.
+X <- cbind(one   = rep(1, 4),
+           hours = c(4, 2, 6, 3),
+           tierB = as.integer(c("A","B","C","B") == "B"),
+           tierC = as.integer(c("A","B","C","B") == "C"))
+beta <- c(10, 2, 5, -3)
+
+built_in <- as.vector(X %*% beta)                    # matrix times vector
+by_hand  <- apply(X, 1, function(r) sum(r * beta))   # dot product per row, by hand
+
+cbind(built_in = built_in, by_hand = by_hand)        # identical columns
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: a k-level category becomes k-1 columns; the reference is absorbed.
+# TRY IT: change the levels order to c("C","A","B") and Run — watch which level becomes
+# the reference (the one that gets NO column of its own).
+# PREDICT: with levels A,B,C, how many indicator columns for tier? Commit, then run.
+tier <- factor(c("A", "B", "C", "B"), levels = c("A", "B", "C"))
+
+model.matrix(~ tier)   # (Intercept) + tierB + tierC : 3 levels -> 2 columns, A absorbed
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: an interaction column is literally the product of two columns.
+# PREDICT: for hours = (4,2,6,3) and tierB = (0,1,0,1), what is hours * tierB,
+# entry by entry? Write the four numbers, then Run.
+hours <- c(4, 2, 6, 3)
+tierB <- c(0, 1, 0, 1)
+
+hours * tierB                        # the interaction column, built by hand
+# Compare with what model.matrix builds for the "hours:tierB" term:
+tier <- factor(c("A","B","C","B"), levels = c("A","B","C"))
+# model.matrix(~ hours * tier)       # uncomment to see hours:tierB and hours:tierC
+```
+
+## Common traps
+
+**Trap 1 — "a 3-level category needs 3 indicator columns, one per level."** It feels
+natural: one column per category. But with an all-1s column already present, three
+indicator columns are redundant — is-A + is-B + is-C equals the all-1s column exactly,
+so the weights can't be pinned down (shift 4 from the base to is-A and every score is
+unchanged). A $k$-level category takes $k-1$ columns; the dropped level (here tier A)
+becomes the reference, and the remaining weights read as differences *from* it. In our
+grid, `model.matrix(~ tier)` gives just `tierB` and `tierC` — two columns for three
+levels — precisely to avoid this.
+
+**Trap 2 — "the interaction column is the sum of the two columns."** Tempting, because
+"combine two columns" sounds like adding. But an interaction is the **product**,
+entry-by-entry, not the sum. For `hours = (4, 2, 6, 3)` and `tierB = (0, 1, 0, 1)`, the
+interaction is `hours * tierB = (0, 2, 0, 3)` — it's `hours` only where tier is B, and
+zero elsewhere. The *sum* `hours + tierB = (4, 3, 6, 4)` is a completely different
+column with no such meaning. An interaction column lets one variable's weight *differ by
+group*; a sum can't do that.
+
+## Check yourself
+
+**1.** Using the scoring weights `beta <- c(10, 2, 5, -3)` (base, per-hour, tier-B,
+tier-C), score a new task: **5 hours, tier C**. Build its row first, then take the dot
+product by hand, and check in R.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+beta <- c(10, 2, 5, -3)
+# build the row: one, hours, tierB, tierC
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The row is $(1, 5, 0, 1)$: the all-1s entry, 5 hours, tier-B is 0, tier-C is 1. Dot it
+with the weights: $10\times1 + 2\times5 + 5\times0 + (-3)\times1 = 10 + 10 + 0 - 3 =
+\mathbf{17}$. In R, `sum(c(1, 5, 0, 1) * beta)` returns 17.
+:::
+
+**2.** A category has **4 levels** (say sizes S, M, L, XL). If your data matrix already
+has an all-1s column, how many 0/1 indicator columns does this category contribute, and
+what is the "missing" level called?
+
+::: {.callout-note collapse="true" title="Answer"}
+It contributes $4 - 1 = 3$ indicator columns. The level with no column of its own (say
+S, if it's first) is the **reference**: its effect is folded into the base weight, and
+the other three weights read as bumps relative to S. Using all 4 columns alongside the
+all-1s column would be redundant — they'd sum to the all-1s column and the weights
+couldn't be pinned down.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what a linear
+combination of a data row is and why we bother packing the data into a matrix first.
+
+::: {.callout-note collapse="true" title="A model answer"}
+A linear combination scores one row by multiplying each of its column values by a
+matching weight and adding the results — a shopping-cart total where the columns are
+items and the weights are prices. We pack the data into a matrix so the *same*
+multiply-and-add runs on every row at once as one matrix-times-vector, with the base and
+the categories built in as ordinary columns rather than special cases.
+:::
+
+## What you can now do
+
+- **Compute a linear combination of a data row by hand** — multiply each column value
+  by its weight and add — and get the same answer as `X %*% beta`.
+- **Read a data table as a matrix**: one row per observation, one column per variable,
+  and pull entry $(i, j)$ with `X[i, j]`.
+- **Build the special columns**: an all-1s column so a base term rides along, $k-1$
+  indicator (0/1) columns for a $k$-level category with one level as the reference, and
+  an interaction column as the entry-by-entry product of two columns.
+- **Read a weight as "change per unit of this column, with the others held fixed,"** and
+  a category weight as a difference from the reference level.
+- **Recognize `model.matrix()`** as the R bridge that builds exactly these columns from
+  a formula.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — anything that scores rows
+from a table of variables assumes all of these.
+
+## Where this goes next
+
+A data matrix plus a weight vector is the shape almost every multi-variable method is
+written in: the method's job is to *choose* the weights, but the scoring itself is
+always this one linear combination per row. You now have the columns (base, categories,
+interactions) and the reading of each weight. Ready for more reps? Do the
+[practice problems](practice.qmd).
