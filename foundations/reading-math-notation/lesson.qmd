@@ -184,7 +184,7 @@ module's [resources](resources.md).
 |---|---|---|---|
 | $=$ | "equals" | the two sides are the same number | `==` (test) / `<-` (define) |
 | $:=$ or $\equiv$ | "is defined as" | this is a *definition*, not a fact to prove | `<-` |
-| $\approx$ | "is approximately" | nearly equal | `isTRUE(all.equal(a, b))` |
+| $\approx$ | "is approximately" | nearly equal | `abs(a - b) < tol` |
 | $\propto$ | "is proportional to" | equal **up to some constant multiplier** you're ignoring | `a == k * b` |
 | $\in$ | "is in / is an element of" | belongs to a set or interval | `%in%` |
 
