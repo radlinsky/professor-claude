@@ -1,0 +1,221 @@
+---
+title: "Practice: Hypothesis tests, p-values & confidence intervals"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need. The seed matters: some answers SIMULATE a p-value.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+A new batch of 4 plants; extra growth (treated minus untreated), in cm:
+
+$$
+d = (5,\; 2,\; 6,\; 3)
+$$
+
+The null is "no effect" (true average extra growth $= 0$). By hand: find the estimate,
+the SE (use $\mathrm{SE} = \mathrm{sd}(d)/\sqrt{n}$), and the test statistic
+$t = \hat{\theta}/\mathrm{SE}$. Is $t$ past the rough "±2" line? Then check in R.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+d <- c(5, 2, 6, 3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Estimate: $(5+2+6+3)/4 = 16/4 = 4$ cm. The spread is $\mathrm{sd}(d) \approx 1.826$,
+so $\mathrm{SE} = 1.826 / \sqrt{4} = 1.826 / 2 \approx 0.913$. The test statistic is
+$t = 4 / 0.913 \approx 4.38$ — well past 2, so the estimate is over four noise-widths
+from 0; you'd expect to reject the null.
+
+```{r p1-answer}
+d <- c(5, 2, 6, 3)
+n <- length(d)
+est <- mean(d)                 # 4
+se  <- sd(d) / sqrt(n)         # 0.9129
+tstat <- est / se              # 4.3818
+c(estimate = est, SE = se, statistic = tstat)
+t.test(d)$p.value              # 0.0220 — below 0.05, reject the null
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+Here is a worked test — but the **core step is blanked**. Fill in ONLY the blanked line:
+turning the estimate and SE into the test statistic.
+
+Five measurements give estimate $\hat{\theta} = 3$ and (already computed for you)
+$\mathrm{SE} = 0.71$. Testing against the null value 0:
+
+> Step 1 (given): the estimate is $\hat{\theta} = 3$ and its standard error is
+> $\mathrm{SE} = 0.71$.
+> Step 2: **`<your step here>`** — combine the estimate and its SE into the test
+> statistic $t$.
+> Step 3 (given): that $t$ is far past 2, and `t.test` returns $p \approx 0.013 < 0.05$,
+> so we **reject the null**.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your statistic
+d <- c(4, 2, 5, 1, 3)   # this data has mean 3 and SE ~0.71
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the heart of the test — **distance from the null in noise units**:
+
+$$
+t = \frac{\hat{\theta}}{\mathrm{SE}} = \frac{3}{0.71} \approx 4.24
+$$
+
+That's the move: divide the estimate by its own SE to measure it in standard-error
+units. It comes out about 4.24 — over four noise-widths from 0, which is why the p-value
+is tiny.
+
+```{r p2-answer}
+d <- c(4, 2, 5, 1, 3)
+n <- length(d)
+est <- mean(d)                 # 3
+se  <- sd(d) / sqrt(n)         # 0.7071
+est / se                       # 4.2426 — the blanked statistic
+t.test(d)$p.value              # 0.0132 — reject at 0.05
+```
+:::
+
+## Problem 3 — a full test, by hand then in R
+
+Six measurements of an effect:
+
+$$
+g = (2,\; -1,\; 3,\; 1,\; 0,\; 4)
+$$
+
+Test the null "true effect $= 0$." Compute the estimate, SE, and statistic by hand,
+then in R get the p-value and the 95% confidence interval. **PREDICT first:** with a
+statistic you're about to compute, will the CI contain 0 or not — and will $p$ be under
+0.05? Commit, then run.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: estimate, SE, statistic, then t.test for p and CI
+g <- c(2, -1, 3, 1, 0, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Estimate: $(2 - 1 + 3 + 1 + 0 + 4)/6 = 9/6 = 1.5$. Spread $\mathrm{sd}(g) \approx 1.871$,
+so $\mathrm{SE} = 1.871/\sqrt{6} \approx 0.764$. Statistic $t = 1.5/0.764 \approx 1.96$
+— *just under* 2, so it's borderline and we'd expect **not** to reject.
+
+The p-value is about **0.107** ($> 0.05$: fail to reject), and the 95% CI is about
+$(-0.46,\; 3.46)$ — which **contains 0**. The two agree exactly, as they must: the CI
+includes the null value $\iff$ $p \geq 0.05$.
+
+```{r p3-answer}
+g <- c(2, -1, 3, 1, 0, 4)
+n <- length(g)
+est <- mean(g)                 # 1.5
+se  <- sd(g) / sqrt(n)         # 0.7638
+c(estimate = est, SE = se, statistic = est / se)   # t ~ 1.96
+tt <- t.test(g)
+c(p = tt$p.value, lower = tt$conf.int[1], upper = tt$conf.int[2])
+# p ~ 0.107 (fail to reject); CI (-0.46, 3.46) contains 0 — same verdict
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague reports a test with $p = 0.02$ and writes the following. It contains
+**exactly one mistake** — find it, say why it's wrong, and give the correct reading.
+
+> "We got $p = 0.02$. That means there is a **2% chance the null hypothesis is true**,
+> so we're 98% sure the effect is real."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is "$p$ is the probability the null is true" (this lesson's **Trap 1**). A
+p-value is computed *assuming the null is already true*: $p = 0.02$ means *if the null
+were true, data at least this extreme would occur only 2% of the time* — a conditional
+probability given $H_0$, written $P(\text{data this extreme} \mid H_0)$. It says nothing
+about $P(H_0 \text{ is true})$, which is the flipped condition and a different number
+entirely (see [probability & odds](../probability-and-odds/lesson.qmd) on conditional
+probability). The correct reading: "data this extreme are unlikely under the null, so we
+reject the null at 0.05" — *not* "98% sure the effect is real."
+:::
+
+## Problem 5 — mixing it with probability *(uses [probability & odds](../probability-and-odds/lesson.qmd)'s complement rule)*
+
+A test reports $p = 0.03$. Interpreting $p$ as "the probability, **if the null were
+true**, of a result at least this extreme":
+
+(a) In that same null world, what is the probability of a result that is **less**
+extreme than the one observed? (b) Explain in one sentence why this is *not* "a 97%
+chance the effect is real."
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) Using the complement rule from [probability & odds](../probability-and-odds/lesson.qmd)
+("probability of the opposite is one minus"): the probability of a *less* extreme result
+in the null world is $1 - 0.03 = 0.97$.
+
+(b) That 0.97 is still a probability computed **inside the null world**
+($P(\text{less extreme} \mid H_0)$) — it's about what data the null tends to produce,
+not about whether the null is true. "The chance the effect is real" would be
+$P(H_0 \text{ false} \mid \text{data})$, the flipped condition, which this machinery
+never computes. Same Trap-1 confusion, dressed up with a complement.
+:::
+
+## Problem 6 — transfer to a new context
+
+You run a *paired* study — the same 6 subjects measured before and after — and record
+each subject's change (after minus before):
+
+$$
+c = (2,\; -1,\; 0,\; 1,\; -2,\; 3)
+$$
+
+The null is "no change on average" (true mean change $= 0$). Compute the estimate, SE,
+statistic, the $\pm 2\,\mathrm{SE}$ interval, and decide. This is a new *context* (a
+before/after design) but the *machine is identical* — one column of numbers, one null of
+0. **PREDICT:** will the interval contain 0? Then run.
+
+```{webr}
+#| autorun: false
+# p6-starter — same machine, new context: estimate, SE, statistic, +-2SE interval
+c_change <- c(2, -1, 0, 1, -2, 3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Estimate: $(2 - 1 + 0 + 1 - 2 + 3)/6 = 3/6 = 0.5$. Spread $\approx 1.871$, so
+$\mathrm{SE} = 1.871/\sqrt{6} \approx 0.764$. Statistic $t = 0.5/0.764 \approx 0.65$ —
+well within the noise. The $\pm 2\,\mathrm{SE}$ interval is
+$0.5 \pm 2(0.764) = 0.5 \pm 1.53$, about $(-1.03,\; 2.03)$ — it **contains 0**.
+
+Verdict: fail to reject; the before/after change is easily explained by noise
+($p \approx 0.54$). The design changed (paired before/after instead of treated/control),
+but the reasoning — estimate over its SE, compare to 0, check whether the interval
+straddles the null — is exactly the toy example's. That transferability is the whole
+point: these four numbers read the same way whatever produced them.
+
+```{r p6-answer}
+c_change <- c(2, -1, 0, 1, -2, 3)
+n <- length(c_change)
+est <- mean(c_change)          # 0.5
+se  <- sd(c_change) / sqrt(n)  # 0.7638
+c(estimate = est, SE = se, statistic = est / se)          # t ~ 0.65
+c(lower = est - 2 * se, upper = est + 2 * se)             # (-1.03, 2.03): contains 0
+t.test(c_change)$p.value       # 0.5416 — fail to reject
+```
+:::
