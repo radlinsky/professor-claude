@@ -45,7 +45,8 @@ autorun_cells <- function(lines) {
         block <- c(block, lines[j])
         j <- j + 1L
       }
-      is_autorun <- any(grepl("^#\\|\\s*autorun:\\s*true\\s*$", trimws(block)))
+      # `#| autorun: true`, tolerating an optional trailing YAML comment.
+      is_autorun <- any(grepl("^#\\|\\s*autorun:\\s*true\\s*(#.*)?$", trimws(block)))
       if (is_autorun) {
         body <- block[!grepl("^#\\|", trimws(block))]   # drop chunk-option lines
         cells[[length(cells) + 1L]] <- body
