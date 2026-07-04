@@ -29,17 +29,20 @@ the procedure's steps call for them.
 Execute the `add-problems` skill's procedure in order: locate the target module,
 lock its notation and toy example from the lesson, draft problems per
 `problem-authoring.md`, insert them (unique chunk labels, cliffhanger last), then
-`quarto render` from the repo root until green and self-review against the
-content-review checklist.
+`quarto render` from the repo root until green. Dispatch `course-auditor` on the
+changed files (you have the Agent tool); fix confirmed defects, re-render, re-dispatch
+until the auditor reports PASS.
 
 ## Definition of done
 
-- [ ] Every new data-bearing question opens with a copy-able `{r}` starter chunk
-      (built-in datasets and scalar-only prompts exempt).
+- [ ] Every new data-bearing question opens with a copy-able live `{webr}` starter
+      (`autorun: false`); worked answer stays baked `{r}` (built-in datasets and
+      scalar-only prompts exempt).
 - [ ] Every answer is a fully-worked `collapse="true"` callout.
 - [ ] New problems reuse only notation the lesson already decoded; no new symbols.
 - [ ] In a ported module (one that self-checks against an `equivalence/` fixture), a
       solve-it starter reuses the lesson's embedded frozen reference numbers rather than
       inventing new ones.
 - [ ] `quarto render` is green and the content-review checklist finds nothing.
+- [ ] Review clean: course-auditor dispatched (you have the Agent tool) and reporting PASS.
 - [ ] Syllabus, roadmap, and README indexes are untouched.
