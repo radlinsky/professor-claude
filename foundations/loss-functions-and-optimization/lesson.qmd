@@ -1,0 +1,393 @@
+---
+title: "Loss functions, and finding their bottom"
+subtitle: "How 'pick the number that fits best' becomes 'make this curve as small as possible' — the idea papers write as argmin, and R writes as optimize()"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Almost every fitting method — every "find the best line," "estimate the best
+parameter," "train the model" — is secretly the same task: **write down one number
+that measures how wrong you are, then choose the settings that make that number as
+small as possible.** That "how wrong" number is a **loss function**, and shrinking it
+is **optimization**.
+
+This lesson builds that whole loop from the ground up on tiny, hand-checkable numbers,
+using base R. We'll see a loss as a *function* whose graph is a curve, learn the
+one-line recipe "the bottom of the valley is where the slope is zero," get just enough
+chain-rule to differentiate a squared term, and finish with the R functions that search
+for the bottom when the algebra is too messy — `optimize()` and `optim()`. We stay in
+**one dimension** (one knob to turn); tuning several knobs at once is a later module.
+
+**Builds on:** [the derivative as a slope](../derivative-as-slope/lesson.qmd) — we lean
+hard on "slope zero means momentarily flat," and we reuse its numeric `slope_at()`
+tool; and [vectors & summation](../vectors-and-summation/lesson.qmd) — a loss is
+usually a *sum* over your data points ($\sum$), one penalty per point.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** For `y <- c(4, 6, 8)`, what single number is $\sum_{i=1}^{n} y_i$, and what is
+$n$? Say the summation in words, then give the value.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+y <- c(4, 6, 8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"The sum from i equals 1 to n of y-sub-i" — add them all: $4 + 6 + 8 = 18$, with
+$n = 3$. In R that's `sum(y)` and `length(y)`. A loss almost always has a $\sum$ in it,
+so this is the move you'll repeat. Shaky? Revisit
+[vectors & summation](../vectors-and-summation/lesson.qmd).
+:::
+
+**2.** For a U-shaped curve like $f(x) = x^2$, where along it is the slope exactly
+**zero**, and what is special about that spot?
+
+::: {.callout-note collapse="true" title="Answer"}
+At the very **bottom** of the bowl (here $x = 0$). The curve is momentarily flat there
+— neither uphill nor downhill. That "slope is zero at the bottom" fact is the entire
+engine of this lesson. See
+[the derivative as a slope](../derivative-as-slope/lesson.qmd).
+:::
+
+**3.** In R, `f <- function(m) sum((c(4,6,8) - m)^2)` defines a function of one input
+`m`. Without running it, what does `f(6)` compute — in words?
+
+::: {.callout-note collapse="true" title="Answer"}
+"Subtract 6 from each of 4, 6, 8; square each difference; add them up." That's
+$(4-6)^2 + (6-6)^2 + (8-6)^2 = 4 + 0 + 4 = 8$. A function turns an input (`m`) into an
+output (a number) — exactly the mental model this whole lesson rides on.
+:::
+
+## A tiny example first
+
+You measured the same thing **three times** and got $4$, $6$, and $8$ (say, three
+readings of one plant's height in cm). You want to report **one** number `m` that best
+stands in for all three. Which single number fits best?
+
+To answer "fits best" you first need to say what *fitting badly* costs. A natural
+choice: for a candidate `m`, look at how far each measurement sits from it, **square**
+each gap (so overshooting and undershooting both count as positive cost), and add the
+squares. Call that total the **loss** of `m`:
+
+$$
+L(m) = (4 - m)^2 + (6 - m)^2 + (8 - m)^2
+$$
+
+Let's just try a few candidates by hand:
+
+- **$m = 4$:** $(4-4)^2 + (6-4)^2 + (8-4)^2 = 0 + 4 + 16 = 20$.
+- **$m = 5$:** $(4-5)^2 + (6-5)^2 + (8-5)^2 = 1 + 1 + 9 = 11$.
+- **$m = 6$:** $(4-6)^2 + (6-6)^2 + (8-6)^2 = 4 + 0 + 4 = \mathbf{8}$.
+- **$m = 7$:** $(4-7)^2 + (6-7)^2 + (8-7)^2 = 9 + 1 + 1 = 11$.
+- **$m = 8$:** $(4-8)^2 + (6-8)^2 + (8-8)^2 = 16 + 4 + 0 = 20$.
+
+The loss falls, bottoms out at $m = 6$ (loss $8$), then climbs again — a **valley**.
+The best single stand-in is $m = 6$. (No accident: that's the **mean** of $4, 6, 8$.
+Squared-error loss is always smallest at the average.)
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The three measurements
+y <- c(4, 6, 8)
+
+# The loss of a candidate m: squared gaps, summed
+L <- function(m) sum((y - m)^2)
+
+# Try the same candidates we did by hand
+sapply(c(4, 5, 6, 7, 8), L)   # 20 11 8 11 20 -> a valley, lowest at m = 6
+
+L(6)          # 8  -> the smallest loss
+mean(y)       # 6  -> the candidate that achieves it
+```
+
+## Getting a feel for it
+
+**A loss function is a "how wrong am I?" meter with a dial.** Picture a single dial
+labelled `m`. Turn it and a needle — the loss — swings: some settings read high (very
+wrong), one setting reads lowest (least wrong). Optimization is just *turning the dial
+to the reading you like least of all* — the smallest loss. The dial is the
+**parameter** (the knob you get to choose); the needle is the **objective** (also
+called loss or cost — three names, one idea: the number you're trying to shrink).
+(Where the picture strains: a real dial you turn by feel; here we'll turn it with math,
+because there are infinitely many settings and we want the exact best one.)
+
+**Why square the gaps instead of just adding them?** Try plain gaps, $4 - m$ etc.: at
+$m = 6$ they are $-2, 0, +2$, which **add to zero** — the overshoot and the undershoot
+cancel, so raw gaps make every `m` near the middle look equally "free." Squaring kills
+the cancelling (a negative squared is positive), so every miss adds real cost, and
+bigger misses are punished disproportionately ($4$ costs $16$, not $4$). That's why the
+loss has a genuine single low point instead of a flat useless line. (This is the same
+"square so deviations stop cancelling" reason the variance squares its deviations.)
+
+**What the loss's value feels like.** Our best loss is $8$ — not zero, because three
+different readings can't *all* be matched by one number; $8$ is the irreducible
+disagreement among them. Nudge `m` a little off $6$ and the loss barely rises at first
+(the valley floor is nearly flat); nudge it a lot and the loss shoots up (the walls are
+steep). "Flat at the bottom, steep on the sides" is exactly the slope story from the
+derivative lesson — and it's what lets a slope *point us to* the bottom.
+
+## What the notation is going to say
+
+Two pieces of notation are coming. The first, **$L(m)$**, just names the curve we've
+been computing: "the loss when the knob is set to $m$." The second, **$\arg\min$**,
+names the *answer we want*: not the smallest loss itself, but the **setting of $m$ that
+achieves it**. In our toy example the smallest loss is $8$, but the thing we report is
+$m = 6$ — the argmin. And the recipe for finding it is the slope idea in words: *the
+bottom of the valley is where the loss stops falling and hasn't yet started rising —
+i.e. where its slope is zero* — so we'll take the derivative of $L$, set it to zero, and
+solve for $m$.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $m$ | "em" | the **parameter** — the one knob/dial we get to choose | our candidate stand-in, e.g. $m = 6$ |
+| $y_i$ | "why sub eye" | the $i$-th data point (in R: `y[i]`) | $y_1 = 4,\ y_2 = 6,\ y_3 = 8$ |
+| $n$ | "en" | how many data points (in R: `length(y)`) | $3$ |
+| $\sum_{i=1}^{n}$ | "the sum from i equals 1 to n" | add the term to its right, once per data point ([vectors & summation](../vectors-and-summation/lesson.qmd)) | $\sum_i (y_i-m)^2 = 8$ at $m=6$ |
+| $L(m)$ | "ell of em" | the **loss** (objective / cost): how wrong the setting $m$ is, as one number | $L(6) = 8$ |
+| $L'(m)$ | "ell prime of em" | the **slope** of the loss curve at $m$ — its derivative ([derivative as a slope](../derivative-as-slope/lesson.qmd)) | $L'(6) = 0$ |
+| $\frac{d}{dm}$ | "dee by dee em" | "take the derivative with respect to $m$" — the same slope, written as an instruction | $\frac{d}{dm}L = 6m - 36$ |
+| $\min_m L(m)$ | "min over em of ell of em" | the smallest **loss value** itself (NOT the setting that achieves it) | $8$ |
+| $\arg\min_m L(m)$ | "arg min over em of ell of em" | the **value of $m$** that makes $L$ smallest (NOT the smallest loss itself) | $6$ |
+| $\hat{m}$ | "em hat" | our estimate of the best $m$ from data — the hat always means "estimated from data" | $6$ |
+| $\bar{y}$ | "why bar" | the mean (average) of the $y$ values (in R: `mean(y)`) | $6$ |
+
+Note the split $\arg\min$ makes: $\min_m L(m)$ is the smallest **loss** ($8$);
+$\arg\min_m L(m)$ is the **setting** that achieves it ($6$). Papers almost always want
+the argmin — the best knob position.
+
+## The formal version
+
+**The loss, one term at a time.** For each data point $y_i$, the miss is $y_i - m$, and
+its cost is that miss **squared**, $(y_i - m)^2$ (squared so undershoot and overshoot
+both cost, and never cancel). Add one such cost per point — that's the $\sum$ — and you
+have the whole loss:
+
+$$
+L(m) = \sum_{i=1}^{n} (y_i - m)^2
+$$
+
+Reading it aloud: "ell of em equals the sum, from i equals 1 to n, of (y-sub-i minus
+em) squared" — or in everyday words: **"add up the squared gap between each measurement
+and your guess $m$."** Mapping onto the toy at $m = 6$: the three squared gaps are
+$(4-6)^2 = 4$, $(6-6)^2 = 0$, $(8-6)^2 = 4$, summing to $8$ — the same $8$ we got by
+hand.
+
+**The recipe: take the derivative, set it to zero, solve.** The bottom of the valley is
+where the slope is zero (warm-up 2). "Slope of $L$" is its derivative $L'(m)$, so the
+best $m$ is the one where $L'(m) = 0$. This three-word recipe — **differentiate, set to
+zero, solve** — is the standard way to find a minimum by algebra, and it has a name we'll
+reuse everywhere. To run it we need the derivative of $L$.
+
+**Chain rule, lite (just enough to differentiate a square).** Two facts do the whole
+job:
+
+1. **The derivative of a sum is the sum of the derivatives** — differentiate each
+   $(y_i - m)^2$ term on its own and add the results. (You already used "a sum splits
+   into pieces" in [vectors & summation](../vectors-and-summation/lesson.qmd).)
+2. **The derivative of (stuff)² is 2 · (stuff) · (derivative of stuff).** In symbols,
+   the slope of $(\text{stuff})^2$ with respect to $m$ is $2\,(\text{stuff}) \cdot
+   (\text{stuff})'$. Here "stuff" is $y_i - m$, whose slope with respect to $m$ is $-1$
+   (as $m$ goes up by 1, $y_i - m$ goes *down* by 1). So each term's derivative is
+   $2(y_i - m)(-1) = -2(y_i - m)$.
+
+Putting the two facts together, one line at a time:
+
+$$
+\begin{aligned}
+L'(m) &= \frac{d}{dm} \sum_{i=1}^{n} (y_i - m)^2 \\
+      &= \sum_{i=1}^{n} \frac{d}{dm}(y_i - m)^2 \\
+      &= \sum_{i=1}^{n} 2\,(y_i - m)\cdot(-1) \\
+      &= -2 \sum_{i=1}^{n} (y_i - m)
+\end{aligned}
+$$
+
+- Line 2: the derivative of a sum is the sum of the derivatives (fact 1) — pull the
+  $\frac{d}{dm}$ inside the $\sum$.
+- Line 3: the derivative of (stuff)² is $2\,(\text{stuff})\cdot(\text{stuff})'$ (fact 2),
+  with stuff $= y_i - m$ and $(\text{stuff})' = -1$.
+- Line 4: the constant $-2$ is the same in every term, so factor it out front of the
+  sum (an ordinary arithmetic tidy-up).
+
+**Set it to zero and read off the answer.** For our toy, $L'(m) = -2\big[(4-m) + (6-m)
++ (8-m)\big] = -2(18 - 3m) = 6m - 36$. Setting $6m - 36 = 0$ gives $m = 6$. That's the
+argmin — and it equals $\bar y = \text{mean}(4,6,8) = 6$, matching the valley bottom we
+found by trying candidates.
+
+**Sanity-check the derivative numerically.** The slope should be zero at $m = 6$,
+negative to the left (loss still falling), positive to the right (loss now rising). We
+measure it with the exact `slope_at()` tool from the derivative lesson:
+
+```{r sanity-check}
+y <- c(4, 6, 8)
+L <- function(m) sum((y - m)^2)
+
+# The numeric slope tool from the derivative-as-slope lesson
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+# Measured slope vs. our formula L'(m) = 6m - 36
+rbind(
+  measured = sapply(c(5, 6, 7), function(m) slope_at(L, m)),
+  formula  = 6 * c(5, 6, 7) - 36
+)
+# both rows: -6, 0, 6  -> slope is 0 exactly at the bottom (m = 6)
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The loss curve L(m), a U-shaped parabola with its lowest point marked at m = 6 where the loss equals 8; a horizontal dashed tangent line touches the curve at the bottom to show the slope is zero there."
+# explore-1 — LIVE: the loss as a CURVE, with its bottom marked.
+# PREDICT: the flat dashed tangent sits at the lowest point. What m is that? Write it
+# down, then run. TRY IT: change the data y and watch the bottom slide to the new mean.
+y <- c(4, 6, 8)
+L <- function(m) sum((y - m)^2)
+
+m_best <- mean(y)                              # the argmin (bottom of the valley)
+curve(sapply(x, L), from = 2, to = 10, lwd = 2, xlab = "m (the knob)",
+      ylab = "L(m)  (how wrong)", main = sprintf("lowest at m = %.1f, loss = %.1f", m_best, L(m_best)))
+points(m_best, L(m_best), pch = 16, cex = 1.5)
+abline(h = L(m_best), col = "firebrick", lty = 2)   # flat line: slope 0 at the bottom
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the recipe "derivative = 0" agrees with just searching the curve.
+# By hand the derivative is L'(m) = 6m - 36, which is zero at m = 6. Let's confirm the
+# slope is zero there, AND that R's search finds the same bottom.
+# PREDICT: what will optimize() report as the minimizing m? Write it, then run.
+y <- c(4, 6, 8)
+L <- function(m) sum((y - m)^2)
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+by_recipe <- 6           # solve 6m - 36 = 0  -> m = 6
+by_search <- optimize(L, interval = c(0, 20))$minimum   # let R hunt for the bottom
+
+c(slope_at_recipe = slope_at(L, by_recipe),  # ~0: the recipe's m sits at the flat bottom
+  recipe_m        = by_recipe,
+  search_m        = by_search)               # search lands on the same m
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: when the algebra is ugly, let the computer search downhill.
+# optimize() needs only the loss function and a range to look in; it repeatedly tries
+# values, feeling which way is downhill, until it settles at the bottom. You never write
+# a derivative. TRY IT: swap in a loss with no tidy formula and it still works.
+weird <- function(m) sum((c(4, 6, 8) - m)^2) + 0.3 * (m - 5)^4   # no clean "set to zero"
+optimize(weird, interval = c(0, 20))$minimum    # R finds the bottom anyway
+
+# optim() is the same idea for the general case; here in 1-D with the Brent method:
+optim(par = 0, fn = weird, method = "Brent", lower = 0, upper = 20)$par
+```
+
+## Common traps
+
+**Trap 1 — "argmin is the smallest loss."** Tempting, because you *find* the argmin by
+minimizing the loss. But $\arg\min$ is the **input** that minimizes, not the minimum
+**output**. In our toy the smallest loss is $\min_m L(m) = 8$, while
+$\arg\min_m L(m) = 6$ — two different numbers, $8$ vs $6$. When a paper writes
+$\hat m = \arg\min_m L(m)$, the answer it wants is the setting ($6$), not the leftover
+cost ($8$). Mixing them up reports the wrong quantity entirely.
+
+**Trap 2 — "slope zero always means the lowest point."** Slope zero means *momentarily
+flat* — which is true at a valley bottom, but also at a hill **top** and on a flat
+shelf. "Differentiate, set to zero, solve" finds the flat spots; you still must check
+you landed in a valley, not on a peak. Our squared-error loss is a single clean bowl
+(only one flat spot, and it's the bottom), so we're safe here — but that's a property of
+this loss, not a free guarantee. It's why real optimizers also *search* and compare, as
+`optimize()` does, rather than trusting a single zero-slope point blindly.
+
+## Check yourself
+
+**1.** For the measurements below, compute the loss $L(m) = \sum (y_i - m)^2$ at
+$m = 3$ **by hand**, then check in R.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+y <- c(1, 3, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The squared gaps at $m = 3$: $(1-3)^2 + (3-3)^2 + (5-3)^2 = 4 + 0 + 4 = 8$. In R,
+`sum((c(1,3,5) - 3)^2)` returns `8`. (And $m = 3$ is the mean of $1, 3, 5$, so this is
+already the argmin — the smallest possible loss for this data.)
+:::
+
+**2.** The derivative of the loss for `y <- c(4, 6, 8)` is $L'(m) = 6m - 36$. Using
+"set the derivative to zero and solve," what is the best $m$? Is that value the argmin
+or the minimum loss?
+
+::: {.callout-note collapse="true" title="Answer"}
+Set $6m - 36 = 0 \Rightarrow 6m = 36 \Rightarrow m = 6$. That $6$ is the **argmin** —
+the *setting* of the knob that minimizes the loss. The **minimum loss** is the separate
+number $L(6) = 8$. (Don't report $8$ when you're asked for the best $m$.)
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what a loss function
+is and why "find where the slope is zero" helps you minimize it.
+
+::: {.callout-note collapse="true" title="A model answer"}
+A loss function turns a candidate setting into a single "how wrong is this?" number, and
+minimizing it means turning the knob to the setting with the smallest wrongness. The
+bottom of that loss curve is momentarily flat, so its slope is zero there — which is why
+setting the derivative to zero and solving pins down the best setting.
+:::
+
+## What you can now do
+
+- **Read a loss (objective / cost) function as a curve** with a knob $m$ on the x-axis
+  and "how wrong" on the y-axis, and evaluate it in R as `sum((y - m)^2)`.
+- **Explain and use the recipe "differentiate, set to zero, solve"** to find the setting
+  where a loss curve bottoms out, because the slope is zero at the bottom.
+- **Differentiate a squared term** with chain-rule-lite: $(\text{stuff})^2 \to
+  2\,(\text{stuff})\cdot(\text{stuff})'$, and use "the derivative of a sum is the sum of
+  the derivatives."
+- **Tell an argmin from a minimum** — the best *setting* versus the smallest *loss* —
+  and report the one the question asks for.
+- **Hand a loss to `optimize()` / `optim()`** and let R search for the bottom when the
+  algebra is too messy to solve by hand.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — anything that *fits* a
+model by minimizing an error assumes all of these.
+
+## Where this goes next
+
+Every "line of best fit," "maximum-likelihood estimate," and "trained model" is this
+same loop — write a loss, then minimize it — scaled up. Two extensions come later: when
+there are **several** knobs at once, the single slope becomes a whole vector of slopes
+(a gradient, its own module); and when you can't solve "slope = zero" by algebra, a
+computer takes small downhill steps to hunt the bottom (the gradient-descent course
+builds that from the compass you just met). Ready for more reps? Do the
+[practice problems](practice.qmd).
