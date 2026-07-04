@@ -47,14 +47,21 @@ at the repo top) active during every render. When you add a course or foundation
 module, edit `/_quarto.yml` and add each new `.qmd`/`.md` in two places, using paths
 **relative to the repo root**:
 
-1. `project: render:` — the flat list of files to render.
+1. `project: render:` — the flat list of files to render (no nesting; independent
+   of the sidebar).
 2. `website: sidebar: contents:` — under a `section:` for the course (or the
-   `"Foundations"` section for a new foundation module), in learning order.
+   `"Foundations"` section for a new foundation module), in learning order. **Each
+   module is its own nested `section:`** that groups the module's lesson and
+   practice one level below it, so practice reads as part of its module rather than
+   a peer of the whole course. The lesson/practice are `text:`/`href:` entries
+   labelled just **Lesson** / **Practice** (the module's `section:` label carries
+   the descriptive name). Module labels: courses use `N · Short name` (number in
+   learning order); foundation modules use the short name with **no** number.
 
 Example — adding a course with two modules:
 
 ```yaml
-# in project.render:
+# in project.render (flat — order here doesn't drive the sidebar):
     - courses/<course-slug>/syllabus.md
     - courses/<course-slug>/00-roadmap.qmd
     - courses/<course-slug>/modules/01-<slug>/lesson.qmd
@@ -67,10 +74,32 @@ Example — adding a course with two modules:
         contents:
           - courses/<course-slug>/syllabus.md
           - courses/<course-slug>/00-roadmap.qmd
-          - courses/<course-slug>/modules/01-<slug>/lesson.qmd
-          - courses/<course-slug>/modules/01-<slug>/practice.qmd
-          - courses/<course-slug>/modules/02-<slug>/lesson.qmd
-          - courses/<course-slug>/modules/02-<slug>/practice.qmd
+          - section: "1 · <Short module name>"
+            contents:
+              - text: "Lesson"
+                href: courses/<course-slug>/modules/01-<slug>/lesson.qmd
+              - text: "Practice"
+                href: courses/<course-slug>/modules/01-<slug>/practice.qmd
+          - section: "2 · <Short module name>"
+            contents:
+              - text: "Lesson"
+                href: courses/<course-slug>/modules/02-<slug>/lesson.qmd
+              - text: "Practice"
+                href: courses/<course-slug>/modules/02-<slug>/practice.qmd
+```
+
+A new **foundation** module gets the same nested shape — its own `section:`
+(short name, no number) under the `"Foundations"` section:
+
+```yaml
+      - section: "Foundations"
+        contents:
+          - section: "<Short module name>"
+            contents:
+              - text: "Lesson"
+                href: foundations/<module-slug>/lesson.qmd
+              - text: "Practice"
+                href: foundations/<module-slug>/practice.qmd
 ```
 
 Do not create a `_quarto.yml` inside a course or foundation folder — a nested one
