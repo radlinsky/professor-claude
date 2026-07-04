@@ -141,7 +141,7 @@ real sampling variation.
 set.seed(42)
 y <- c(4, 7, 6, 9, 5)
 sd(replicate(2000, mean(sample(y, 5, replace = FALSE))))   # 0 -- the bug: no variation
-sd(replicate(2000, mean(sample(y, 5, replace = TRUE))))    # ~0.76 -- the correct SE
+sd(replicate(2000, mean(sample(y, 5, replace = TRUE))))    # ~0.77 -- the correct SE
 ```
 
 Bootstrap = **with replacement, always.**

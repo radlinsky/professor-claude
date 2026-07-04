@@ -190,6 +190,7 @@ pile: chop off the lowest 2.5% and the highest 2.5% with `quantile(., c(.025, .9
 | $\bar{x}^{*}$ | "ex bar star" | the same statistic on **one resample**; the star means "from a resample" | 5.8 for the first resample |
 | $\bar{x}^{*}_1, \dots, \bar{x}^{*}_R$ | "ex bar star sub one … up to sub R" | the resampled statistic from resample 1, 2, …, $R$ — the pile we histogram | 5.8, 5.4, … |
 | $\mathrm{SE}$ | "the standard error" | the wobble of the statistic — here the `sd()` of the resampled pile | ≈ 0.76 |
+| $s$ | "ess" | the sample standard deviation — the spread of your data (in R: `sd(x)`) | ≈ 1.92 |
 | $n$ | "en" | the sample size — how many numbers we resample each time (in R: `length(x)`) | 5 |
 | $R$ | "big R" | how many resamples we take (in R: `replicate(R, ...)`) | 2000 |
 | $d$ | "dee" | the observed statistic in a comparison — here the gap between two group means | 3 |
@@ -351,7 +352,7 @@ boot_mean   <- replicate(2000, mean(  sample(mysample, length(mysample), replace
 boot_median <- replicate(2000, median(sample(mysample, length(mysample), replace = TRUE)))
 
 c(SE_of_mean   = sd(boot_mean),      # ~0.76 -- also gettable from a formula
-  SE_of_median = sd(boot_median))    # ~1.10 -- NO clean formula; only resampling gives it
+  SE_of_median = sd(boot_median))    # ~1.14 -- NO clean formula; only resampling gives it
 ```
 
 ```{webr}
