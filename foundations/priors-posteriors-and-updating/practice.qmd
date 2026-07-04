@@ -1,0 +1,242 @@
+---
+title: "Practice: Priors, posteriors & updating"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Here are 200 emails sorted by whether each is **spam** and whether it contains the word
+**"free"**:
+
+|              | free: yes | free: no | row total |
+|--------------|:---------:|:--------:|:---------:|
+| **spam**     | 40        | 10       | 50        |
+| **ham**      | 20        | 130      | 150       |
+| **col total**| 60        | 140      | 200       |
+
+By hand, compute (a) $P(\text{spam})$ over all emails, and (b) $P(\text{spam} \mid
+\text{free})$ — the chance an email is spam *given* it contains "free." Then check in R.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+tab <- matrix(c(40, 10,
+                20, 130), nrow = 2, byrow = TRUE,
+              dimnames = list(class = c("spam", "ham"),
+                              free = c("yes", "no")))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $P(\text{spam})$ = spam emails over all emails = $50 / 200 = 0.25$ — the belief
+**before** you look for the word.
+(b) $P(\text{spam} \mid \text{free})$: narrow to the 60 "free" emails; 40 are spam →
+$40 / 60 = 0.667$ — the belief **after** you see "free." The word shoved belief from
+0.25 up to 0.667.
+
+```{r p1-answer}
+tab <- matrix(c(40, 10,
+                20, 130), nrow = 2, byrow = TRUE,
+              dimnames = list(class = c("spam", "ham"),
+                              free = c("yes", "no")))
+sum(tab["spam", ]) / sum(tab)              # 0.25   (before)
+tab["spam", "yes"] / sum(tab[, "yes"])     # 0.667  (after learning "free")
+```
+:::
+
+## Problem 2 — fill in the missing step (prior × likelihood → posterior)
+
+A die is either **fair** (chance of a six $= 1/6$) or **loaded** (chance of a six
+$= 1/2$). Your prior is 50/50. You roll it **twice and get two sixes**. Here is the
+update worked out — but the **core step is blanked**. Fill in ONLY the blanked line: the
+prior × likelihood for each die.
+
+> Likelihood of two sixes: fair $= (1/6)^2 = 0.0278$, loaded $= (1/2)^2 = 0.25$.
+> **`<your step here>`** — multiply each prior by its likelihood (the unnormalized
+> posterior): fair $= \underline{\phantom{0000}}$, loaded $= \underline{\phantom{0000}}$.
+> Then rescale so they sum to 1.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your two unnormalized numbers
+p     <- c(fair = 1/6, loaded = 1/2)
+prior <- c(fair = 0.5, loaded = 0.5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the heart of Bayes: **prior × likelihood.**
+
+- fair: $0.5 \times 0.0278 = 0.0139$
+- loaded: $0.5 \times 0.25 = 0.125$
+
+Rescale by their total ($0.0139 + 0.125 = 0.1389$): fair $= 0.0139 / 0.1389 = 0.10$,
+loaded $= 0.125 / 0.1389 = 0.90$. After two sixes, belief moved from 50/50 to **10%
+fair, 90% loaded.**
+
+```{r p2-answer}
+p     <- c(fair = 1/6, loaded = 1/2)
+prior <- c(fair = 0.5, loaded = 0.5)
+lik    <- p^2                       # 0.0278, 0.25
+unnorm <- prior * lik              # 0.0139, 0.125  <- the blanked step
+post   <- unnorm / sum(unnorm)     # 0.10, 0.90
+round(rbind(lik, unnorm, post), 4)
+```
+:::
+
+## Problem 3 — a full update with a non-flat prior
+
+A coin is either **fair** ($p = 0.5$) or **biased** toward heads ($p = 0.8$). This time
+you lean toward fair beforehand: **prior 70% fair, 30% biased.** You flip **twice and get
+2 heads.** Compute the posterior probability the coin is biased, by hand, then in R.
+
+```{webr}
+#| autorun: false
+# p3-starter — edit and Run to solve
+p     <- c(fair = 0.5, biased = 0.8)
+prior <- c(fair = 0.7, biased = 0.3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Likelihood of 2 heads: fair $= 0.5^2 = 0.25$, biased $= 0.8^2 = 0.64$.
+Prior × likelihood: fair $= 0.7 \times 0.25 = 0.175$, biased $= 0.3 \times 0.64 = 0.192$.
+Rescale (total $0.175 + 0.192 = 0.367$): biased $= 0.192 / 0.367 = 0.523$.
+
+So the posterior is about **48% fair, 52% biased** — the data leans biased, but the
+skeptical prior keeps it a near-tie. Notice how much the prior matters here.
+
+```{r p3-answer}
+p     <- c(fair = 0.5, biased = 0.8)
+prior <- c(fair = 0.7, biased = 0.3)
+lik    <- p^2                        # 0.25, 0.64
+post   <- (prior * lik) / sum(prior * lik)
+round(post, 4)                       # fair 0.4768, biased 0.5232
+```
+:::
+
+## Problem 4 — spot the error (the prior got dropped)
+
+A colleague updates on **3 heads** from a coin that is either fair ($p = 0.5$) or biased
+($p = 0.8$), with a prior of **80% fair, 20% biased.** Their work contains **exactly one
+mistake** — find it, explain why it's wrong, and give the correct posterior.
+
+> "Likelihood of 3 heads: fair $= 0.5^3 = 0.125$, biased $= 0.8^3 = 0.512$. To get the
+> posterior I just rescale the likelihoods so they sum to 1: biased
+> $= 0.512 / (0.125 + 0.512) = 0.804$. So there's an 80% chance the coin is biased."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to check the correct update
+p     <- c(fair = 0.5, biased = 0.8)
+prior <- c(fair = 0.8, biased = 0.2)   # <- the 80/20 prior the colleague ignored
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: **the prior was dropped.** The colleague normalized the *likelihoods* alone,
+but posterior ∝ likelihood **× prior**. Their "0.804" is what you'd get only with a flat
+50/50 prior — but the prior here is 80/20 toward fair.
+
+Doing it correctly:
+
+- prior × likelihood: fair $= 0.8 \times 0.125 = 0.100$, biased $= 0.2 \times 0.512 =
+  0.1024$.
+- rescale (total $0.100 + 0.1024 = 0.2024$): biased $= 0.1024 / 0.2024 = 0.506$.
+
+So the correct posterior is about **49% fair, 51% biased** — a coin toss, *not* 80%
+biased. The skeptical prior nearly cancels the data's lean. Dropping the prior isn't a
+rounding slip; it changes the conclusion.
+
+```{r p4-answer}
+p     <- c(fair = 0.5, biased = 0.8)
+prior <- c(fair = 0.8, biased = 0.2)
+lik    <- p^3
+wrong  <- lik / sum(lik)                       # 0.196, 0.804 — prior IGNORED
+right  <- (prior * lik) / sum(prior * lik)     # 0.494, 0.506 — the correct update
+round(rbind(wrong, right), 4)
+```
+:::
+
+## Problem 5 — mixing it with sampling *(uses [randomness, samples & sampling distributions](../randomness-samples-and-sampling-distributions/lesson.qmd))*
+
+Suppose you already have a posterior over a coin's bias: a `Beta(8, 4)` curve (from a
+flat prior and 7 heads in 10 flips). Instead of reading its interval off a formula, do it
+the **MCMC way** — draw a big pile of samples from the posterior and summarize them, the
+way you learned to summarize a sample. Draw 20,000 values with `rbeta`, then report the
+mean and the 2.5% / 97.5% quantiles.
+
+**PREDICT** first: roughly where will the mean of the draws land, and will the interval
+be wide or narrow with only 10 flips of data? Write it down, then run.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve
+set.seed(42)
+a <- 8; b <- 4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Summarizing draws from a posterior is *exactly* the sample-summary move from
+[randomness & sampling](../randomness-samples-and-sampling-distributions/lesson.qmd): the
+posterior mean is the average of the draws, and the 95% credible interval is the middle
+95% of them (the 2.5% and 97.5% quantiles).
+
+```{r p5-answer}
+set.seed(42)
+a <- 8; b <- 4
+draws <- rbeta(20000, a, b)                       # 20,000 samples FROM the posterior
+round(c(mean  = mean(draws),
+        lower = quantile(draws, 0.025),
+        upper = quantile(draws, 0.975)), 3)       # ~0.666, ~0.386, ~0.893
+```
+
+The mean lands near 0.67 and the 95% credible interval is roughly $[0.39, 0.89]$ — wide,
+because 10 flips is little data. This is the whole payoff of MCMC: once you have the
+pile of draws, the answers are ordinary `mean()` and `quantile()`.
+:::
+
+## Problem 6 — a gentle cliffhanger (more data, sharper belief)
+
+You keep flipping the same coin and now have **15 heads in 20 flips.** With a flat prior,
+the posterior over the bias is a `Beta(16, 6)` curve. **Predict:** compared with the
+`Beta(8, 4)` from 10 flips (interval ≈ $[0.39, 0.89]$), will the new 95% credible interval
+be *wider* or *narrower*? Then run the starter to read off the mean and the interval.
+
+```{webr}
+#| autorun: false
+# p6-starter — solve for the Beta(16, 6) posterior
+a <- 16; b <- 6
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+More data sharpens the belief, so the interval should get **narrower** — and it does.
+For a flat prior with $h$ heads in $n$ flips, the posterior is `Beta(h+1, n-h+1)`, and
+`qbeta` reads its quantiles straight off.
+
+```{r p6-answer}
+a <- 16; b <- 6
+post_mean <- a / (a + b)                    # 0.727
+ci95      <- qbeta(c(0.025, 0.975), a, b)   # 0.528, 0.887
+round(c(mean = post_mean, lower = ci95[1], upper = ci95[2]), 3)
+```
+
+The interval $[0.53, 0.89]$ is noticeably narrower than the 10-flip $[0.39, 0.89]$: more
+evidence, tighter posterior. Keep flipping and it would shrink further toward the true
+bias — which is the sense in which "the data eventually wins" over the prior. *The next
+step — where the posterior has no tidy formula and MCMC does the drawing for you — is a
+course-level topic; here you've built every piece it stands on.*
+:::
