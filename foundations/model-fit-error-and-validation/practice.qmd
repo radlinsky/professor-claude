@@ -192,10 +192,11 @@ fold <- sample(rep(1:k, length.out = nrow(d)))   # fold label for each row
 
 errs <- numeric(k)
 for (f in 1:k) {
-  tr <- d[fold != f, ]     # <- train on the OTHER folds
-  te <- d[fold == f, ]     # <- grade on THIS fold
-  m  <- lm(y ~ x, data = tr)
-  errs[f] <- rmse(te$y, predict(m, te))
+  # your job — the three lines the loop needs:
+  #   tr <- ...   # train: the rows where fold != f
+  #   te <- ...   # test:  the rows where fold == f
+  #   m  <- ...   # fit lm(y ~ x) on tr
+  errs[f] <- rmse(te$y, predict(m, te))   # scores fold f once tr/te/m are defined
 }
 mean(errs)
 ```

@@ -417,6 +417,7 @@ its log, and climb to the top. *Finding* that top — solving "slope $= 0$" or s
 uphill numerically — is the job of the optimization material (the
 [derivative as slope](../derivative-as-slope/lesson.qmd) is the first piece of that
 tool). For observations measured on a continuous scale, the per-observation "pieces"
-become probability *densities* rather than probabilities — the subject of a separate
-distributions-and-densities module — but the multiply-then-log recipe is identical.
+become probability *densities* rather than probabilities — the subject of
+[distributions & densities](../distributions-and-densities/lesson.qmd) — but the
+multiply-then-log recipe is identical.
 Ready for more reps? Do the [practice problems](practice.qmd).
