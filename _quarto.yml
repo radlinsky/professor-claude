@@ -30,6 +30,7 @@ project:
     - courses/simple-linear-regression/modules/03-reading-lm-output-and-papers/practice.qmd
     - courses/simple-linear-regression/modules/04-capstone-reading-a-real-regression/lesson.qmd
     - courses/simple-linear-regression/modules/04-capstone-reading-a-real-regression/practice.qmd
+    - courses/simple-linear-regression/resources.md
     - courses/gradient-descent/syllabus.md
     - courses/gradient-descent/00-roadmap.qmd
     - courses/gradient-descent/modules/01-rolling-downhill/lesson.qmd
@@ -40,6 +41,7 @@ project:
     - courses/gradient-descent/modules/03-fitting-a-line-by-descent/practice.qmd
     - courses/gradient-descent/modules/04-capstone-decode-the-optimizer/lesson.qmd
     - courses/gradient-descent/modules/04-capstone-decode-the-optimizer/practice.qmd
+    - courses/gradient-descent/resources.md
     - courses/logistic-regression/syllabus.md
     - courses/logistic-regression/00-roadmap.qmd
     - courses/logistic-regression/modules/01-from-line-to-probability/lesson.qmd
@@ -50,6 +52,7 @@ project:
     - courses/logistic-regression/modules/03-likelihood-and-gradient-ascent/practice.qmd
     - courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/lesson.qmd
     - courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/practice.qmd
+    - courses/logistic-regression/resources.md
 
 website:
   title: "Professor Claude"

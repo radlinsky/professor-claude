@@ -45,7 +45,10 @@ The whole repo is **one** Quarto project — there is a single `/_quarto.yml` at
 repo root, and no per-course or per-foundation `_quarto.yml`. This keeps renv (rooted
 at the repo top) active during every render. When you add a course or foundation
 module, edit `/_quarto.yml` and add each new `.qmd`/`.md` in two places, using paths
-**relative to the repo root**:
+**relative to the repo root**. This includes `resources.md` — lessons and roadmaps
+link to it, and an unregistered page is never rendered, so the link 404s on the live
+site. CI's "Check every page is registered" step fails on any page left out; the only
+files intentionally excluded are the GitHub-facing `README.md` indexes.
 
 1. `project: render:` — the flat list of files to render (no nesting; independent
    of the sidebar).
@@ -68,6 +71,7 @@ Example — adding a course with two modules:
     - courses/<course-slug>/modules/01-<slug>/practice.qmd
     - courses/<course-slug>/modules/02-<slug>/lesson.qmd
     - courses/<course-slug>/modules/02-<slug>/practice.qmd
+    - courses/<course-slug>/resources.md
 
 # in website.sidebar.contents:
       - section: "<Course Title>"
