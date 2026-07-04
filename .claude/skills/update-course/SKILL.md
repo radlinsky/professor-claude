@@ -4,9 +4,11 @@ description: >
   Safely modify or extend EXISTING teaching material in this repo: fix an error,
   improve an explanation or intuition section, rewrite a section, add a section or
   a whole module to an existing course, retrofit new template sections into old
-  lessons, restructure modules, or update links. Use when the user says "improve/fix/revise/extend
-  <lesson|module|course>" or "add a module to <course>". For building a whole NEW
-  course use create-course; for ONLY adding practice problems use add-problems.
+  lessons, restructure modules, or update links. Use when the user says
+  "improve/fix/revise/extend <lesson|module|course>" or "add a module to
+  <course>". Tie-breaker: ADDING new problems is add-problems; CHANGING existing
+  problems is update-course. For building a whole NEW course use create-course;
+  for ONLY adding practice problems use add-problems.
 ---
 
 # update-course

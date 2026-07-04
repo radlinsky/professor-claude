@@ -7,8 +7,10 @@ description: >
   "I want to understand this formula", "make a course for the methods section of
   this paper", "create a course from source-materials/<x>/COURSE-REQUEST.md", or
   drops a paper in source-papers/ or a course request in source-materials/ and asks
-  about it. For changing EXISTING material use update-course; for only adding
-  problems use add-problems.
+  about it. If the input is a library, repo, or paper with ANY validation reference
+  (code, reported numbers, closed form) → use the port-library skill instead. For
+  changing EXISTING material use update-course; for only adding problems use
+  add-problems.
 ---
 
 # create-course
@@ -29,6 +31,9 @@ do not "come back to it later".
 
 **Goal:** know exactly what the course must teach.
 
+0. **Redirect check.** If the input is a library, repo, or paper with ANY validation
+   reference (code, reported numbers, closed form) → use the port-library skill
+   instead. Only a bare concept with nothing to validate against stays here.
 1. Identify the target. It is one of:
    - a paper in `source-papers/` (read it; if PDF reading fails, ask the user to
      paste the methods section),
