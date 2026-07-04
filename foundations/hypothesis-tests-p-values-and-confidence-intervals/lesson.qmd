@@ -362,16 +362,17 @@ abline(v = c(-tstat, tstat), col = "firebrick", lwd = 2, lty = 2)
 ```{webr}
 #| autorun: false
 # explore-3 — LIVE: the CI-excludes-null <-> p<0.05 bridge, and the false-alarm rate.
-# PREDICT: for d below, will the +-2SE interval contain 0? And will p be under 0.05?
-# They must AGREE. Write both guesses, then run.
+# PREDICT: for d below, will the +-2SE interval EXCLUDE 0? And will p be under 0.05?
+# These are two ways to ask "do we reject?", so they must AGREE (both TRUE or both
+# FALSE). Write both guesses, then run.
 d <- c(3, 1, 4, 0, 2)
 n <- length(d)
 est <- mean(d); se <- sd(d) / sqrt(n)
 
 ci <- c(lower = est - 2 * se, upper = est + 2 * se)   # the rule-of-thumb interval
 ci
-0 >= ci["lower"] && 0 <= ci["upper"]                  # is the null value 0 INSIDE?
-t.test(d)$p.value < 0.05                              # and is p under 0.05? (same answer)
+0 < ci["lower"] || 0 > ci["upper"]                   # does the interval EXCLUDE the null 0? (reject)
+t.test(d)$p.value < 0.05                              # and is p under 0.05? (reject) — same answer
 ```
 
 ## Common traps
