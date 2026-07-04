@@ -27,6 +27,9 @@ project:
     - foundations/probability-and-odds/lesson.qmd
     - foundations/probability-and-odds/practice.qmd
     - foundations/probability-and-odds/resources.md
+    - foundations/randomness-samples-and-sampling-distributions/lesson.qmd
+    - foundations/randomness-samples-and-sampling-distributions/practice.qmd
+    - foundations/randomness-samples-and-sampling-distributions/resources.md
     - foundations/reading-math-notation/lesson.qmd
     - foundations/reading-math-notation/practice.qmd
     - foundations/reading-math-notation/resources.md
@@ -145,6 +148,14 @@ website:
                 href: foundations/probability-and-odds/practice.qmd
               - text: "Resources"
                 href: foundations/probability-and-odds/resources.md
+          - section: "Randomness & sampling distributions"
+            contents:
+              - text: "Lesson"
+                href: foundations/randomness-samples-and-sampling-distributions/lesson.qmd
+              - text: "Practice"
+                href: foundations/randomness-samples-and-sampling-distributions/practice.qmd
+              - text: "Resources"
+                href: foundations/randomness-samples-and-sampling-distributions/resources.md
           - section: "Reading math notation"
             contents:
               - text: "Lesson"

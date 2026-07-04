@@ -1,0 +1,447 @@
+---
+title: "Randomness, samples & sampling distributions"
+subtitle: "Why a number computed from data is itself random — and what its wobble (the standard error) means"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. This module
+# USES randomness, so the seed is what makes every histogram reproducible. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Every number you ever compute from data — an average, a proportion, a slope — is
+computed from *one* sample, and if you had drawn a *different* sample you'd have gotten
+a *different* number. So the number itself is random: it has its own spread, its own
+"typical wobble." That wobble has a name, the **standard error**, and it is the single
+idea that separates "here is a number" from "here is how much I trust this number."
+This lesson builds the idea by *simulating* the re-draws in R and watching the number
+jump around.
+
+We stay with neutral, hand-checkable examples (dice, a bag of numbered chips, a
+machine that spits out measurements) and base R. We will **not** touch p-values, null
+hypotheses, or how to *read* a confidence interval's endpoints — that machinery belongs
+to a later hypothesis-testing module. Here we build only the foundation those tools
+stand on: a statistic is random, its spread is the standard error, and for averages
+that spread turns out bell-shaped.
+
+**Builds on:** [the mean, variance & covariance](../mean-variance-covariance/lesson.qmd) —
+we lean on the mean $\bar{x}$ and the standard deviation $s$ throughout; and
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd) (soft — for the
+baseline idea that a random draw has probabilities attached).
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — produce each answer from memory, then check.
+
+**1.** *(mean-variance-covariance)* For `x <- c(2, 4, 6)`, what is the mean $\bar{x}$,
+and what is the standard deviation `sd(x)` measuring in one plain phrase?
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+x <- c(2, 4, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\bar{x} = (2 + 4 + 6)/3 = 4$. The standard deviation measures **how far a typical data
+point sits from that mean** — the size of the spread of the numbers *in the data*. In R:
+`mean(x)` is 4; `sd(x)` is 2. Keep the phrase "spread of the data" in mind — halfway
+through this lesson we meet a *different* spread that is easy to confuse with it. Shaky?
+Revisit [mean, variance & covariance](../mean-variance-covariance/lesson.qmd).
+:::
+
+**2.** *(probability-and-odds / baseline)* You roll one fair six-sided die. What is the
+probability of each face, and what is the *average* face value you'd expect over many,
+many rolls?
+
+::: {.callout-note collapse="true" title="Answer"}
+Each face has probability $1/6 \approx 0.167$. The long-run average face is
+$(1+2+3+4+5+6)/6 = 3.5$. That "what you'd get on average over many repeats" idea is the
+engine of this whole lesson — except we'll repeat *whole samples*, not single rolls. See
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd).
+:::
+
+**3.** In R, `sample(1:6, 4, replace = TRUE)` does what, in plain words? And what does
+`replicate(3, mean(rnorm(5)))` hand you back?
+
+::: {.callout-note collapse="true" title="Answer"}
+`sample(1:6, 4, replace = TRUE)` rolls a fair die **4 times** (with replacement, so the
+same face can repeat) and returns those 4 values. `replicate(3, mean(rnorm(5)))` runs
+"draw 5 random normal values, take their mean" **3 separate times** and returns the 3
+means as a vector. `replicate()` is the "do this whole thing over and over" tool at the
+heart of this lesson.
+:::
+
+## A tiny example first
+
+You have a bag of chips numbered **1, 2, 3, 4, 5, 6** — like a fair die. The *whole
+bag* is the **population**: everything you could possibly draw. You don't get to
+average the whole bag; instead you reach in and pull out a **sample** of 4 chips (with
+replacement — you note the number and toss it back). From that sample you compute one
+summary — say, the **mean** of the 4 numbers. That single summary computed from a
+sample is called a **statistic**.
+
+Here is the key move. Draw one sample of 4 and average it. Now *redraw* — a fresh grab
+of 4 chips — and average again. The two averages will almost never be the same number.
+
+Let's do exactly that in R, with a fixed seed so you get these same draws:
+
+```{r toy-example}
+set.seed(42)
+
+# The POPULATION: a bag of chips numbered 1..6 (a fair die).
+# One SAMPLE of 4 chips, drawn with replacement:
+s1 <- sample(1:6, 4, replace = TRUE)
+s1                       # 1 5 1 1
+mean(s1)                 # the STATISTIC (sample mean): 2
+
+# REDRAW: a fresh sample of 4 from the same bag
+s2 <- sample(1:6, 4, replace = TRUE)
+s2                       # 2 4 2 2
+mean(s2)                 # a DIFFERENT statistic: 2.5
+```
+
+Same bag, same recipe ("grab 4, take the mean"), two different answers: **2** and
+**2.5**. Nothing was done wrong — the *sample* changed, so the *statistic* changed.
+That is the entire seed of this lesson: **a statistic is random.** The number you
+report is one roll of a die you didn't know you were rolling.
+
+## Getting a feel for it
+
+**The mental picture: a lottery machine that spits out numbers.** Think of "compute the
+mean of a sample of 4" as a single lottery machine. You press the button (draw a sample,
+average it) and out pops a number. Press it again: a different number. The population —
+the bag of chips — never changes; the machine's *rule* never changes; but each press
+gives a fresh output because the draw is fresh. The population has a mean (for the fair
+bag it's $3.5$) sitting quietly behind the curtain, and the machine's outputs scatter
+*around* that hidden value. Where the analogy strains: a real lottery is designed to be
+unpredictable on purpose, whereas here the randomness is just the unavoidable luck of
+*which* few chips you happened to grab — it shrinks if you grab more chips per press.
+
+**Why we even care that the statistic is random.** Because you almost always get to
+press the button *once*. You have one dataset, you compute one mean, and you have to
+decide how much to trust it. If pressing the button again would give you something wildly
+different, your one number is shaky; if repeated presses cluster tightly, your one number
+is trustworthy. So the useful question is never "what is my number?" — it's "how much
+would my number *jump around* if I could redraw?" That jump-around-size is the whole
+prize, and it has a name: the **standard error**.
+
+**What the wobble feels like, and the one trap baked into it.** With only 4 chips per
+draw, the two means above (2 and 2.5) landed a fair bit below the true 3.5 and differed
+from each other — small samples wobble a lot. Grab 100 chips per draw instead of 4 and
+the means would huddle tightly around 3.5. So the standard error *shrinks as the sample
+grows* — more data, steadier number. Here is the trap to plant a flag on now: the
+standard error is **not** the same as the spread of the data (the `sd(x)` from the
+warm-up). The data's spread barely changes with sample size; the statistic's spread
+collapses as the sample grows. They are two different spreads, and confusing them is the
+most common mistake in this whole area. We'll pin the difference down with numbers below.
+
+## What the notation is going to say
+
+There is only one small formula in this lesson, and it says something you can already
+picture. We are going to build the histogram of "the statistic, over many redraws" —
+that histogram is called the **sampling distribution** of the statistic. Its *center*
+sits at the true population value, and its *standard deviation* is the standard error.
+So the formula will just say: **the standard error is the standard deviation of the
+sampling distribution** — take all those redrawn statistics and compute their `sd()`,
+exactly the `sd()` you already know from the last module, only applied to the *list of
+redrawn numbers* instead of to one sample's raw data.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\bar{x}$ | "ex bar" | the mean of one sample — here, the **statistic** we track (in R: `mean(x)`) | 2 for the first sample of 4 |
+| $s$ | "ess" | the standard deviation of the data *in one sample* (in R: `sd(x)`) | ≈ 19.6 for the big sample below |
+| $\mu$ | "mew" | the true population mean — the hidden value the statistic scatters around | 3.5 for the fair bag; 100 below |
+| $\sigma$ | "sigma (lowercase)" | the true population standard deviation (the spread of the whole population) | 15 for the machine below |
+| $n$ | "en" | the sample size — how many items in one draw (in R: `length(x)`) | 4 chips, or 25 below |
+| $\mathrm{SE}$ | "the standard error" | the standard deviation of the statistic across redraws — the wobble of the number itself | ≈ 3 below |
+| $\bar{x}_1, \bar{x}_2, \dots, \bar{x}_R$ | "ex bar sub one, … up to ex bar sub R" | the statistic from redraw 1, redraw 2, …, redraw $R$ — the list we histogram | 2, 2.5, … |
+| $R$ | "big R" | how many times we redraw the sample in the simulation (in R: `replicate(R, ...)`) | 2000 below |
+
+Greek letters ($\mu$, $\sigma$) are the *true, hidden* population quantities; the Latin
+$\bar{x}$ and $s$ are what we *compute from a sample*. The standard error, $\mathrm{SE}$,
+is a spread — but a spread *of statistics*, not of raw data, which is why it gets its own
+name instead of just being called a standard deviation.
+
+## The formal version
+
+Simulate the redraws, collect the statistic each time, and the **standard error is the
+`sd()` of that collection**:
+
+$$
+\mathrm{SE} \;=\; \mathrm{sd}\big(\bar{x}_1,\; \bar{x}_2,\; \dots,\; \bar{x}_R\big)
+$$
+
+Reading it aloud: "the standard error equals the standard deviation of x-bar-sub-one,
+x-bar-sub-two, up through x-bar-sub-R" — or in everyday words: **"redraw the sample $R$
+times, write down the statistic each time, and take the standard deviation of that whole
+list."** Here $R$ is the number of redraws (make it big — a few thousand — so the
+histogram is smooth).
+
+Let's run it. The population is now a measurement machine whose output is bell-shaped
+with true mean $\mu = 100$ and true spread $\sigma = 15$ (`rnorm(n, 100, 15)` draws $n$
+values from it). We take samples of $n = 25$, and our statistic is the sample mean:
+
+```{r se-simulation}
+set.seed(42)
+pop_mean <- 100   # mu:    the true (hidden) population mean
+pop_sd   <- 15    # sigma: the true population spread
+n        <- 25    # sample size per draw
+
+# Redraw the whole sample 2000 times; each time record the sample MEAN (x-bar).
+# replicate() is the "do this whole thing R times" tool from the warm-up.
+sample_means <- replicate(2000, mean(rnorm(n, mean = pop_mean, sd = pop_sd)))
+
+mean(sample_means)   # ~100: the sampling distribution is CENTERED on the truth
+sd(sample_means)     # ~3.0: THIS is the standard error — the wobble of x-bar
+```
+
+Mapping it onto the numbers:
+
+- Each `rnorm(25, 100, 15)` is one press of the lottery machine — one sample of 25.
+- `mean(...)` inside is the statistic $\bar{x}$ for that press.
+- `replicate(2000, ...)` presses the button 2000 times → the list
+  $\bar{x}_1, \dots, \bar{x}_{2000}$.
+- `sd(sample_means)` is the formula above → $\mathrm{SE} \approx 3.0$.
+
+**The standard error is NOT the spread of the data.** Look at one single sample and its
+own `sd()`:
+
+```{r se-vs-sd}
+set.seed(42)
+one_sample <- rnorm(25, mean = 100, sd = 15)
+mean(one_sample)   # ~102.8 — one sample's mean
+sd(one_sample)     # ~19.6 — the spread of the DATA (near the true sigma = 15)
+```
+
+The data's spread is about **19.6** (it estimates $\sigma = 15$, the population spread).
+The standard error is about **3.0**. These are wildly different numbers describing two
+different things: 19.6 is "how spread out the 25 measurements are"; 3.0 is "how much the
+*average of 25* would jump if I redrew." Same data, two spreads — never swap them.
+
+::: {.callout-tip collapse="true" title="A shortcut for the mean's SE (optional but handy)"}
+For the sample *mean* specifically, you don't always have to simulate: the standard
+error is well approximated by $\mathrm{SE} \approx s / \sqrt{n}$ — the data's standard
+deviation divided by the square root of the sample size. Here $15 / \sqrt{25} = 3$,
+matching the simulation. This is why "more data → steadier number": $\sqrt{n}$ grows, so
+$\mathrm{SE}$ shrinks. It's a shortcut *for the mean only*; the simulate-and-take-`sd()`
+recipe above works for **any** statistic (median, proportion, slope) where no tidy
+formula exists — which is exactly why we lead with it.
+:::
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Histogram of 2000 sample means clustered in a tight bell shape around 100, only a few units wide"
+# explore-1 — LIVE: watch the sampling distribution appear, and see SE is not sd(data).
+# TRY IT: change n (try 4, then 100) and re-run. PREDICT: as n grows, does the histogram
+# get WIDER or NARROWER? Commit to an answer, then run.
+set.seed(42)
+n <- 25
+sample_means <- replicate(2000, mean(rnorm(n, mean = 100, sd = 15)))
+
+hist(sample_means, breaks = 30, col = "steelblue",
+     main = sprintf("SE (sd of these means) = %.2f", sd(sample_means)),
+     xlab = "sample mean (x-bar) over 2000 redraws")
+abline(v = 100, col = "red", lwd = 2)   # the true population mean the means cluster on
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the standard error is the sd of the STATISTIC, not of the data.
+# PREDICT: which will be bigger — the sd of ONE sample, or the sd of the 2000 means?
+# Write down your guess, then run.
+set.seed(42)
+one_sample   <- rnorm(25, mean = 100, sd = 15)
+sample_means <- replicate(2000, mean(rnorm(25, mean = 100, sd = 15)))
+
+c(sd_of_one_sample = sd(one_sample),      # ~19.6 — spread of the DATA
+  standard_error   = sd(sample_means))    # ~3.0  — spread of the STATISTIC
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two histograms: lumpy raw population values, and bell-shaped sample means from that same lumpy population"
+# explore-3 — LIVE: the bell shows up for MEANS even when the population is NOT a bell.
+# The population here is lumpy: mostly 1s with an occasional 10. Yet the sample means
+# pile into a bell. TRY IT: change sample size from 30 to 2, re-run, watch the bell break.
+set.seed(42)
+pop <- c(1, 1, 1, 1, 1, 10)     # a lumpy, non-bell population
+means_30 <- replicate(3000, mean(sample(pop, 30, replace = TRUE)))
+
+op <- par(mfrow = c(1, 2))
+barplot(table(pop), col = "grey", main = "the population (lumpy)")
+hist(means_30, breaks = 30, col = "seagreen",
+     main = "means of 30 (a bell!)", xlab = "sample mean")
+par(op)   # restore the layout so later cells don't inherit mfrow = c(1, 2)
+```
+
+The bell appearing in explore-3 is the famous **Central Limit Theorem**, and we are
+treating it exactly as what it looks like: an **observation**. Redraw a *mean* enough
+times, from almost any population, and the histogram of those means is bell-shaped and
+centered on the true mean — even when the population itself is lumpy, skewed, or spiky.
+We are not proving it here; we are watching it happen. (The bigger the sample size per
+draw, the better the bell — try dropping it to 2 and the bell falls apart.)
+
+## What a confidence interval is trying to do
+
+Here is the payoff the standard error unlocks — **conceptually only**; the recipe for
+computing and *reading* interval endpoints belongs to the hypothesis-testing module.
+
+You press the button once and get, say, $\bar{x} = 102.8$. You know from the sampling
+distribution that your number wobbles by about one $\mathrm{SE} \approx 3$ around the
+hidden truth. So instead of reporting the bare point $102.8$ — which is almost certainly
+a little off — you report a **range around it wide enough that it usually captures the
+true value**. That range is a **confidence interval**: an honest "the truth is somewhere
+around here, give or take the wobble," built by stretching out from your statistic by a
+few standard errors.
+
+The subtle part — and the reason it gets its own module — is what "usually captures"
+means. The *truth* is fixed; the *interval* is what's random (it moves every time you
+redraw). A "95%" interval is one built by a recipe such that, across many redraws, about
+95% of the intervals it produces would cover the true value. We can literally watch that
+happen: build the interval $\bar{x} \pm 2\,\mathrm{SE}$ on each of many redraws and count
+how often it covers the true $\mu = 100$:
+
+```{r ci-coverage}
+set.seed(42)
+covers <- replicate(1000, {
+  s  <- rnorm(25, mean = 100, sd = 15)   # one sample
+  se <- sd(s) / sqrt(25)                 # this sample's estimated SE
+  lo <- mean(s) - 2 * se                 # stretch 2 SEs below the statistic
+  hi <- mean(s) + 2 * se                 # ...and 2 SEs above
+  lo <= 100 && 100 <= hi                 # did THIS interval catch the truth?
+})
+mean(covers)   # ~0.94: about 94% of these intervals covered mu = 100
+```
+
+About **94%** of the intervals caught the truth — close to the 95% the "$\pm 2$ SE"
+recipe aims for. That is *all* a confidence interval is trying to do: catch the hidden
+value most of the time. **How to pick the multiplier, read the endpoints, and phrase the
+claim carefully is the hypothesis-testing module's job** — here you only need the idea
+that the interval is a wobble-sized net cast around your one statistic.
+
+## Common traps
+
+**Trap 1 — "the standard error is the standard deviation of my data."** Tempting, because
+both are spreads computed with `sd()`, and both are around when you have a sample. But
+they measure different things. In the simulation, one sample's `sd()` was about **19.6**
+(the spread of the 25 raw measurements, estimating $\sigma = 15$) while the standard
+error was about **3.0** (the spread of the *mean* across redraws). Swapping them
+overstates your uncertainty by more than sixfold here. Tell them apart by asking "the
+spread of *what*?": `sd(data)` is the spread of the raw numbers; the standard error is
+the spread of the *statistic*.
+
+**Trap 2 — "more data makes the standard deviation shrink."** People see the standard
+error fall as $n$ grows and conclude the data itself gets tighter. It doesn't — the
+population spread $\sigma$ is fixed, so `sd(one_sample)` hovers near it no matter how big
+the sample. What shrinks with $n$ is the **standard error**, the wobble of the
+*average*. Watch both at once:
+
+```{r trap2-numbers}
+set.seed(42)
+sd_small  <- sd(rnorm(10,   100, 15))                       # data spread, n = 10
+sd_big    <- sd(rnorm(1000, 100, 15))                       # data spread, n = 1000
+se_small  <- sd(replicate(2000, mean(rnorm(10,   100, 15))))# SE, n = 10
+se_big    <- sd(replicate(2000, mean(rnorm(1000, 100, 15))))# SE, n = 1000
+c(sd_small = sd_small, sd_big = sd_big)   # both near 15 — the DATA spread barely moves
+c(se_small = se_small, se_big = se_big)   # ~4.7 -> ~0.47 — the SE collapses with n
+```
+
+The data's spread stays near 15 both times; the standard error drops roughly tenfold
+(from ~4.7 to ~0.47) as $n$ goes from 10 to 1000. Only the *statistic's* spread cares
+about sample size.
+
+## Check yourself
+
+**1.** You draw one sample and get `sd(x) = 8` from `n = 16` observations. Using the
+mean's shortcut $\mathrm{SE} \approx s / \sqrt{n}$, what is the approximate standard
+error of the mean — and is that bigger or smaller than 8?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mathrm{SE} \approx 8 / \sqrt{16} = 8 / 4 = 2$. It is **smaller** than 8. That is the
+whole point: the average of 16 numbers wobbles far less (SE ≈ 2) than the individual
+numbers spread (sd = 8). Dividing by $\sqrt{n}$ is what makes the mean steadier than any
+single observation.
+:::
+
+**2.** A statistic other than the mean — say the **median** — is computed from a random
+sample. Does it *also* have a sampling distribution and a standard error? Sketch how
+you'd find its SE in R.
+
+```{webr}
+#| autorun: false
+# check2-starter — edit and Run: histogram the median over many redraws, take its sd
+set.seed(42)
+# your job: replicate( ... median(rnorm(25, 100, 15)) ... ), then sd() of the result
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Yes — **any** statistic computed from a random sample is random, so it has a sampling
+distribution and a standard error. The simulate-and-take-`sd()` recipe doesn't care
+which statistic you use: `sample_medians <- replicate(2000, median(rnorm(25, 100, 15)))`,
+then `sd(sample_medians)` (about **3.7** here). The mean's tidy $s/\sqrt{n}$ shortcut is
+special to the mean; the simulation works for everything.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the standard
+error is and why it is *not* the same as the standard deviation of the data.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The standard error is how much a number you compute from data (like an average) would
+jump around if you kept redrawing fresh samples — it's the spread of the *statistic*, not
+of the raw data. The data's standard deviation says how scattered the individual
+measurements are and barely changes with sample size, while the standard error shrinks as
+the sample grows, because averaging more numbers steadies the result.
+:::
+
+## What you can now do
+
+- **Name the three players** — population, one sample, and a statistic computed from that
+  sample — and explain why the statistic is random (redraw the sample, get a different
+  number).
+- **Simulate re-runs in R** with `replicate()` + `sample()`/`rnorm()`, histogram the
+  statistic, and read that histogram as the **sampling distribution**.
+- **Compute a standard error** as the `sd()` of the redrawn statistics, and explain — with
+  numbers — why it is *not* the standard deviation of the data and why it shrinks as $n$
+  grows.
+- **Recognize the bell** that emerges for sample means (the Central Limit Theorem, as an
+  observation) even from a non-bell population.
+- **State what a confidence interval is trying to do** — cast a wobble-sized net around
+  your statistic that usually captures the hidden true value — without yet reading its
+  endpoints.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) and
+[The formal version](#the-formal-version) before continuing — anything that reports
+uncertainty on a number assumes all of these.
+
+## Where this goes next
+
+The standard error is the raw material for every statement of the form "this estimate,
+give or take." A hypothesis-testing module turns it into p-values and the recipe for
+*reading* confidence-interval endpoints; a resampling module reuses the same
+simulate-and-take-`sd()` engine — the **bootstrap** — to get a standard error when you
+can't even name the population (its sibling, the permutation test, reuses resampling to
+build *null* distributions instead). Ready for more reps? Do the
+[practice problems](practice.qmd).
