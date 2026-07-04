@@ -33,8 +33,9 @@ an instruction to add things up (the big Σ). Once you can read those three flue
 formulas stop being walls and start being recipes. Nearly every method — means,
 variances, regression, likelihoods — is written with them.
 
-**Builds on:** just the baseline (you already use R vectors every day — that's most
-of the battle).
+**Builds on:** the baseline (you already use R vectors every day — that's most of the
+battle), plus [reading math notation](../reading-math-notation/lesson.qmd) for the
+symbols themselves.
 
 ## Warm-up: do you remember?
 

@@ -6,6 +6,10 @@ How every module depends on the others. Blue nodes are reusable
 [foundations](../../foundations/README.md) modules shared across courses; arrows
 mean "needed for".
 
+Like every course, this one assumes the notation grammar in
+[reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) — take it
+first if the symbols aren't yet second nature.
+
 ```{mermaid}
 flowchart TD
     classDef foundation fill:#e8f0fe,stroke:#4285f4
