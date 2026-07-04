@@ -182,7 +182,8 @@ Location rules:
   See `equivalence/README.md` and the `port-library` skill; do not re-derive them here.
 
 **GATE 4 (check per lesson before starting the next)** — the lesson-relevant items
-of `TEACHING.md` §Self-check, i.e.: ☐ All template sections present, in order.
+of `TEACHING.md` §Self-check (at minimum; practice-ramp completeness is checked in
+GATE 5): ☐ All template sections present, in order.
 ☐ A learner-profile reader could follow every step with a pencil.
 ☐ Warm-up retrieves (not re-reads) from ≥2 earlier points where they exist.
 ☐ Every formula preceded by its toy example; every symbol has a table row; every
