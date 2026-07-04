@@ -195,6 +195,8 @@ formula for that probability at all — we'll **simulate** it, generating thousa
 | $\iff$ | "if and only if" | the two sides are the *same fact* — each is true exactly when the other is | CI excludes null $\iff p < 0.05$ |
 | $\bar{d}$ | "d bar" | the mean of the $d$ values (in R: `mean(d)`) | $2$ |
 | $n$ | "en" | how many data points (in R: `length(d)`) | $5$ |
+| $\pm$ | "plus-or-minus" | the value both added and subtracted (give-or-take) | $2 \pm 1.41$ |
+| $\sqrt{n}$ | "the square root of n" | in R: `sqrt(n)` | $\sqrt{5} \approx 2.24$ |
 
 Greek $\alpha$ is the line *we* draw in advance; $p$ is what the data *report back*.
 A hat ($\hat{\theta}$) always means "estimated from data," never a known truth.
@@ -387,12 +389,22 @@ people want, $P(H_0 \mid \text{data})$, is the flipped condition — a different
 **Trap 2 — "fail to reject means the null is proven true."** When $p \geq 0.05$ people
 say "so there's no effect." But failing to reject only means *not enough evidence* — the
 effect might be real and just too small for your sample to catch (a **missed signal**).
-Numeric proof: shrink our study to a weaker effect $d = (1, 0, 2, 0, 1)$ and the
-statistic drops below 2 with $p$ well above 0.05 — yet a genuine effect could still be
-lurking; you simply couldn't see it through the noise with 5 plants. Absence of evidence
-is not evidence of absence.
+Numeric proof: shrink our study to a weaker, noisier effect $d = (1, 0, 2, 0, 1)$ and the
+statistic falls to about 2.1 and the p-value rises to about 0.10 — above the 0.05 line,
+so this time we do **not** reject — yet a genuine effect could still be lurking; you
+simply couldn't see it through the noise with 5 plants. Absence of evidence is not
+evidence of absence.
 
-::: {.callout-tip collapse="true" title="The two ways to be wrong: Type I and Type II (worth knowing)"}
+```{r trap2-weaker}
+# The weaker, noisier effect from Trap 2 — recompute so every number is honest.
+d2 <- c(1, 0, 2, 0, 1)
+n2 <- length(d2)
+tstat2 <- mean(d2) / (sd(d2) / sqrt(n2))
+c(statistic = tstat2,                 # ~2.14 — still near 2, NOT below it
+  p_value   = t.test(d2)$p.value)     # ~0.099 — above 0.05, so we fail to reject
+```
+
+::: {.callout-tip title="The two ways to be wrong: Type I and Type II"}
 Because the data are random, any decision rule sometimes errs, in two flavors:
 
 - **Type I error — a false alarm.** You reject the null when it was actually true. The
