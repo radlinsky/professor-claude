@@ -8,8 +8,10 @@
 # renders and licenses, aimed at the index web. Base R only (no packages), matching the
 # fork-minimum posture.
 #
-# Six checks, each emitting GitHub-Actions file+line annotations and contributing to a
+# Checks, each emitting GitHub-Actions file+line annotations and contributing to a
 # non-zero exit:
+#   0. the two README index files this script relies on exist (else later checks pass
+#      vacuously over zero rows)
 #   1. every foundations/<slug> referenced under courses/ resolves to a real lesson.qmd
 #   2. Used-by <-> syllabus-prereq bidirectionality (reading-math-notation special-cased)
 #   3. every Mermaid :::foundation node label starts with a real foundation slug
@@ -69,6 +71,16 @@ cell_foundation_slugs <- function(cell) {
 found_readme <- read_lines("foundations/README.md")
 found_rows <- Filter(function(x) length(x$cells) >= 5 && grepl("/lesson\\.qmd", x$cells[[1]]),
                      table_rows(found_readme))
+
+## ---- Check 0: the index files this script relies on must exist ---------------------
+# Without this, a deleted/renamed README makes read_lines() return character(0) and the
+# table checks iterate zero rows — passing vacuously instead of catching the breakage.
+cat("\n== Check 0: required index files present ==\n")
+before <- checkpoint()
+for (req in c("foundations/README.md", "courses/README.md")) {
+  if (!file.exists(req)) err(req, "required index file is missing")
+}
+passed(before, "required index files present")
 
 ## ---- Check 1: every foundations/<slug> referenced under courses/ exists -------------
 cat("\n== Check 1: foundation references under courses/ resolve ==\n")

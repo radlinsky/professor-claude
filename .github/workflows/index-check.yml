@@ -21,8 +21,13 @@ on:
       - 'scripts/check-indexes.R'
       - '.github/workflows/index-check.yml'
 
+# Keep only the latest run per ref; drop superseded ones.
+concurrency:
+  group: index-check-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  index-check:
     runs-on: ubuntu-latest
     # Base R only — skip the renv autoloader in .Rprofile (no package restore needed).
     env:
