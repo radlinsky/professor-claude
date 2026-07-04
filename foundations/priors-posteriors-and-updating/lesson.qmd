@@ -65,7 +65,9 @@ p <- 0.8
 
 ::: {.callout-note collapse="true" title="Answer"}
 Independent flips multiply: $0.8 \times 0.8 \times 0.8 = 0.8^3 = 0.512$. In R,
-`0.8^3`. This "multiply the per-flip pieces" move is exactly what a **likelihood** is —
+`0.8^3`. Multiplying probabilities of independent events comes from
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd); this "multiply the
+per-flip pieces" move is also exactly what a **likelihood** is —
 see [likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd).
 :::
 
@@ -188,6 +190,7 @@ the posterior.
 | $P(\theta)$ | "the prior on theta" | the **prior**: belief about $\theta$ *before* the data | 50/50 fair-vs-biased |
 | $P(\text{data} \mid \theta)$ | "the likelihood of the data given theta" | the **likelihood**: how likely the seen data is *if* $\theta$ were true ([likelihood module](../likelihood-and-log-likelihood/lesson.qmd)) | $p^3$ for 3 heads |
 | $P(\theta \mid \text{data})$ | "the posterior on theta given data" | the **posterior**: updated belief about $\theta$ *after* the data | (computed below) |
+| $P(\text{data})$ | "the probability of the data" | the total probability of the data across all $\theta$ — the denominator that rescales the posterior to sum to 1 | $0.0625 + 0.256 = 0.3185$ |
 | $\propto$ | "is proportional to" | equal up to a constant multiplier (rescale later so it sums to 1) | posterior $\propto$ prior × likelihood |
 
 $\theta$ (theta) is just a name for "the thing we don't know and want to pin down." Read
@@ -349,7 +352,7 @@ draws <- rbeta(50000, a, b)                         # 50,000 samples FROM the po
 # Summaries are ordinary data moves on the pile of draws:
 round(c(mean_of_draws = mean(draws),
         lower = quantile(draws, 0.025),
-        upper = quantile(draws, 0.975)), 3)         # ~0.667, ~0.388, ~0.891
+        upper = quantile(draws, 0.975)), 3)         # ~0.666, ~0.388, ~0.891
 ```
 
 The draw-based summaries (≈ 0.667 and $[0.39, 0.89]$) match the exact `qbeta` answers
