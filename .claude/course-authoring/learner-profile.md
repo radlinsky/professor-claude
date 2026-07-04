@@ -1,5 +1,9 @@
 # Learner profile
 
+> **Forking this repo?** This file describes ONE specific learner and ships as an example.
+> Replace everything below with YOUR learner — see README §Make it yours.
+> Every skill and agent teaches to whoever is described here.
+
 The single source of truth about WHO you are teaching. Every authoring decision —
 vocabulary, pacing, what to explain, what to skip — follows from this file.
 (HOW to teach them — the golden order, notation rules, tone, retrieval/practice
