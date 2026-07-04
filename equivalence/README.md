@@ -64,7 +64,7 @@ numeric outputs). Keys in `reference` are what a reimplementation must return.
 ## Run the checks
 
 ```bash
-Rscript equivalence/check.R      # 4/4 targets should pass
+Rscript equivalence/check.R      # all targets should pass — one line per fixture
 ```
 
 CI runs exactly this on every push/PR that touches `equivalence/`
@@ -77,7 +77,8 @@ CI runs exactly this on every push/PR that touches `equivalence/`
    list of outputs.
 2. **Write a generator** in `generate/` that produces the fixture. Pick the strongest
    tier the source supports, using the recipe for its language below. Emit
-   `fixtures/<slug>.json` with `meta` / `inputs` / `reference`.
+   `fixtures/<slug>.json` with `meta` / `inputs` / `reference`. Update the examples above
+   if your target demonstrates a new tier.
 3. **Wire it into `check.R`** — add a `targets` entry mapping the fixture to the
    reimplementation call.
 4. **Regenerate and check**: `bash equivalence/generate/regenerate-all.sh` then
