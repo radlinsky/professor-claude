@@ -9,6 +9,9 @@ project:
     - foundations/distance-similarity-and-geometry/lesson.qmd
     - foundations/distance-similarity-and-geometry/practice.qmd
     - foundations/distance-similarity-and-geometry/resources.md
+    - foundations/distributions-and-densities/lesson.qmd
+    - foundations/distributions-and-densities/practice.qmd
+    - foundations/distributions-and-densities/resources.md
     - foundations/exponentials-and-logs/lesson.qmd
     - foundations/exponentials-and-logs/practice.qmd
     - foundations/exponentials-and-logs/resources.md
@@ -94,6 +97,14 @@ website:
                 href: foundations/distance-similarity-and-geometry/practice.qmd
               - text: "Resources"
                 href: foundations/distance-similarity-and-geometry/resources.md
+          - section: "Distributions & densities"
+            contents:
+              - text: "Lesson"
+                href: foundations/distributions-and-densities/lesson.qmd
+              - text: "Practice"
+                href: foundations/distributions-and-densities/practice.qmd
+              - text: "Resources"
+                href: foundations/distributions-and-densities/resources.md
           - section: "Exponentials and logs"
             contents:
               - text: "Lesson"

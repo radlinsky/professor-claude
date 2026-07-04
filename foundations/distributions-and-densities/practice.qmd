@@ -1,0 +1,211 @@
+---
+title: "Practice: Distributions and densities"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Six new commute times (minutes): $19, 21, 20, 22, 20, 18$. As in the lesson: count how
+many times each value shows up (the frequencies), turn those into proportions, and
+confirm the proportions sum to 1. What is the mean, and which value is the most common?
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+y <- c(19, 21, 20, 22, 20, 18)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Frequencies: 18 once, 19 once, **20 twice** (the peak), 21 once, 22 once. As
+proportions that's $1/6 \approx 0.167$ for each single, and $2/6 \approx 0.333$ for 20;
+they add to $0.167\times4 + 0.333 \approx 1$. The mean is $(19+21+20+22+20+18)/6 = 120/6 =
+\mathbf{20}$, and 20 is the most common value.
+
+```{r p1-answer}
+y <- c(19, 21, 20, 22, 20, 18)
+table(y)                     # 20 appears twice; the rest once
+table(y) / length(y)         # proportions
+sum(table(y) / length(y))    # 1 — always
+mean(y)                      # 20
+```
+:::
+
+## Problem 2 — fill in the missing step (slice probability)
+
+Here is a worked computation of $P(45 < X < 55)$ for a normal curve with center
+$\mu = 50$ and spread $\sigma = 5$ — but the **core step is blanked**. Fill in ONLY the
+blanked line.
+
+> To get the probability of a *slice*, you take the area to the left of the upper edge
+> and subtract the area to the left of the lower edge.
+> Area left of 55 is `pnorm(55, 50, 5)` $= 0.841$; area left of 45 is
+> `pnorm(45, 50, 5)` $= 0.159$.
+> **`<your step here>`** — combine those two into the slice probability.
+> So $P(45 < X < 55) = \underline{\phantom{00000}}$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your step
+mu <- 50; sigma <- 5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the subtraction — a slice's area is (area left of the top) minus
+(area left of the bottom):
+
+$$
+P(45 < X < 55) = \texttt{pnorm(55, 50, 5)} - \texttt{pnorm(45, 50, 5)} = 0.841 - 0.159
+= 0.683.
+$$
+
+That is why you never read one `pnorm` as a slice probability — a single `pnorm` is
+everything to the *left*, so you must subtract off the part below the lower edge.
+
+```{r p2-answer}
+mu <- 50; sigma <- 5
+pnorm(55, mu, sigma) - pnorm(45, mu, sigma)   # 0.6827 — the slice probability
+```
+(This is the 45-to-55 window: one spread either side of the center, so ~68% — the
+familiar "about two-thirds within one standard deviation.")
+:::
+
+## Problem 3 — the four questions on one curve
+
+A neutral measurement follows a normal curve with center $\mu = 100$ and spread
+$\sigma = 15$. Answer each with the *right* member of the d/p/q/r family, then check in
+R. (a) What is the curve's HEIGHT at 100? (b) What is $P(85 < X < 115)$? (c) What value
+has 90% of the area to its left?
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: pick d / p / q for each part
+mu <- 100; sigma <- 15
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+- **(a) Height** → `dnorm`: `dnorm(100, 100, 15)` $\approx 0.0266$. This is a density
+  (per unit width), not a probability.
+- **(b) Slice area** → two `pnorm`s subtracted:
+  `pnorm(115, 100, 15) - pnorm(85, 100, 15)` $\approx 0.683$ (one spread either side of
+  center — the ~68% again).
+- **(c) The value at a given left-area** → `qnorm`: `qnorm(0.9, 100, 15)` $\approx
+  119.2$.
+
+```{r p3-answer}
+mu <- 100; sigma <- 15
+dnorm(100, mu, sigma)                              # (a) 0.0266 — a HEIGHT
+pnorm(115, mu, sigma) - pnorm(85, mu, sigma)       # (b) 0.6827 — an AREA
+qnorm(0.9, mu, sigma)                              # (c) 119.2 — a VALUE
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants the probability that the measurement in Problem 3 is *exactly* 100.
+Their reasoning contains **exactly one mistake** — find it, explain why it's wrong, and
+say what the right answer is.
+
+> "The height of the curve at 100 is `dnorm(100, 100, 15)` = 0.0266. Height is
+> probability, so the probability of getting exactly 100 is about 0.0266 — roughly a
+> 2.7% chance."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to see the height vs. an actual slice probability
+mu <- 100; sigma <- 15
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is **"height is probability."** For a smooth density curve the height
+`dnorm(100, 100, 15)` = 0.0266 is a **density** (probability per unit width), not a
+probability. The probability of *exactly* 100 is 0 — a single point has zero width, so
+zero area. Probability only exists over a *range*: e.g. the chance of landing within a
+1-unit slice around 100 is `pnorm(100.5, 100, 15) - pnorm(99.5, 100, 15)` (an area),
+not the bare height.
+
+```{r p4-answer}
+mu <- 100; sigma <- 15
+dnorm(100, mu, sigma)                                  # 0.0266 — a density, NOT a prob
+pnorm(100.5, mu, sigma) - pnorm(99.5, mu, sigma)       # ~0.0266 — a real slice prob
+```
+The two numbers happen to be close because the slice is ~1 unit wide (area ≈ height ×
+width), but they are different *kinds* of thing: the first is a height, the second an
+area.
+:::
+
+## Problem 5 — mixing it with the mean & spread *(uses [mean-variance-covariance](../mean-variance-covariance/lesson.qmd)'s mean and sd)*
+
+Draw 500 random values from the Problem 3 curve ($\mu = 100$, $\sigma = 15$) with
+`rnorm`, then compute the sample `mean` and `sd` of those draws.
+
+**PREDICT** first: the curve was *built* with center 100 and spread 15 — what do you
+expect the draws' mean and sd to be, roughly? Write your guess, then run.
+
+```{webr}
+#| autorun: false
+# p5-starter — set the seed so your numbers match the answer, then draw
+set.seed(42)
+d <- rnorm(500, 100, 15)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`rnorm` draws from the curve, so the sample `mean` and `sd` — the very quantities from
+[mean-variance-covariance](../mean-variance-covariance/lesson.qmd) — should land *near*
+the curve's two knobs (100 and 15), but not exactly, because 500 random draws wobble
+around the true values.
+
+```{r p5-answer}
+set.seed(42)
+d <- rnorm(500, 100, 15)
+mean(d)     # ~99.5 — close to the curve's center mu = 100
+sd(d)       # ~14.6 — close to the curve's spread sigma = 15
+```
+The knobs $\mu$ and $\sigma$ that *define* the curve are exactly what the data's `mean`
+and `sd` *estimate*. (How far off a 500-draw estimate tends to be is the
+sampling-distribution / standard-error story — a separate module.)
+:::
+
+## Problem 6 — a gentle cliffhanger (turning the curve around)
+
+You've been asking "given the curve, how likely is this data?" — feeding a value to
+`dnorm`/`pnorm`. Now flip the question. Suppose you saw a single measurement of 108 but
+you're **unsure of the curve's center**: was it centered at $\mu = 100$ or at $\mu =
+110$? A natural move is to ask which center makes the observed 108 *least surprising* —
+i.e. gives it the higher density. Compute `dnorm(108, 100, 15)` and `dnorm(108, 110,
+15)` and see which is larger. (You can't fully name what you're doing yet — that's the
+next idea.)
+
+```{webr}
+#| autorun: false
+# p6-starter — same value 108, two candidate centers
+value <- 108
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p6-answer}
+dnorm(108, 100, 15)   # density of 108 if the curve is centered at 100
+dnorm(108, 110, 15)   # density of 108 if the curve is centered at 110
+```
+The center 110 gives 108 the higher density (108 is nearer that peak), so 110 makes the
+observation *less surprising*. You just used the density to **score how well a candidate
+curve explains an observed value** — that's the seed of **likelihood**, which the
+likelihood module builds out fully. Here it's only a cliffhanger: we flipped `dnorm`
+from "curve → height of a value" into "which curve best fits this value?"
+:::
