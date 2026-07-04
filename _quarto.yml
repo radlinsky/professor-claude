@@ -108,7 +108,9 @@ website:
 # `format: html`, which would drop that page out of the shared live-html theme.
 format:
   live-html:
-    theme: cosmo
+    theme: [cosmo, custom.scss]
+    grid:
+      body-width: 900px
     toc: true
     code-fold: false
     code-tools: true
