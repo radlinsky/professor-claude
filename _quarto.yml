@@ -69,36 +69,48 @@ website:
                 href: foundations/reading-math-notation/lesson.qmd
               - text: "Practice"
                 href: foundations/reading-math-notation/practice.qmd
+              - text: "Resources"
+                href: foundations/reading-math-notation/resources.md
           - section: "Vectors, subscripts & Σ"
             contents:
               - text: "Lesson"
                 href: foundations/vectors-and-summation/lesson.qmd
               - text: "Practice"
                 href: foundations/vectors-and-summation/practice.qmd
+              - text: "Resources"
+                href: foundations/vectors-and-summation/resources.md
           - section: "The mean, variance & covariance"
             contents:
               - text: "Lesson"
                 href: foundations/mean-variance-covariance/lesson.qmd
               - text: "Practice"
                 href: foundations/mean-variance-covariance/practice.qmd
+              - text: "Resources"
+                href: foundations/mean-variance-covariance/resources.md
           - section: "The derivative as a slope"
             contents:
               - text: "Lesson"
                 href: foundations/derivative-as-slope/lesson.qmd
               - text: "Practice"
                 href: foundations/derivative-as-slope/practice.qmd
+              - text: "Resources"
+                href: foundations/derivative-as-slope/resources.md
           - section: "Exponentials and logs"
             contents:
               - text: "Lesson"
                 href: foundations/exponentials-and-logs/lesson.qmd
               - text: "Practice"
                 href: foundations/exponentials-and-logs/practice.qmd
+              - text: "Resources"
+                href: foundations/exponentials-and-logs/resources.md
           - section: "Probability, odds & log-odds"
             contents:
               - text: "Lesson"
                 href: foundations/probability-and-odds/lesson.qmd
               - text: "Practice"
                 href: foundations/probability-and-odds/practice.qmd
+              - text: "Resources"
+                href: foundations/probability-and-odds/resources.md
       - section: "Simple Linear Regression"
         contents:
           - courses/simple-linear-regression/syllabus.md
@@ -127,6 +139,8 @@ website:
                 href: courses/simple-linear-regression/modules/04-capstone-reading-a-real-regression/lesson.qmd
               - text: "Practice"
                 href: courses/simple-linear-regression/modules/04-capstone-reading-a-real-regression/practice.qmd
+          - text: "Resources"
+            href: courses/simple-linear-regression/resources.md
       - section: "Gradient Descent, from Scratch"
         contents:
           - courses/gradient-descent/syllabus.md
@@ -155,6 +169,8 @@ website:
                 href: courses/gradient-descent/modules/04-capstone-decode-the-optimizer/lesson.qmd
               - text: "Practice"
                 href: courses/gradient-descent/modules/04-capstone-decode-the-optimizer/practice.qmd
+          - text: "Resources"
+            href: courses/gradient-descent/resources.md
       - section: "Logistic Regression"
         contents:
           - courses/logistic-regression/syllabus.md
@@ -183,6 +199,8 @@ website:
                 href: courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/lesson.qmd
               - text: "Practice"
                 href: courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/practice.qmd
+          - text: "Resources"
+            href: courses/logistic-regression/resources.md
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that
 # lessons can host runnable in-browser WebR chunks with a single, uniform theme.
