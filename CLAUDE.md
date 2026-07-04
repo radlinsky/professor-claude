@@ -7,12 +7,11 @@ real thing.
 
 ## The two documents that govern everything
 
-- **`TEACHING.md` (repo root)** — the teaching contract: the golden order
-  (warm-up retrieval → toy example → intuition → notation → pronunciation table →
-  formal version → explore → traps → check yourself → recap), plus the rules for
-  notation, anchors, derivations, retrieval/interleaving, practice ramps,
-  misconceptions, depth control, revision, and the self-check. **ALL teaching
-  material follows TEACHING.md.** Do not restate its rules elsewhere — link to it.
+- **`TEACHING.md` (repo root)** — the teaching contract: the golden order — the
+  11-step lesson spine defined in TEACHING.md — plus the rules for notation,
+  anchors, derivations, retrieval/interleaving, practice ramps, misconceptions,
+  depth control, revision, and the self-check. **ALL teaching material follows
+  TEACHING.md.** Do not restate its rules elsewhere — link to it.
 - **`.claude/course-authoring/learner-profile.md`** — WHO you are teaching: a
   strong R programmer whose math stops at rusty AP Calculus A/B + one long-ago
   intro stats course, who cannot comfortably read formal notation. Never assume
@@ -37,12 +36,19 @@ professor_claude/
 │   │   └── course-auditor.md          # subagent: READ-ONLY quality review of material
 │   ├── course-authoring/              # SHARED authoring assets (learner profile,
 │   │                                  #   templates, notation/style, problem-authoring
-│   │                                  #   contract, review checklist) — used by ALL
-│   │                                  #   skills/agents; no skill owns it
+│   │                                  #   contract, review checklist, resource-curation,
+│   │                                  #   source-licensing, and more — see the directory)
+│   │                                  #   — used by ALL skills/agents; no skill owns it
 │   └── skills/
 │       ├── create-course/SKILL.md     # whole-course generation procedure (8 phases)
 │       ├── update-course/SKILL.md     # safely modify/extend EXISTING material
-│       └── add-problems/SKILL.md      # add problems to an EXISTING module
+│       ├── add-problems/SKILL.md      # add problems to an EXISTING module
+│       └── port-library/SKILL.md      # rebuild a real library/paper into a course
+├── equivalence/               # fixture harness proving port-library rebuilds match the
+│                              #   original (fixtures/, generate/, reimplementations/,
+│                              #   harness.R, check.R) — see equivalence/README.md
+├── .github/workflows/         # CI: equivalence.yml, license-check.yml, render.yml
+├── docs/                      # decision records (e.g., webr-decision.md)
 ├── foundations/               # SHARED, recyclable prerequisite modules
 │   ├── README.md              # index: module, concepts, used-by, learner status
 │   └── <module-slug>/{lesson.qmd, practice.qmd, resources.md}
