@@ -66,3 +66,6 @@ equivalence/env/
 
 # Keep your own private source materials/papers out of the repo — add their paths here
 # (the shipped logistic-regression example under source-materials/ stays tracked).
+
+# transient scheduler lock — never commit
+.claude/scheduled_tasks.lock
