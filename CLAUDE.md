@@ -98,9 +98,15 @@ overwrite them.
 - **Slugs:** kebab-case; course modules zero-padded in learning order
   (`modules/01-least-squares-idea/`); foundation modules NOT numbered. Keep slugs
   stable once created — external repos may reference them.
-- **Registration:** every new `.qmd`/`.md` page goes into the root `_quarto.yml`
-  (render list + sidebar) — no per-course `_quarto.yml`. New courses/modules get
-  rows in `courses/README.md` / `foundations/README.md`.
+- **Registration:** no per-course `_quarto.yml`. Two paths:
+  - **Course pages:** hand-register in the root `_quarto.yml` (render list +
+    sidebar) and add a row in `courses/README.md`.
+  - **Foundation pages:** create `foundations/<slug>/meta.dcf` and run
+    `Rscript scripts/gen-indexes.R` — it regenerates the sentinel-marked blocks in
+    `_quarto.yml` and `foundations/README.md`. NEVER hand-edit inside those sentinel
+    blocks; doing so trips `gen-indexes.R --check` in index-check CI.
+
+  See `.claude/course-authoring/course-structure.md` §Registering for details.
 - **R packages:** the setup chunk in each template auto-installs into renv. If you
   added a package, run `Rscript -e 'renv::snapshot()'` before finishing so
   `renv.lock` stays true.
