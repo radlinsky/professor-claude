@@ -123,8 +123,13 @@ md_cell <- function(v) {
   v <- gsub("[[:space:]]+", " ", trimws(v))
   gsub("|", "\\|", v, fixed = TRUE)
 }
-# escape double quotes for a double-quoted YAML scalar (the sidebar section title)
-yaml_dq <- function(v) gsub('"', '\\"', gsub("[[:space:]]+", " ", trimws(v)), fixed = TRUE)
+# escape a value for a double-quoted YAML scalar (the sidebar section title): backslash
+# first (it's YAML's escape char), then double quotes
+yaml_dq <- function(v) {
+  v <- gsub("[[:space:]]+", " ", trimws(v))
+  v <- gsub("\\", "\\\\", v, fixed = TRUE)
+  gsub('"', '\\"', v, fixed = TRUE)
+}
 
 # ---- build the three generated bodies (sorted by slug) -------------------------------
 table_body <- vapply(slugs, function(s) {
