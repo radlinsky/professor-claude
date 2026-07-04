@@ -26,9 +26,10 @@ jobs:
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
         with:
-          r-version: 'release'
+          r-version: '4.5.2'  # match render.yml / renv.lock
           use-public-rspm: true
 
+      # jsonlite is intentionally left floating (stable API, exercised by the check itself).
       - name: Install jsonlite
         run: Rscript -e 'install.packages("jsonlite")'
 

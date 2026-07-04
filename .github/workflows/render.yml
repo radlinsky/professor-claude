@@ -27,6 +27,7 @@ jobs:
       # rendered pages, so it can't catch a target that was never rendered — this
       # guards the root cause (page exists, not registered). Runs before the slow
       # render so it fails fast.
+      # Same rule as scripts/check-indexes.R final check — keep in sync.
       - name: Check every page is registered in _quarto.yml
         run: |
           # README.md files are GitHub-facing repo indexes, not rendered site pages.
@@ -53,6 +54,22 @@ jobs:
 
       - name: Render site
         run: quarto render
+
+      - name: Check renv.lock covers everything the render installed
+        run: |
+          Rscript -e '
+            lock <- names(renv::lockfile_read()$Packages)
+            lib  <- rownames(installed.packages(lib.loc = renv::paths$library()))
+            extra <- setdiff(lib, lock)
+            if (length(extra)) {
+              cat("Packages installed during render but missing from renv.lock:\n")
+              cat(paste0("  - ", extra, collapse = "\n"), "\n")
+              cat("Run: Rscript -e \"renv::snapshot()\" and commit renv.lock\n")
+              quit(status = 1)
+            }'
+
+      - name: Check autorun {webr} cells execute in native R
+        run: Rscript scripts/check-webr-cells.R
 
       # Fail on dangling internal links in the rendered site (e.g. a renamed or
       # moved lesson leaving a broken cross-link). --offline checks only local
