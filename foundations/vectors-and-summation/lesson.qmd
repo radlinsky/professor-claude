@@ -38,9 +38,9 @@ of the battle).
 
 ## Warm-up: do you remember?
 
-This is the entry module, so there's nothing earlier to recall — just three baseline
-reflexes the notation leans on. You already know these from R; produce each before
-opening it.
+You've just met these symbols in [reading math notation](../reading-math-notation/lesson.qmd);
+here we put the big Σ to work. First, three baseline reflexes the notation leans on —
+you already know them from R. Produce each before opening it.
 
 **1.** For `x <- c(2, 4, 6)`, what does `x[3]` give, and what does `length(x)` give?
 

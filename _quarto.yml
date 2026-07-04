@@ -2,6 +2,8 @@ project:
   type: website
   output-dir: _site
   render:
+    - foundations/reading-math-notation/lesson.qmd
+    - foundations/reading-math-notation/practice.qmd
     - foundations/vectors-and-summation/lesson.qmd
     - foundations/vectors-and-summation/practice.qmd
     - foundations/mean-variance-covariance/lesson.qmd
@@ -52,6 +54,8 @@ website:
     contents:
       - section: "Foundations"
         contents:
+          - foundations/reading-math-notation/lesson.qmd
+          - foundations/reading-math-notation/practice.qmd
           - foundations/vectors-and-summation/lesson.qmd
           - foundations/vectors-and-summation/practice.qmd
           - foundations/mean-variance-covariance/lesson.qmd
