@@ -18,6 +18,9 @@ project:
     - foundations/exponentials-and-logs/lesson.qmd
     - foundations/exponentials-and-logs/practice.qmd
     - foundations/exponentials-and-logs/resources.md
+    - foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd
+    - foundations/hypothesis-tests-p-values-and-confidence-intervals/practice.qmd
+    - foundations/hypothesis-tests-p-values-and-confidence-intervals/resources.md
     - foundations/likelihood-and-log-likelihood/lesson.qmd
     - foundations/likelihood-and-log-likelihood/practice.qmd
     - foundations/likelihood-and-log-likelihood/resources.md
@@ -136,6 +139,14 @@ website:
                 href: foundations/exponentials-and-logs/practice.qmd
               - text: "Resources"
                 href: foundations/exponentials-and-logs/resources.md
+          - section: "Hypothesis tests, p-values & CIs"
+            contents:
+              - text: "Lesson"
+                href: foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd
+              - text: "Practice"
+                href: foundations/hypothesis-tests-p-values-and-confidence-intervals/practice.qmd
+              - text: "Resources"
+                href: foundations/hypothesis-tests-p-values-and-confidence-intervals/resources.md
           - section: "Likelihood & log-likelihood"
             contents:
               - text: "Lesson"
