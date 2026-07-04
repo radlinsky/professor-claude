@@ -217,8 +217,8 @@ is precisely the matrix-times-vector `X %*% beta` from
 | $\beta_j$ | "beta sub jay" | the weight multiplying column $j$ (in R: an entry of `beta`); column 1 is the all-1s column, so $\beta_1$ is the base | $\beta_1 = 10$ (base), $\beta_2 = 2$ (per hour) |
 | $\boldsymbol{\beta}$ (bold) | "beta" / "the weight vector" | the whole column of weights, one per matrix column (in R: `beta`) | $(10, 2, 5, -3)$ |
 | $\beta_0$ | "beta zero" | the name papers give the base term when they pull it out of the matrix — the same number as $\beta_1$ here | $10$ |
-| $\sum_{j=1}^{p}$ | "the sum from j equals 1 to p" | add the term to its right once per column $j$ — a dot product ([vectors & summation](../vectors-and-summation/lesson.qmd)) | $\sum_j X_{1j}\beta_j = 18$ |
 | $p$ | "pee" | the number of columns (variables) in the data matrix | 4 |
+| $\sum_{j=1}^{p}$ | "the sum from j equals 1 to p" | add the term to its right once per column $j$ — a dot product ([vectors & summation](../vectors-and-summation/lesson.qmd)) | $\sum_j X_{1j}\beta_j = 18$ |
 | $\mathbf{X}\boldsymbol{\beta}$ | "X beta" | the whole matrix times the whole weight vector: one linear combination per row (in R: `X %*% beta`) | $(18, 19, 19, 21)$ |
 
 Bold lowercase ($\mathbf{x}_i$) is one row read as a vector; bold capital
