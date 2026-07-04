@@ -541,7 +541,7 @@ counts — on one common ruler.
 - **Explain pooling / borrowing strength** in plain words: blend a small, noisy group's
   estimate toward the overall average, weighted by how much you trust the group.
 
-If any of these feels shaky, revisit [A tiny example first: standardizing](#a-tiny-example-first-standardizing)
+If any of these feels shaky, revisit [A tiny example first: standardizing](#a-tiny-example-first-standardizing-the-z-score)
 and [A second example: the covariance matrix](#a-second-example-the-covariance-matrix)
 before continuing — later multi-column methods assume all of these.
 
