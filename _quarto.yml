@@ -30,6 +30,9 @@ project:
     - foundations/mean-variance-covariance/lesson.qmd
     - foundations/mean-variance-covariance/practice.qmd
     - foundations/mean-variance-covariance/resources.md
+    - foundations/paper-and-proof-conventions/lesson.qmd
+    - foundations/paper-and-proof-conventions/practice.qmd
+    - foundations/paper-and-proof-conventions/resources.md
     - foundations/probability-and-odds/lesson.qmd
     - foundations/probability-and-odds/practice.qmd
     - foundations/probability-and-odds/resources.md
@@ -162,6 +165,14 @@ website:
                 href: foundations/mean-variance-covariance/practice.qmd
               - text: "Resources"
                 href: foundations/mean-variance-covariance/resources.md
+          - section: "Paper & proof conventions"
+            contents:
+              - text: "Lesson"
+                href: foundations/paper-and-proof-conventions/lesson.qmd
+              - text: "Practice"
+                href: foundations/paper-and-proof-conventions/practice.qmd
+              - text: "Resources"
+                href: foundations/paper-and-proof-conventions/resources.md
           - section: "Probability, odds & log-odds"
             contents:
               - text: "Lesson"
