@@ -131,7 +131,7 @@ region between the `# >>> generated: foundation sidebar` markers is machine-owne
 The per-module metadata file is `read.dcf` format — one leading space indents any
 continuation line of a long `Concepts:` value:
 
-```
+```text
 ShortName: Matrices & linear transforms
 Concepts: A matrix as a grid/stack of rows, matrix × vector as one dot product per
  row, the transpose and why it appears, and the inverse as "undo"

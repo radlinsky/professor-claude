@@ -116,11 +116,21 @@ status_for <- function(s) {
   if (is.null(v) || !nzchar(v)) "not started" else v
 }
 
+# ---- sanitizers so meta.dcf values can't corrupt the generated syntax ----------------
+# read.dcf joins continuation lines with "\n", so collapse whitespace runs to one space;
+# escape pipes so a "|" in a value can't split the Markdown table row.
+md_cell <- function(v) {
+  v <- gsub("[[:space:]]+", " ", trimws(v))
+  gsub("|", "\\|", v, fixed = TRUE)
+}
+# escape double quotes for a double-quoted YAML scalar (the sidebar section title)
+yaml_dq <- function(v) gsub('"', '\\"', gsub("[[:space:]]+", " ", trimws(v)), fixed = TRUE)
+
 # ---- build the three generated bodies (sorted by slug) -------------------------------
 table_body <- vapply(slugs, function(s) {
   m <- meta[[s]]
   sprintf("| [%s](%s/lesson.qmd) | %s | %s | %s | %s |",
-          s, s, m$Concepts, m$BuildsOn, m$UsedBy, status_for(s))
+          s, s, md_cell(m$Concepts), md_cell(m$BuildsOn), md_cell(m$UsedBy), status_for(s))
 }, character(1))
 
 render_body <- unlist(lapply(slugs, function(s) c(
@@ -130,7 +140,7 @@ render_body <- unlist(lapply(slugs, function(s) c(
 )), use.names = FALSE)
 
 sidebar_body <- unlist(lapply(slugs, function(s) c(
-  sprintf('          - section: "%s"', meta[[s]]$ShortName),
+  sprintf('          - section: "%s"', yaml_dq(meta[[s]]$ShortName)),
   "            contents:",
   '              - text: "Lesson"',
   sprintf("                href: foundations/%s/lesson.qmd", s),
