@@ -6,7 +6,7 @@ name: render
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
 
 # Deploying to GitHub Pages needs write + OIDC; PRs only render (read-only).
@@ -15,12 +15,15 @@ permissions:
   pages: write
   id-token: write
 
+# Serialize Pages deploys so rapid pushes to main don't race; never cancel an
+# in-flight publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   render:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -51,8 +54,8 @@ jobs:
           args: --offline --include-fragments './_site/**/*.html'
           fail: true
 
-      # Publish _site/ to GitHub Pages — push-to-main only. PRs (incl. from
-      # forks, whose token can't deploy) render + link-check above, then stop.
+      # Prep the Pages artifact — push-to-main only. PRs (incl. from forks, whose
+      # token can't deploy) render + link-check above, then stop.
       - name: Configure Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5
@@ -63,7 +66,17 @@ jobs:
         with:
           path: _site
 
+  # Separate job so ONLY the deploy carries the github-pages environment. Its
+  # branch policy is evaluated at job start (before steps), which is why binding
+  # it to the render job would block every PR — see PR #4.
+  deploy:
+    needs: render
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/deploy-pages@v4
