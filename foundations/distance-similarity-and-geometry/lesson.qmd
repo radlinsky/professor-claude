@@ -1,0 +1,517 @@
+---
+title: "Distance, similarity & the geometry of data"
+subtitle: "How far apart two points are, how long a vector is, and what 'closer = more alike' really means — the picture behind dist(), norms, and projection"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Almost every method that groups data, finds neighbours, or asks "are these two things
+alike?" rests on one idea: **turn each thing into a point, then measure how far apart
+the points are.** Close points are similar; far points are different. This lesson gives
+you that geometry — the straight-line **distance** between two points, the **length**
+(norm) of a single vector, why the *scale* of your columns changes every distance, how
+a **projection** measures how much of one vector points along another, what
+**orthogonal** ("at right angles") means, and how to *see* many-columned data in a flat
+picture. None of it is new arithmetic: it is all the sum-of-products and squaring you
+already own, given a geometric picture.
+
+This lesson stays with concrete, hand-checkable points (two locations, a person's
+height and weight) and base R — mostly `dist()`, `sqrt()`, and `sum()`. We will *not*
+touch eigenvalues, SVD, or PCA (that machinery is course-level), we will *not* re-teach
+the dot product (that lives in the module below — we only reuse it), and we will *not*
+teach standardizing/scaling data (that is the variance-structure material — we only
+point at *why* it matters).
+
+**Builds on:** [vectors & summation](../vectors-and-summation/lesson.qmd) — a distance
+is built from a **dot product**, which is a sum of products ($\sum_i a_i b_i$); and
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd) — data
+with many columns is a matrix, one row per point.
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each answer from memory, then check.
+
+**1.** For `a <- c(3, 4)` and `b <- c(1, 0)`, what single number is the **dot product**
+of `a` and `b`? Say the rule in words, then give the value.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+a <- c(3, 4)
+b <- c(1, 0)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"Multiply the paired entries and add them up": $3\times1 + 4\times0 = 3 + 0 = 3$. In R
+that's `sum(a * b)`. This sum-of-products is the engine behind every distance below.
+Shaky? Revisit [vectors & summation](../vectors-and-summation/lesson.qmd).
+:::
+
+**2.** Read this aloud and give its value for `v <- c(3, 4)`:
+$\sqrt{\sum_{i=1}^{n} v_i^2}$. (Square each entry, add, take the square root.)
+
+```{webr}
+#| autorun: false
+# warmup2-starter — edit and Run to check
+v <- c(3, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"The square root of the sum, from i equals 1 to n, of v-sub-i squared" — square each:
+$3^2 = 9$, $4^2 = 16$; add: $25$; square-root: $\sqrt{25} = 5$. In R:
+`sqrt(sum(v^2))`. Hold onto that 5 — it comes straight back as this vector's *length*.
+See [vectors & summation](../vectors-and-summation/lesson.qmd).
+:::
+
+**3.** A data table `M` has one **row per person** and columns for height and weight. In
+R, how do you pull out **person 2's whole row** (both numbers at once)?
+
+::: {.callout-note collapse="true" title="Answer"}
+`M[2, ]` — the row index with the column slot left blank grabs the entire row. Reading
+data as *rows = points, columns = coordinates* is the whole setup here; that
+row-and-column addressing is
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd) territory.
+:::
+
+## A tiny example first
+
+Two towns sit on a map. **Town A** is at coordinates $(1, 2)$; **Town B** is at
+$(4, 6)$ (think "1 east, 2 north" and "4 east, 6 north"). How far apart are they *in a
+straight line*?
+
+Walk it in two steps, the way you'd read a map grid:
+
+- **East–west gap:** $4 - 1 = 3$.
+- **North–south gap:** $6 - 2 = 4$.
+
+Those two gaps are the two legs of a right triangle, and the straight-line distance is
+the *hypotenuse* — the slanted side. Pythagoras says the hypotenuse is the square root
+of the sum of the squared legs: square each gap ($3^2 = 9$, $4^2 = 16$), add them
+($9 + 16 = 25$), take the square root ($\sqrt{25} = \mathbf{5}$). Town A and Town B are
+**5 units apart**.
+
+That "square the gaps, add, square-root" recipe is the **Euclidean distance** — the
+ordinary as-the-crow-flies distance. Two other distances get one sentence each later;
+this is the default one.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The two towns, as points. rbind stacks them: one ROW per point.
+A <- c(1, 2)
+B <- c(4, 6)
+
+# The per-coordinate gaps
+gaps <- B - A          # 3 4  (east-west gap, north-south gap)
+gaps
+
+# Euclidean distance, straight from Pythagoras: square, add, square-root
+sqrt(sum(gaps^2))      # 5
+
+# R's built-in: dist() on the stacked points gives the same 5
+dist(rbind(A, B))      # 5
+```
+
+## Getting a feel for it
+
+**A distance is a ruler laid between two points.** The mental picture: pin Town A and
+Town B on a map, stretch a string taut between them, and read its length. That length
+is the Euclidean distance. Because the two towns differ by 3 east and 4 north, the
+string is the slanted side of a 3-by-4 right triangle — and Pythagoras hands you its
+length without you ever measuring the slant directly. (Where the picture strains: with
+only two coordinates it is a literal map, but the *exact same recipe* works with 3, 10,
+or 500 coordinates — you just can't draw the triangle any more. The arithmetic never
+cares how many dimensions there are.)
+
+**Why square the gaps, then square-root at the end?** Two reasons, both concrete. First,
+squaring throws away the *sign* of each gap — going 3 west (a gap of $-3$) is the same
+distance as 3 east (a gap of $+3$), and squaring makes both count as 9, so direction
+can't accidentally cancel. Second, the final square-root un-does the squaring so the
+answer comes back in the *original units* (map units, not map-units-squared) — a 5 you
+can actually picture on the ruler. Squaring on the way in, square-rooting on the way
+out: the gaps get combined honestly, and the answer stays a real length.
+
+**What the number feels like.** Our distance came out as 5 — bigger than either gap
+alone (3 or 4), which feels right: the slanted path is longer than going purely east or
+purely north, but *shorter than 3 + 4 = 7* (walking the two legs separately). Move Town
+B further away in any direction and the 5 grows; slide it back toward A and the 5
+shrinks to 0 exactly when the two towns sit on top of each other. That last fact is the
+whole reason distance works as "how different": distance 0 means *identical*, and the
+bigger the distance, the less alike.
+
+**Closer = more similar — and why scale can wreck it.** If each point is a *person* and
+the coordinates are their measurements, then "which two people are most alike?" becomes
+"which two points are closest?". But there is a trap hiding in the units. Suppose the
+two coordinates are **age in years** and **income in dollars**. Two people the same age
+whose incomes differ by \$1,000 land a distance of 1,000 apart; two people with the same
+income but 5 years apart in age land a distance of just 5 apart. Income, measured in
+dollars, utterly *drowns out* age — not because income matters more, but because its
+numbers are bigger. Distance takes your columns at face value, so a column with big
+numbers dominates. The fix — rescaling every column to a common footing *before*
+measuring distance — is its own topic (the
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) module and the
+variance-structure material build it out); here just carry the warning: **before you
+trust a distance, ask whether the columns are on comparable scales.**
+
+## What the notation is going to say
+
+When a paper writes the distance between two points $\mathbf{a}$ and $\mathbf{b}$ as
+$\lVert \mathbf{a} - \mathbf{b} \rVert$, it means exactly the map recipe: *subtract the
+points coordinate by coordinate, square each gap, add the squares, take the square
+root.* In our example $\mathbf{a} - \mathbf{b}$ is the gap vector $(3, 4)$ (up to sign),
+and the double bars $\lVert \cdot \rVert$ say "take its length" — which is the
+$\sqrt{9 + 16} = 5$ we already did. The length of a single vector $\mathbf{v}$,
+$\lVert \mathbf{v} \rVert$, is the same recipe with the second point being the origin
+$(0,0)$: *how far is $\mathbf{v}$ from zero.* And a **dot product** $\mathbf{a} \cdot
+\mathbf{b}$ — the sum of products you already know — is what powers both the length and
+the projection below.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\mathbf{a}$, $\mathbf{b}$, $\mathbf{v}$ (bold) | "the vector a", "the vector b", "the vector v" | a point/direction, written as its list of coordinates (an R vector) | $\mathbf{a} = (1,2)$, $\mathbf{b} = (4,6)$, $\mathbf{v} = (3,4)$ |
+| $a_i$, $b_i$, $v_i$ | "a-sub-i", "b-sub-i", "v-sub-i" | the $i$-th coordinate of that vector (in R: `a[i]`) | $a_1 = 1$, $a_2 = 2$; $v_1 = 3$ |
+| $n$ | "en" | how many coordinates each point has (in R: `length(a)`) | $2$ (east, north) |
+| $\mathbf{0}$ | "the zero vector" / "the origin" | the point at all-zeros, $(0, 0, \dots)$ | $(0, 0)$ |
+| $\mathbf{a} - \mathbf{b}$ | "a minus b" | the gap vector — subtract coordinate by coordinate (in R: `a - b`) | gaps of size $3$ and $4$ (the sign drops when squared) |
+| $\lVert \mathbf{v} \rVert$ | "the norm of v" / "the length of v" | the length of a vector = its distance from zero (in R: `sqrt(sum(v^2))`) | $\lVert(3,4)\rVert = 5$ |
+| $\lVert \mathbf{a} - \mathbf{b} \rVert$ | "the norm of a minus b" | the Euclidean **distance** between the two points | $5$ |
+| $d(\mathbf{a}, \mathbf{b})$ | "d of a and b" | the distance between $\mathbf{a}$ and $\mathbf{b}$ (in R: `dist(...)`) | $5$ |
+| $\sum_{i=1}^{n}$ | "the sum from i equals 1 to n" | add the term to its right, once per coordinate $i$ ([vectors & summation](../vectors-and-summation/lesson.qmd)) | $\sum v_i^2 = 25$ |
+| $\sqrt{\ \ }$ | "the square root of" | the number that squares back to what's inside (in R: `sqrt()`) | $\sqrt{25} = 5$ |
+| $\lvert a_i - b_i \rvert$ | "the absolute value of a-sub-i minus b-sub-i" | the size of a gap with its sign dropped (in R: `abs(a - b)`) | $\lvert 1-4 \rvert = 3$ |
+| $\mathbf{a} \cdot \mathbf{b}$ | "a dot b" | the dot product: sum of paired products ([vectors & summation](../vectors-and-summation/lesson.qmd); in R: `sum(a * b)`) | $\mathbf{a}\cdot\mathbf{b}$ for the projection example = 20 |
+| $r$ | "little r" / "the correlation" | correlation between two coordinate lists, in $[-1, 1]$ ([mean, variance & covariance](../mean-variance-covariance/lesson.qmd); in R: `cor(...)`) | used in correlation distance $1 - r$ |
+| $\perp$ | "perpendicular to" / "orthogonal to" | at right angles — the dot product is 0 | $(1,0) \perp (0,1)$ |
+
+Bold lowercase ($\mathbf{a}$, $\mathbf{v}$) is a vector — a point or a direction. The
+double bars $\lVert \cdot \rVert$ always mean "length"; the single dot $\cdot$ between
+two vectors always means the dot product.
+
+## The formal version
+
+**Distance, one term at a time.** Start from the gap in a single coordinate: for
+coordinate $i$, the gap is $a_i - b_i$. Squaring it, $(a_i - b_i)^2$, drops the sign so
+a west gap and an east gap of the same size count equally. Adding those squared gaps
+across all coordinates, $\sum_{i=1}^{n} (a_i - b_i)^2$, combines every direction's
+mismatch into one number — but it is in *squared* units, so finally we take the square
+root to get back to a real length:
+
+$$
+d(\mathbf{a}, \mathbf{b}) \;=\; \lVert \mathbf{a} - \mathbf{b} \rVert
+\;=\; \sqrt{\sum_{i=1}^{n} (a_i - b_i)^2}
+$$
+
+Reading it aloud: "d of a and b equals the norm of a minus b equals the square root of
+the sum, from i equals 1 to n, of a-sub-i minus b-sub-i, all squared" — or in everyday
+words: **"square each coordinate gap, add them up, take the square root."** Mapping onto
+the towns: the gaps are $1-4 = -3$ and $2-6 = -4$; squared, $9$ and $16$; summed, $25$;
+rooted, $\sqrt{25} = 5$ — the "5" we got by hand. (The signs vanished in the squaring,
+which is why "$\mathbf{a} - \mathbf{b}$" and "$\mathbf{b} - \mathbf{a}$" give the same
+distance.)
+
+**The norm is just distance from zero.** Set one point to the origin
+$\mathbf{0} = (0, 0, \dots)$ and the distance formula becomes the **length** of a single
+vector:
+
+$$
+\lVert \mathbf{v} \rVert \;=\; \sqrt{\sum_{i=1}^{n} v_i^2}
+$$
+
+"The norm of v equals the square root of the sum of v-sub-i squared" — *how far the
+point $\mathbf{v}$ sits from the origin.* For $\mathbf{v} = (3, 4)$ that is
+$\sqrt{9 + 16} = 5$, the very number from warm-up 2. A distance is nothing but the norm
+of the gap vector: $\lVert \mathbf{a} - \mathbf{b} \rVert$.
+
+**Two other distances, one breath each.** Euclidean is the default, but you'll meet two
+cousins. **Manhattan distance** adds the *absolute* gaps instead of squaring — how far a
+taxi drives on a street grid, never cutting corners: $\sum_i |a_i - b_i|$, which for our
+towns is $|{-3}| + |{-4}| = 3 + 4 = 7$ (the "walk the two legs" number). **Correlation
+distance** is $1 - r$, where $r$ is the correlation between the two points' coordinate
+lists ([mean, variance & covariance](../mean-variance-covariance/lesson.qmd)): it is
+small when the two profiles rise and fall *in the same pattern*, even if one sits higher
+overall. Use Euclidean unless a method explicitly asks for another; `dist()` computes
+all of them via its `method =` argument.
+
+Sanity-check all three in R:
+
+```{r formal-check}
+A <- c(1, 2)
+B <- c(4, 6)
+
+sqrt(sum((A - B)^2))                       # 5  — Euclidean, by hand
+as.numeric(dist(rbind(A, B)))              # 5  — Euclidean, built-in (default)
+sum(abs(A - B))                            # 7  — Manhattan, by hand
+as.numeric(dist(rbind(A, B), method = "manhattan"))  # 7 — Manhattan, built-in
+
+# The norm is distance from the origin:
+v <- c(3, 4)
+sqrt(sum(v^2))                             # 5 — length of v
+as.numeric(dist(rbind(c(0, 0), v)))        # 5 — same, as a distance from (0,0)
+```
+
+**Projection — how much of one vector lies along another.** Picture a vector
+$\mathbf{a}$ and a second direction $\mathbf{b}$, with the sun straight overhead
+relative to $\mathbf{b}$: the **shadow** $\mathbf{a}$ casts *onto the line through*
+$\mathbf{b}$ is the projection. Its length answers "how far along $\mathbf{b}$'s
+direction does $\mathbf{a}$ reach?". The shadow's length is built from — no surprise —
+the dot product:
+
+$$
+\text{shadow length} \;=\; \frac{\mathbf{a} \cdot \mathbf{b}}{\lVert \mathbf{b} \rVert}
+$$
+
+"The shadow length equals a-dot-b divided by the norm of b." The dot product
+$\mathbf{a} \cdot \mathbf{b}$ measures how much the two vectors point the same way;
+dividing by $\lVert \mathbf{b} \rVert$ rescales it to an actual length along
+$\mathbf{b}$. Take $\mathbf{a} = (4, 2)$ and $\mathbf{b} = (3, 4)$: the dot product is
+$4\times3 + 2\times4 = 12 + 8 = 20$, and $\lVert \mathbf{b} \rVert = \sqrt{9+16} = 5$,
+so the shadow length is $20 / 5 = \mathbf{4}$. The projection reuses the dot product you
+already learned — it is not new arithmetic, just a new picture for it.
+
+```{r projection-check}
+a <- c(4, 2)
+b <- c(3, 4)
+
+dp <- sum(a * b)          # 20 — the dot product (from vectors & summation)
+len_b <- sqrt(sum(b^2))   # 5  — the norm of b
+dp / len_b                # 4  — how far a reaches along b's direction
+```
+
+**Orthogonal — at right angles, carrying separate information.** When two vectors sit at
+a perfect right angle, neither has *any* shadow on the other — one tells you nothing
+about the other. The signal for this is beautifully simple: their **dot product is
+exactly 0**. Vectors whose dot product is 0 are called **orthogonal** (the fancy word
+for perpendicular). East $(1, 0)$ and north $(0, 1)$ are orthogonal:
+$1\times0 + 0\times1 = 0$. Knowing how far east something is tells you nothing about how
+far north it is — the two directions carry *separate, non-overlapping* information. That
+is exactly why methods prize orthogonal directions: each one adds something genuinely
+new.
+
+```{r orthogonal-check}
+u <- c(1, 0)   # east
+w <- c(0, 1)   # north
+sum(u * w)     # 0 — dot product zero  =>  orthogonal (at right angles)
+
+u2 <- c(2, 1)
+w2 <- c(-1, 2)
+sum(u2 * w2)   # 0 — also orthogonal, even though neither lies on an axis
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two points on a grid with a right triangle showing the horizontal and vertical gaps as legs and the straight-line distance as the hypotenuse."
+# explore-1 — LIVE: the distance IS the hypotenuse of a right triangle.
+# TRY IT: move point B by editing its coordinates, then Run — watch the distance change.
+# PREDICT: if B <- c(1, 2) (same as A), what distance should you get? Commit, then run.
+A <- c(1, 2)
+B <- c(4, 6)
+
+by_hand  <- sqrt(sum((A - B)^2))       # Pythagoras: square the gaps, add, square-root
+built_in <- as.numeric(dist(rbind(A, B)))  # R's dist(): the same number
+c(by_hand = by_hand, built_in = built_in)  # identical
+
+# The picture: the two gaps are the legs, the distance is the slanted hypotenuse
+plot(rbind(A, B), pch = 16, cex = 2, col = "steelblue",
+     xlim = c(0, 7), ylim = c(0, 7), xlab = "east", ylab = "north",
+     main = sprintf("distance A to B = %.2f", by_hand))
+segments(A[1], A[2], B[1], A[2], lty = 2)   # the east-west leg
+segments(B[1], A[2], B[1], B[2], lty = 2)   # the north-south leg
+segments(A[1], A[2], B[1], B[2], col = "firebrick", lwd = 2)  # the distance itself
+text(A[1], A[2], "A", pos = 2); text(B[1], B[2], "B", pos = 4)
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: scale wrecks distance. Two people: (age in years, income in dollars).
+# PREDICT: person 1 and person 2 are the SAME age but $1000 apart in income; person 1
+# and person 3 are the SAME income but 5 years apart in age. Which pair looks "closer"?
+# Commit to an answer, then run — and notice income's big numbers dominate.
+p1 <- c(30, 50000)   # 30 years old, $50,000
+p2 <- c(30, 51000)   # same age, $1,000 more
+p3 <- c(35, 50000)   # 5 years older, same income
+
+as.numeric(dist(rbind(p1, p2)))   # 1000 — the income gap alone
+as.numeric(dist(rbind(p1, p3)))   #    5 — the age gap alone
+# Same 5-year age difference is swamped: distance treats a dollar and a year as equal.
+```
+
+```{webr}
+#| autorun: false
+#| fig-alt: "A vector a and a direction b drawn from the origin, with a dashed line dropping a's tip perpendicular onto b's line, marking the shadow."
+# explore-3 — LIVE: projection as a shadow, orthogonality as a zero.
+# PREDICT: for a = (4, 2) and b = (3, 4), what is the shadow length a.b / ||b||?
+# Then: change a to c(-4, 3) (which is at right angles to b). What should a.b become?
+a <- c(4, 2)
+b <- c(3, 4)
+
+dp    <- sum(a * b)         # the dot product — from vectors & summation
+proj  <- dp / sqrt(sum(b^2))  # shadow length of a along b
+c(dot_product = dp, shadow_length = proj)
+
+# Orthogonal check: dot product 0 means "at right angles, separate information"
+sum(c(-4, 3) * b)          # 0 — (-4, 3) is orthogonal to (3, 4)
+```
+
+## Seeing high-dimensional points in a low-dimensional picture
+
+Real data rarely has just 2 columns — a person might carry 10 measurements, a gene 500.
+You cannot draw a 10-dimensional point. But you can still *look*, two tricks at a time.
+
+**Trick 1 — just plot two of the columns.** Pick two coordinates and scatter them; you
+see a true (if partial) slice of the cloud. It is honest but throws the other columns
+away. Here are 4 people with 3 measurements each — plot columns 1 and 2:
+
+```{r highdim-slice}
+# 4 people, 3 measurements each (one ROW per person) — a matrix, from the module we build on
+people <- matrix(c(2, 1, 5,
+                   3, 2, 4,
+                   8, 7, 1,
+                   9, 8, 2), nrow = 4, byrow = TRUE)
+rownames(people) <- c("P1", "P2", "P3", "P4")
+colnames(people) <- c("m1", "m2", "m3")
+
+# Plot two of the three columns: a real slice you CAN draw
+plot(people[, 1], people[, 2], pch = 16, cex = 2, col = "steelblue",
+     xlab = "measurement 1", ylab = "measurement 2",
+     main = "two columns of a 3-column dataset")
+text(people[, 1], people[, 2], rownames(people), pos = 3)
+```
+
+In that slice P1 and P2 sit together in one corner, P3 and P4 in another — and `dist()`
+on the *full* 3-column data agrees they fall into those two tight pairs:
+
+```{r highdim-dist}
+round(dist(people), 2)   # small within {P1,P2} and {P3,P4}, large across the pairs
+```
+
+**Trick 2 — let a *direction* summarize many columns (the idea only).** Instead of
+picking one raw column, you can build a new axis that blends several columns into a
+single "summary direction" — a combination that spreads the points out as much as
+possible, so one number captures most of the differences. Plotting the points along one
+or two such summary directions gives a faithful flat picture of a many-columned cloud.
+*Finding* those directions is exactly what PCA/SVD do — course-level machinery we are
+**not** opening here. The takeaway for now: a well-chosen direction can stand in for
+many columns, and distances/shadows/right-angles are the tools that make "well-chosen"
+precise.
+
+## Common traps
+
+**Trap 1 — "add the gaps to get the distance."** It is tempting to say Town A to Town B
+is $3 + 4 = 7$ units — just add the east gap and the north gap. But that is the distance
+if you *walk the two legs* (east, then north); the straight-line, crow-flies distance is
+shorter: $\sqrt{3^2 + 4^2} = \sqrt{25} = 5$, not 7. Adding the gaps gives **Manhattan
+distance** (a real thing — grid-walking), *not* the Euclidean one. The square-and-root
+is what bends the two legs into the single slanted path. (`sum(abs(A - B))` is 7;
+`sqrt(sum((A - B)^2))` is 5 — different distances, both valid, don't mix them up.)
+
+**Trap 2 — "columns with bigger numbers matter more."** When income (in the thousands)
+swamps age (in the tens), it feels like the data is *telling* you income matters more.
+It is not — distance simply counts one dollar the same as one year, so whichever column
+has the larger raw spread dominates the arithmetic. In our people example, changing
+income by \$1,000 moved the distance by 1,000 while a 5-year age change moved it by only
+5, even if age were the more meaningful variable. The numbers, not the importance, did
+that. Rescaling the columns first (the
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) module) is how you
+stop a loud-scale column from hijacking every distance.
+
+## Check yourself
+
+**1.** Two points $\mathbf{p} = (0, 0)$ and $\mathbf{q} = (6, 8)$. Compute the Euclidean
+distance by hand (square the gaps, add, square-root), then check in R.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+p <- c(0, 0)
+q <- c(6, 8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Gaps: $6 - 0 = 6$ and $8 - 0 = 8$. Square: $36$ and $64$. Add: $100$. Square-root:
+$\sqrt{100} = 10$. So the distance is **10**. Because $\mathbf{p}$ is the origin, this
+is also the *length* (norm) of $\mathbf{q}$. In R, `sqrt(sum((p - q)^2))` and
+`as.numeric(dist(rbind(p, q)))` both return 10.
+:::
+
+**2.** For $\mathbf{u} = (2, 1)$ and $\mathbf{w} = (-1, 2)$, compute the dot product
+$\mathbf{u} \cdot \mathbf{w}$. What does the answer tell you about the angle between
+them?
+
+```{webr}
+#| autorun: false
+# check2-starter — edit and Run to check
+u <- c(2, 1)
+w <- c(-1, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mathbf{u} \cdot \mathbf{w} = 2\times(-1) + 1\times2 = -2 + 2 = 0$. A dot product of
+**0 means the two vectors are orthogonal** — at right angles. Neither casts any shadow
+on the other, so they carry separate, non-overlapping information. In R: `sum(u * w)`
+returns 0.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the Euclidean
+distance between two points measures and why it is built by squaring the gaps and then
+taking a square root.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Euclidean distance is the straight-line, ruler-between-two-points measure of how far
+apart (and so how *unalike*) two points are: zero when they coincide, larger the more
+their coordinates differ. We square each coordinate gap so that opposite-direction gaps
+can't cancel and larger gaps count more, then take the square root at the end to bring
+the answer back into the original units as a real length.
+:::
+
+## What you can now do
+
+- **Compute a Euclidean distance by hand** — square the coordinate gaps, add them, take
+  the square root — and get the same number as `dist()`; and name Manhattan ($\sum
+  |a_i-b_i|$) and correlation ($1-r$) distance as alternatives.
+- **Compute a vector's length (norm)** as its distance from the origin,
+  `sqrt(sum(v^2))`, and see that a distance is just the norm of the gap vector.
+- **Explain why scaling matters** — that a column with big raw numbers dominates every
+  distance unless the columns are put on comparable footing first.
+- **Read a projection as a shadow** — how much of one vector lies along another,
+  $(\mathbf{a}\cdot\mathbf{b})/\lVert\mathbf{b}\rVert$ — and recognize that a **zero dot
+  product means orthogonal**: right angles, separate information.
+- **See many-columned data flat** — plot two columns for an honest slice, and state the
+  idea that a single summary *direction* can stand in for several columns.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — anything that clusters,
+finds neighbours, or projects data assumes all of these.
+
+## Where this goes next
+
+Once each thing you study is a point, "similar", "far", "along this direction", and "at
+right angles" become measurable — and whole methods (nearest-neighbours, clustering, and
+the summary-direction machinery of PCA/SVD) are built by stacking these moves. The
+pieces here — distance, norm, projection, orthogonality — are the geometry those methods
+speak. Ready for more reps? Do the [practice problems](practice.qmd).

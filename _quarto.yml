@@ -20,6 +20,9 @@ project:
     - foundations/variance-structure-and-standardization/lesson.qmd
     - foundations/variance-structure-and-standardization/practice.qmd
     - foundations/variance-structure-and-standardization/resources.md
+    - foundations/distance-similarity-and-geometry/lesson.qmd
+    - foundations/distance-similarity-and-geometry/practice.qmd
+    - foundations/distance-similarity-and-geometry/resources.md
     - foundations/derivative-as-slope/lesson.qmd
     - foundations/derivative-as-slope/practice.qmd
     - foundations/derivative-as-slope/resources.md
@@ -120,6 +123,14 @@ website:
                 href: foundations/variance-structure-and-standardization/practice.qmd
               - text: "Resources"
                 href: foundations/variance-structure-and-standardization/resources.md
+          - section: "Distance, similarity & geometry"
+            contents:
+              - text: "Lesson"
+                href: foundations/distance-similarity-and-geometry/lesson.qmd
+              - text: "Practice"
+                href: foundations/distance-similarity-and-geometry/practice.qmd
+              - text: "Resources"
+                href: foundations/distance-similarity-and-geometry/resources.md
           - section: "The derivative as a slope"
             contents:
               - text: "Lesson"
