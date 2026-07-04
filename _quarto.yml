@@ -33,6 +33,9 @@ project:
     - foundations/mean-variance-covariance/lesson.qmd
     - foundations/mean-variance-covariance/practice.qmd
     - foundations/mean-variance-covariance/resources.md
+    - foundations/model-fit-error-and-validation/lesson.qmd
+    - foundations/model-fit-error-and-validation/practice.qmd
+    - foundations/model-fit-error-and-validation/resources.md
     - foundations/paper-and-proof-conventions/lesson.qmd
     - foundations/paper-and-proof-conventions/practice.qmd
     - foundations/paper-and-proof-conventions/resources.md
@@ -176,6 +179,14 @@ website:
                 href: foundations/mean-variance-covariance/practice.qmd
               - text: "Resources"
                 href: foundations/mean-variance-covariance/resources.md
+          - section: "Model fit, error & validation"
+            contents:
+              - text: "Lesson"
+                href: foundations/model-fit-error-and-validation/lesson.qmd
+              - text: "Practice"
+                href: foundations/model-fit-error-and-validation/practice.qmd
+              - text: "Resources"
+                href: foundations/model-fit-error-and-validation/resources.md
           - section: "Paper & proof conventions"
             contents:
               - text: "Lesson"

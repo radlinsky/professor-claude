@@ -1,0 +1,233 @@
+---
+title: "Practice: How wrong is the model, really?"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+A model produced these observed and predicted values:
+
+| observed $y$ | 10 | 12 | 15 | 14 | 19 |
+|---|---|---|---|---|---|
+| predicted $\hat{y}$ | 11 | 12 | 14 | 16 | 17 |
+
+By hand, compute the residuals, then RSS, MSE, and RMSE. Then check with R.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+y    <- c(10, 12, 15, 14, 19)
+yhat <- c(11, 12, 14, 16, 17)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Residuals = observed − predicted: $10-11=-1$, $12-12=0$, $15-14=1$, $14-16=-2$,
+$19-17=2$, so $(-1, 0, 1, -2, 2)$.
+$\text{RSS} = (-1)^2 + 0^2 + 1^2 + (-2)^2 + 2^2 = 1+0+1+4+4 = 10$.
+$\text{MSE} = 10/5 = 2$, and $\text{RMSE} = \sqrt{2} \approx 1.414$.
+
+```{r p1-answer}
+y    <- c(10, 12, 15, 14, 19)
+yhat <- c(11, 12, 14, 16, 17)
+
+resid <- y - yhat
+resid                       # -1  0  1 -2  2
+RSS  <- sum(resid^2)        # 10
+c(RSS = RSS, MSE = RSS/length(y), RMSE = sqrt(RSS/length(y)))   # 10, 2, 1.414
+```
+:::
+
+## Problem 2 — fill in the missing step (R²)
+
+Here is R² worked out for the Problem-1 data — but the **core step is blanked.** Fill in
+ONLY the blanked line: computing TSS, the baseline "guess the mean" error.
+
+> The mean is $\bar{y} = (10+12+15+14+19)/5 = 70/5 = 14$.
+> **`<your step here>`** — TSS is the sum of squared distances of each $y$ from $\bar{y}$:
+> $\text{TSS} = \underline{\phantom{0000}}$.
+> Then, using $\text{RSS} = 10$ from Problem 1, $R^2 = 1 - \text{RSS}/\text{TSS}$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your TSS and the resulting R2
+y <- c(10, 12, 15, 14, 19)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is TSS — the spread of $y$ around its own mean of 14:
+
+$$
+\text{TSS} = (10-14)^2 + (12-14)^2 + (15-14)^2 + (14-14)^2 + (19-14)^2
+= 16 + 4 + 1 + 0 + 25 = 46.
+$$
+
+Then $R^2 = 1 - \text{RSS}/\text{TSS} = 1 - 10/46 \approx 0.783$ — the model removed about
+78% of the raw spread. TSS is the move because R² is always "leftover error *relative to*
+the mean-guesser's error," and TSS is that baseline error.
+
+```{r p2-answer}
+y   <- c(10, 12, 15, 14, 19)
+TSS <- sum((y - mean(y))^2)     # 46
+c(TSS = TSS, R2 = 1 - 10 / TSS) # 46, 0.7826...
+```
+:::
+
+## Problem 3 — interpretation, not computation
+
+Two models are fit to the same data. Model A has training R² = 0.95 and test R² = 0.55.
+Model B has training R² = 0.80 and test R² = 0.78. Which model would you deploy on new
+data, and why? (No arithmetic — reason it out.)
+
+::: {.callout-note collapse="true" title="Answer"}
+Deploy **Model B.** What matters for new data is the **test** score, and B's is higher
+(0.78 vs 0.55). Model A's huge gap between training (0.95) and test (0.55) is the
+signature of **overfitting** — it memorized the training data but generalizes poorly.
+Model B's training and test scores are close (0.80 vs 0.78), which says it learned the
+real pattern rather than the noise, so it should hold up on data it hasn't seen. A high
+training R² is not the goal; a high *held-out* R² is.
+:::
+
+## Problem 4 — spot the error
+
+A colleague measured a model's error like this — it contains **exactly one mistake.**
+Find it and fix it.
+
+> "Observed `y <- c(4, 7, 9, 10)`, predicted `yhat <- c(5, 6, 9, 12)`. The residuals are
+> $-1, 1, 0, -2$. To get the total error I add the residuals: $-1 + 1 + 0 - 2 = -2$. So
+> the total error is $-2$, and the model is doing pretty well since that's close to
+> zero."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to check the right way
+y    <- c(4, 7, 9, 10)
+yhat <- c(5, 6, 9, 12)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is **adding the raw residuals** instead of squaring them first. Raw residuals
+cancel — here $-1+1+0-2 = -2$, which is near zero *not because the model is accurate but
+because the misses offset each other* (a model that was off by $-1000$ and $+998$ would
+also sum near zero). The fix is RSS: **square each residual, then add.**
+$\text{RSS} = (-1)^2 + 1^2 + 0^2 + (-2)^2 = 1+1+0+4 = 6$, so $\text{RMSE} =
+\sqrt{6/4} \approx 1.225$ — the honest "typical miss." A negative "total error" should
+have been the giveaway: an error size can't be negative. This is the cancellation trap
+the lesson opens with (the warm-up), and the whole reason RSS squares before adding.
+
+```{r p4-answer}
+y    <- c(4, 7, 9, 10)
+yhat <- c(5, 6, 9, 12)
+resid <- y - yhat
+sum(resid)                       # -2  <- the misleading (wrong) number
+sum(resid^2)                     # 6   <- RSS: square first, THEN add
+sqrt(mean(resid^2))              # 1.225  <- RMSE
+```
+:::
+
+## Problem 5 — mixing it with variance *(uses [mean-variance-covariance](../mean-variance-covariance/lesson.qmd)'s variance)*
+
+TSS is secretly the sample variance in disguise. For `y <- c(10, 12, 15, 14, 19)` from
+Problem 1, show that $\text{TSS} = (n-1)\times \texttt{var(y)}$, where `var()` is R's
+sample variance (the one that divides the summed squared deviations by $n-1$).
+
+**PREDICT** first: `var(y)` will be TSS divided by what number? Write it down, then run.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+y <- c(10, 12, 15, 14, 19)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+From [the mean, variance & covariance](../mean-variance-covariance/lesson.qmd), the sample
+variance is the sum of squared deviations from the mean, divided by $n-1$:
+$\texttt{var(y)} = \frac{1}{n-1}\sum (y_i - \bar{y})^2$. But that sum *is* TSS! So
+$\text{TSS} = (n-1)\times\texttt{var(y)}$. Here $n=5$, so `var(y)` = TSS / 4 = 46 / 4 =
+11.5, and $(n-1)\times\texttt{var(y)} = 4 \times 11.5 = 46 = \text{TSS}$. The fit score
+TSS and the spread measure variance are the same summed-squared-deviations idea, just
+divided by different things.
+
+```{r p5-answer}
+y   <- c(10, 12, 15, 14, 19)
+TSS <- sum((y - mean(y))^2)      # 46
+n   <- length(y)
+c(TSS = TSS, var_y = var(y), reconstructed = (n - 1) * var(y))  # 46, 11.5, 46
+```
+:::
+
+## Problem 6 — transfer: write a cross-validation loop
+
+New context. You have a small dataset and want to estimate how a straight-line model will
+do on unseen data using **3-fold cross-validation.** Fill in the loop: for each fold,
+train on the other folds and grade on the held-out fold, then average the three RMSEs.
+Use `set.seed(42)` exactly as shown so your numbers match.
+
+```{webr}
+#| autorun: false
+# p6-starter — complete the loop body (the two data lines and the model)
+set.seed(42)
+d <- data.frame(x = 1:9, y = c(2, 3, 5, 4, 6, 7, 6, 9, 10))
+rmse <- function(obs, pred) sqrt(mean((obs - pred)^2))
+
+set.seed(42)
+k <- 3
+fold <- sample(rep(1:k, length.out = nrow(d)))   # fold label for each row
+
+errs <- numeric(k)
+for (f in 1:k) {
+  tr <- d[fold != f, ]     # <- train on the OTHER folds
+  te <- d[fold == f, ]     # <- grade on THIS fold
+  m  <- lm(y ~ x, data = tr)
+  errs[f] <- rmse(te$y, predict(m, te))
+}
+mean(errs)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The core of cross-validation is the rotation: each fold takes a turn as the test set
+(`te <- d[fold == f, ]`) while everything else trains the model (`tr <- d[fold != f, ]`).
+You fit `lm()` on `tr`, predict onto `te`, and record that fold's held-out RMSE; averaging
+the three gives one honest estimate. With this seed the fold labels come out
+`1 2 3 1 2 1 2 3 3`, the three fold RMSEs are about `0.679, 1.133, 1.350`, and their
+average is about **1.054**.
+
+```{r p6-answer}
+set.seed(42)
+d <- data.frame(x = 1:9, y = c(2, 3, 5, 4, 6, 7, 6, 9, 10))
+rmse <- function(obs, pred) sqrt(mean((obs - pred)^2))
+
+set.seed(42)
+k <- 3
+fold <- sample(rep(1:k, length.out = nrow(d)))
+
+errs <- numeric(k)
+for (f in 1:k) {
+  tr <- d[fold != f, ]
+  te <- d[fold == f, ]
+  m  <- lm(y ~ x, data = tr)
+  errs[f] <- rmse(te$y, predict(m, te))
+}
+round(errs, 3)      # 0.679 1.133 1.350
+round(mean(errs), 3)  # 1.054
+```
+
+Every point was used for testing exactly once, and no point was ever graded by a model
+that had already seen it — that is what makes 1.054 an honest guess at new-data error.
+:::

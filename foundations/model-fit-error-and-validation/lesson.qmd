@@ -1,0 +1,509 @@
+---
+title: "How wrong is the model, really?"
+subtitle: "Residuals, RSS/MSE/RMSE, R², over- vs under-fitting, and grading on data you didn't study — train/test and cross-validation"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Once a method has produced predictions, one question decides everything: **how wrong
+are they, and will they *stay* wrong on data the model has never seen?** This lesson
+builds the whole toolkit of answers, in plain base R: the **residual** (one prediction's
+miss), the summary numbers that roll all the misses into one score (**RSS, MSE, RMSE**),
+a "better than just guessing the mean?" score (**R²**), the twin failures of
+**overfitting and underfitting**, and the honesty devices that catch them —
+**train/test split** and **k-fold cross-validation**. Almost every fitting method,
+anywhere, is graded with exactly these.
+
+We stay with tiny, hand-checkable numbers and neutral examples (predicted vs observed
+values, a cloud of points). We will *not* touch hypothesis tests, standard errors, or
+any method-specific score (those live in the modules and courses that need them).
+
+**Builds on:** [the mean, variance & covariance](../mean-variance-covariance/lesson.qmd)
+— we reuse its **why-we-square** story (squaring stops positive and negative misses from
+cancelling) and the mean as a balance point; and
+[loss functions & optimization](../loss-functions-and-optimization/lesson.qmd) — the
+error score here *is* a loss, the one a fitting method already minimized on its
+training data.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** For `d <- c(-2, 0, -1, 1, 2)` (a set of "misses"), why can't you just *add* them
+up to measure total error? What single trick fixes it, and what does `sum(d^2)` give?
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+d <- c(-2, 0, -1, 1, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Adding them gives $-2 + 0 - 1 + 1 + 2 = 0$: the over- and under-shoots cancel, exactly
+like deviations from the mean do. The fix is to **square first** — a squared number is
+never negative, so nothing cancels — which is the same move variance uses. `sum(d^2)` =
+$4 + 0 + 1 + 1 + 4 = 10$. Shaky on why-we-square? Revisit
+[the mean, variance & covariance](../mean-variance-covariance/lesson.qmd).
+:::
+
+**2.** For `y <- c(3, 5, 6, 9, 12)`, what is the mean $\bar{y}$ (say it "why-bar"), and
+what R call gives it?
+
+```{webr}
+#| autorun: false
+# warmup2-starter — edit and Run to check
+y <- c(3, 5, 6, 9, 12)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\bar{y} = (3 + 5 + 6 + 9 + 12)/5 = 35/5 = 7$. In R: `mean(y)`. The mean is the balance
+point of the data — hold onto it, because "just guess the mean for everyone" is the
+baseline we'll grade every model against. See
+[the mean, variance & covariance](../mean-variance-covariance/lesson.qmd).
+:::
+
+**3.** In one sentence: in [loss functions & optimization](../loss-functions-and-optimization/lesson.qmd),
+what does a fitting method actually *do* with an error score?
+
+::: {.callout-note collapse="true" title="Answer"}
+It **minimizes** it — it turns the knobs (the parameters) to make that "how wrong am I"
+number as small as possible on the data it was given. The scores in this lesson are those
+very error numbers; the new idea is checking them on data the method did *not* get to
+minimize over. See
+[loss functions & optimization](../loss-functions-and-optimization/lesson.qmd).
+:::
+
+## A tiny example first
+
+A model made predictions for 5 items. Here are the **observed** values it was trying to
+hit and the values it **predicted**:
+
+| item | observed $y$ | predicted $\hat{y}$ |
+|---|---|---|
+| 1 | 3  | 4  |
+| 2 | 5  | 5  |
+| 3 | 6  | 7  |
+| 4 | 9  | 8  |
+| 5 | 12 | 11 |
+
+**Residual = observed − predicted.** For each item, subtract the prediction from what
+actually happened:
+$3-4 = -1$, then $5-5 = 0$, then $6-7 = -1$, then $9-8 = +1$, then $12-11 = +1$.
+So the residuals are $(-1,\ 0,\ -1,\ 1,\ 1)$. A negative residual means the model
+guessed *too high*; a positive one, too low; zero is a bullseye.
+
+**Roll them into one score.** Add them up and you get $-1+0-1+1+1 = 0$ — useless, they
+cancelled (the warm-up trap!). So **square each residual first**, then add:
+$(-1)^2 + 0^2 + (-1)^2 + 1^2 + 1^2 = 1+0+1+1+1 = 4$. That total, **4**, is the
+**RSS — the residual sum of squares.** Divide by how many items (5) to get the *average*
+squared miss, the **MSE** (mean squared error): $4/5 = 0.8$. Take the square root to get
+back to the original units, the **RMSE** (root mean squared error):
+$\sqrt{0.8} \approx 0.894$.
+
+**Compare to just guessing the mean.** How well would a lazy "predict $\bar{y}=7$ for
+everyone" model do? Its total squared miss is $\sum (y_i - 7)^2 =
+(-4)^2 + (-2)^2 + (-1)^2 + 2^2 + 5^2 = 16+4+1+4+25 = 50$. Call that **TSS** (total sum of
+squares — the spread of $y$ around its own mean). Our model's leftover error is only 4 out
+of that 50, so it explained $50-4 = 46$ of it. The fraction explained is
+$46/50 = 0.92$ — that is **R², "R-squared."**
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+y    <- c(3, 5, 6, 9, 12)     # observed
+yhat <- c(4, 5, 7, 8, 11)     # the model's predictions
+
+resid <- y - yhat             # residual = observed - predicted
+resid                         # -1  0 -1  1  1
+
+RSS  <- sum(resid^2)          # square each miss, then add: 1+0+1+1+1
+RSS                           # 4
+MSE  <- RSS / length(y)       # average squared miss: 4 / 5
+MSE                           # 0.8
+RMSE <- sqrt(MSE)             # back to the original units
+RMSE                          # 0.8944272
+
+ybar <- mean(y)               # the "guess the mean" baseline: 7
+TSS  <- sum((y - ybar)^2)     # total spread of y around its mean
+TSS                           # 50
+R2   <- 1 - RSS / TSS         # fraction of that spread the model removed
+R2                            # 0.92
+```
+
+## Getting a feel for it
+
+**The mental picture: a report card, not a single grade.** Think of the model as a
+student who sat an exam. Each **residual** is one question's error — how far the
+student's answer sat from the right one, with a sign for "too high" or "too low."
+**RSS/MSE/RMSE** are three ways of averaging the whole report card into one number, and
+**R²** is the report card *graded on a curve*: not "how many points did you drop?" but
+"how much better than the class dunce — the student who writes the class average on every
+question — did you do?"
+
+**Why square the residuals (again)?** Same reason variance squares deviations: raw
+misses cancel (our five summed to 0), and squaring is the cleanest fix that never
+cancels — it also punishes one big miss more than several small ones, which is usually
+what you want. Because squaring inflates the units (squared points), RMSE takes the
+square root at the end to land back in the *original* units, so an RMSE of 0.894 reads
+as "typical miss of about nine-tenths of a point" — a number you can actually picture.
+This square-then-average-then-un-square shape is exactly the mean → variance →
+standard-deviation move from
+[the mean, variance & covariance](../mean-variance-covariance/lesson.qmd); MSE is the
+variance of the misses, RMSE their standard deviation.
+
+**Why divide by TSS for R²?** A raw RSS of 4 means nothing on its own — is 4 good? It
+depends entirely on how spread out $y$ was to begin with. Dividing the *explained* part
+($50-4$) by the *total* spread (50) rescales the score to a fraction, so it reads the
+same whether $y$ is measured in millimetres or miles. **R² = 1 is a perfect fit** (zero
+leftover error), **R² = 0 means "no better than guessing the mean"** (all the spread is
+still there), and R² can even go **negative** for a model worse than that lazy baseline.
+
+**What our numbers feel like.** RMSE ≈ 0.894 on values that run 3 to 12 is small — the
+model is usually within a point. R² = 0.92 says it wiped out 92% of the raw spread. Both
+say "good fit." But a warning we'll spend the rest of the lesson on: these are graded on
+the *same* data the model studied. A good grade on your own practice exam is not the same
+as a good grade on the real one.
+
+**Cousin, one breath:** for models fit by likelihood rather than squared error (you'll
+meet those in a GLM course), the analogue of RSS is called the **deviance** — same job,
+"total leftover badness," measured on the likelihood scale instead of the squared-error
+scale. The detail stays in those courses; just know the word points at the same idea.
+
+## What the notation is going to say
+
+The formulas below will say, in symbols, exactly the arithmetic we just did. The
+**residual** formula will say "take each observed value and subtract the model's
+prediction for it" — our $3-4=-1$. **RSS** will say "square every residual and add them
+up" — our $1+0+1+1+1=4$. **MSE** divides that by $n$ (how many points), **RMSE** square-
+roots it. And **R²** will say "one minus the ratio of leftover error to total spread" —
+our $1 - 4/50 = 0.92$. No new arithmetic, just compact names.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $y_i$ | "why sub eye" | the $i$-th observed value (in R: `y[i]`) | $y_1=3,\dots,y_5=12$ |
+| $\hat{y}_i$ | "why hat sub eye" | the model's predicted value for item $i$ (the hat = "estimated") | $\hat{y}_1=4,\dots,\hat{y}_5=11$ |
+| $e_i$ or $r_i$ | "ee sub eye" / "residual" | observed minus predicted: $y_i - \hat{y}_i$ | $(-1,0,-1,1,1)$ |
+| $n$ | "en" | the number of data points (in R: `length(y)`) | 5 |
+| $\bar{y}$ | "why bar" | the mean of the observed values (in R: `mean(y)`) | 7 |
+| $\sum_{i=1}^{n}$ | "the sum from i equals 1 to n" | add the term to its right, once per item (in R: `sum(...)`) | over the 5 items |
+| $\text{RSS}$ | "R-S-S" | residual sum of squares: $\sum (y_i-\hat{y}_i)^2$ | 4 |
+| $\text{TSS}$ | "T-S-S" | total sum of squares: $\sum (y_i-\bar{y})^2$ (spread of $y$) | 50 |
+| $\text{MSE}$ | "M-S-E" | mean squared error: $\text{RSS}/n$ | 0.8 |
+| $\text{RMSE}$ | "R-M-S-E" | root mean squared error: $\sqrt{\text{MSE}}$ | 0.894 |
+| $R^2$ | "R-squared" | fraction of $y$'s spread the model explains: $1-\text{RSS}/\text{TSS}$ | 0.92 |
+
+## The formal version
+
+**Residual — one prediction's miss.** For each item $i$:
+
+$$
+e_i = y_i - \hat{y}_i
+$$
+
+Reading it aloud: "ee-sub-eye equals why-sub-eye minus why-hat-sub-eye" — in everyday
+words: **"the residual is what actually happened minus what the model said would
+happen."** Item 3: $e_3 = 6 - 7 = -1$, matching our hand computation.
+
+**RSS, MSE, RMSE — rolling the misses into one score.** Build them one piece at a time.
+Start with the residuals; they cancel if you just add them, so square each first (the
+warm-up trick), then add — that is RSS:
+
+$$
+\text{RSS} = \sum_{i=1}^{n} (y_i - \hat{y}_i)^2
+$$
+
+Reading it aloud: "the sum, from i equals 1 to n, of the quantity why-sub-eye minus
+why-hat-sub-eye, squared" — everyday words: **"square every miss and add them up."**
+Our value: $(-1)^2+0^2+(-1)^2+1^2+1^2 = 4$. RSS grows with the number of points, so
+divide by $n$ to get the *average* squared miss (MSE), then square-root it to return to
+the original units (RMSE):
+
+$$
+\text{MSE} = \frac{\text{RSS}}{n} = \frac{1}{n}\sum_{i=1}^{n}(y_i-\hat{y}_i)^2,
+\qquad
+\text{RMSE} = \sqrt{\text{MSE}}
+$$
+
+Everyday words: **"MSE is the average squared miss; RMSE puts it back in the units you
+care about."** Ours: $\text{MSE}=4/5=0.8$ and $\text{RMSE}=\sqrt{0.8}\approx 0.894$ —
+the numbers from the toy chunk.
+
+**R² — better than guessing the mean?** First the baseline's error, TSS, which is just
+RSS if the "model" predicts $\bar{y}$ for everyone:
+
+$$
+\text{TSS} = \sum_{i=1}^{n} (y_i - \bar{y})^2
+$$
+
+Then R² is one minus how much error is *left over* as a fraction of that baseline:
+
+$$
+R^2 = 1 - \frac{\text{RSS}}{\text{TSS}}
+$$
+
+Reading it aloud: "R-squared equals one minus RSS over TSS" — everyday words: **"of all
+the spread there was to explain, what fraction did the model remove?"** Ours:
+$1 - 4/50 = 1 - 0.08 = 0.92$. If the model were no better than the mean-guesser,
+$\text{RSS}=\text{TSS}$ and $R^2 = 0$; a perfect model has $\text{RSS}=0$ and $R^2=1$.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the error scores ARE the by-hand arithmetic.
+# TRY IT: change a prediction in yhat and re-run — watch every score move.
+# PREDICT: if you make yhat exactly equal to y (a perfect model), what will RSS,
+# RMSE, and R2 become? Commit to three numbers, then run.
+y    <- c(3, 5, 6, 9, 12)
+yhat <- c(4, 5, 7, 8, 11)
+
+resid <- y - yhat
+RSS   <- sum(resid^2)                 # by hand: square the misses, add
+MSE   <- RSS / length(y)
+RMSE  <- sqrt(MSE)
+TSS   <- sum((y - mean(y))^2)
+R2    <- 1 - RSS / TSS
+
+c(RSS = RSS, MSE = MSE, RMSE = RMSE, R2 = R2)   # 4, 0.8, 0.894, 0.92
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: R2 = 0 is EXACTLY the mean-guesser.
+# PREDICT: this model predicts the mean of y for every point. What is its RSS
+# compared to TSS, and therefore its R2? Write it down, then run.
+y    <- c(2, 4, 6, 8, 10)
+yhat <- rep(mean(y), length(y))       # "guess the mean for everyone"
+
+RSS <- sum((y - yhat)^2)
+TSS <- sum((y - mean(y))^2)
+c(RSS = RSS, TSS = TSS, R2 = 1 - RSS / TSS)   # RSS == TSS, so R2 = 0
+```
+
+Now the picture at the heart of the second half of the lesson — **overfitting vs
+underfitting.** The dots are noisy data whose *true* pattern is a straight line. A
+too-simple model (a flat/near-flat guess) **underfits** — it misses the real trend. A
+too-flexible model (a wiggly curve) **overfits** — it bends to chase the noise, so it
+fits *these* dots beautifully but would miss new dots badly. The right model captures the
+trend without chasing the wiggle.
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A scatter of points rising left to right. A straight line passes through the trend (a good fit); a nearly flat line sits below the trend (underfitting); a wiggly curve threads through every point (overfitting)."
+# explore-3 — LIVE: underfit vs good fit vs overfit, on the same dots.
+# TRY IT: change the wiggly degree from 10 to 2 and re-run — watch the curve calm down.
+set.seed(42)
+n <- 30
+x <- sort(runif(n, 0, 10))
+y <- 2 + 1.5 * x + rnorm(n, 0, 2)        # true pattern = a straight line + noise
+
+fit_line   <- lm(y ~ poly(x, 1))          # good fit: matches the true shape
+fit_wiggly <- lm(y ~ poly(x, 10))         # overfit: bends to chase the noise
+grid <- data.frame(x = seq(0, 10, length.out = 200))
+
+plot(x, y, pch = 19, col = "grey40", main = "Under-, good, and over-fitting")
+abline(h = mean(y), lty = 3, lwd = 2, col = "orange")                 # underfit: flat
+lines(grid$x, predict(fit_line,   grid), col = "blue", lwd = 2)       # good fit
+lines(grid$x, predict(fit_wiggly, grid), col = "red",  lwd = 2)       # overfit
+legend("topleft", c("underfit (mean)", "good (line)", "overfit (wiggly)"),
+       col = c("orange", "blue", "red"), lty = c(3, 1, 1), lwd = 2, bty = "n")
+```
+
+**Train/test split — grade on data you didn't study.** The fix for overfitting is to
+hide some data from the model while it fits, then grade it only on that hidden slice.
+Watch the wiggly model *win* on training data but *lose* on held-out data:
+
+```{webr}
+#| autorun: false
+# explore-4 — LIVE: the same wiggly model, judged two ways.
+# PREDICT: the wiggly (degree-9) curve will have the SMALLER training RMSE. Will it
+# also have the smaller TEST RMSE? Commit to yes/no, then run.
+set.seed(42)
+n <- 30
+x <- sort(runif(n, 0, 10))
+y <- 2 + 1.5 * x + rnorm(n, 0, 2)
+dat <- data.frame(x = x, y = y)
+
+set.seed(42)
+test_idx <- sample(seq_len(n), size = 10)   # hide 10 points; train on the other 20
+train <- dat[-test_idx, ]
+test  <- dat[ test_idx, ]
+
+rmse <- function(obs, pred) sqrt(mean((obs - pred)^2))
+fit_line   <- lm(y ~ poly(x, 1), data = train)
+fit_wiggly <- lm(y ~ poly(x, 9), data = train)
+
+rbind(
+  train = c(line = rmse(train$y, predict(fit_line)),
+            wiggly = rmse(train$y, predict(fit_wiggly))),
+  test  = c(line = rmse(test$y,  predict(fit_line,   test)),
+            wiggly = rmse(test$y,  predict(fit_wiggly, test)))
+)
+# train: line 1.985, wiggly 1.528  (wiggly looks better...)
+# test : line 2.886, wiggly 7.367  (...but is far worse on unseen data)
+```
+
+**k-fold cross-validation — the systematic version.** One split throws away a chunk of
+data and depends on *which* points landed in the test slice. k-fold cross-validation
+rotates the test slice: chop the data into $k$ equal **folds**, then $k$ times, hold out
+one fold, train on the other $k-1$, and grade on the held-out fold. Average the $k$
+scores. Every point gets used for testing exactly once. Here is the whole loop in R:
+
+```{webr}
+#| autorun: false
+# explore-5 — LIVE: 5-fold cross-validation, spelled out as a loop.
+# PREDICT: cross-validation grades on held-out data every time. Will the LINE or the
+# WIGGLY model get the smaller average CV RMSE? Commit, then run.
+set.seed(42)
+n <- 30
+x <- sort(runif(n, 0, 10))
+y <- 2 + 1.5 * x + rnorm(n, 0, 2)
+dat <- data.frame(x = x, y = y)
+rmse <- function(obs, pred) sqrt(mean((obs - pred)^2))
+
+set.seed(42)
+k <- 5
+fold <- sample(rep(1:k, length.out = n))   # give each row a fold label 1..5
+
+cv_rmse <- function(degree) {
+  errs <- numeric(k)
+  for (f in 1:k) {                         # each fold takes a turn as the test set
+    tr <- dat[fold != f, ]                 # train on the other k-1 folds
+    te <- dat[fold == f, ]                 # grade on THIS fold only
+    m  <- lm(y ~ poly(x, degree), data = tr)
+    errs[f] <- rmse(te$y, predict(m, te))
+  }
+  mean(errs)                               # average the k held-out scores
+}
+
+c(line = cv_rmse(1), wiggly = cv_rmse(9))  # 2.433 vs 6.457: the simple line wins
+```
+
+## Common traps
+
+**Trap 1 — "higher R² (or lower training error) always means a better model."** It is
+tempting because on the *training* data more flexibility always drives error down: our
+wiggly model had the smaller training RMSE (1.528 vs the line's 1.985), and a curve
+flexible enough will hit every point for a training R² of 1. But that same wiggly model
+scored a **test** RMSE of 7.367 against the line's 2.886 — more than twice as wrong on
+data it hadn't seen. A training score you keep pushing up by adding flexibility measures
+*memorization*, not skill. Always judge on held-out data.
+
+**Trap 2 — "R² = 0.5 means the model got half the predictions right."** R² is not an
+accuracy percentage and has nothing to do with counting correct answers. It is one minus
+the ratio of *leftover squared error* to *total squared spread*: $R^2 = 1-\text{RSS}/
+\text{TSS}$. In the toy data, $R^2 = 0.92$ means the model removed 92% of the *variation*
+in $y$ (dropped RSS from 50 down to 4), not that 92% of items were "correct." And because
+a bad model can leave *more* error than the mean-guesser, R² can go **below zero** —
+impossible for any "percent correct."
+
+## Check yourself
+
+**1.** A model predicted `yhat <- c(2, 4, 5)` for observed `y <- c(1, 4, 7)`. Compute
+the residuals, then RSS and RMSE by hand, and check in R.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+y    <- c(1, 4, 7)
+yhat <- c(2, 4, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Residuals = observed − predicted: $1-2=-1$, $4-4=0$, $7-5=2$, so $(-1, 0, 2)$.
+$\text{RSS} = (-1)^2 + 0^2 + 2^2 = 1 + 0 + 4 = 5$. $\text{MSE} = 5/3 \approx 1.667$, so
+$\text{RMSE} = \sqrt{5/3} \approx 1.291$. In R, `sum((y-yhat)^2)` returns 5 and
+`sqrt(mean((y-yhat)^2))` returns about 1.291.
+:::
+
+**2.** A model scores training R² = 0.99 but test R² = 0.20. In one line: what is
+happening, and which number do you trust for how it will behave on new data?
+
+::: {.callout-note collapse="true" title="Answer"}
+The model is **overfitting** — it memorized the training data (R² near 1 there) but
+generalizes poorly (R² only 0.20 on unseen data). Trust the **test** R², 0.20: that is
+the honest estimate of how it behaves on data it did not study.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what R² measures and
+why a great R² on the training data can still be bad news.
+
+::: {.callout-note collapse="true" title="A model answer"}
+R² measures the fraction of the data's total spread that the model explains, compared to
+the do-nothing baseline of just predicting the mean for everyone (1 = perfect, 0 = no
+better than the mean). A great *training* R² can be bad news because a flexible enough
+model can drive training error to nearly zero by memorizing the noise, so it looks perfect
+on the data it studied yet falls apart on new data — which is why you always check the
+score on a held-out set.
+:::
+
+## The bias–variance trade-off (in words) {#bias-variance}
+
+One last idea ties the whole lesson together, and for this module we keep it entirely in
+words. Every model's expected error on new data splits into two competing pieces:
+
+- **Bias** is error from the model being *too rigid* to capture the real pattern — the
+  underfitting side. Our flat mean-line has high bias: it is systematically wrong because
+  a horizontal line simply cannot follow a rising trend, no matter what data you feed it.
+- **Variance** here means error from the model being *too sensitive* to the particular
+  data it was trained on — the overfitting side. Our wiggly curve has high variance:
+  reshuffle the points and it would draw a wildly different curve, because it is chasing
+  noise that changes from sample to sample.
+
+The **trade-off**: making a model more flexible lowers bias but raises variance, and
+making it simpler does the reverse. You cannot drive both to zero at once, so the sweet
+spot — the model that generalizes best — is a *balance*, not an extreme. That balance is
+exactly what a low **cross-validation** error points you toward: in our run the flexible
+degree-9 curve had low bias but its variance blew up (CV RMSE 6.457), while the straight
+line balanced the two and won (CV RMSE 2.433). (Depth note: putting a *number* on bias and
+variance separately is beyond this module — here the trade-off is a mental model for
+*why* the middle wins.)
+
+## What you can now do
+
+- **Compute a residual, RSS, MSE, and RMSE by hand** from observed and predicted values,
+  and reproduce them with `sum((y-yhat)^2)`, `mean(...)`, and `sqrt(...)`.
+- **Compute and interpret R²** as "fraction of spread explained versus guessing the
+  mean," knowing that 1 is perfect, 0 is no better than the mean, and negative is worse.
+- **Tell overfitting from underfitting** — memorizing noise vs missing the trend — and
+  picture each against a scatter of points.
+- **Run a train/test split** (`set.seed(42)`, `sample()`) and a **k-fold
+  cross-validation loop** in base R, and explain why a held-out score beats a training
+  score for judging a model.
+- **State the bias–variance trade-off in plain words** and say why the best-generalizing
+  model is a balance, not the most flexible one.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+the [Explore it](#explore-it) split/CV cells before continuing — anything that fits a
+model and reports how good it is assumes all of these.
+
+## Where this goes next
+
+Every method that produces predictions is graded with these scores, and every method
+flexible enough to overfit is defended with a held-out check like train/test or
+cross-validation — so these tools reappear the moment a course fits anything to data.
+Ready for more reps? Do the [practice problems](practice.qmd).
