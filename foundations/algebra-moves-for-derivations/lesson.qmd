@@ -1,0 +1,533 @@
+---
+title: "The algebra moves a derivation is made of"
+subtitle: "The handful of legal steps — expand, factor, collect, substitute, cancel, split a sum — that every 'and therefore…' line is quietly using"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+When a paper writes a chain of equations — line, then line, then "and therefore" — each
+line is not magic. It is *one small, legal algebra move* applied to the line above:
+multiply out a bracket, collect the terms that look alike, swap in something you know,
+cancel a factor from both sides. There are only a handful of these moves, you met most
+of them in school, and every derivation is just them stacked up. This lesson names the
+moves so that a multi-line derivation reads as **"one move per line, and here is the name
+of each"** instead of a wall of symbols.
+
+We stay with tiny hand-checkable numbers and base R, and — crucially — we check *every*
+move by plugging in a number and confirming both sides agree. If the two forms of a line
+are really the same algebra, they must give the same number for any input; that is the
+whole trust-building trick.
+
+**Builds on:** [vectors & summation](../vectors-and-summation/lesson.qmd) — we *extend*
+its three Σ-rules (split a sum, pull a constant out, sum a constant) with two more sum
+moves; and [reading math notation](../reading-math-notation/lesson.qmd) — for
+implied multiplication and how far a symbol reaches (we lean on those, we don't re-teach
+them).
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** In [vectors & summation](../vectors-and-summation/lesson.qmd) you learned that a
+sum can be *split*. For `x <- c(2, 4, 6)` and `y <- c(1, 1, 2)`, what is
+$\sum_i (x_i + y_i)$, and does it equal $\sum_i x_i + \sum_i y_i$?
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+x <- c(2, 4, 6)
+y <- c(1, 1, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\sum_i (x_i + y_i) = (2+1)+(4+1)+(6+2) = 3+5+8 = 16$, and
+$\sum_i x_i + \sum_i y_i = 12 + 4 = 16$ — equal. In R, `sum(x + y)` and
+`sum(x) + sum(y)` both give `16`. That's Rule 1, and we build on it below. Shaky?
+Revisit [vectors & summation](../vectors-and-summation/lesson.qmd).
+:::
+
+**2.** Two symbols written side by side with nothing between them — like $3x$ or
+$\beta_1 x$ — mean what operation? And is `2 + 3 * 4` equal to 20 or 14?
+
+::: {.callout-note collapse="true" title="Answer"}
+Side-by-side means **multiply** — $3x$ is $3 \times x$ (implied multiplication, from
+[reading math notation](../reading-math-notation/lesson.qmd)). And `2 + 3 * 4` is
+`14`, because multiplication binds before addition. Both facts matter the moment we
+start expanding brackets below.
+:::
+
+**3.** For `x <- c(2, 4, 6)`, pull the constant out: what is `sum(2 * x)`, and does it
+equal `2 * sum(x)`?
+
+::: {.callout-note collapse="true" title="Answer"}
+`sum(2 * x)` = $4 + 8 + 12 = 24$, and `2 * sum(x)` = $2 \times 12 = 24$ — equal.
+That's Rule 2 (a constant factors out of a sum), taught in
+[vectors & summation](../vectors-and-summation/lesson.qmd); factoring is one of the moves
+we name properly today.
+:::
+
+## A tiny example first
+
+Here is a two-line "derivation" so small you can hold it in your head. Someone claims:
+
+> $(a + b)^2$ is the same as $a^2 + 2ab + b^2$.
+
+Let's see it as *one move*. Take $a = 3$ and $b = 5$. The left side is
+$(3 + 5)^2 = 8^2 = 64$. Now the right side, term by term: $a^2 = 9$, then $2ab = 2\times3\times5 = 30$,
+then $b^2 = 25$; add them: $9 + 30 + 25 = 64$. **Same number.**
+
+Why are they equal? Because "squared" means "times itself," so $(a+b)^2 = (a+b)(a+b)$, and
+multiplying that out — every term in the first bracket times every term in the second —
+gives $aa + ab + ba + bb = a^2 + ab + ab + b^2 = a^2 + 2ab + b^2$. That multiplying-out
+step is the move called **expanding**. Read the other direction — going from
+$a^2 + 2ab + b^2$ *back* to $(a+b)^2$ — and the same move is called **factoring**. One
+move, two directions.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The toy values
+a <- 3
+b <- 5
+
+# Left side: square the sum
+(a + b)^2                 # (3 + 5)^2 = 64
+
+# Right side: the expanded form, term by term
+a^2 + 2 * a * b + b^2     # 9 + 30 + 25 = 64  -> same number, so the move is legal
+```
+
+## Getting a feel for it
+
+**Mental picture: algebra moves are like refactoring code.** You already trust this idea
+from R. When you rewrite `sum(x) / length(x)` as `mean(x)`, you have not changed *what the
+program computes* — same input, same output — you've only changed how it's *written*, to
+make the next step easier. A derivation is exactly that: each line is a refactor of the
+line above that leaves the value untouched but reshapes the symbols toward the form you
+want. "Expand the bracket," "collect like terms," "cancel the common factor" are the
+algebra equivalents of extracting a helper or inlining a variable. Nothing about the
+underlying quantity changes; only its spelling does.
+
+**Where the analogy breaks:** a code refactor can change *speed* without changing output;
+an algebra move never changes speed (there's no runtime) — it only ever changes
+readability and what the *next* move can grab onto. And a few "moves" are illegal in a way
+refactors usually aren't: you may not divide both sides by something that could be zero,
+just as you'd never divide by a variable in code without checking it's nonzero.
+
+**Why these particular moves.** Each move exists to *isolate the thing you care about*. A
+derivation almost always has a goal — "get $x$ by itself," "get everything over a common
+form," "make a square appear so I can recognize it." Expanding breaks a clump apart so you
+can regroup it; collecting like terms gathers the scattered pieces of the thing you want;
+substituting swaps a big expression for a smaller name (or vice versa); cancelling strips
+away a factor that's just riding along. They are the verbs of "rearrange until the answer
+is staring at you."
+
+**What a checked move feels like.** When we confirm $(a+b)^2$ and $a^2+2ab+b^2$ both hit
+64, that agreement is not a coincidence to marvel at — it's the *definition* of a legal
+move. Two algebraic forms are "equal" precisely when they return the same number for
+**every** input, so a single agreeing test is strong evidence and a single *disagreeing*
+test is proof the move was wrong. We'll lean on that constantly: derive, then plug in a
+number.
+
+## What the notation is going to say
+
+Each move we're about to write is an equation with the *same expression* on both sides,
+just spelled differently. "$(a+b)^2 = a^2 + 2ab + b^2$" says: "the square of a sum is the
+first squared, plus twice the product, plus the second squared" — and it holds for any $a$
+and $b$, which is why our $a=3, b=5$ check landing on 64 both ways is the whole proof in
+miniature. The sum moves extend the ones you already read fluently: alongside
+$\sum(x_i + y_i) = \sum x_i + \sum y_i$ (splitting), we'll say that *shifting the index* —
+relabelling the counter — leaves a sum's value untouched. Every line below is "left form =
+right form, and here's a number proving it."
+
+## How to read the symbols
+
+Every symbol used anywhere in this lesson gets a row. (Constants and indices you met in
+the modules this one builds on are recalled here, not re-taught.)
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $a, b$ | "ay, bee" | stand-in numbers (any values you like) | $a = 3$, $b = 5$ |
+| $x$ | "ex" | an unknown number we're solving for, or a variable input | $x = 4$ in the collect/substitute examples |
+| $t$, $u$ | "tee", "you" | other stand-in variables (used like $x$ in the substitute examples) | $t$, $u$ appear in Check-yourself |
+| $y$ | "why" | a stand-in variable that equals some expression in $x$ | $y = 2x + 1$ in the substitute example |
+| $k$ | "kay" | a constant offset inside a square, $(x+k)^2$ | $k = 3$ in the completing-the-square example |
+| $(a+b)^2$ | "the quantity a plus b, squared" | the sum $a+b$ multiplied by itself; the exponent reaches over the whole bracket | $(3+5)^2 = 64$ |
+| $a^2$ | "ay squared" | $a \times a$ (superscript = power — [reading math notation](../reading-math-notation/lesson.qmd)) | $3^2 = 9$ |
+| $2ab$ | "two ay bee" | $2 \times a \times b$ (side-by-side = multiply) | $2\times3\times5 = 30$ |
+| $c$ | "see" | a constant — a fixed number that doesn't change with the index | $6$ in the cancel example |
+| $x_i$ | "ex sub eye" | the i-th value of the list x (in R: `x[i]`) | $x_1=2, x_2=4, x_3=6$ |
+| $y_i$ | "why sub eye" | the i-th value of a second list y (in R: `y[i]`) | $y_1=1, y_2=1, y_3=2$ |
+| $n$ | "en" | how many items in the list (in R: `length(x)`) | 3 |
+| $i$, $j$ | "eye", "jay" | the counter that walks a sum; renaming it changes nothing | $i$ runs 1..3 |
+| $\sum_{i=1}^{n}$ | "the sum from i equals 1 to n" | add the term to its right, once per $i$ (in R: `sum(...)`) — from [vectors & summation](../vectors-and-summation/lesson.qmd) | $x_1+x_2+x_3$ |
+
+## The formal version
+
+We take the seven moves in turn. For each: the move as an equation, a one-line reading, and
+a numeric check. Treat each check as the proof — if the numbers agreed, the move is legal.
+
+### Move 1 — expand and factor (two directions of one move)
+
+$$
+(a + b)^2 = a^2 + 2ab + b^2
+$$
+
+Reading it aloud: "the quantity a plus b, all squared, equals a-squared plus two-a-b plus
+b-squared" — everyday words: "square of a sum = first squared + twice the product + second
+squared." Going **left to right** is *expanding*; going **right to left** is *factoring*
+(recognising the pattern and packing it back into a bracket).
+
+- The single move is: $(a+b)^2 = (a+b)(a+b)$, then multiply every term by every term
+  ("expand the brackets") and combine the two $ab$ copies ("collect like terms",
+  Move 2 below).
+
+Mapping onto the toy numbers with $a=3, b=5$: left is $8^2 = 64$; right is $9 + 30 + 25 = 64$.
+
+```{r move1-check}
+a <- 3; b <- 5
+c(squared = (a + b)^2,                 # 64
+  expanded = a^2 + 2 * a * b + b^2)    # 64 — expand and factor are the same value
+```
+
+### Move 2 — collect like terms (regroup to isolate)
+
+"Like terms" are terms with the *same variable part* — $3x$ and $2x$ are alike (both are
+"some number of $x$"), but $3x$ and $3x^2$ are not. Collecting means adding the coefficients
+of like terms so the scattered pieces become one:
+
+$$
+3x + 5 + 2x - 1 = 5x + 4
+$$
+
+Reading it aloud: "three-x plus five plus two-x minus one equals five-x plus four" —
+everyday words: "gather the x-terms ($3x + 2x = 5x$) and gather the plain numbers
+($5 - 1 = 4$)."
+
+- The move is: regroup the sum so like terms sit together, then add their coefficients —
+  legal because addition can be reordered and regrouped freely.
+
+Check with $x = 4$: left is $12 + 5 + 8 - 1 = 24$; right is $20 + 4 = 24$.
+
+```{r move2-check}
+x <- 4
+c(scattered = 3 * x + 5 + 2 * x - 1,   # 24
+  collected = 5 * x + 4)               # 24 — regrouping didn't change the value
+```
+
+### Move 3 — substitute one expression into another
+
+Substitution swaps a symbol for something you know equals it. Say you know $y = 2x + 1$,
+and you meet $3y - 4$. Replace **every** $y$ with the thing it equals — in a bracket, so
+the operations still apply to the whole of it:
+
+$$
+\begin{aligned}
+3y - 4 &= 3(2x + 1) - 4 \\
+       &= 6x + 3 - 4 \\
+       &= 6x - 1
+\end{aligned}
+$$
+
+- Line 1: substitute $y = 2x + 1$, wrapped in a bracket so the $3\times$ hits all of it.
+- Line 2: expand the bracket — multiply the 3 through (Move 1's expanding, the simple case).
+- Line 3: collect like terms — $3 - 4 = -1$ (Move 2).
+
+Reading the result aloud: "three-y minus four equals six-x minus one." Check with $x = 4$:
+then $y = 2\times4 + 1 = 9$, so $3y - 4 = 27 - 4 = 23$; and $6x - 1 = 24 - 1 = 23$.
+
+```{r move3-check}
+x <- 4
+y <- 2 * x + 1                 # the thing we substitute in: y = 9
+c(before = 3 * y - 4,          # 23, using y directly
+  after  = 6 * x - 1)          # 23 — substitution + expand + collect, same value
+```
+
+The clean-substitution habit: **always parenthesise what you drop in.** Writing $3 \cdot 2x + 1$
+without the bracket would wrongly leave the $+1$ outside the multiplication.
+
+### Move 4 — divide both sides / cancel a common factor (and when you can't)
+
+If two things are equal, you may do the *same* operation to both and they stay equal. To
+solve $6x = 30$, divide both sides by 6:
+
+$$
+6x = 30 \quad\Longrightarrow\quad \frac{6x}{6} = \frac{30}{6} \quad\Longrightarrow\quad x = 5
+$$
+
+- The move is: divide both sides by the same nonzero number; on the left, the 6 in the
+  numerator and denominator **cancel** (they're a common factor), leaving $x$.
+
+Cancelling a common factor from a fraction is the same idea:
+$\dfrac{6x}{6} = x$ because the 6 above and below divide out.
+
+::: {.callout-important title="The one rule: never divide by something that could be zero"}
+Cancelling a factor is only legal when that factor is **not zero**. You cannot divide both
+sides by $x$ unless you know $x \neq 0$ — if $x$ might be 0, dividing by it is undefined
+and can silently destroy solutions. This is the algebra face of "you can't divide by
+zero," and it is the single most common illegal move in a botched derivation.
+:::
+
+Check: $6 \times 5 = 30$ ✓, and the common-factor cancel:
+
+```{r move4-check}
+# Solve 6x = 30 by dividing both sides by 6
+30 / 6                          # 5  -> x = 5
+6 * 5                           # 30 -> plug back in: the solution checks out
+
+# Cancelling a common factor: (6 * x) / 6 is just x, for any nonzero divisor
+x <- 5
+(6 * x) / 6                     # 5 -> the 6s cancel
+```
+
+### Move 5 — sum manipulation beyond the basic three (split, and reindex)
+
+You already have three Σ-rules from
+[vectors & summation](../vectors-and-summation/lesson.qmd): split a sum, pull out a
+constant, sum a constant. Here are two more moves derivations lean on.
+
+**Splitting extended.** Rule 1 splits $\sum(x_i + y_i)$ into $\sum x_i + \sum y_i$. The
+same move handles a term-by-term expression: a sum of a two-part term splits into two sums,
+which you can then simplify each of with the constant rules. (We just *use* Rule 1 here, we
+don't re-derive it.)
+
+**Reindexing (shifting the index).** The counter's *name and starting number* are
+bookkeeping — slide them and the sum's value is unchanged, as long as the terms picked out
+stay the same. Adding all of $x_1, x_2, x_3$ is the same whether you call the counter $i$
+running 1→3 and take $x_i$, or call it $j$ running 2→4 and take $x_{j-1}$:
+
+$$
+\sum_{i=1}^{3} x_i = \sum_{j=2}^{4} x_{j-1}
+$$
+
+- The move is: rename the counter and shift its bounds, compensating inside so each term is
+  the same one as before — legal because a sum doesn't care what you *call* the counter,
+  only which terms it collects.
+
+Reading it aloud: "the sum from i equals 1 to 3 of x-sub-i equals the sum from j equals 2
+to 4 of x-sub-(j minus 1)." When $j = 2$ you get $x_1$; when $j = 4$ you get $x_3$ — the
+same three terms. Check with $x = (2, 4, 6)$: both are $2 + 4 + 6 = 12$.
+
+```{r move5-check}
+x <- c(2, 4, 6)
+
+# Original indexing: i from 1 to 3, term x[i]
+sum(x)                                          # 12
+
+# Reindexed: j from 2 to 4, term x[j - 1] -- same three terms, same total
+sum(sapply(2:4, function(j) x[j - 1]))          # 12
+
+# Split still works too (Rule 1 from vectors-and-summation):
+y <- c(1, 1, 2)
+c(split_lhs = sum(x + y), split_rhs = sum(x) + sum(y))   # 16 and 16
+```
+
+Reindexing feels pointless on its own — its payoff is *lining two sums up* so their terms
+match and can be combined; you'll see it whenever a derivation needs $\sum_{i=1}^{n}$ and
+$\sum_{i=0}^{n-1}$ to have the same shape.
+
+### Move 6 — completing the square (recognize it by name) {#completing-the-square}
+
+**Optional to *do*; essential to *recognize*.** This move rewrites $x^2 + (\text{something})x + (\text{something})$
+as a perfect square (like Move 1's $(x+k)^2$) plus a leftover number. You don't need to
+drill the mechanics here — you need to know the name, so that when a derivation says
+"completing the square" you know it means "force a $(x+k)^2$ to appear." (It shows up
+wherever a derivation needs to read the minimum off a squared term; naming it now is
+enough.)
+
+$$
+x^2 + 6x + 5 = (x + 3)^2 - 4
+$$
+
+Reading it aloud: "x-squared plus six-x plus five equals the quantity x plus three,
+squared, minus four." The name comes from *making a complete square appear*: half of the
+6 is 3, and $(x+3)^2$ expands (Move 1) to $x^2 + 6x + 9$ — that's 4 too big, so we subtract
+4 to compensate. What buys you: a lone $(x+k)^2$ is easy to reason about (its smallest value
+is 0, at $x = -k$), which is why the move shows up when someone wants to find a minimum.
+
+Check with $x = 4$: left is $16 + 24 + 5 = 45$; right is $(4+3)^2 - 4 = 49 - 4 = 45$.
+
+```{r move6-check}
+x <- 4
+c(before = x^2 + 6 * x + 5,        # 45
+  completed = (x + 3)^2 - 4)       # 45 — same value, now a square plus a leftover
+```
+
+### Move 7 — reading a multi-line derivation: one move per line, name the move
+
+The payoff. A derivation is a stack of the moves above, **one per line**, each turning the
+line above into the line below. The skill is to read it that way: for every line, ask "what
+single move got me here from the previous line?" Watch it on a short chain that simplifies
+$(x + 2)^2 - 3x$:
+
+$$
+\begin{aligned}
+(x + 2)^2 - 3x &= (x^2 + 4x + 4) - 3x \\
+               &= x^2 + 4x - 3x + 4 \\
+               &= x^2 + x + 4
+\end{aligned}
+$$
+
+- Line 1: **expand** the square (Move 1): $(x+2)^2 = x^2 + 4x + 4$.
+- Line 2: **regroup** so like terms are adjacent (Move 2's setup) — just reordering.
+- Line 3: **collect like terms** (Move 2): $4x - 3x = x$.
+
+Each line does exactly one nameable thing. Sanity-check the whole chain with $x = 4$: the
+start $(4+2)^2 - 12 = 36 - 12 = 24$, and the end $16 + 4 + 4 = 24$ — the derivation
+preserved the value at every step, as a legal derivation must.
+
+```{r move7-check}
+x <- 4
+c(start = (x + 2)^2 - 3 * x,       # 24
+  end   = x^2 + x + 4)             # 24 — three moves, value unchanged throughout
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: expanding (a+b)^2 is a real algebra identity, not just true for 3 & 5.
+# TRY IT: change a and b to ANY numbers (negatives, decimals) and Run.
+# PREDICT: will the two forms ever disagree? Commit yes/no, then run.
+a <- 3
+b <- 5
+
+squared  <- (a + b)^2               # square-the-sum form
+expanded <- a^2 + 2 * a * b + b^2   # the expanded form
+
+c(squared = squared, expanded = expanded)   # identical for ANY a, b
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: collect like terms, then check the collected form matches the scattered
+# one for a whole grid of x values at once (a stronger test than a single number).
+# PREDICT: will "all TRUE" print? Commit, then run.
+xs <- seq(-5, 5, by = 0.5)          # many values of x
+
+scattered <- 3 * xs + 5 + 2 * xs - 1
+collected <- 5 * xs + 4
+
+all(scattered == collected)         # TRUE everywhere -> the collect move is legal
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: the cancel trap. Cancelling a factor is illegal if it might be zero.
+# PREDICT: solving 6x = 30 gives x = 5. Now: what happens if you try to "cancel x" from
+# the equation  x * x = x  ? (Hint: x = 0 is a solution you'd throw away.) Run to see.
+30 / 6                               # 5 -> legal: dividing both sides by nonzero 6
+
+# x * x = x has TWO solutions: x = 0 and x = 1.
+# Cancelling an x (dividing both sides by x) gives only x = 1 -- and silently loses x = 0,
+# because dividing by x is illegal when x could be 0.
+candidates <- c(0, 1)
+data.frame(x = candidates, holds = candidates * candidates == candidates)  # both TRUE
+```
+
+## Common traps
+
+**Trap 1 — "$(a+b)^2 = a^2 + b^2$."** Hugely tempting, because squaring *looks* like it
+should distribute across the plus the way multiplication distributes. It does not: you drop
+the middle term $2ab$. With $a = 3, b = 4$: the correct $(a+b)^2 = 7^2 = 49$, but the wrong
+$a^2 + b^2 = 9 + 16 = 25$. Off by $2ab = 24$ — not a rounding slip, a whole missing term.
+The square of a sum always carries that cross term.
+
+```{r trap1}
+a <- 3; b <- 4
+c(correct = (a + b)^2,     # 49
+  wrong   = a^2 + b^2,     # 25 -- missing the 2ab = 24 cross term
+  cross   = 2 * a * b)     # 24
+```
+
+**Trap 2 — "cancel the $x$ from both sides."** Given $x^2 = x$, it's tempting to divide
+both sides by $x$ and conclude $x = 1$. But that quietly assumes $x \neq 0$, and $x = 0$ is
+*also* a solution ($0^2 = 0$). Dividing by $x$ threw it away. The safe move is to bring
+everything to one side and factor: $x^2 - x = 0$, so $x(x - 1) = 0$, giving $x = 0$ *or*
+$x = 1$. **Never cancel a factor that could be zero** — it loses solutions.
+
+## Check yourself
+
+**1.** Expand $(x + 4)^2$ into three terms. Then check your expansion at $x = 2$ by
+computing both forms.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your expansion at x = 2
+x <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$(x+4)^2 = x^2 + 2\cdot4\cdot x + 4^2 = x^2 + 8x + 16$ (Move 1, expanding — twice the
+product is $2\times4\times x = 8x$). At $x = 2$: the square form is $(2+4)^2 = 36$; the
+expanded form is $4 + 16 + 16 = 36$. Same number, so the expansion is right. In R,
+`(x + 4)^2` and `x^2 + 8*x + 16` both give `36`.
+:::
+
+**2.** You know $u = 3t - 1$. Substitute it into $2u + 5$ and simplify to a single
+expression in $t$. What move do you use right after substituting?
+
+::: {.callout-note collapse="true" title="Answer"}
+Substitute (parenthesised!): $2u + 5 = 2(3t - 1) + 5$. Then **expand** the bracket
+(multiply the 2 through): $6t - 2 + 5$. Then **collect like terms** ($-2 + 5 = 3$):
+$6t + 3$. The move right after substituting is *expanding the bracket*. Check at $t = 2$:
+$u = 5$, so $2u + 5 = 15$; and $6t + 3 = 15$. Match.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what it means for one
+line of a derivation to be a "legal move," and how you'd check that a move is legal.
+
+::: {.callout-note collapse="true" title="A model answer"}
+A legal move rewrites the line above into a new form that has the *exact same value for
+every possible input* — it changes only how the expression is spelled, never what it
+computes, the way refactoring `sum(x)/length(x)` into `mean(x)` leaves the answer alone.
+To check one, plug a concrete number into both the before and after forms: if they ever
+disagree, the move was illegal; if they always agree, it's a genuine rearrangement.
+:::
+
+## What you can now do
+
+- **Expand and factor** $(a+b)^2$ — recognize it as one move read in two directions, and
+  spot the $2ab$ cross term that the "$a^2 + b^2$" trap drops.
+- **Collect like terms and substitute cleanly** — gather same-variable terms into one, and
+  drop an expression in for a symbol *in a bracket* before expanding.
+- **Divide both sides / cancel a common factor** — and refuse to cancel anything that
+  could be zero, because that loses solutions.
+- **Reshape a sum** beyond the basic three rules — split a term-by-term sum, and reindex
+  (shift the counter) to line two sums up, knowing the value is unchanged.
+- **Name "completing the square" on sight** and read a multi-line derivation as one named
+  move per line, checking the value is preserved at each step.
+
+If any of these feels shaky, revisit [The formal version](#the-formal-version) and re-run
+the checks — every derivation you'll meet is just these moves stacked, and reading it means
+naming each one.
+
+## Where this goes next
+
+These moves are the *grammar* of every "and therefore…" line: whenever a lesson later
+expands a squared residual, splits a sum, or cancels a factor to isolate a coefficient, it
+is using exactly what you just named. Keep this page open as a reference the first few times
+a derivation gets long — soon you'll name the moves without looking. Ready for more reps? Do
+the [practice problems](practice.qmd).
