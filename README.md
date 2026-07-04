@@ -7,6 +7,14 @@ numerical examples, plain-English notation decoding, symbol pronunciation tables
 interactive Quarto R notebooks, practice problems with hidden answers, and verified
 links to external videos and posts.
 
+**▶️ [Browse the live site](https://radlinsky.github.io/professor-claude/)** — every
+example course, rendered with runnable in-browser R (WebR) cells. No install needed.
+
+<!-- Demo GIF: record a ~10s clip of a lesson's {webr} cell running (edit code → Run →
+     see output), save it as docs/assets/demo.gif, then uncomment the line below:
+![Professor Claude in action](docs/assets/demo.gif)
+-->
+
 ## Make it yours
 
 This repo ships tailored to **one example learner** — a strong R programmer whose math
@@ -56,8 +64,10 @@ a written request (`logistic-regression`, from
   chunk-running find `knitr`/`rmarkdown`. Then open a `lesson.qmd` and run it
   chunk-by-chunk, in the order given by `syllabus.md`. Tweak numbers, rerun chunks,
   break things — that's the point.
-- **As a rendered site:** the whole repo is one Quarto project, so render from the
-  root:
+- **As a rendered site:** the courses are published at
+  **<https://radlinsky.github.io/professor-claude/>** (auto-deployed from `main`).
+  To build locally instead — the whole repo is one Quarto project, so render from
+  the root:
 
   ```bash
   quarto render        # builds everything into _site/ — open _site/index.html
