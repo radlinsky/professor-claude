@@ -117,7 +117,9 @@ Check on every change; act when files were added/renamed/removed:
   `course-structure.md`).
 - `courses/README.md` / `foundations/README.md`: update rows (never Status);
   new foundation modules get a row; new course modules may change the course row's
-  "Teaches" summary.
+  "Teaches" summary. When editing an index table, modify only the cells your change
+  requires — never rewrite the whole table (that is how a learner's Status gets
+  clobbered).
 - Syllabus and `00-roadmap.qmd` of the affected course: new/renamed modules appear
   in both, with the Mermaid diagram updated.
 - If a changed or added module newly links a foundation module, append this course
@@ -125,6 +127,8 @@ Check on every change; act when files were added/renamed/removed:
 
 **GATE 4:** ☐ `_quarto.yml`, both READMEs, syllabus, and roadmap all agree with the
 new file reality (skip-checked even for edits that "shouldn't" need it).
+☐ Existing rows' *Status* values byte-identical to before the edit (only NEW rows
+carry `not started`).
 
 ---
 
