@@ -140,9 +140,10 @@ new file reality (skip-checked even for edits that "shouldn't" need it).
 
 ## Step 6 — Review & report
 
-**Preferred:** dispatch the `course-auditor` agent on every changed file; fix
-confirmed defects, re-verify (back through Step 5), re-dispatch until clean.
-Fallback (no agent tool): self-review against
+If a Task/Agent tool is available, dispatch the **`course-auditor` agent** on every
+changed file (self-review is NOT permitted when dispatch is possible); fix confirmed
+defects, re-verify (back through Step 5), re-dispatch until clean.
+Fallback (no Task/Agent tool available): self-review against
 `.claude/course-authoring/content-review-checklist.md` with fresh eyes and disclose
 that the review was self-performed.
 
