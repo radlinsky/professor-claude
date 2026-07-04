@@ -11,6 +11,9 @@ project:
     - foundations/mean-variance-covariance/lesson.qmd
     - foundations/mean-variance-covariance/practice.qmd
     - foundations/mean-variance-covariance/resources.md
+    - foundations/matrices-and-linear-transforms/lesson.qmd
+    - foundations/matrices-and-linear-transforms/practice.qmd
+    - foundations/matrices-and-linear-transforms/resources.md
     - foundations/derivative-as-slope/lesson.qmd
     - foundations/derivative-as-slope/practice.qmd
     - foundations/derivative-as-slope/resources.md
@@ -87,6 +90,14 @@ website:
                 href: foundations/mean-variance-covariance/practice.qmd
               - text: "Resources"
                 href: foundations/mean-variance-covariance/resources.md
+          - section: "Matrices & linear transforms"
+            contents:
+              - text: "Lesson"
+                href: foundations/matrices-and-linear-transforms/lesson.qmd
+              - text: "Practice"
+                href: foundations/matrices-and-linear-transforms/practice.qmd
+              - text: "Resources"
+                href: foundations/matrices-and-linear-transforms/resources.md
           - section: "The derivative as a slope"
             contents:
               - text: "Lesson"

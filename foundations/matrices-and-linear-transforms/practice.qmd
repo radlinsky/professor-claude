@@ -1,0 +1,262 @@
+---
+title: "Practice: Matrices, and what it means to multiply them"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+A new recipe grid $C$ and a price vector $\mathbf{u}$:
+
+$$
+C = \begin{bmatrix} 1 & 2 \\ 3 & 0 \end{bmatrix}, \qquad \mathbf{u} = (4, 5)
+$$
+
+By hand, compute $C\mathbf{u}$ as one dot product per row. Then check with `%*%`.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+C <- matrix(c(1, 2,
+              3, 0), nrow = 2, byrow = TRUE)
+u <- c(4, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Row 1 dotted with $\mathbf{u}$: $1\times4 + 2\times5 = 4 + 10 = 14$.
+Row 2 dotted with $\mathbf{u}$: $3\times4 + 0\times5 = 12 + 0 = 12$.
+So $C\mathbf{u} = (14, 12)$.
+
+```{r p1-answer}
+C <- matrix(c(1, 2,
+              3, 0), nrow = 2, byrow = TRUE)
+u <- c(4, 5)
+C %*% u                              # 14, 12
+c(sum(C[1, ] * u), sum(C[2, ] * u))  # 14, 12 — same, one dot product per row
+```
+:::
+
+## Problem 2 — fill in the missing step (matrix × matrix)
+
+Here is $PQ$ worked out — but the **core step is blanked**. Fill in ONLY the blanked
+line: the four row-by-column dot products.
+
+$$
+P = \begin{bmatrix} 1 & 2 \\ 0 & 1 \end{bmatrix}, \qquad
+Q = \begin{bmatrix} 3 & 1 \\ 2 & 4 \end{bmatrix}
+$$
+
+> Both are 2×2, and $P$'s columns (2) match $Q$'s rows (2), so $PQ$ is 2×2.
+> **`<your step here>`** — each entry is row $i$ of $P$ dotted with column $k$ of $Q$:
+> $(PQ)_{11} = \underline{\phantom{00}}$, $(PQ)_{12} = \underline{\phantom{00}}$,
+> $(PQ)_{21} = \underline{\phantom{00}}$, $(PQ)_{22} = \underline{\phantom{00}}$.
+> Collect them into the 2×2 answer.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your four entries
+P <- matrix(c(1, 2,
+              0, 1), nrow = 2, byrow = TRUE)
+Q <- matrix(c(3, 1,
+              2, 4), nrow = 2, byrow = TRUE)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the heart of matrix multiplication — row of $P$, column of $Q$:
+
+- $(PQ)_{11}$ = row 1 of $P$ · column 1 of $Q$ = $1\times3 + 2\times2 = 7$
+- $(PQ)_{12}$ = row 1 of $P$ · column 2 of $Q$ = $1\times1 + 2\times4 = 9$
+- $(PQ)_{21}$ = row 2 of $P$ · column 1 of $Q$ = $0\times3 + 1\times2 = 2$
+- $(PQ)_{22}$ = row 2 of $P$ · column 2 of $Q$ = $0\times1 + 1\times4 = 4$
+
+So $PQ = \begin{bmatrix} 7 & 9 \\ 2 & 4 \end{bmatrix}$.
+
+```{r p2-answer}
+P <- matrix(c(1, 2,
+              0, 1), nrow = 2, byrow = TRUE)
+Q <- matrix(c(3, 1,
+              2, 4), nrow = 2, byrow = TRUE)
+P %*% Q                    # 7 9 / 2 4 — same as the hand answer
+```
+:::
+
+## Problem 3 — transpose and $X^\top X$
+
+For the matrix $X$ below, write $X^\top$ (the flip), then compute $X^\top X$ by hand
+and confirm it is square and symmetric. Check in R.
+
+$$
+X = \begin{bmatrix} 1 & 2 \\ 3 & 4 \\ 5 & 6 \end{bmatrix}
+$$
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: t(X), then t(X) %*% X
+X <- matrix(c(1, 2,
+              3, 4,
+              5, 6), nrow = 3, byrow = TRUE)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The transpose swaps rows and columns, so the 3×2 $X$ becomes a 2×3:
+$X^\top = \begin{bmatrix} 1 & 3 & 5 \\ 2 & 4 & 6 \end{bmatrix}$.
+
+$X^\top X$ is $(2\times3)\times(3\times2) = 2\times2$. Each entry is a column of $X$
+dotted with a column of $X$:
+
+- $(1,1)$ = column 1 · column 1 = $1^2 + 3^2 + 5^2 = 1 + 9 + 25 = 35$
+- $(1,2) = (2,1)$ = column 1 · column 2 = $1\cdot2 + 3\cdot4 + 5\cdot6 = 2 + 12 + 30 = 44$
+- $(2,2)$ = column 2 · column 2 = $2^2 + 4^2 + 6^2 = 4 + 16 + 36 = 56$
+
+So $X^\top X = \begin{bmatrix} 35 & 44 \\ 44 & 56 \end{bmatrix}$ — square, and
+symmetric because the off-diagonal entries are equal (44 = 44).
+
+```{r p3-answer}
+X <- matrix(c(1, 2,
+              3, 4,
+              5, 6), nrow = 3, byrow = TRUE)
+t(X)                # the flip: 2x3
+t(X) %*% X          # 35 44 / 44 56 — square and symmetric
+```
+:::
+
+## Problem 4 — spot the error (conformability)
+
+A colleague wants the product of two matrices and writes the following. The reasoning
+is **flawed** — find the core error, explain why it's wrong, and say what (if anything)
+would fix it.
+
+> "Let $D$ be 2×3 and $E$ be 2×3. Both are the same shape, so I can multiply them:
+> $DE$ is another 2×3 matrix. I'll just dot each row of $D$ with the matching row of
+> $E$."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to see R reject the bad multiplication
+D <- matrix(1:6, nrow = 2)   # a 2x3 matrix
+E <- matrix(1:6, nrow = 2)   # another 2x3 matrix
+# D %*% E   # <- uncomment: R errors "non-conformable arguments"
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The core error is "same shape means I can multiply them." Conformability is about the
+**inner** dimensions: to compute $DE$ you dot each *row* of $D$ (length = $D$'s column
+count = 3) with each *column* of $E$ (length = $E$'s row count = 2). Those lengths, 3
+and 2, don't match, so $DE$ is undefined — `D %*% E` errors with "non-conformable
+arguments." (A second giveaway: matrix multiply is row-of-first *dotted with column-of-
+second*, never "row with row.")
+
+A fix: transpose $E$ so its shape becomes 3×2. Then $D\,E^\top$ is
+$(2\times3)\times(3\times2) = 2\times2$, which is well-defined.
+
+```{r p4-answer}
+D <- matrix(1:6, nrow = 2)          # 2x3
+E <- matrix(1:6, nrow = 2)          # 2x3
+D %*% t(E)                          # works: 2x2 (inner dims 3 and 3 match)
+```
+:::
+
+## Problem 5 — mixing it with vectors & summation *(uses [vectors-and-summation](../vectors-and-summation/lesson.qmd)'s dot product)*
+
+Two recipes' ingredient amounts sit in $A$; ingredient prices sit in the vector
+$\mathbf{w}$. Compute $A\mathbf{w}$ two ways — (a) directly with `%*%`, and (b) as an
+explicit **dot product** per row using `sum(...)`, the way you learned in
+vectors & summation — and confirm they agree.
+
+$$
+A = \begin{bmatrix} 1 & 0 & 2 \\ 2 & 1 & 1 \end{bmatrix}, \qquad \mathbf{w} = (2, 3, 1)
+$$
+
+**PREDICT** first: what will the two entries of $A\mathbf{w}$ be? Write them down,
+then run.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+A <- matrix(c(1, 0, 2,
+              2, 1, 1), nrow = 2, byrow = TRUE)
+w <- c(2, 3, 1)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Matrix-times-vector is *literally* one dot product per row — the very sum-of-products
+from vectors & summation, $\sum_j A_{ij} w_j$:
+
+- Row 1 · $\mathbf{w}$: $1\times2 + 0\times3 + 2\times1 = 2 + 0 + 2 = 4$
+- Row 2 · $\mathbf{w}$: $2\times2 + 1\times3 + 1\times1 = 4 + 3 + 1 = 8$
+
+So $A\mathbf{w} = (4, 8)$.
+
+```{r p5-answer}
+A <- matrix(c(1, 0, 2,
+              2, 1, 1), nrow = 2, byrow = TRUE)
+w <- c(2, 3, 1)
+
+A %*% w                                 # 4, 8
+c(sum(A[1, ] * w), sum(A[2, ] * w))     # 4, 8 — the dot product per row, spelled out
+```
+
+The `sum(A[i, ] * w)` line is exactly the dot product from
+[vectors & summation](../vectors-and-summation/lesson.qmd); `%*%` just does it for
+every row at once.
+:::
+
+## Problem 6 — a gentle cliffhanger (solving a system)
+
+You have two equations in two unknowns:
+
+$$
+2x + \phantom{1}y = 5, \qquad x + 3y = 10.
+$$
+
+These can be packed into a matrix equation $A\mathbf{z} = \mathbf{b}$, where
+$A = \begin{bmatrix} 2 & 1 \\ 1 & 3 \end{bmatrix}$, $\mathbf{z} = (x, y)$, and
+$\mathbf{b} = (5, 10)$. You just met the tool that undoes a matrix — the inverse.
+**Predict:** if $A\mathbf{z} = \mathbf{b}$, and $A^{-1}$ undoes $A$, what do you get if
+you multiply both sides by $A^{-1}$ on the left? Then run the starter to find $x$ and
+$y$.
+
+```{webr}
+#| autorun: false
+# p6-starter — solve for z = (x, y). Try solve(A) %*% b, and also solve(A, b).
+A <- matrix(c(2, 1,
+              1, 3), nrow = 2, byrow = TRUE)
+b <- c(5, 10)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Multiplying both sides by $A^{-1}$ on the left gives
+$A^{-1}A\,\mathbf{z} = A^{-1}\mathbf{b}$. But $A^{-1}A = I$ (the inverse undoes the
+matrix), and $I$ changes nothing, so the left side is just $\mathbf{z}$. That leaves
+$\mathbf{z} = A^{-1}\mathbf{b}$ — **the inverse solves the system.**
+
+```{r p6-answer}
+A <- matrix(c(2, 1,
+              1, 3), nrow = 2, byrow = TRUE)
+b <- c(5, 10)
+
+solve(A) %*% b     # z = (1, 3): so x = 1, y = 3
+solve(A, b)        # 1, 3 — R's direct solver (preferred; no explicit inverse)
+```
+
+Check: $2(1) + 3 = 5$ ✓ and $1 + 3(3) = 10$ ✓. This is why `solve()` is *named*
+"solve" — its everyday job is solving $A\mathbf{z} = \mathbf{b}$, and computing the
+full inverse is really a special case. Turning a whole method into "stack it into a
+matrix, then apply an inverse" is exactly what matrix notation buys you.
+:::
