@@ -15,6 +15,9 @@ project:
     - foundations/linear-combinations-and-data-matrices/lesson.qmd
     - foundations/linear-combinations-and-data-matrices/practice.qmd
     - foundations/linear-combinations-and-data-matrices/resources.md
+    - foundations/loss-functions-and-optimization/lesson.qmd
+    - foundations/loss-functions-and-optimization/practice.qmd
+    - foundations/loss-functions-and-optimization/resources.md
     - foundations/matrices-and-linear-transforms/lesson.qmd
     - foundations/matrices-and-linear-transforms/practice.qmd
     - foundations/matrices-and-linear-transforms/resources.md
@@ -110,6 +113,14 @@ website:
                 href: foundations/linear-combinations-and-data-matrices/practice.qmd
               - text: "Resources"
                 href: foundations/linear-combinations-and-data-matrices/resources.md
+          - section: "Loss functions & optimization"
+            contents:
+              - text: "Lesson"
+                href: foundations/loss-functions-and-optimization/lesson.qmd
+              - text: "Practice"
+                href: foundations/loss-functions-and-optimization/practice.qmd
+              - text: "Resources"
+                href: foundations/loss-functions-and-optimization/resources.md
           - section: "Matrices & linear transforms"
             contents:
               - text: "Lesson"

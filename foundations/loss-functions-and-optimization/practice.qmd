@@ -1,0 +1,218 @@
+---
+title: "Practice: Loss functions, and finding their bottom"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+You measured something three times: $2$, $5$, $8$. Using the squared-error loss
+$L(m) = \sum_{i=1}^{n} (y_i - m)^2$, compute the loss **by hand** at $m = 5$, then check
+with R. Is $m = 5$ the best (lowest-loss) setting?
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+y <- c(2, 5, 8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The squared gaps at $m = 5$: $(2-5)^2 + (5-5)^2 + (8-5)^2 = 9 + 0 + 9 = 18$. So
+$L(5) = 18$. And $5$ is the **mean** of $2, 5, 8$, so it is the argmin — the setting
+with the smallest possible squared-error loss.
+
+```{r p1-answer}
+y <- c(2, 5, 8)
+L <- function(m) sum((y - m)^2)
+L(5)         # 18
+mean(y)      # 5 -> the loss-minimizing setting (argmin)
+```
+:::
+
+## Problem 2 — fill in the missing step (differentiate the loss)
+
+Here is the derivative of the loss $L(m) = \sum_{i=1}^{n}(y_i - m)^2$ worked out — but
+the **core step is blanked**. Fill in ONLY the blanked line: differentiate one squared
+term $(y_i - m)^2$ with chain-rule-lite.
+
+> Start by pushing the derivative inside the sum (derivative of a sum = sum of
+> derivatives): $L'(m) = \sum_i \frac{d}{dm}(y_i - m)^2$.
+> **`<your step here>`** — apply "the derivative of (stuff)² is $2\,(\text{stuff})\cdot
+> (\text{stuff})'$" to one term, with stuff $= y_i - m$.
+> Then factor the constant out front to finish: $L'(m) = -2\sum_i (y_i - m)$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check: measured slope should match your formula.
+y <- c(2, 4, 6)
+L <- function(m) sum((y - m)^2)
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is the heart of the derivation — differentiate the square:
+
+$$
+\frac{d}{dm}(y_i - m)^2 = 2\,(y_i - m)\cdot(-1) = -2\,(y_i - m)
+$$
+
+The $2\,(\text{stuff})$ comes from the (stuff)² rule; the extra $-1$ is
+$(\text{stuff})' = \frac{d}{dm}(y_i - m)$ — as $m$ rises by 1, $y_i - m$ falls by 1.
+Summing and factoring the $-2$ gives $L'(m) = -2\sum_i(y_i - m)$. For `y <- c(2,4,6)`
+(mean $4$) that is $L'(m) = -2(12 - 3m) = 6m - 24$, zero at $m = 4$.
+
+```{r p2-answer}
+y <- c(2, 4, 6)
+L <- function(m) sum((y - m)^2)
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+rbind(
+  measured = sapply(c(3, 4, 5), function(m) slope_at(L, m)),
+  formula  = 6 * c(3, 4, 5) - 24
+)
+# both rows: -6, 0, 6 -> slope zero at the bottom, m = 4
+```
+:::
+
+## Problem 3 — find the best setting with the recipe
+
+For the measurements $y = (10, 20, 30)$ and the squared-error loss, use "differentiate,
+set to zero, solve" to find the best $m$ by hand. Also compute the loss at $m = 15$ and
+at your best $m$, and confirm the best $m$ has the smaller loss.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: find the argmin, then compare L(15) with L(best)
+y <- c(10, 20, 30)
+L <- function(m) sum((y - m)^2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The derivative is $L'(m) = -2\sum_i(y_i - m) = -2\big[(10-m)+(20-m)+(30-m)\big] =
+-2(60 - 3m) = 6m - 120$. Set it to zero: $6m - 120 = 0 \Rightarrow m = 20$ — which is
+also $\bar y = \text{mean}(10,20,30)$.
+
+Losses: $L(15) = (10-15)^2+(20-15)^2+(30-15)^2 = 25+25+225 = 275$, and
+$L(20) = (10-20)^2+0+(30-20)^2 = 100+0+100 = 200$. The best setting ($20$) has the
+smaller loss ($200 < 275$), as it must.
+
+```{r p3-answer}
+y <- c(10, 20, 30)
+L <- function(m) sum((y - m)^2)
+mean(y)              # 20 -> the argmin from 6m - 120 = 0
+c(L15 = L(15), L20 = L(20))   # 275 vs 200 -> the argmin wins
+```
+:::
+
+## Problem 4 — spot the error (argmin vs. minimum)
+
+A colleague fits a single number to $y = (4, 6, 8)$ and reports their work below. It
+contains **exactly one mistake** — find it, explain why it's wrong, and give the
+corrected conclusion.
+
+> "The squared-error loss is smallest at the mean, and I computed the smallest loss to
+> be $L(6) = 8$. So the best setting to report is $\hat m = \arg\min_m L(m) = 8$."
+
+```{webr}
+#| autorun: false
+# p4-starter — copy this to see the two different numbers for yourself
+y <- c(4, 6, 8)
+L <- function(m) sum((y - m)^2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is equating the **argmin** with the **minimum loss**. The colleague found
+the minimum *loss* correctly, $L(6) = 8$, but then reported that $8$ as the best
+setting. The argmin is the *input* that minimizes the loss — here $m = 6$ — not the
+smallest output. So $\arg\min_m L(m) = 6$, while $\min_m L(m) = 8$; the setting to
+report is $\hat m = 6$, not $8$.
+
+```{r p4-answer}
+y <- c(4, 6, 8)
+L <- function(m) sum((y - m)^2)
+c(argmin = mean(y),   # 6 -> the best SETTING (what to report)
+  minloss = L(mean(y)))  # 8 -> the smallest LOSS (a different number)
+```
+:::
+
+## Problem 5 — mixing it with vectors & summation *(uses [vectors-and-summation](../vectors-and-summation/lesson.qmd)'s sum)*
+
+The derivative "set to zero" condition is $L'(m) = -2\sum_{i=1}^{n}(y_i - m) = 0$, which
+means $\sum_i (y_i - m) = 0$ — the signed gaps must **cancel**. For $y = (3, 7, 11)$:
+(a) using summation, find the $m$ that makes $\sum_i (y_i - m)$ equal zero; (b) confirm
+it matches the mean. **PREDICT** the value first, then run.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+y <- c(3, 7, 11)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Split the sum (a sum can be broken into pieces, from
+[vectors & summation](../vectors-and-summation/lesson.qmd)):
+$\sum_i (y_i - m) = \sum_i y_i - \sum_i m = (3 + 7 + 11) - 3m = 21 - 3m$. Set that to
+zero: $21 - 3m = 0 \Rightarrow m = 7$. That is exactly $\bar y = \sum_i y_i / n = 21/3
+= 7$ — which is *why* the squared-error argmin is always the mean: "the signed gaps sum
+to zero" is the definition of the average.
+
+```{r p5-answer}
+y <- c(3, 7, 11)
+sum(y) / length(y)          # 7 -> from 21 - 3m = 0
+sum(y - 7)                  # 0 -> the signed gaps cancel at m = 7
+mean(y)                     # 7 -> same number
+```
+:::
+
+## Problem 6 — a gentle cliffhanger (a loss with no tidy "set to zero")
+
+Sometimes you don't square the gaps — you take their **absolute value**, giving the
+loss $L(m) = \sum_{i=1}^{n} |y_i - m|$ (total distance, no squaring). For $y = (4, 6,
+8)$ this loss has a sharp corner at its bottom, so "differentiate, set to zero, solve"
+doesn't cleanly apply — but a computer can still **search** for the minimum.
+**Predict:** where do you think this loss bottoms out for $4, 6, 8$? Then run the
+starter and let `optimize()` find it.
+
+```{webr}
+#| autorun: false
+# p6-starter — an absolute-error loss; let R search for its bottom
+y <- c(4, 6, 8)
+L_abs <- function(m) sum(abs(y - m))
+optimize(L_abs, interval = c(0, 20))$minimum   # what m minimizes total distance?
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`optimize()` lands on $m = 6$ (up to a whisker of rounding) — but here $6$ is the
+**median**, not the mean. For absolute-error loss the best single stand-in is the
+*middle* value, and its loss is $L_{\text{abs}}(6) = |4-6| + |6-6| + |8-6| = 2+0+2 = 4$.
+
+The bigger lesson lands next: **the choice of loss decides the answer** — squared error
+gives you the mean, absolute error gives you the median. And when a loss has no clean
+derivative to set to zero, you hand it to a searcher like `optimize()` / `optim()`,
+exactly as you did here. Choosing the loss, and choosing between algebra and search, is
+what the methods ahead are built on.
+
+```{r p6-answer}
+y <- c(4, 6, 8)
+L_abs <- function(m) sum(abs(y - m))
+optimize(L_abs, interval = c(0, 20))$minimum   # ~6, the median
+median(y)                                      # 6 -> matches the search
+L_abs(6)                                        # 4 -> total absolute distance at the best m
+```
+:::
