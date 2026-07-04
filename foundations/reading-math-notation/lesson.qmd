@@ -184,8 +184,8 @@ module's [resources](resources.md).
 |---|---|---|---|
 | $=$ | "equals" | the two sides are the same number | `==` (test) / `<-` (define) |
 | $:=$ or $\equiv$ | "is defined as" | this is a *definition*, not a fact to prove | `<-` |
-| $\approx$ | "is approximately" | nearly equal | `abs(a - b) < tol` |
-| $\propto$ | "is proportional to" | equal **up to some constant multiplier** you're ignoring | `a == k * b` |
+| $\approx$ | "is approximately" | nearly equal | `isTRUE(all.equal(a, b))` |
+| $\propto$ | "is proportional to" | equal **up to some constant multiplier** you're ignoring | `a <- k * b` |
 | $\in$ | "is in / is an element of" | belongs to a set or interval | `%in%` |
 
 ### Operators that look like functions
@@ -200,7 +200,7 @@ module's [resources](resources.md).
 | $P(A)$ | "the probability of A" | how likely event A is (a number in $[0,1]$) | — |
 | $P(A \mid B)$ | "the probability of A **given** B" | chance of A once you know B happened | — |
 | $\arg\min_{\beta} f(\beta)$ | "arg min over beta of f" | the **value of $\beta$** that makes $f$ smallest — *not* the smallest $f$ | `beta[which.min(f)]` |
-| $\arg\max$ | "arg max" | the value that makes it largest | `x[which.max(f)]` |
+| $\arg\max_{\beta} f(\beta)$ | "arg max over beta of f" | the **value of $\beta$** that makes $f$ largest | `beta[which.max(f)]` |
 
 ### Grouping, and marks that mean different things by context
 
