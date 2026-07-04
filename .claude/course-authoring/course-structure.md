@@ -56,7 +56,9 @@ module, edit `/_quarto.yml` and add each new `.qmd`/`.md` in two places, using p
 **relative to the repo root**. This includes `resources.md` — lessons and roadmaps
 link to it, and an unregistered page is never rendered, so the link 404s on the live
 site. CI's "Check every page is registered" step fails on any page left out; the only
-files intentionally excluded are the GitHub-facing `README.md` indexes.
+files intentionally excluded are the GitHub-facing `README.md` indexes. Run
+`Rscript scripts/check-indexes.R` locally to catch a forgotten registration before
+pushing.
 
 1. `project: render:` — the flat list of files to render (no nesting; independent
    of the sidebar).

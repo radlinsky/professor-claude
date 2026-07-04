@@ -13,11 +13,13 @@
 #   0. the two README index files this script relies on exist (else later checks pass
 #      vacuously over zero rows)
 #   1. every foundations/<slug> referenced under courses/ resolves to a real lesson.qmd
-#   2. Used-by <-> syllabus-prereq bidirectionality (reading-math-notation special-cased)
-#   3. every Mermaid :::foundation node label starts with a real foundation slug
-#   4. every slug in foundations/README's "Builds on" column resolves to a table row
-#   5. every Status cell is one of: not started / in progress / done
-#   6. each foundation's README "Builds on" cell matches its lesson.qmd "Builds on:" line
+#   2. every slug in foundations/README's "Builds on" column resolves to a table row
+#   3. every Status cell is one of: not started / in progress / done
+#   4. every Mermaid :::foundation node label starts with a real foundation slug
+#   5. each foundation's README "Builds on" cell matches its lesson.qmd "Builds on:" line
+#   6. Used-by <-> syllabus-prereq bidirectionality (reading-math-notation special-cased)
+#   7. every *.qmd/*.md page on disk under foundations/ and courses/ (except README.md)
+#      appears in _quarto.yml's render list (same rule as render.yml's bash guard)
 #
 # Run from the repo root: Rscript scripts/check-indexes.R
 
@@ -100,8 +102,8 @@ for (f in course_files) {
 }
 passed(before, "all foundation path references under courses/ resolve")
 
-## ---- Check 4: Builds-on slugs resolve to a row in the same table --------------------
-cat("\n== Check 4: foundations/README Builds-on slugs resolve to a table row ==\n")
+## ---- Check 2: Builds-on slugs resolve to a row in the same table --------------------
+cat("\n== Check 2: foundations/README Builds-on slugs resolve to a table row ==\n")
 before <- checkpoint()
 row_slugs <- vapply(found_rows, function(x) cell_foundation_slugs(x$cells[[1]])[1], character(1))
 for (x in found_rows) {
@@ -115,8 +117,8 @@ for (x in found_rows) {
 }
 passed(before, "all Builds-on slugs resolve to a table row")
 
-## ---- Check 5: Status values are from the allowed set --------------------------------
-cat("\n== Check 5: Status cells are not started / in progress / done ==\n")
+## ---- Check 3: Status values are from the allowed set --------------------------------
+cat("\n== Check 3: Status cells are not started / in progress / done ==\n")
 before <- checkpoint()
 allowed <- c("not started", "in progress", "done")
 check_status <- function(path, rows, status_idx) {
@@ -135,8 +137,8 @@ course_rows <- Filter(function(x) length(x$cells) >= 6 && grepl("/syllabus\\.md"
 check_status("courses/README.md", course_rows, 6)           # ...| Foundation prerequisites | Status |
 passed(before, "all Status cells valid")
 
-## ---- Check 3: Mermaid :::foundation node labels start with a real slug --------------
-cat("\n== Check 3: roadmap Mermaid :::foundation nodes name real slugs ==\n")
+## ---- Check 4: Mermaid :::foundation node labels start with a real slug --------------
+cat("\n== Check 4: roadmap Mermaid :::foundation nodes name real slugs ==\n")
 before <- checkpoint()
 for (cs in course_slugs) {
   rf <- file.path("courses", cs, "00-roadmap.qmd")
@@ -156,8 +158,8 @@ for (cs in course_slugs) {
 }
 passed(before, "all Mermaid foundation node labels resolve")
 
-## ---- Check 6: README "Builds on" cell matches the lesson's "Builds on:" line --------
-cat("\n== Check 6: README Builds-on column matches each lesson's Builds-on line ==\n")
+## ---- Check 5: README "Builds on" cell matches the lesson's "Builds on:" line --------
+cat("\n== Check 5: README Builds-on column matches each lesson's Builds-on line ==\n")
 before <- checkpoint()
 # Pull the foundation slugs a lesson declares in its "**Builds on:**" statement (which may
 # wrap across lines up to the next blank line). Roots say "just the baseline" -> empty set.
@@ -186,8 +188,8 @@ for (x in found_rows) {
 }
 passed(before, "every lesson Builds-on line matches its README column cell")
 
-## ---- Check 2: Used-by <-> syllabus-prereq bidirectionality -------------------------
-cat("\n== Check 2: Used-by <-> syllabus prereq bidirectionality ==\n")
+## ---- Check 6: Used-by <-> syllabus-prereq bidirectionality -------------------------
+cat("\n== Check 6: Used-by <-> syllabus prereq bidirectionality ==\n")
 before <- checkpoint()
 RMN <- "reading-math-notation"
 
@@ -249,6 +251,29 @@ for (cs in course_slugs) {
   }
 }
 passed(before, "Used-by and syllabus prereqs are consistent")
+
+## ---- Check 7: every on-disk page is registered in _quarto.yml render list -----------
+# Same rule as render.yml 'Check every page is registered' — keep in sync.
+cat("\n== Check 7: every foundations/ & courses/ page is in the _quarto.yml render list ==\n")
+before <- checkpoint()
+# On-disk pages: every *.qmd/*.md under foundations/ and courses/ except README.md
+# (README.md files are GitHub-facing repo indexes, not rendered site pages).
+disk_pages <- list.files(c("foundations", "courses"), pattern = "\\.(qmd|md)$",
+                         recursive = TRUE, full.names = TRUE)
+disk_pages <- disk_pages[basename(disk_pages) != "README.md"]
+# Registered pages: extract the path token right after "- ", exactly as render.yml's
+# `grep -oP '(?<=- )(foundations|courses)/\S+\.(qmd|md)'` does. The lookbehind excludes
+# sidebar `href:` lines, and `\S+` stops at whitespace so a trailing YAML comment after
+# the path is tolerated (matching CI). PCRE lookbehind needs perl = TRUE.
+quarto_lines <- read_lines("_quarto.yml")
+registered <- unique(regmatches(quarto_lines,
+  regexpr("(?<=- )(foundations|courses)/\\S+\\.(qmd|md)", quarto_lines, perl = TRUE)))
+for (p in disk_pages) {
+  if (!(p %in% registered)) {
+    err("_quarto.yml", sprintf("page '%s' exists on disk but is not in the render list", p))
+  }
+}
+passed(before, "every on-disk page is registered in _quarto.yml")
 
 ## ---- done ---------------------------------------------------------------------------
 cat("\n")

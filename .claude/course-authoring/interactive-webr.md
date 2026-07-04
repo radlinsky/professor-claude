@@ -24,10 +24,25 @@ WebAssembly, executing client-side in the rendered page.
   quarto-live issue #93).
 - The extension is vendored at `_extensions/r-wasm/live/` (pinned to the
   `r-wasm/quarto-live@v0.2.0` tag; its internal `_extension.yml` reads `0.1.3-dev`,
-  which is cosmetic — it carries webR 0.6.0 / R 4.5). It is committed, so no
-  `quarto add` is needed to render. If you ever re-run `quarto add`, do it in a
-  checkout where no `.qmd` yet contains the include line below, or the add step fails
-  trying to resolve the not-yet-installed include.
+  which is cosmetic — it carries webR 0.6.0 / R 4.5). **The tag recorded here is the
+  source of truth for the vendored version**, not the `_extension.yml` string. It is
+  committed, so no `quarto add` is needed to render.
+
+### Updating the vendored extension
+
+When upstream ships a webR/R bump you need, update the vendored copy this way:
+
+1. Check the upstream release/tag at `r-wasm/quarto-live` and its bundled webR/R
+   versions against the assumptions in `docs/webr-decision.md` §2 — confirm the new
+   versions still hold.
+2. Run `quarto add r-wasm/quarto-live@<tag>` in a **scratch checkout that does NOT yet
+   contain the `_knitr.qmd` include lines** (the add step fails trying to resolve a
+   not-yet-installed include if any `.qmd` already carries the include), then copy
+   `_extensions/r-wasm/live/` over into this repo.
+3. Note that `_extension.yml`'s internal version string may not match the tag — record
+   the ACTUAL tag in the pin note above so a forker can tell the real version.
+4. Run `quarto render`, run the webr verification (script/manual per §Verifying below),
+   and update `docs/webr-decision.md`'s version references if webR/R changed.
 
 ## Making a lesson interactive (per-file, opt-in)
 
@@ -111,6 +126,23 @@ install but can't fit). Test the workflow, not the binary.
 - `quarto render` from the repo root must stay green — every baked `{r}` chunk still
   executes at build; `{webr}` cells are emitted as client-side editors and are **not**
   executed at build.
-- In-browser execution can't be checked in the Claude Code sandbox (no browser). Confirm
-  a live cell actually runs by opening the rendered page on a phone/desktop once, or via
-  a CI-only Playwright job. Never claim in-browser execution was verified in the sandbox.
+- **Native-R proxy check (automated).** Run `Rscript scripts/check-webr-cells.R` from
+  the repo root. It executes every `#| autorun: true` `{webr}` cell (the cells that run
+  on page load and must be error-free) in a fresh R session per document, sharing state
+  across a document's cells, and exits 1 naming the file + cell index on any error.
+  Starter cells (autorun off) are intentionally incomplete and are never run. Because the
+  contract requires live cells to be base R and self-contained, native execution is a
+  faithful proxy for in-browser execution (minus wasm quirks). `render.yml` runs this
+  script in CI after the render step.
+- **Manual in-browser spot-check.** The proxy above does not exercise the actual webR
+  runtime, so once per meaningful change spot-check in a real browser:
+  1. `quarto render` (or `quarto preview`) the page.
+  2. Open the rendered lesson in a browser (phone or desktop).
+  3. Wait for the webR runtime banner to finish loading (the first run downloads the
+     engine).
+  4. Confirm every autorun cell shows output with no red error.
+  5. Click **Run** on one starter cell after typing a trivial answer, and confirm it
+     executes.
+- In-browser execution can't be checked in the Claude Code sandbox (no browser). Never
+  claim in-browser execution was verified in the sandbox — the native proxy above is not
+  a substitute for the manual browser spot-check.
