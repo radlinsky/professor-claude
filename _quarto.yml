@@ -4,16 +4,22 @@ project:
   render:
     - foundations/reading-math-notation/lesson.qmd
     - foundations/reading-math-notation/practice.qmd
+    - foundations/reading-math-notation/resources.md
     - foundations/vectors-and-summation/lesson.qmd
     - foundations/vectors-and-summation/practice.qmd
+    - foundations/vectors-and-summation/resources.md
     - foundations/mean-variance-covariance/lesson.qmd
     - foundations/mean-variance-covariance/practice.qmd
+    - foundations/mean-variance-covariance/resources.md
     - foundations/derivative-as-slope/lesson.qmd
     - foundations/derivative-as-slope/practice.qmd
+    - foundations/derivative-as-slope/resources.md
     - foundations/exponentials-and-logs/lesson.qmd
     - foundations/exponentials-and-logs/practice.qmd
+    - foundations/exponentials-and-logs/resources.md
     - foundations/probability-and-odds/lesson.qmd
     - foundations/probability-and-odds/practice.qmd
+    - foundations/probability-and-odds/resources.md
     - courses/simple-linear-regression/syllabus.md
     - courses/simple-linear-regression/00-roadmap.qmd
     - courses/simple-linear-regression/modules/01-least-squares-idea/lesson.qmd
