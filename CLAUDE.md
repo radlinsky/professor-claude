@@ -69,7 +69,7 @@ professor_claude/
 
 | You want to… | Use |
 |---|---|
-| Build a whole new course (from a paper, concept, or a `source-materials/*/COURSE-REQUEST.md`) | **`create-course` skill**; or the **`course-creator` agent** for a one-shot build (agent = autonomous one-shot; skill = interactive build) |
+| Build a whole new course (from a bare concept or a paper with no validation reference, or a `source-materials/*/COURSE-REQUEST.md`) | **`create-course` skill**; or the **`course-creator` agent** for a one-shot build (agent = autonomous one-shot; skill = interactive build) |
 | Rebuild a real method (an R/Python/C/C++/Fortran library, a paper's methods, or a repo) from scratch into a course AND prove the rebuild matches the original | **`port-library` skill** — does source analysis + equivalence fixtures, then runs create-course phases 3–8 (if ANY validation reference exists — runnable code, reported numbers, or a closed form — port-library applies; only a bare concept with nothing to validate against goes to create-course) |
 | Change ANYTHING in existing material (fix, improve, extend, add a module/section) | **`update-course` skill** — never edit course content ad hoc |
 | Only add practice problems / check-yourself questions to an existing module | **`add-problems` skill**, or the **`problem-creator` agent** (ADDING new problems; CHANGING existing problems is update-course) |
