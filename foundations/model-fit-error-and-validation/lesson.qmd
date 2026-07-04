@@ -171,7 +171,9 @@ as "typical miss of about nine-tenths of a point" — a number you can actually 
 This square-then-average-then-un-square shape is exactly the mean → variance →
 standard-deviation move from
 [the mean, variance & covariance](../mean-variance-covariance/lesson.qmd); MSE is the
-variance of the misses, RMSE their standard deviation.
+variance of the misses, RMSE their standard deviation — the same square-then-average
+shape, though MSE divides by $n$ rather than the $n-1$ that R's `var()` uses, so they
+won't match exactly.
 
 **Why divide by TSS for R²?** A raw RSS of 4 means nothing on its own — is 4 good? It
 depends entirely on how spread out $y$ was to begin with. Dividing the *explained* part
@@ -215,6 +217,7 @@ our $1 - 4/50 = 0.92$. No new arithmetic, just compact names.
 | $\text{MSE}$ | "M-S-E" | mean squared error: $\text{RSS}/n$ | 0.8 |
 | $\text{RMSE}$ | "R-M-S-E" | root mean squared error: $\sqrt{\text{MSE}}$ | 0.894 |
 | $R^2$ | "R-squared" | fraction of $y$'s spread the model explains: $1-\text{RSS}/\text{TSS}$ | 0.92 |
+| $k$ | "kay" | the number of cross-validation folds (in $k$-fold CV) | $k=5$ |
 
 ## The formal version
 
