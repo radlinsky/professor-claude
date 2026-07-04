@@ -1,0 +1,238 @@
+---
+title: "Practice: Variance structure & standardization"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it — each starter re-states its
+# own data). Base R is all we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — standardize, new numbers
+
+The column `x <- c(10, 20, 30)`. By hand, compute its mean, its standard deviation, and
+then its three **z-scores** (center, then scale). Check with `scale()`.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+x <- c(10, 20, 30)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Mean $= (10+20+30)/3 = 20$. Deviations $-10, 0, +10$; squared $100, 0, 100$; sum $200$;
+divide by $n - 1 = 2$ → variance $100$ → standard deviation $\sqrt{100} = 10$.
+Standardize each: $-10/10 = -1$, $0/10 = 0$, $10/10 = +1$. So the z-scores are
+$-1, 0, +1$.
+
+```{r p1-answer}
+x <- c(10, 20, 30)
+(x - mean(x)) / sd(x)   # -1  0  1
+as.vector(scale(x))     # -1  0  1 — scale() does center-then-scale for us
+```
+:::
+
+## Problem 2 — fill in the missing step (the covariance matrix)
+
+Here is the covariance matrix of a two-column data frame, worked out — but the
+**diagonal entries are blanked**. Fill in ONLY the two blanks, using the rule "the
+diagonal of a covariance matrix is each column's variance."
+
+$$
+\text{df} = \begin{bmatrix} x & y \\ 1 & 2 \\ 2 & 4 \\ 3 & 6 \end{bmatrix}
+$$
+
+> The off-diagonal is $\mathrm{Cov}(x, y) = 2$ (given). The full grid is
+> $\begin{bmatrix} \underline{\phantom{00}} & 2 \\ 2 & \underline{\phantom{00}} \end{bmatrix}$
+> — **`<your step here>`**: the top-left blank is $\mathrm{Var}(x)$ and the bottom-right
+> blank is $\mathrm{Var}(y)$. Compute those two variances.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check your two diagonal entries
+df <- data.frame(x = c(1, 2, 3), y = c(2, 4, 6))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The blanked step is "the diagonal holds each column's own variance."
+
+- $\mathrm{Var}(x)$ for $x = (1,2,3)$: mean 2, deviations $-1, 0, +1$, squared $1,0,1$,
+  sum 2, divide by $n-1 = 2$ → **1**.
+- $\mathrm{Var}(y)$ for $y = (2,4,6)$: mean 4, deviations $-2, 0, +2$, squared $4,0,4$,
+  sum 8, divide by $2$ → **4**.
+
+So the covariance matrix is $\begin{bmatrix} 1 & 2 \\ 2 & 4 \end{bmatrix}$ — symmetric,
+with variances on the diagonal.
+
+```{r p2-answer}
+df <- data.frame(x = c(1, 2, 3), y = c(2, 4, 6))
+cov(df)              # diagonal 1 and 4, off-diagonal 2 and 2
+c(var(df$x), var(df$y))   # 1 4 — exactly the diagonal
+```
+:::
+
+## Problem 3 — split the spread (within vs. between)
+
+Four measurements in two groups:
+
+- **Group X:** `4, 6` (mean 5)
+- **Group Y:** `14, 16` (mean 15)
+
+By hand, compute the grand mean, the **total** sum of squared deviations (around the
+grand mean), the **within-group** sum, and the **between-group** sum. Confirm within +
+between = total. Then check in R.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: total_ss, within_ss, between_ss
+prices <- c(4, 6, 14, 16)
+group  <- factor(c("X", "X", "Y", "Y"))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Grand mean $= (4+6+14+16)/4 = 10$.
+
+- **Total:** $(4-10)^2 + (6-10)^2 + (14-10)^2 + (16-10)^2 = 36 + 16 + 16 + 36 = 104$.
+- **Within** (around each group's own mean, 5 and 15): $(4-5)^2 + (6-5)^2 = 1 + 1 = 2$
+  for X, and $(14-15)^2 + (16-15)^2 = 1 + 1 = 2$ for Y → **4** total.
+- **Between** (each group mean vs. grand, times group size 2):
+  $2(5-10)^2 + 2(15-10)^2 = 2(25) + 2(25) = 100$.
+
+Check: $4 + 100 = 104$ ✓ — almost all the spread is *between* the groups.
+
+```{r p3-answer}
+prices <- c(4, 6, 14, 16)
+group  <- factor(c("X", "X", "Y", "Y"))
+
+grand <- mean(prices)                               # 10
+total_ss <- sum((prices - grand)^2)                 # 104
+
+gm <- tapply(prices, group, mean)                   # X = 5, Y = 15
+within_ss <- sum((prices - gm[group])^2)            # 4
+between_ss <- sum(table(group) * (gm - grand)^2)    # 100
+
+c(total = total_ss, within = within_ss, between = between_ss)
+within_ss + between_ss                              # 104
+```
+:::
+
+## Problem 4 — spot the error (standardizing)
+
+A colleague standardized the area column below — the computation contains **exactly one
+mistake**. Find it, explain why it's wrong, and give the corrected z-scores.
+
+> "z-score = value minus mean, divided by the **variance**. For
+> `area <- c(80, 100, 120, 140, 160)`: mean is 120, variance is 1000, so the z-scores are
+> $-40/1000, -20/1000, 0, 20/1000, 40/1000 = -0.04, -0.02, 0, 0.02, 0.04$."
+
+```{webr}
+#| autorun: false
+# p4-starter — edit and Run to see the correct z-scores
+area <- c(80, 100, 120, 140, 160)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The one mistake: standardizing divides by the **standard deviation**, not the variance.
+The variance is in *squared* units, so dividing by it shrinks the z-scores to a
+meaningless tiny scale ($\pm 0.04$). The standard deviation is $\sqrt{1000} \approx
+31.62$, so the correct z-scores are $-40/31.62 \approx -1.26$, $-20/31.62 \approx -0.63$,
+$0$, $+0.63$, $+1.26$ — the recognizable "roughly $\pm 1$" spread of standardized data.
+
+```{r p4-answer}
+area <- c(80, 100, 120, 140, 160)
+round((area - mean(area)) / sd(area), 2)   # -1.26 -0.63 0.00 0.63 1.26 — divide by sd
+```
+:::
+
+## Problem 5 — mixing it with matrices *(uses [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd)'s diagonal & symmetry)*
+
+The house data again:
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+houses <- data.frame(area = c(80, 100, 120, 140, 160),
+                     beds = c(2, 2, 3, 4, 4))
+```
+
+(a) Build the covariance matrix with `cov(houses)`. (b) Using `diag()` from
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd), pull out
+its diagonal — **PREDICT** first what those two numbers should be and why. (c) Confirm
+the matrix is symmetric.
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) `cov(houses)` is $\begin{bmatrix} 1000 & 30 \\ 30 & 1 \end{bmatrix}$.
+
+(b) The **diagonal** of a covariance matrix is each column's own variance — the
+covariance-with-itself identity. So `diag(cov(houses))` should be
+`var(area) = 1000` and `var(beds) = 1`.
+
+(c) Symmetric means entry $(1,2)$ equals entry $(2,1)$: both are 30 — the same
+$\mathrm{Cov}(\text{area}, \text{beds})$ read in either order. Every covariance matrix is
+symmetric for exactly this reason.
+
+```{r p5-answer}
+houses <- data.frame(area = c(80, 100, 120, 140, 160),
+                     beds = c(2, 2, 3, 4, 4))
+S <- cov(houses)
+S
+diag(S)                    # 1000 1 — each column's variance
+c(var(houses$area), var(houses$beds))   # 1000 1 — matches the diagonal
+S[1, 2] == S[2, 1]         # TRUE — symmetric
+```
+:::
+
+## Problem 6 — pooling / borrowing strength (a gentle cliffhanger)
+
+A new neighborhood has a single recorded sale at **300** (thousands). The overall grand
+mean across neighborhoods is **160**. A pooled ("shrinkage") estimate blends the group's
+own mean toward the grand mean, weighted by how much you trust the group.
+
+**Predict:** with trust-weight $0.5$, will the pooled estimate land closer to 300 or to
+160? What if you had many sales in the new neighborhood instead of one — should the weight
+go up or down, and which way would the estimate move? (You can't yet compute the "right"
+weight — that formula is course-level — but you can reason about the blend.)
+
+```{webr}
+#| autorun: false
+# p6-starter — try a few weights and watch the blend move
+grand      <- 160
+group_mean <- 300
+weight     <- 0.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+With weight $0.5$ the pooled estimate is a straight average of the two:
+$0.5 \times 300 + 0.5 \times 160 = 230$ — halfway between, so exactly between 300 and 160.
+
+With **many** sales you'd trust the group more, so the weight goes **up** (toward 1), and
+the estimate moves back toward the group's own mean of 300. With a single flimsy sale you
+trust it less, the weight drops toward 0, and the estimate is pulled hard toward the
+stable grand mean of 160. That "trust more data more" dial is the heart of pooling — the
+actual formula for the weight (built from within- and between-group spread) is what
+course-level mixed-model material derives next.
+
+```{r p6-answer}
+grand      <- 160
+group_mean <- 300
+
+for (w in c(0.25, 0.5, 0.9)) {
+  cat("weight", w, "-> pooled estimate", w * group_mean + (1 - w) * grand, "\n")
+}
+# weight 0.25 -> 195   (trust group little: near the grand mean)
+# weight 0.5  -> 230   (halfway)
+# weight 0.9  -> 286   (trust group lots: near the group's own mean)
+```
+:::
