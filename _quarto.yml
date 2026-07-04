@@ -45,6 +45,8 @@ project:
 
 website:
   title: "Professor Claude"
+  # GitHub Pages project site; serves under the /professor-claude/ subpath.
+  site-url: https://radlinsky.github.io/professor-claude/
   sidebar:
     style: docked
     contents:
