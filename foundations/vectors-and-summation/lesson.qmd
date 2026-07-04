@@ -35,7 +35,7 @@ variances, regression, likelihoods — is written with them.
 
 **Builds on:** the baseline (you already use R vectors every day — that's most of the
 battle), plus [reading math notation](../reading-math-notation/lesson.qmd) for the
-symbols themselves.
+symbols themselves (a soft dependency — skip ahead if the notation is already familiar).
 
 ## Warm-up: do you remember?
 
