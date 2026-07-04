@@ -25,7 +25,7 @@ fail <- 0L
 err <- function(file, msg, line = NA) {
   if (is.na(line)) cat(sprintf("::error file=%s::%s\n", file, msg))
   else             cat(sprintf("::error file=%s,line=%d::%s\n", file, as.integer(line), msg))
-  fail <<- 1L
+  fail <<- fail + 1L                                        # counter, so per-check passed() stays accurate
 }
 ok <- function(msg) cat(sprintf("OK  %s\n", msg))
 `%||%` <- function(a, b) if (is.null(a)) b else a
@@ -156,7 +156,8 @@ lesson_builds_on <- function(slug) {
   seg <- lines[h[1]:length(lines)]
   blank <- which(seg == "" | grepl("^\\s*$", seg))
   seg <- if (length(blank)) seg[1:(blank[1] - 1)] else seg
-  list(slugs = ref_slugs(seg), line = h[1])
+  # Use the same unfiltered extractor as the README side, for an apples-to-apples diff.
+  list(slugs = unique(unlist(lapply(seg, cell_foundation_slugs))), line = h[1])
 }
 for (x in found_rows) {
   self <- cell_foundation_slugs(x$cells[[1]])[1]
@@ -239,5 +240,5 @@ passed(before, "Used-by and syllabus prereqs are consistent")
 
 ## ---- done ---------------------------------------------------------------------------
 cat("\n")
-if (fail == 0L) cat("check-indexes: all checks passed\n") else cat("check-indexes: FAILURES above\n")
-quit(status = fail)
+if (fail == 0L) cat("check-indexes: all checks passed\n") else cat(sprintf("check-indexes: %d FAILURE(S) above\n", fail))
+quit(status = if (fail > 0L) 1L else 0L)                     # any failure -> exit 1
