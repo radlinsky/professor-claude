@@ -1,0 +1,422 @@
+---
+title: "Likelihood and log-likelihood"
+subtitle: "Flip the question: with the data fixed, which parameter value makes what you saw least surprising?"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+You already know how to ask "given a coin with probability $p$ of heads, how likely is
+it to see 2 heads in 3 flips?" — that's a **probability** question, with $p$ fixed and
+the data varying. This lesson **flips the question around**: you've *already flipped the
+coin and seen the data* — now which value of $p$ makes that data least surprising? That
+flipped quantity is the **likelihood**, and the value of $p$ that maximizes it is the
+**maximum-likelihood estimate** — the single most important recipe in applied
+statistics for turning data into a parameter estimate.
+
+We'll build it with a plain coin: multiply the per-flip pieces into a likelihood, take
+logs to turn that product into a tame sum, and find the peak. We will *not* touch any
+particular model's likelihood formula, nor the machinery of optimization — just the
+idea, on numbers you can check by hand.
+
+**Builds on:** [probability, odds & log-odds](../probability-and-odds/lesson.qmd) — a
+probability is a number in $[0,1]$ and independent events multiply; and
+[exponentials & logs](../exponentials-and-logs/lesson.qmd) — the log rule that turns a
+product into a sum, $\log(ab) = \log a + \log b$, is the whole reason log-likelihood
+exists.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** A bent coin lands heads with probability $p = 0.6$. What is its probability of
+*tails*? State the one-line rule you used.
+
+::: {.callout-note collapse="true" title="Answer"}
+Tails probability is $1 - p = 1 - 0.6 = 0.4$. The rule: "probability of not-A is one
+minus probability of A" — the two outcomes must together account for everything, so
+they sum to 1. Shaky? Revisit
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd).
+:::
+
+**2.** Two independent events have probabilities $0.6$ and $0.4$. What is the
+probability that **both** happen? (Independent = one outcome tells you nothing about the
+other.)
+
+::: {.callout-note collapse="true" title="Answer"}
+Multiply: $0.6 \times 0.4 = 0.24$. For **independent** events, the probability that all
+of them happen is the *product* of their individual probabilities. That multiply is the
+engine of the whole lesson. See
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd).
+:::
+
+**3.** Read this aloud and give its value: $\log(0.6 \times 0.4)$ written as a *sum* of
+two logs. Which log rule are you using?
+
+```{webr}
+#| autorun: false
+# warmup3-starter — edit and Run to check (log() with no base is the NATURAL log)
+a <- 0.6
+b <- 0.4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"The log of a product equals the sum of the logs": $\log(0.6 \times 0.4) =
+\log(0.6) + \log(0.4)$. In R, `log(0.6 * 0.4)` and `log(0.6) + log(0.4)` both give
+about $-1.427$. This **product-becomes-sum** rule is exactly what we'll use to tame the
+likelihood. See [exponentials & logs](../exponentials-and-logs/lesson.qmd).
+:::
+
+## A tiny example first
+
+You flip a coin **three times** and see **heads, heads, tails**. That's your data — it
+is now *fixed*, it already happened. The coin has some unknown probability of heads;
+call it $p$. You want to reason about $p$.
+
+Here's the key move. Ask: *if the true probability of heads were some particular value
+$p$, how probable was the exact sequence I saw?* Because the flips are independent, you
+**multiply** the per-flip probabilities: heads contributes $p$, heads again contributes
+$p$, tails contributes $1 - p$. So the probability of "heads, heads, tails" under that
+$p$ is
+
+$$
+p \times p \times (1 - p).
+$$
+
+Now try a few guesses for $p$ and see which makes the observed data most probable:
+
+- **$p = 0.5$** (a fair coin): $0.5 \times 0.5 \times 0.5 = 0.125$.
+- **$p = 0.6$**: $0.6 \times 0.6 \times 0.4 = 0.144$.
+- **$p = 0.8$**: $0.8 \times 0.8 \times 0.2 = 0.128$.
+
+So a coin with $p = 0.6$ makes "heads, heads, tails" *more* probable ($0.144$) than a
+fair coin does ($0.125$), and even more than a strongly-biased $p = 0.8$ coin ($0.128$).
+That number — "how probable was my fixed data, as a function of the guessed $p$" — is
+the **likelihood** of $p$. The value of $p$ that makes it biggest is the **best
+estimate** of the coin's bias from this data.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The likelihood of a value p, given our FIXED data H, H, T:
+# two heads contribute p each, one tail contributes (1 - p). Multiply (independence).
+lik <- function(p) p * p * (1 - p)
+
+lik(0.5)   # 0.125  -- a fair coin
+lik(0.6)   # 0.144  -- makes H,H,T MORE probable
+lik(0.8)   # 0.128  -- too biased; worse than 0.6
+
+# Which of these three guesses wins?
+c(p0.5 = lik(0.5), p0.6 = lik(0.6), p0.8 = lik(0.8))
+```
+
+## Getting a feel for it
+
+**The mental picture: a dial, not a die.** In a probability question the coin's bias
+$p$ is *bolted down* and you imagine the data wobbling — "how often would 2-heads-in-3
+show up?" Likelihood turns the whole setup inside out: the data is bolted down (you
+already saw heads, heads, tails), and now *you* hold a dial labelled $p$ and turn it.
+At each dial setting you read off one number: "how probable was my data at this
+setting?" Sweep the dial from 0 to 1 and you trace out a curve; its highest point is
+the setting the data likes best. Same formula $p\,p\,(1-p)$ as a probability — but you
+read it as a function of the dial, not of the data. (Where the picture strains: a
+likelihood is *not* a probability distribution over $p$ — the area under the curve
+doesn't have to be 1, and you can't ask "the probability that $p = 0.6$." It's only a
+*score* for comparing dial settings.)
+
+**Why multiply the per-flip pieces?** Because the flips are independent — one flip's
+result says nothing about the next — and independent events combine by *multiplication*
+(warm-up 2). Adding them would be nonsense: three certain events ($p = 1$ each) would
+"add" to 3, but a probability can never exceed 1. Multiplying keeps everything a proper
+probability: $1 \times 1 \times 1 = 1$, and any doubt on any flip drags the product
+*down*, which is exactly what "all of these had to happen" should feel like.
+
+**What the number feels like — and why the peak sits where it does.** Our data was 2
+heads out of 3 flips, a heads-rate of $2/3 \approx 0.667$. The likelihood peaks right
+there, at $p = 2/3$ — the dial setting that says "heads is a two-thirds coin" matches
+what you saw and so makes it least surprising. Turn the dial too low (say $0.2$) and
+two heads become a fluke, so the score collapses (to $0.032$); turn it too high (say
+$0.9$) and the lone tail becomes the fluke, so the score falls again. The likelihood
+numbers themselves are small ($0.125$, $0.144$…) and get *tiny* fast as you add flips —
+hold that thought, it's the whole reason for the next section.
+
+## What the notation is going to say
+
+The formula will just spell out the recipe you already did by hand: **for each
+observation, write down its probability under the guessed $p$, then multiply them all
+together** — heads gives $p$, tails gives $1 - p$. For our three flips that product is
+$p \times p \times (1-p)$, the exact "$0.6 \times 0.6 \times 0.4 = 0.144$" from above.
+Then the **log-likelihood** applies one rule from [exponentials &
+logs](../exponentials-and-logs/lesson.qmd) — "a log of a product is a sum of logs" — to
+turn that long multiplication into a plain *addition*, which is both easier to
+differentiate and safe from the tiny-number problem.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $p$ | "pee" | the parameter we're estimating: the coin's probability of heads, a number in $[0,1]$ | the dial we turn; best value $2/3$ |
+| $1 - p$ | "one minus pee" | the probability of the *opposite* outcome (tails) | $0.4$ when $p = 0.6$ |
+| $x_i$ | "ex sub eye" | the $i$-th observation (here: 1 for heads, 0 for tails) (in R: `x[i]`) | $x_1=1, x_2=1, x_3=0$ |
+| $n$ | "en" | the number of observations (in R: `length(x)`) | 3 |
+| $k$ | "kay" | the number of "successes" (heads) | 2 |
+| $L(p)$ | "the likelihood of pee" | how probable the FIXED data is, as a function of the guessed $p$ | $L(0.6) = 0.144$ |
+| $\prod_{i=1}^{n}$ | "the product from i equals 1 to n" | multiply the term to its right, once per observation (in R: `prod(...)`) | multiplies the 3 per-flip pieces |
+| $\sum_{i=1}^{n}$ | "the sum from i equals 1 to n" | add the term to its right, once per observation (in R: `sum(...)`) | adds the 3 per-flip log-pieces |
+| $\log$ | "log" (natural log) | the natural logarithm, base $e$ — turns a product into a sum (in R: `log(x)`) | $\log(0.144) \approx -1.938$ |
+| $\ell(p)$ | "ell of pee" (script L) | the log-likelihood: $\log L(p)$ | $\ell(0.6) \approx -1.938$ |
+| $\arg\max$ | "arg max" | the VALUE of the parameter that makes the expression biggest (not the biggest value itself) | $\arg\max_p L(p) = 2/3$ |
+| $\hat{p}$ | "pee hat" | our *estimate* of $p$ from data — the hat means "estimated from data" | $\hat{p} = 2/3$ |
+
+The hat on $\hat{p}$ ("pee hat") is the standard flag for "this is estimated from data,
+not the unknown truth" — see
+[reading math notation](../reading-math-notation/lesson.qmd) for the accent
+conventions.
+
+## The formal version
+
+**The likelihood.** Give each observation its probability under $p$ and multiply. Using
+$\prod$ ("the product") the way $\sum$ meant "the sum" in
+[vectors & summation](../vectors-and-summation/lesson.qmd):
+
+$$
+L(p) = \prod_{i=1}^{n} \big(\text{probability of observation } i \text{ under } p\big)
+$$
+
+For a coin, "heads" has probability $p$ and "tails" has probability $1 - p$. If we
+write each flip as $x_i$ (1 for heads, 0 for tails), a compact way to say "$p$ for
+heads, $1-p$ for tails" is $p^{x_i}(1-p)^{1-x_i}$ — check it: heads ($x_i = 1$) gives
+$p^1(1-p)^0 = p$, tails ($x_i = 0$) gives $p^0(1-p)^1 = 1-p$. So
+
+$$
+L(p) = \prod_{i=1}^{n} p^{x_i}(1-p)^{1-x_i} = p^{k}(1-p)^{n-k},
+$$
+
+where $k$ is the number of heads. The last step just counts: every head contributes one
+factor of $p$ (there are $k$ of them) and every tail one factor of $1-p$ (there are
+$n - k$).
+
+Reading it aloud: "the likelihood of $p$ equals the product, from $i$ equals 1 to $n$,
+of $p$ to the $x_i$ times one-minus-$p$ to the one-minus-$x_i$ — which collapses to $p$
+to the $k$ times one-minus-$p$ to the $n$-minus-$k$." Everyday words: **"multiply a
+factor of $p$ for each head and a factor of $1-p$ for each tail."**
+
+Mapping it onto the toy example ($n = 3$, $k = 2$): $L(p) = p^{2}(1-p)^{1}$, so
+$L(0.6) = 0.6^2 \times 0.4 = 0.144$ — exactly the hand number.
+
+**The log-likelihood.** Now take the log of $L(p)$ and use the log rules from
+[exponentials & logs](../exponentials-and-logs/lesson.qmd) — one algebra step per line:
+
+$$
+\begin{aligned}
+\ell(p) = \log L(p) &= \log\!\big(p^{k}(1-p)^{n-k}\big) \\
+                    &= \log(p^{k}) + \log\!\big((1-p)^{n-k}\big) \\
+                    &= k\log p + (n-k)\log(1-p)
+\end{aligned}
+$$
+
+- Line 2: **a log of a product is a sum of logs** — $\log(ab) = \log a + \log b$
+  (taught in [exponentials & logs](../exponentials-and-logs/lesson.qmd)).
+- Line 3: **a log of a power pulls the exponent out front** — $\log(a^b) = b\log a$
+  (same module).
+
+Reading it aloud: "ell of $p$ equals $k$ times log $p$, plus $n$-minus-$k$ times log of
+one-minus-$p$." Everyday words: **"the multiplication became a plain addition."** The
+peak didn't move — $\log$ is an increasing function, so whatever $p$ makes $L$ biggest
+makes $\ell$ biggest too — but the arithmetic is now a sum, which is both easier to work
+with and immune to the tiny-number trap.
+
+Sanity-check against the hand number ($n=3$, $k=2$, $p=0.6$):
+$\ell(0.6) = 2\log(0.6) + 1\log(0.4) \approx -1.938$, and $\log(0.144) \approx -1.938$ —
+they agree.
+
+**The maximum-likelihood idea.** The best estimate is the $p$ that makes the data least
+surprising — the top of the curve:
+
+$$
+\hat{p} = \arg\max_{p}\; L(p) = \arg\max_{p}\; \ell(p).
+$$
+
+Reading it aloud: "$p$-hat is the arg-max over $p$ of the likelihood" — everyday words:
+**"the value of $p$ where the likelihood is highest."** That $\hat{p}$ is called the
+**maximum-likelihood estimate (MLE)**. For the coin, the peak sits at the observed
+heads-rate, $\hat{p} = k/n = 2/3$ — which matches the intuition above.
+
+**Optional — how the peak is actually found** (one line of what the depth buys: it names
+the tool the next courses use, so the phrase "set the derivative to zero" isn't a
+mystery later). Two routes, both owned by other modules: **(a)** solve
+"slope of $\ell$ equals 0" with calculus — the top of a smooth hill is where the slope
+flattens ([derivative as slope](../derivative-as-slope/lesson.qmd) is the slope idea);
+for this coin that equation gives $\hat p = k/n$ exactly. **(b)** *climb* $\ell$
+numerically, taking uphill steps until the slope flattens — that's gradient
+ascent/descent, taught elsewhere. This lesson stops at "the MLE is the top of the
+log-likelihood"; *finding* the top is the optimization module's job.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: likelihood is "how probable is my FIXED data, as p varies."
+# Data is H, H, T (2 heads, 1 tail). We turn the p dial and read the score.
+# TRY IT: change the guesses in `ps`. PREDICT: which p gives the biggest likelihood
+# -- and roughly what number is the heads-rate 2/3? Commit, then run.
+lik <- function(p) p^2 * (1 - p)          # p for each head, (1-p) for the tail
+
+ps <- c(0.2, 0.5, 0.6, 2/3, 0.8)
+round(setNames(lik(ps), ps), 4)           # peak sits at p = 2/3, the heads-rate
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The likelihood curve for the coin data H,H,T: probability-of-data on the vertical axis against the parameter p from 0 to 1, a hump that rises from zero, peaks at p equals two-thirds, and falls back to zero at p equals 1. A dashed vertical line marks the peak at two-thirds."
+# explore-2 — LIVE: draw the whole likelihood curve and mark its peak.
+# TRY IT: change the data by editing k (heads) and n (flips) -- watch the peak slide
+# to k/n. PREDICT: if you set k <- 1, n <- 4, where will the peak land? Guess, run.
+k <- 2; n <- 3
+lik <- function(p) p^k * (1 - p)^(n - k)
+
+p_grid <- seq(0, 1, length.out = 400)
+plot(p_grid, lik(p_grid), type = "l", lwd = 2,
+     xlab = "p (the dial)", ylab = "likelihood L(p)",
+     main = "How probable is H,H,T, as p varies")
+peak <- k / n                              # the maximum-likelihood estimate
+abline(v = peak, lty = 2)
+text(peak, max(lik(p_grid)), paste0("  peak at k/n = ", round(peak, 3)), pos = 4)
+```
+
+```{webr}
+#| autorun: true
+# explore-3 — LIVE: logs turn the product into a sum, and the peak does NOT move.
+# The two ways below must agree, and both must argmax at the same p.
+# TRY IT: change k and n. PREDICT: will log(L) be positive or negative here? (Hint:
+# L is between 0 and 1, and log of a number below 1 is negative.) Guess, then run.
+k <- 2; n <- 3
+p_grid <- seq(0.001, 0.999, length.out = 999)
+
+L  <- p_grid^k * (1 - p_grid)^(n - k)          # likelihood  (a product)
+l  <- k * log(p_grid) + (n - k) * log(1 - p_grid)  # log-likelihood (a sum)
+
+# Same argmax from both -- taking logs never moves the peak:
+c(argmax_L = p_grid[which.max(L)],
+  argmax_loglik = p_grid[which.max(l)])         # both about 0.667 = 2/3
+```
+
+```{webr}
+#| autorun: false
+# explore-4 — LIVE: why we bother with logs. Pile up 50 flips (30 heads).
+# PREDICT: is the raw likelihood a normal-sized number, or absurdly tiny? Guess, run.
+k <- 30; n <- 50; p <- 0.6
+
+raw <- p^k * (1 - p)^(n - k)     # the product -- watch how tiny it gets
+log_version <- k * log(p) + (n - k) * log(1 - p)  # the sum -- a tame number
+
+c(raw_likelihood = raw, log_likelihood = log_version)
+# raw is ~2.4e-15 (heading for underflow as n grows); the log is a comfortable -33.65.
+```
+
+## Common traps
+
+**Trap 1 — "likelihood is the probability that $p$ takes this value."** Tempting,
+because $L(0.6) = 0.144$ looks like a probability and $p$ is the thing we're unsure
+about. But it is *not* a probability *of $p$*. It's the probability of the **data** read
+as a function of $p$. Two tells: the likelihood values across different $p$ do **not**
+add up to 1 (sum $L$ over a grid of $p$ and you get whatever you get, not 1), and the
+peak value $0.148$ isn't "a 15% chance that $p = 2/3$." Likelihood *ranks* dial
+settings; it does not assign probabilities to them.
+
+**Trap 2 — "combine the flips by adding their probabilities."** With
+$p = 0.6$ someone might write $0.6 + 0.6 + 0.4 = 1.6$ for "heads, heads, tails." That
+can't be a probability — it exceeds 1. Independent events combine by **multiplying**:
+$0.6 \times 0.6 \times 0.4 = 0.144$. (Addition only enters *after* the log, where the
+log rule legitimately turns the product $0.144$ into the sum
+$\log 0.6 + \log 0.6 + \log 0.4 \approx -1.938$ — same quantity, different scale.)
+
+## Check yourself
+
+**1.** A coin is flipped 3 times and comes up **tails, tails, heads** (so $k = 1$ head,
+$n = 3$). Write $L(p)$, then compute $L(0.3)$ by hand and check in R. Where will the
+peak be?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+lik <- function(p) p^1 * (1 - p)^2   # 1 head, 2 tails
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+One head gives a factor $p$; two tails give $(1-p)$ each, so
+$L(p) = p\,(1-p)^2$. By hand, $L(0.3) = 0.3 \times 0.7^2 = 0.3 \times 0.49 = 0.147$. In
+R, `lik(0.3)` returns `0.147`. The peak sits at the heads-rate $\hat{p} = k/n = 1/3
+\approx 0.333$.
+:::
+
+**2.** True or false: taking the log of the likelihood can move the location of its peak
+(the best $p$). Explain in one line.
+
+::: {.callout-note collapse="true" title="Answer"}
+**False.** $\log$ is an increasing function — bigger input, bigger output — so the $p$
+that makes $L$ largest is the very same $p$ that makes $\log L$ largest. Logs change the
+*scale* (product $\to$ sum, tiny $\to$ tame), never the *location* of the peak. That's
+exactly why it's safe to maximize the log-likelihood instead of the likelihood.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the likelihood
+of a parameter measures and why we usually work with its log.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The likelihood takes your already-observed data as fixed and scores each candidate
+parameter value by how probable it would have made that data — the winner is the value
+that leaves you least surprised by what you saw. We take the log because the likelihood
+is a product of many per-observation pieces (which gets vanishingly small and awkward to
+handle), and the log rule turns that product into a sum without moving the peak, so the
+best parameter is unchanged but the arithmetic is tame.
+:::
+
+## What you can now do
+
+- **Flip a probability question into a likelihood** — hold the data fixed, treat the
+  parameter as the dial, and read $L(p)$ as "how probable was my data at this setting?"
+- **Build a likelihood from independent observations** by multiplying the per-observation
+  pieces ($p$ for a head, $1-p$ for a tail), and collapse it to $p^{k}(1-p)^{n-k}$.
+- **Turn a likelihood into a log-likelihood** with the product-to-sum log rule, and say
+  why that keeps the numbers tame without moving the peak.
+- **State the maximum-likelihood idea** — the estimate $\hat{p}$ is the parameter value
+  that maximizes $L$ (equivalently $\ell$), i.e. the top of the curve — and name it the
+  **MLE**.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — every method that
+*estimates* a parameter from data leans on all of these.
+
+## Where this goes next
+
+Maximum likelihood is the recipe most statistical methods use to turn data into
+parameter estimates: write down the likelihood of the parameters given the data, take
+its log, and climb to the top. *Finding* that top — solving "slope $= 0$" or stepping
+uphill numerically — is the job of the optimization material (the
+[derivative as slope](../derivative-as-slope/lesson.qmd) is the first piece of that
+tool). For observations measured on a continuous scale, the per-observation "pieces"
+become probability *densities* rather than probabilities — the subject of a separate
+distributions-and-densities module — but the multiply-then-log recipe is identical.
+Ready for more reps? Do the [practice problems](practice.qmd).
