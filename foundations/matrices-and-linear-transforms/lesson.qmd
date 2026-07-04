@@ -70,6 +70,12 @@ multiplication below. Shaky? Revisit
 **2.** Read this aloud and give its value for the same `b <- c(3, 4, 5)`:
 $\sum_{i=1}^{n} b_i$. What are $\sum_{i=1}^{n} b_i$ and $n$ here?
 
+```{webr}
+#| autorun: false
+# warmup2-starter — edit and Run to check
+b <- c(3, 4, 5)
+```
+
 ::: {.callout-note collapse="true" title="Answer"}
 "The sum from i equals 1 to n of b-sub-i" — add them all: $3 + 4 + 5 = 12$, with
 $n = 3$. In R: `sum(b)` and `length(b)`. See
