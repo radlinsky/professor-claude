@@ -53,6 +53,18 @@ slugs <- found_dirs[file.exists(file.path("foundations", found_dirs, "lesson.qmd
 slugs <- sort(slugs)
 if (!length(slugs)) die("no foundation modules found under foundations/")
 
+# A module discovered by its lesson.qmd must also carry practice.qmd + resources.md,
+# else the render/sidebar bodies below would emit lines for nonexistent files (a partial
+# scaffold). Fail here with the exact missing paths, mirroring the meta.dcf die() below.
+missing_pages <- unlist(lapply(slugs, function(s) {
+  need <- file.path("foundations", s, c("practice.qmd", "resources.md"))
+  need[!file.exists(need)]
+}))
+if (length(missing_pages)) {
+  die("partial scaffold — these expected module files are missing:\n  %s",
+      paste(missing_pages, collapse = "\n  "))
+}
+
 # ---- read each module's meta.dcf -----------------------------------------------------
 meta <- list()
 for (s in slugs) {

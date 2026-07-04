@@ -92,15 +92,18 @@ a written request (`logistic-regression`, from
 
 ## Requirements
 
-- R (≥ 4.x) and [Quarto](https://quarto.org).
+- R 4.5.2 (the version pinned in `renv.lock` and CI; nearby versions usually work)
+  and [Quarto](https://quarto.org) ≥ 1.9 (CI uses 1.9.38).
 - **One-time setup ([renv](https://rstudio.github.io/renv/)):** dependencies are
   managed in a project-local library so every course renders reproducibly. Quarto's
   R engine needs `knitr` and `rmarkdown` to run any `.qmd` (a "no package called
-  'rmarkdown'" error means setup was skipped). From the repo root, run once:
+  'rmarkdown'" error means setup was skipped). The committed `renv.lock` records
+  `knitr`, `rmarkdown`, and everything else, so restore it — don't re-init. From the
+  repo root, run once:
 
   ```bash
   Rscript -e 'install.packages("renv", repos="https://cloud.r-project.org")'   # if you don't have renv
-  Rscript -e 'renv::init(bare = TRUE); renv::install(c("rmarkdown","knitr")); renv::snapshot()'
+  Rscript -e 'renv::restore()'
   ```
 
   After this, opening the repo root in Positron/RStudio auto-activates the renv
