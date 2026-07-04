@@ -271,12 +271,16 @@ explicit TODO. ☐ Zero unverified URLs anywhere.
      courses (`—` if none), foundation prerequisites, status `not started`).
    - In `foundations/README.md`: add rows for new foundation modules (Status
      `not started`); append this course to the *Used by* column of every foundation
-     module the course links to. Never modify existing *Status* values.
+     module the course links to. Never modify existing *Status* values. When editing
+     an index table, modify only the cells your change requires — never rewrite the
+     whole table (that is how a learner's Status gets clobbered).
 
 (The final report to the user happens in Phase 8, after the content review.)
 
 **GATE 7:** ☐ Render green (or inability honestly reported). ☐ Callouts collapsed.
 ☐ `renv.lock` snapshotted if packages were added. ☐ Both README indexes updated.
+☐ Existing rows' *Status* values byte-identical to before the edit (only NEW rows
+carry `not started`).
 
 ---
 
