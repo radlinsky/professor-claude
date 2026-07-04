@@ -86,6 +86,12 @@ whole content of [matrices & linear transforms](../matrices-and-linear-transform
 variable's values across all the rows. For `height <- c(2, 4, 6)`, what is
 `mean(height)`, and what does that number describe?
 
+```{webr}
+#| autorun: false
+# warmup3-starter — edit and Run to check
+height <- c(2, 4, 6)
+```
+
 ::: {.callout-note collapse="true" title="Answer"}
 `mean(height)` is $(2 + 4 + 6)/3 = 4$ — the balance point of that one column's values.
 Thinking of each column as a variable measured across rows is the mental model from
@@ -208,8 +214,9 @@ is precisely the matrix-times-vector `X %*% beta` from
 | $\mathbf{x}_i$ | "ex sub eye" | row $i$ of the data matrix — one observation's values across all columns | row 1 is $(1, 4, 0, 0)$ |
 | $X_{ij}$ | "X-sub-i-j" | the entry in row $i$, column $j$ (in R: `X[i, j]`) | $X_{12} = 4$ (task 1's hours) |
 | $x_j$ | "ex sub jay" | the value in column $j$ of the row being scored | column 2 (hours) of a row |
-| $\beta_j$ | "beta sub jay" | the weight multiplying column $j$ (in R: an entry of `beta`) | $\beta_2 = 2$, per hour |
-| $\beta_0$ | "beta zero" | the weight on the all-1s column (the base / intercept) | $10$ |
+| $\beta_j$ | "beta sub jay" | the weight multiplying column $j$ (in R: an entry of `beta`); column 1 is the all-1s column, so $\beta_1$ is the base | $\beta_1 = 10$ (base), $\beta_2 = 2$ (per hour) |
+| $\boldsymbol{\beta}$ (bold) | "beta" / "the weight vector" | the whole column of weights, one per matrix column (in R: `beta`) | $(10, 2, 5, -3)$ |
+| $\beta_0$ | "beta zero" | the name papers give the base term when they pull it out of the matrix — the same number as $\beta_1$ here | $10$ |
 | $\sum_{j=1}^{p}$ | "the sum from j equals 1 to p" | add the term to its right once per column $j$ — a dot product ([vectors & summation](../vectors-and-summation/lesson.qmd)) | $\sum_j X_{1j}\beta_j = 18$ |
 | $p$ | "pee" | the number of columns (variables) in the data matrix | 4 |
 | $\mathbf{X}\boldsymbol{\beta}$ | "X beta" | the whole matrix times the whole weight vector: one linear combination per row (in R: `X %*% beta`) | $(18, 19, 19, 21)$ |
@@ -237,8 +244,10 @@ weight and add."** That sum-of-products is a dot product, so it's the same engin
 the warm-up.
 
 The all-1s column is not a special case — it's just column 1 with every value equal to
-1, so its term is $\beta_1 \times 1 = \beta_1$ for every row. That's why the base weight
-is often written $\beta_0$: it's the term that rides in on the column of ones.
+1, so its term is $\beta_1 \times 1 = \beta_1$ for every row: a constant $\beta_1$ added
+to every score. Papers usually lift that constant out of the sum and rename it $\beta_0$
+(the *intercept*) — the same number ($10$ here), just written outside the Σ instead of
+as the weight on a column of ones.
 
 Now stack all the rows. Each row's score is a dot product, and "one dot product per
 row" is exactly what matrix-times-vector does, so the whole batch of scores is:
