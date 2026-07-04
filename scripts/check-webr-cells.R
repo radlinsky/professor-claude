@@ -79,7 +79,9 @@ run_file_cells <- function(path, cells) {
   writeLines(script, tmp)
   on.exit(unlink(tmp), add = TRUE)
   out <- character(0)
-  status <- suppressWarnings(system2("Rscript", tmp, stdout = TRUE, stderr = TRUE))
+  # timeout guards CI against a hung autorun cell (e.g. an accidental infinite loop);
+  # a timeout kill returns non-zero status and is reported through the path below.
+  status <- suppressWarnings(system2("Rscript", tmp, stdout = TRUE, stderr = TRUE, timeout = 120))
   code <- attr(status, "status")
   if (is.null(code)) code <- 0L
   if (code != 0L) {

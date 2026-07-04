@@ -261,12 +261,13 @@ before <- checkpoint()
 disk_pages <- list.files(c("foundations", "courses"), pattern = "\\.(qmd|md)$",
                          recursive = TRUE, full.names = TRUE)
 disk_pages <- disk_pages[basename(disk_pages) != "README.md"]
-# Registered pages: only the render-list entries — lines like "    - courses/x/lesson.qmd".
-# Mirrors render.yml's `(?<=- )(foundations|courses)/...` lookbehind, so a page present
-# only in the sidebar (an `href:` line) still counts as unregistered, exactly as in CI.
+# Registered pages: extract the path token right after "- ", exactly as render.yml's
+# `grep -oP '(?<=- )(foundations|courses)/\S+\.(qmd|md)'` does. The lookbehind excludes
+# sidebar `href:` lines, and `\S+` stops at whitespace so a trailing YAML comment after
+# the path is tolerated (matching CI). PCRE lookbehind needs perl = TRUE.
 quarto_lines <- read_lines("_quarto.yml")
-reg_lines <- grep("^\\s*-\\s+(foundations|courses)/\\S+\\.(qmd|md)\\s*$", quarto_lines, value = TRUE)
-registered <- unique(sub("^-\\s+", "", trimws(reg_lines)))
+registered <- unique(regmatches(quarto_lines,
+  regexpr("(?<=- )(foundations|courses)/\\S+\\.(qmd|md)", quarto_lines, perl = TRUE)))
 for (p in disk_pages) {
   if (!(p %in% registered)) {
     err("_quarto.yml", sprintf("page '%s' exists on disk but is not in the render list", p))
