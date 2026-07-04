@@ -261,11 +261,12 @@ before <- checkpoint()
 disk_pages <- list.files(c("foundations", "courses"), pattern = "\\.(qmd|md)$",
                          recursive = TRUE, full.names = TRUE)
 disk_pages <- disk_pages[basename(disk_pages) != "README.md"]
-# Registered pages: lines in _quarto.yml matching '- (foundations|courses)/....(qmd|md)'
+# Registered pages: only the render-list entries — lines like "    - courses/x/lesson.qmd".
+# Mirrors render.yml's `(?<=- )(foundations|courses)/...` lookbehind, so a page present
+# only in the sidebar (an `href:` line) still counts as unregistered, exactly as in CI.
 quarto_lines <- read_lines("_quarto.yml")
-reg_hits <- regmatches(quarto_lines,
-                       regexpr("(foundations|courses)/\\S+\\.(qmd|md)", quarto_lines))
-registered <- unique(reg_hits)
+reg_lines <- grep("^\\s*-\\s+(foundations|courses)/\\S+\\.(qmd|md)\\s*$", quarto_lines, value = TRUE)
+registered <- unique(sub("^-\\s+", "", trimws(reg_lines)))
 for (p in disk_pages) {
   if (!(p %in% registered)) {
     err("_quarto.yml", sprintf("page '%s' exists on disk but is not in the render list", p))
