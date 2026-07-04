@@ -3,6 +3,9 @@ project:
   output-dir: _site
   render:
     # >>> generated: foundation render list (scripts/gen-indexes.R) — do not edit by hand
+    - foundations/algebra-moves-for-derivations/lesson.qmd
+    - foundations/algebra-moves-for-derivations/practice.qmd
+    - foundations/algebra-moves-for-derivations/resources.md
     - foundations/derivative-as-slope/lesson.qmd
     - foundations/derivative-as-slope/practice.qmd
     - foundations/derivative-as-slope/resources.md
@@ -78,6 +81,14 @@ website:
       - section: "Foundations"
         contents:
           # >>> generated: foundation sidebar (scripts/gen-indexes.R) — do not edit by hand
+          - section: "Algebra moves for derivations"
+            contents:
+              - text: "Lesson"
+                href: foundations/algebra-moves-for-derivations/lesson.qmd
+              - text: "Practice"
+                href: foundations/algebra-moves-for-derivations/practice.qmd
+              - text: "Resources"
+                href: foundations/algebra-moves-for-derivations/resources.md
           - section: "The derivative as a slope"
             contents:
               - text: "Lesson"
