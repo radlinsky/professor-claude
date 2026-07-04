@@ -40,7 +40,7 @@ already own, given a geometric picture.
 This lesson stays with concrete, hand-checkable points (two locations, a person's
 height and weight) and base R — mostly `dist()`, `sqrt()`, and `sum()`. We will *not*
 touch eigenvalues, SVD, or PCA (that machinery is course-level), we will *not* re-teach
-the dot product (that lives in the module below — we only reuse it), and we will *not*
+the dot product (that lives in [vectors & summation](../vectors-and-summation/lesson.qmd) — we only reuse it), and we will *not*
 teach standardizing/scaling data (that is the variance-structure material — we only
 point at *why* it matters).
 
@@ -364,7 +364,6 @@ as.numeric(dist(rbind(p1, p3)))   #    5 — the age gap alone
 
 ```{webr}
 #| autorun: false
-#| fig-alt: "A vector a and a direction b drawn from the origin, with a dashed line dropping a's tip perpendicular onto b's line, marking the shadow."
 # explore-3 — LIVE: projection as a shadow, orthogonality as a zero.
 # PREDICT: for a = (4, 2) and b = (3, 4), what is the shadow length a.b / ||b||?
 # Then: change a to c(-4, 3) (which is at right angles to b). What should a.b become?
