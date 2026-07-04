@@ -39,6 +39,9 @@ project:
     - foundations/paper-and-proof-conventions/lesson.qmd
     - foundations/paper-and-proof-conventions/practice.qmd
     - foundations/paper-and-proof-conventions/resources.md
+    - foundations/priors-posteriors-and-updating/lesson.qmd
+    - foundations/priors-posteriors-and-updating/practice.qmd
+    - foundations/priors-posteriors-and-updating/resources.md
     - foundations/probability-and-odds/lesson.qmd
     - foundations/probability-and-odds/practice.qmd
     - foundations/probability-and-odds/resources.md
@@ -195,6 +198,14 @@ website:
                 href: foundations/paper-and-proof-conventions/practice.qmd
               - text: "Resources"
                 href: foundations/paper-and-proof-conventions/resources.md
+          - section: "Priors, posteriors & updating"
+            contents:
+              - text: "Lesson"
+                href: foundations/priors-posteriors-and-updating/lesson.qmd
+              - text: "Practice"
+                href: foundations/priors-posteriors-and-updating/practice.qmd
+              - text: "Resources"
+                href: foundations/priors-posteriors-and-updating/resources.md
           - section: "Probability, odds & log-odds"
             contents:
               - text: "Lesson"

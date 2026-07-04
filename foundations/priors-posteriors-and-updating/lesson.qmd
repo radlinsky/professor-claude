@@ -1,0 +1,452 @@
+---
+title: "Priors, posteriors & updating"
+subtitle: "How data turns a belief into a sharper belief — the Bayes flip papers write as P(θ | data)"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all
+# we need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Bayesian thinking is one idea used over and over: **start with a belief, see some data,
+end with a sharper belief.** The starting belief is the *prior*, what the data says is
+the *likelihood*, and the updated belief is the *posterior*. This lesson makes that
+loop concrete — first with plain counts, then with the "Bayes flip" that turns "how
+likely is this data?" into "what should I now believe?", and finally with the picture of
+a whole *distribution over a parameter* that a **credible interval** summarizes. We
+close with the one-sentence idea of **MCMC**: a machine that draws samples from a
+posterior when you can't write it down by hand.
+
+We stay with neutral, hand-checkable examples (weather and umbrellas, a coin that might
+be fair or biased) and base R. We will **not** re-teach how a likelihood is built (its
+own module owns that — we just reuse it), and we will **not** touch samplers, Stan, or
+the odds/log-odds conversions — those live elsewhere.
+
+**Builds on:** [probability, odds & log-odds](../probability-and-odds/lesson.qmd) — for
+$P(A)$, the "how likely" number from 0 to 1;
+[likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd) — the
+likelihood is exactly the flipped "with the data fixed, which parameter makes it least
+surprising?" quantity from that module; and
+[randomness, samples & sampling distributions](../randomness-samples-and-sampling-distributions/lesson.qmd)
+— because at the end we treat a posterior as something we can *draw samples from*.
+
+## Warm-up: do you remember?
+
+Before the new material, three quick reps — produce each answer from memory, then check.
+
+**1.** A probability is a number between 0 and 1. If a coin lands heads with
+probability $p = 0.8$, what is the probability of getting **3 heads in 3 flips** (each
+flip independent)? Give the value.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+p <- 0.8
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Independent flips multiply: $0.8 \times 0.8 \times 0.8 = 0.8^3 = 0.512$. In R,
+`0.8^3`. Multiplying probabilities of independent events comes from
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd); this "multiply the
+per-flip pieces" move is also exactly what a **likelihood** is —
+see [likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd).
+:::
+
+**2.** In one sentence: what does the **likelihood** ask, and how is it different from a
+plain probability question? (No formula needed.)
+
+::: {.callout-note collapse="true" title="Answer"}
+A plain probability question holds the parameter fixed and asks how likely the data is;
+the **likelihood flips it** — the data is *already seen and fixed*, and you ask which
+parameter value makes that data least surprising. That flip is the whole subject of
+[likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd); revisit if
+shaky.
+:::
+
+**3.** You computed an average from one sample of data. If you drew a *fresh* sample,
+would you get the exact same average? One word, and one sentence on why.
+
+::: {.callout-note collapse="true" title="Answer"}
+No. A number computed from data is itself random — a different sample gives a different
+value, its "wobble" being the standard error
+([randomness, samples & sampling distributions](../randomness-samples-and-sampling-distributions/lesson.qmd)).
+We'll lean on this idea at the end, when a posterior becomes something we *sample* from.
+:::
+
+## A tiny example first
+
+Forget parameters for a moment. Start with the plainest version of "updating a belief":
+**conditional probability** — the probability of something *once you know something
+else happened*.
+
+Here are 100 days, sorted by whether it **rained** and whether you **carried an
+umbrella**:
+
+|              | umbrella: yes | umbrella: no | row total |
+|--------------|:-------------:|:------------:|:---------:|
+| **rain**     | 20            | 5            | 25        |
+| **dry**      | 10            | 65           | 75        |
+| **col total**| 30            | 70           | 100       |
+
+Ask two questions by **counting**, no formula:
+
+- *Over all 100 days, how often did it rain?* 25 of 100 days → $P(\text{rain}) = 0.25$.
+  This is the belief **before** you know anything else.
+- *Now you're told you carried an umbrella that day. How often did it rain?* Look only
+  at the 30 umbrella days; 20 of them were rainy → **20/30 = 0.667**. This is the belief
+  **after** you learn "umbrella = yes."
+
+That second number, written $P(\text{rain} \mid \text{umbrella})$ and read "the
+probability of rain **given** umbrella," is a *conditional* probability: **narrow the
+world to the rows where the condition is true, then take the fraction inside that
+slice.** Knowing about the umbrella shoved your belief from 0.25 up to 0.667 — that shove
+*is* updating.
+
+The same counts in R:
+
+```{r toy-example}
+# 100 days as a count table: rows = weather, columns = umbrella
+tab <- matrix(c(20, 5,
+                10, 65), nrow = 2, byrow = TRUE,
+              dimnames = list(weather = c("rain", "dry"),
+                              umbrella = c("yes", "no")))
+tab
+
+# P(rain): rainy days over all days -> 25 / 100
+sum(tab["rain", ]) / sum(tab)          # 0.25  (belief BEFORE)
+
+# P(rain | umbrella=yes): narrow to the umbrella column, take the fraction rainy
+tab["rain", "yes"] / sum(tab[, "yes"]) # 0.667 (belief AFTER learning "umbrella")
+```
+
+**Independence** is just the special case where the shove does *nothing*. If knowing $B$
+leaves $P(A)$ unchanged — $P(A \mid B) = P(A)$ — then $A$ and $B$ are **independent**:
+learning $B$ tells you nothing about $A$. Here rain and umbrella are *not* independent
+(0.667 ≠ 0.25), which is the whole point — they carry information about each other.
+
+## Getting a feel for it
+
+**The mental picture: a belief is a dial, and data nudges it.** Before any data your
+belief about "rain today" sits at some setting (0.25). A piece of evidence — "I see an
+umbrella" — grabs the dial and turns it (to 0.667). More evidence turns it further.
+Bayesian updating is nothing but *this dial-turning, done with arithmetic instead of a
+hunch*. The prior is where the dial starts, the likelihood is how hard the new evidence
+pulls, and the posterior is where the dial ends up. (Where the analogy strains: it isn't
+a single dial but a whole *range* of settings with different plausibilities — a picture
+we'll draw later. And the pull isn't a fixed force; strong, surprising data pulls harder
+than weak, expected data.)
+
+**Why does "narrow the world, then take the fraction" work?** Because a condition throws
+away every case where it's false and re-weighs what's left. Once you *know* the umbrella
+was carried, the 70 no-umbrella days are irrelevant — they can't have happened. The
+honest thing is to recompute the rain-fraction inside the 30 days that *could* have
+happened. Updating is just "recompute the fraction in the world you now know you're in."
+
+**What the numbers feel like.** The jump from 0.25 to 0.667 is large because umbrellas
+are strongly tied to rain — the evidence is informative. If umbrellas were carried at
+random regardless of weather, the two numbers would be equal (independence) and the
+"update" would be a no-op. The bigger the gap between the before-belief and the
+after-belief, the more the data taught you.
+
+## What the notation is going to say
+
+The formula ahead — **Bayes' rule** — is the machine that does the flip we'll want most.
+In our toy table we asked $P(\text{rain} \mid \text{umbrella})$ directly by counting.
+But often you can only measure the *other* direction: you know $P(\text{data} \mid
+\text{parameter})$ — "if the coin's bias were $p$, how likely is the data I saw?" — and
+you *want* $P(\text{parameter} \mid \text{data})$ — "given the data, what should I
+believe about $p$?" Bayes' rule says, in words: **your after-belief is your
+before-belief times what the data says, rescaled so the pieces add to 1.** The "times
+what the data says" is the likelihood; the "before-belief" is the prior; the result is
+the posterior.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $P(A)$ | "the probability of A" | how likely event $A$ is, a number from 0 to 1 ([probability & odds](../probability-and-odds/lesson.qmd)) | $P(\text{rain}) = 0.25$ |
+| $P(A \mid B)$ | "the probability of A given B" | probability of $A$ once you know $B$ happened — narrow to the $B$ slice | $P(\text{rain} \mid \text{umbrella}) = 0.667$ |
+| $\theta$ | "theta" | a *parameter* — the unknown quantity we want to learn (here: a coin's chance of heads) | the coin bias $p$ |
+| $p$ | "pee" | the concrete parameter in our coin example: the chance of heads (a specific $\theta$) | $0.5$ (fair) or $0.8$ (biased) |
+| $P(\theta)$ | "the prior on theta" | the **prior**: belief about $\theta$ *before* the data | 50/50 fair-vs-biased |
+| $P(\text{data} \mid \theta)$ | "the likelihood of the data given theta" | the **likelihood**: how likely the seen data is *if* $\theta$ were true ([likelihood module](../likelihood-and-log-likelihood/lesson.qmd)) | $p^3$ for 3 heads |
+| $P(\theta \mid \text{data})$ | "the posterior on theta given data" | the **posterior**: updated belief about $\theta$ *after* the data | (computed below) |
+| $P(\text{data})$ | "the probability of the data" | the total probability of the data across all $\theta$ — the denominator that rescales the posterior to sum to 1 | $0.0625 + 0.256 = 0.3185$ |
+| $\propto$ | "is proportional to" | equal up to a constant multiplier (rescale later so it sums to 1) | posterior $\propto$ prior × likelihood |
+
+$\theta$ (theta) is just a name for "the thing we don't know and want to pin down." Read
+$P(\theta \mid \text{data})$ aloud as "the probability of theta given the data" — the
+belief you're entitled to *after* seeing what you saw.
+
+## The formal version
+
+**Bayes' rule**, built one piece at a time:
+
+$$
+\underbrace{P(\theta \mid \text{data})}_{\text{posterior}}
+\;=\;
+\frac{\overbrace{P(\text{data} \mid \theta)}^{\text{likelihood}}\;\cdot\;\overbrace{P(\theta)}^{\text{prior}}}
+     {\underbrace{P(\text{data})}_{\text{just a rescaler}}}
+$$
+
+- **Prior** $P(\theta)$ — where the dial starts, before any data.
+- **Likelihood** $P(\text{data} \mid \theta)$ — how hard *this* data pulls the dial
+  toward each value of $\theta$. Built in the
+  [likelihood module](../likelihood-and-log-likelihood/lesson.qmd); we only *use* it.
+- **Denominator** $P(\text{data})$ — the total probability of the data across all
+  $\theta$; it doesn't depend on any single $\theta$, so it's just the number that
+  rescales everything to add to 1.
+
+Because the denominator is only a rescaler, the part worth remembering is the top:
+
+$$
+P(\theta \mid \text{data}) \;\propto\; P(\text{data} \mid \theta)\; \cdot \; P(\theta)
+$$
+
+Reading it aloud: "the posterior on theta given data is **proportional to** the
+likelihood of the data given theta, times the prior on theta" — or in everyday words:
+**posterior ∝ likelihood × prior**, i.e. *after-belief is before-belief reweighted by
+what the data says*, then rescaled so the pieces sum to 1.
+
+**Now the flip, on toy numbers.** A coin is either **fair** ($p = 0.5$) or **biased**
+toward heads ($p = 0.8$) — you don't know which. You have no reason to prefer either, so
+your **prior** is 50/50. You flip it 3 times and get **3 heads**. Which coin is it now?
+
+Work it by hand:
+
+- Likelihood of "3 heads" under each coin (multiply per-flip, from the warm-up):
+  fair → $0.5^3 = 0.125$, biased → $0.8^3 = 0.512$.
+- Prior × likelihood (unnormalized posterior): fair → $0.5 \times 0.125 = 0.0625$,
+  biased → $0.5 \times 0.512 = 0.256$.
+- Rescale to sum to 1 (divide each by their total $0.0625 + 0.256 = 0.3185$):
+  fair → $0.0625 / 0.3185 = 0.196$, biased → $0.256 / 0.3185 = 0.804$.
+
+So after seeing 3 heads, your belief moved from 50/50 to about **20% fair, 80%
+biased** — the data pulled the dial toward "biased," which feels right (3-for-3 heads is
+more expected from the heads-leaning coin). Check every step in R:
+
+```{r bayes-flip}
+p      <- c(fair = 0.5, biased = 0.8)  # the two possible coins
+prior  <- c(fair = 0.5, biased = 0.5)  # 50/50 before any data
+
+lik    <- p^3                          # likelihood of 3 heads: 0.125, 0.512
+unnorm <- prior * lik                  # prior x likelihood:   0.0625, 0.256
+post   <- unnorm / sum(unnorm)         # rescale to sum to 1
+
+round(rbind(prior, lik, unnorm, post), 4)
+# posterior: fair 0.1962, biased 0.8038 — exactly the hand computation
+```
+
+## A distribution *over* a parameter
+
+The coin example had only two possible worlds. Usually the parameter is a *continuous*
+knob — a bias $p$ that could be anywhere in $[0, 1]$ — and then the posterior isn't two
+numbers but a **whole curve over the parameter**: a height for every possible value of
+$p$, tall where the data makes that value plausible and low where it doesn't.
+
+This is the genuinely Bayesian move, and it's worth pausing on. **The frequentist view
+treats the parameter as a single fixed-but-unknown number** and asks how estimates of it
+would wobble over repeated samples (the standard-error story from
+[randomness & sampling](../randomness-samples-and-sampling-distributions/lesson.qmd)).
+**The Bayesian view treats the parameter itself as uncertain** and describes that
+uncertainty with a distribution — the posterior. Same data, two framings; this module
+teaches the Bayesian one. (We name the contrast, not litigate it — both are standard.)
+
+Here's a continuous posterior you can look at. Start from a **flat prior** (every bias
+equally plausible before data), flip a coin **10 times and see 7 heads**; the posterior
+over $p$ is a bell-ish curve piled up near 0.7:
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A smooth curve over p from 0 to 1, peaking near 0.7, showing the posterior belief about the coin's bias after seeing 7 heads in 10 flips."
+# TRY IT: change heads/flips and re-run — watch the curve shift and narrow.
+# PREDICT: with 7 heads in 10, roughly where will the curve peak? Write it, then run.
+heads <- 7; flips <- 10
+grid  <- seq(0, 1, length.out = 200)
+
+# Posterior height at each candidate bias p: (flat prior) x likelihood p^heads (1-p)^tails
+tails <- flips - heads
+post_height <- grid^heads * (1 - grid)^tails       # prior is flat, so this IS the shape
+
+plot(grid, post_height, type = "l", lwd = 2,
+     xlab = "coin bias p", ylab = "posterior belief (unscaled)",
+     main = "Belief about p after 7 heads in 10 flips")
+abline(v = heads / flips, lty = 2)                 # data's raw fraction, 0.7
+```
+
+## Credible intervals
+
+Once the posterior is a curve, you can read off an interval directly: **the range that
+holds 95% of your posterior belief.** That's a **credible interval**, and it says
+exactly what people *wish* an interval said — "given my data and prior, there's a 95%
+chance the parameter is in here."
+
+```{webr}
+#| autorun: true
+# TRY IT: change heads/flips; watch the interval narrow as data grows.
+# PREDICT: will the 95% credible interval be wide or narrow with only 10 flips?
+# For a flat prior + h heads in n flips, the posterior is a Beta(h+1, n-h+1) curve;
+# qbeta reads its quantiles straight off (no simulation needed here).
+heads <- 7; flips <- 10
+a <- heads + 1; b <- flips - heads + 1             # Beta(8, 4)
+
+post_mean <- a / (a + b)                            # center of belief: 0.667
+ci95      <- qbeta(c(0.025, 0.975), a, b)           # 95% credible interval
+
+round(c(post_mean = post_mean,
+        lower = ci95[1], upper = ci95[2]), 3)       # 0.667, 0.390, 0.891
+```
+
+The interval $[0.39, 0.89]$ means: **95% of your posterior belief about the bias sits
+between 0.39 and 0.89.** Contrast this with a frequentist **confidence interval**, whose
+"95%" is a statement about the *procedure* — if you re-ran the whole experiment many
+times, 95% of the intervals it produces would cover the true value — not about *this*
+interval containing the parameter. Different question, different meaning; we name the
+contrast and move on.
+
+## MCMC — the idea, in one sentence
+
+For our flat-prior coin the posterior had a tidy closed form (a Beta curve), so `qbeta`
+handed us the interval. Real models rarely cooperate — the posterior is a curve in many
+dimensions with no formula you can integrate by hand. The workaround has a name:
+
+> **MCMC (Markov chain Monte Carlo) is a machine that draws random samples from the
+> posterior**, even when you can't write the posterior down.
+
+That's the whole idea for now — *a sample-drawing machine*. Once you have a big pile of
+draws from the posterior, everything you wanted becomes ordinary data-summary:
+the posterior *mean* is just the average of the draws, and a 95% *credible interval* is
+just the 2.5% and 97.5% quantiles of the draws — the same
+[sample-summary moves](../randomness-samples-and-sampling-distributions/lesson.qmd) you
+already know. To *show* that the "pile of draws" idea reproduces the curve we already
+have, we can draw from our Beta posterior directly (a stand-in for what MCMC does the
+hard way):
+
+```{webr}
+#| autorun: true
+# TRY IT: change n_draws; more draws = smoother, closer to the exact answer.
+# This is NOT MCMC's machinery — just the payoff: draws in, summaries out.
+set.seed(42)
+a <- 8; b <- 4                                      # our Beta(8,4) posterior
+draws <- rbeta(50000, a, b)                         # 50,000 samples FROM the posterior
+
+# Summaries are ordinary data moves on the pile of draws:
+round(c(mean_of_draws = mean(draws),
+        lower = quantile(draws, 0.025),
+        upper = quantile(draws, 0.975)), 3)         # ~0.666, ~0.388, ~0.891
+```
+
+The draw-based summaries (≈ 0.667 and $[0.39, 0.89]$) match the exact `qbeta` answers
+above — that's *why* sampling is trustworthy, and why MCMC is worth building: when there
+is no formula, the pile of draws still delivers the mean and the interval. **How** the
+machine produces those draws (chains, proposals, convergence) is a course-level topic,
+not this foundation's.
+
+## Common traps
+
+**Trap 1 — "the posterior is just the likelihood; the prior barely matters."** Tempting,
+because with lots of data the likelihood *does* dominate. But posterior ∝ likelihood ×
+**prior**, and with little data the prior pulls hard. In our coin flip, the likelihood of
+3 heads favored biased over fair by $0.512 / 0.125 \approx 4\times$ — yet because the
+prior was an even 50/50, the posterior landed at 0.804, not certainty. Had the prior been
+90% fair, the same data would land the posterior at fair
+$= (0.9 \times 0.125) / (0.9 \times 0.125 + 0.1 \times 0.512) = 0.1125 / 0.1637 = 0.687$
+— *still favoring fair*. Same likelihood, opposite conclusion: the prior is a real
+ingredient, not decoration.
+
+**Trap 2 — "a 95% credible interval and a 95% confidence interval mean the same thing."**
+Tempting, because they often *look* alike and both say "95%." But the credible interval
+makes a statement about the parameter given *your* data ("95% of my posterior belief is
+in here"), while the confidence interval makes a statement about the *procedure* across
+hypothetical re-runs ("95% of intervals built this way would cover the truth"). Our
+credible interval $[0.39, 0.89]$ is a claim about *this* coin's bias; a confidence
+interval's 95% is a claim about the method, not about this one interval. Same width,
+different meaning — don't swap the sentences.
+
+## Check yourself
+
+**1.** Using the umbrella table (rain-yes 20, rain-no 5, dry-yes 10, dry-no 65), compute
+$P(\text{umbrella} \mid \text{rain})$ — the chance you carried an umbrella *given* it
+rained. Narrow to the right slice, then take the fraction.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check
+tab <- matrix(c(20, 5,
+                10, 65), nrow = 2, byrow = TRUE,
+              dimnames = list(weather = c("rain", "dry"),
+                              umbrella = c("yes", "no")))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Narrow to the **rain** row (25 days); of those, 20 had an umbrella:
+$20 / 25 = 0.8$. In R, `tab["rain", "yes"] / sum(tab["rain", ])` gives 0.8. Note this is
+*not* the same as $P(\text{rain} \mid \text{umbrella}) = 0.667$ — the two conditional
+directions differ, which is exactly why Bayes' rule (the flip) is needed.
+:::
+
+**2.** Your prior is 50/50 fair-vs-biased, but now you flip **once** and see **1 head**.
+The likelihoods are fair $= 0.5$ and biased $= 0.8$. What's the posterior probability the
+coin is biased? Will it be more or less extreme than the 0.804 we got from 3 heads?
+
+::: {.callout-note collapse="true" title="Answer"}
+Unnormalized: fair $= 0.5 \times 0.5 = 0.25$, biased $= 0.5 \times 0.8 = 0.4$. Rescale:
+biased $= 0.4 / (0.25 + 0.4) = 0.4 / 0.65 = 0.615$. **Less** extreme than 0.804 — one
+head is weaker evidence than three, so the dial moves less. More data → sharper
+posterior.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what a *posterior* is
+and why it depends on both the prior and the data.
+
+::: {.callout-note collapse="true" title="A model answer"}
+A posterior is your updated belief about an unknown quantity after seeing data — where
+the "belief dial" ends up once the evidence has turned it. It depends on the prior
+(where the dial started) *and* the likelihood (how hard the data pulls), because
+updating is literally before-belief reweighted by what the data says.
+:::
+
+## What you can now do
+
+- **Compute a conditional probability** $P(A \mid B)$ by hand from a count table —
+  narrow to the $B$ slice, take the fraction — and say when two events are *independent*.
+- **State the Bayes flip in words**: posterior ∝ likelihood × prior, and explain why the
+  denominator is just a rescaler.
+- **Turn a prior and a likelihood into a posterior** on toy numbers (the fair-vs-biased
+  coin), by hand and in R.
+- **Read a posterior as a distribution over a parameter**, contrast it in one sentence
+  with the frequentist fixed-parameter view, and read a **credible interval** off it.
+- **Say what MCMC is for** in one sentence — a machine that draws samples from the
+  posterior — and summarize a pile of draws into a mean and an interval.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — anything Bayesian assumes
+all of these.
+
+## Where this goes next
+
+Every Bayesian method is this loop scaled up: a prior over many parameters, a likelihood
+from a real model, and a posterior explored by drawing samples. The pieces here —
+$P(\theta)$, $P(\text{data} \mid \theta)$, $P(\theta \mid \text{data})$, and the
+credible interval — are the vocabulary those methods are written in, and MCMC is the
+engine that makes them run when no formula exists. Ready for more reps? Do the
+[practice problems](practice.qmd).
