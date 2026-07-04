@@ -187,14 +187,18 @@ Location rules:
   See `equivalence/README.md` and the `port-library` skill; do not re-derive them here.
 
 **GATE 4 (check per lesson before starting the next)** — the lesson-relevant items
-of `TEACHING.md` §Self-check, i.e.: ☐ All template sections present, in order.
+of `TEACHING.md` §Self-check (at minimum; practice-ramp completeness is checked in
+GATE 5): ☐ All template sections present, in order.
+☐ A learner-profile reader could follow every step with a pencil.
 ☐ Warm-up retrieves (not re-reads) from ≥2 earlier points where they exist.
-☐ Every formula preceded by its toy example; every symbol has a table row.
-☐ "Getting a feel for it" has a genuine analogy + why-this-construction (not a
-reworded formula). ☐ No unexplained derivation step; derived results sanity-checked
-numerically. ☐ Predict-then-run prompts present. ☐ Common traps refuted with the
-lesson's numbers. ☐ Recap can-dos + mastery rule present. ☐ Setup chunk present
-with `set.seed(42)`.
+☐ Every formula preceded by its toy example; every symbol has a table row; every
+term defined at first use. ☐ "Getting a feel for it" has a genuine analogy +
+why-this-construction (not a reworded formula). ☐ No unexplained derivation step;
+derived results sanity-checked numerically. ☐ Predict-then-run prompts present;
+own-words prompt present. ☐ Common traps refuted with the lesson's numbers.
+☐ Recap can-dos + mastery rule present. ☐ Everything beyond the applied need
+marked **Optional**. ☐ Quoted numbers re-verified against the code they came from.
+☐ Setup chunk present with `set.seed(42)`.
 
 ---
 
@@ -208,17 +212,16 @@ spot-the-error, notation reuse). It is shared with the `add-problems` skill, so 
 is the single source of truth; do not re-derive the rules here.
 
 Copy `.claude/course-authoring/practice-template.qmd` and fill it accordingly: 4–7
-problems on the ramp (confidence rep → faded worked example → full/spot-the-error →
-interleaved → transfer/cliffhanger), every data-bearing problem opening with a
-copy-able starter chunk, and every answer a fully-worked `collapse="true"` callout.
+problems on the ramp per `problem-authoring.md`, every data-bearing problem opening
+with a copy-able starter chunk, and every answer a fully-worked `collapse="true"`
+callout.
 Per `.claude/course-authoring/interactive-webr.md`, each **starter** is a live
 `{webr}` cell (`#| autorun: false`) so the learner solves in-browser on a phone; the
 worked **answer** chunk inside the callout stays baked `{r}`. The capstone's
 cumulative set follows `course-structure.md` §Capstone.
 
-**GATE 5:** ☐ Every new module has `practice.qmd`. ☐ The ramp is complete
-(P1 confidence rep, a faded problem, a spot-the-error, an interleaved problem where
-an earlier module exists, a transfer/cliffhanger last). ☐ Every answer is inside a
+**GATE 5:** ☐ Every new module has `practice.qmd`. ☐ The ramp is complete per
+`problem-authoring.md`. ☐ Every answer is inside a
 `collapse="true"` callout with worked steps. ☐ Every problem with specific data
 opens with a copy-able starter chunk (built-in datasets / scalar-only prompts exempt).
 
