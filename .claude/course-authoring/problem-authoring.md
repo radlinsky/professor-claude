@@ -54,24 +54,28 @@ each problem comes from — retrieval is the point. Format in `course-structure.
 
 Any question that hands the learner specific data to compute with — a vector, a
 function, a data frame, anything they'd otherwise retype — MUST open with a small
-`{r}` starter chunk that defines exactly that data, placed **right after the problem
-statement and BEFORE the answer callout**.
+live `{webr}` starter chunk (`#| autorun: false`) that defines exactly that data,
+placed **right after the problem statement and BEFORE the answer callout**.
 
 This applies to **by-hand problems too**: the learner should be able to copy the
 starter to check their pencil work in R without transcribing numbers. Stating data
 only in prose or math (e.g. "$x = (3, 1, 4, 2)$") with no copy-able chunk is a defect.
 
+Engine choice (live starter, baked answer) is owned by `interactive-webr.md` — see it for wiring.
+
 The starter defines data only — never the solution:
 
 ````markdown
-```{r p2-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p2-starter — copy this to begin
 x <- c(3, 1, 4, 2)
 ```
 ````
 
-Chunk-label convention: `pN-starter` in practice sets, `checkN-starter` in lesson
-"Check yourself" questions. Labels must be unique within the file.
+Chunk-label convention: `{webr}` starters take no label — name them in a leading
+comment (`# pN-starter` in practice sets, `# checkN-starter` in lesson "Check
+yourself" questions). Comment names must be unique within the file.
 
 **Exempt from the starter chunk:** problems that use a built-in dataset (e.g.
 `mtcars`) — nothing to retype — and prompts stated entirely with scalars already in

@@ -50,11 +50,12 @@ re-render, and re-check.
 
 5. **Every data-bearing question ships copy-able starter code.**
    Any problem or "check yourself" question that gives the learner specific data to
-   compute with (a vector, function, or data frame) must open with a `{r}` starter
+   compute with (a vector, function, or data frame) must open with a copy-able starter
    chunk defining that data, placed before the answer callout — by-hand problems
    included. A question that states data only in prose or math (e.g. "$x = (3,1,4,2)$")
    with no copy-able chunk is a defect. Exempt: built-in datasets (`mtcars`) and
-   scalar-only prompts.
+   scalar-only prompts. (Engine — live `{webr}` vs baked `{r}` — is governed by check
+   12 and `interactive-webr.md`.)
 
 6. **"Getting a feel for it" builds a model, not filler.**
    The intuition section must contain BOTH (a) a genuine analogy or mental picture

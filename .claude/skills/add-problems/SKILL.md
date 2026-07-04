@@ -4,8 +4,9 @@ description: >
   Add practice problems (or lesson "check yourself" questions) to an EXISTING course
   or foundation module, without rebuilding the course. Use when the user says "add
   problems to <module>", "more practice on X", "write a few exercises for this
-  lesson", or wants extra reps for a concept that already has a lesson. For building
-  a whole new course from scratch, use create-course instead.
+  lesson", or wants extra reps for a concept that already has a lesson. Tie-breaker:
+  ADDING new problems is add-problems; CHANGING existing problems is update-course.
+  For building a whole new course from scratch, use create-course instead.
 ---
 
 # add-problems
@@ -34,7 +35,8 @@ hidden worked answers, notation reuse — lives in one place; do not reinvent it
 
 2. **Lock the context.** Read that module's `lesson.qmd` to pin down its toy example,
    its exact symbols and pronunciations, and what it teaches. New problems must reuse
-   that notation and stay within what the lesson (plus its prerequisites) has taught.
+   that notation and stay within what the lesson (plus its prerequisites) has taught
+   ("prerequisites" = the modules the warm-up and syllabus/roadmap declare as required).
    Read the existing `practice.qmd` so new problems continue the difficulty ramp and
    don't collide with existing chunk labels.
 
@@ -56,10 +58,24 @@ hidden worked answers, notation reuse — lives in one place; do not reinvent it
 
 5. **Verify.** Run `quarto render` from the repo root until green. A baked `{r}` answer
    executes at build; a `{webr}` starter is emitted for the browser and is NOT run at
-   build (its in-browser execution is a manual/CI check). Then re-check the new content
-   against `.claude/course-authoring/content-review-checklist.md` — notation, symbol
-   coverage, arithmetic-matches-R, copy-able starters, and the check-12 interactive
-   wiring.
+   build (its in-browser execution is a manual/CI check). If any new problem cites an
+   external URL, WebFetch-verify it now (`resource-curation.md` rules — never write an
+   unverified URL). Then review the new content against
+   `.claude/course-authoring/content-review-checklist.md`: if a Task/Agent tool is
+   available, dispatch `course-auditor` on the changed files instead of self-reviewing —
+   independence catches what self-review misses; fix confirmed defects, re-render, and
+   re-dispatch until clean. Otherwise self-review against the checklist and disclose that
+   no independent pass was run.
 
 Do NOT touch the syllabus, roadmap, or README indexes — you are adding problems to an
 existing module, not restructuring the course.
+
+---
+
+## GATE — do not declare done until all boxes are checked
+
+- [ ] `quarto render` exits green (or failure honestly reported with reason).
+- [ ] Review clean: `course-auditor` dispatched and reporting PASS (or self-review
+      disclosed when Task/Agent tool unavailable).
+- [ ] Fix → re-render → re-check cycle run to completion — no known defects remain.
+- [ ] Syllabus, roadmap, and README indexes are untouched.

@@ -23,7 +23,7 @@ in favor of those two.
 ## The golden order (non-negotiable)
 
 Every lesson runs this spine, in this order. Within it, every new CONCEPT gets
-steps 2–7 in order. A formula may never appear before its toy example and its
+steps 2–7 in order. Steps 1 and 8–11 appear **once per lesson**; steps 2–7 form a sub-spine repeated **for each new concept** the lesson introduces. A formula may never appear before its toy example and its
 pronunciation-table row.
 
 1. **Warm-up retrieval** — 2–3 quick recall questions on the prerequisites THIS

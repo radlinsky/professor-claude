@@ -4,9 +4,11 @@ description: >
   Safely modify or extend EXISTING teaching material in this repo: fix an error,
   improve an explanation or intuition section, rewrite a section, add a section or
   a whole module to an existing course, retrofit new template sections into old
-  lessons, or update links. Use when the user says "improve/fix/revise/extend
-  <lesson|module|course>" or "add a module to <course>". For building a whole NEW
-  course use create-course; for ONLY adding practice problems use add-problems.
+  lessons, restructure modules, or update links. Use when the user says
+  "improve/fix/revise/extend <lesson|module|course>" or "add a module to
+  <course>". Tie-breaker: ADDING new problems is add-problems; CHANGING existing
+  problems is update-course. For building a whole NEW course use create-course;
+  for ONLY adding practice problems use add-problems.
 ---
 
 # update-course
@@ -37,7 +39,9 @@ Work the 6 steps in order. Each has a GATE.
      warm-up, traps, recap — into an older lesson);
    - **new section** within an existing file;
    - **new module** in an existing course (or a new foundation module);
-   - **restructure** — renames, renumbering, moving content between files.
+   - **restructure** — renames, renumbering, moving content between files;
+   - **link/reference update** — a URL or cross-reference changes (bites Step 2.4
+     and Step 5.2).
 4. For a **fact fix**: verify the fact is actually wrong by recomputing it (run the
    R) before changing anything. If your rewrite of an *explanation* surfaces a fact
    that looks wrong, STOP and flag it to the user — never silently "fix" facts
@@ -89,11 +93,13 @@ change together:
   takes or returns, regenerate the fixture (`equivalence/generate/regenerate-all.sh`)
   and re-run `Rscript equivalence/check.R`, and update the reference numbers embedded in
   the lesson's `{webr}` self-check. A mismatch silently breaks the check.
-- A teaching rewrite changes the *explanation*, never the *facts*. Preserve
-  verified numbers unless Step 1 proved them wrong and you recomputed replacements.
+- Revision rules: TEACHING.md §Revising existing material — explanation changes,
+  never facts. Preserve verified numbers unless Step 1 proved them wrong and you
+  recomputed replacements.
 - Keep pronunciations consistent with `notation-style.md`; keep established anchors
   unless the improvement IS the anchor (then update every reuse found in Step 2).
-- Mark any added beyond-the-need depth **Optional**.
+- Mark any added depth that goes beyond what the course goal actually needs
+  **Optional** (TEACHING.md §Depth control).
 - Never modify the learner-owned *Status* columns in the README indexes.
 - Update every file on the Step-2 must-change-together list in the same pass.
 
@@ -104,7 +110,7 @@ recomputation. ☐ New content follows the current templates.
 
 ## Step 4 — Re-register
 
-Only when files were added/renamed/removed:
+Check on every change; act when files were added/renamed/removed:
 
 - Root `_quarto.yml`: add/fix each page in BOTH the render list and the sidebar
   (paths relative to repo root; no per-course `_quarto.yml` — see
@@ -114,6 +120,8 @@ Only when files were added/renamed/removed:
   "Teaches" summary.
 - Syllabus and `00-roadmap.qmd` of the affected course: new/renamed modules appear
   in both, with the Mermaid diagram updated.
+- If a changed or added module newly links a foundation module, append this course
+  to that foundation's *Used by* column in `foundations/README.md` (never Status).
 
 **GATE 4:** ☐ `_quarto.yml`, both READMEs, syllabus, and roadmap all agree with the
 new file reality (skip-checked even for edits that "shouldn't" need it).
@@ -140,9 +148,10 @@ new file reality (skip-checked even for edits that "shouldn't" need it).
 
 ## Step 6 — Review & report
 
-**Preferred:** dispatch the `course-auditor` agent on every changed file; fix
-confirmed defects, re-verify (back through Step 5), re-dispatch until clean.
-Fallback (no agent tool): self-review against
+If a Task/Agent tool is available, dispatch the **`course-auditor` agent** on every
+changed file (self-review is NOT permitted when dispatch is possible); fix confirmed
+defects, re-verify (back through Step 5), re-dispatch until clean.
+Fallback (no Task/Agent tool available): self-review against
 `.claude/course-authoring/content-review-checklist.md` with fresh eyes and disclose
 that the review was self-performed.
 

@@ -229,7 +229,8 @@ c(loop = running_total, sigma = sum(x))   # identical — sum() IS the Σ
 # explore-2 — LIVE: change n or the constant and press Run — the three rules hold for
 # ANY data, not just nice numbers.
 # PREDICT: will all three all.equal() checks print TRUE for 50 random values? Commit,
-# then run.
+# then run. (all.equal(), not ==: the two sides are equal in math but can differ in the
+# last few decimals from float rounding, so we test "equal within a tiny tolerance".)
 set.seed(42)
 n <- 50
 x <- rnorm(n)          # 50 random values

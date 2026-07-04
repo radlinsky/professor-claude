@@ -7,12 +7,11 @@ real thing.
 
 ## The two documents that govern everything
 
-- **`TEACHING.md` (repo root)** — the teaching contract: the golden order
-  (warm-up retrieval → toy example → intuition → notation → pronunciation table →
-  formal version → explore → traps → check yourself → recap), plus the rules for
-  notation, anchors, derivations, retrieval/interleaving, practice ramps,
-  misconceptions, depth control, revision, and the self-check. **ALL teaching
-  material follows TEACHING.md.** Do not restate its rules elsewhere — link to it.
+- **`TEACHING.md` (repo root)** — the teaching contract: the golden order — the
+  11-step lesson spine defined in TEACHING.md — plus the rules for notation,
+  anchors, derivations, retrieval/interleaving, practice ramps, misconceptions,
+  depth control, revision, and the self-check. **ALL teaching material follows
+  TEACHING.md.** Do not restate its rules elsewhere — link to it.
 - **`.claude/course-authoring/learner-profile.md`** — WHO you are teaching: a
   strong R programmer whose math stops at rusty AP Calculus A/B + one long-ago
   intro stats course, who cannot comfortably read formal notation. Never assume
@@ -37,12 +36,19 @@ professor_claude/
 │   │   └── course-auditor.md          # subagent: READ-ONLY quality review of material
 │   ├── course-authoring/              # SHARED authoring assets (learner profile,
 │   │                                  #   templates, notation/style, problem-authoring
-│   │                                  #   contract, review checklist) — used by ALL
-│   │                                  #   skills/agents; no skill owns it
+│   │                                  #   contract, review checklist, resource-curation,
+│   │                                  #   source-licensing, and more — see the directory)
+│   │                                  #   — used by ALL skills/agents; no skill owns it
 │   └── skills/
 │       ├── create-course/SKILL.md     # whole-course generation procedure (8 phases)
 │       ├── update-course/SKILL.md     # safely modify/extend EXISTING material
-│       └── add-problems/SKILL.md      # add problems to an EXISTING module
+│       ├── add-problems/SKILL.md      # add problems to an EXISTING module
+│       └── port-library/SKILL.md      # rebuild a real library/paper into a course
+├── equivalence/               # fixture harness proving port-library rebuilds match the
+│                              #   original (fixtures/, generate/, reimplementations/,
+│                              #   harness.R, check.R) — see equivalence/README.md
+├── .github/workflows/         # CI: equivalence.yml, license-check.yml, render.yml
+├── docs/                      # decision records (e.g., webr-decision.md)
 ├── foundations/               # SHARED, recyclable prerequisite modules
 │   ├── README.md              # index: module, concepts, used-by, learner status
 │   └── <module-slug>/{lesson.qmd, practice.qmd, resources.md}
@@ -63,10 +69,10 @@ professor_claude/
 
 | You want to… | Use |
 |---|---|
-| Build a whole new course (from a paper, concept, or a `source-materials/*/COURSE-REQUEST.md`) | **`create-course` skill**; or the **`course-creator` agent** for a one-shot build |
-| Rebuild a real method (an R/Python/C/C++/Fortran library, a paper's methods, or a repo) from scratch into a course AND prove the rebuild matches the original | **`port-library` skill** — does source analysis + equivalence fixtures, then runs create-course phases 3–8 |
+| Build a whole new course (from a bare concept or a paper with no validation reference, or a `source-materials/*/COURSE-REQUEST.md`) | **`create-course` skill**; or the **`course-creator` agent** for a one-shot build (agent = autonomous one-shot; skill = interactive build) |
+| Rebuild a real method (an R/Python/C/C++/Fortran library, a paper's methods, or a repo) from scratch into a course AND prove the rebuild matches the original | **`port-library` skill** — does source analysis + equivalence fixtures, then runs create-course phases 3–8 (if ANY validation reference exists — runnable code, reported numbers, or a closed form — port-library applies; only a bare concept with nothing to validate against goes to create-course) |
 | Change ANYTHING in existing material (fix, improve, extend, add a module/section) | **`update-course` skill** — never edit course content ad hoc |
-| Only add practice problems / check-yourself questions to an existing module | **`add-problems` skill**, or the **`problem-creator` agent** |
+| Only add practice problems / check-yourself questions to an existing module | **`add-problems` skill**, or the **`problem-creator` agent** (ADDING new problems; CHANGING existing problems is update-course) |
 | Grade material against the contract (after a build/update, or on demand) | **`course-auditor` agent** (read-only) |
 
 Everything the skills need (templates, notation glossary, problem-authoring
