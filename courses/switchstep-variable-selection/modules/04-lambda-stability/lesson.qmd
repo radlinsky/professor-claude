@@ -1,0 +1,282 @@
+---
+title: "Lambda for stability"
+subtitle: "When indicators are near-identical, a ridge λ keeps the reconstruction from exploding"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+
+sim_collinear <- function(n = 200, seed = 3, rho = 0.999) {
+  set.seed(seed); p <- 12; R <- diag(p)
+  R[1,2] <- R[2,1] <- 0.9; R[3,4] <- R[4,3] <- rho
+  R[8,10] <- R[10,8] <- 0.7; R[11,12] <- R[12,11] <- 0.65
+  X <- matrix(rnorm(n*p), n, p) %*% chol(R)
+  colnames(X) <- c("rate_10y","rate_2y","cpi_infl","pce_infl","unemp","oil",
+                   "usd_index","sentiment","housing","pmi","credit_spread","vix")
+  beta <- numeric(p); beta[c(1,3,5)] <- c(0.5,-0.4,-0.3)
+  list(X = X, y = drop(X %*% beta + rnorm(n)))
+}
+```
+
+## Where we're going
+
+The reconstruction $\hat\beta = R^{-1}b$ has a failure mode: when two indicators are *almost
+the same* (correlation near 1), the correlation matrix $R$ is nearly impossible to invert,
+and $R^{-1}b$ blows up into huge, opposite-signed coefficients that swing wildly with the
+tiniest change. The fix is the [ridge](../../../../foundations/ridge-regularization/lesson.qmd)
+idea, applied to $R$ itself: replace $R$ with $R + \lambda I$ — add a small $\lambda$ down the
+diagonal. That is invertible for *any* $\lambda > 0$, and it trades a little shrinkage for a
+lot of stability. This module builds that safeguard and sweeps $\lambda$ to see it work.
+
+**Builds on:** [ridge-regularization](../../../../foundations/ridge-regularization/lesson.qmd)
+($(X^\top X + \lambda I)$ inverts for any $\lambda>0$; standardize first),
+[Module 1](../01-joint-fit-from-summaries/lesson.qmd) ($\hat\beta = R^{-1}b$),
+[Module 3](../03-rank-one-speedups/lesson.qmd) (a tiny Schur complement signals collinearity),
+[Multiple Regression, Module 3](../../../multiple-regression/modules/03-marginal-vs-joint/lesson.qmd)
+(collinearity blows coefficients up).
+
+## Warm-up: do you remember?
+
+**1.** *(ridge)* What does adding $\lambda I$ to a matrix before inverting guarantee, for any
+$\lambda > 0$?
+
+::: {.callout-note collapse="true" title="Answer"}
+That the matrix is **invertible** — $R + \lambda I$ is non-singular for any $\lambda > 0$,
+even if $R$ alone is singular. See [ridge-regularization](../../../../foundations/ridge-regularization/lesson.qmd).
+:::
+
+**2.** *(Module 1)* How do we reconstruct the joint coefficients from the correlation matrix
+$R$ and marginal vector $b$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat\beta = R^{-1}b$ — solve $R\hat\beta = b$. See
+[Module 1](../01-joint-fit-from-summaries/lesson.qmd).
+:::
+
+**3.** *(Multiple Regression, Module 3)* What happens to a regression's coefficients when two
+predictors are correlated ~0.999?
+
+::: {.callout-note collapse="true" title="Answer"}
+They become huge and unstable — often large and opposite in sign — because the fit can't tell
+the two nearly-identical predictors apart. See
+[Multiple Regression, Module 3](../../../multiple-regression/modules/03-marginal-vs-joint/lesson.qmd).
+:::
+
+## A tiny example first
+
+Two indicators correlated at **0.999** — nearly the same variable — with marginal
+coefficients $b = (0.5, 0.49)$:
+
+$$
+R = \begin{pmatrix} 1 & 0.999 \\ 0.999 & 1 \end{pmatrix}, \qquad b = (0.5,\ 0.49).
+$$
+
+**Unregularized.** $\det R = 1 - 0.999^2 = 0.001999$ — a whisker above zero, so $R^{-1}$ has
+enormous entries. Reconstructing:
+
+$$
+\hat\beta = R^{-1}b = \frac{1}{0.001999}\begin{pmatrix} 1 & -0.999 \\ -0.999 & 1 \end{pmatrix}\begin{pmatrix}0.5 \\ 0.49\end{pmatrix}
+= \frac{1}{0.001999}\begin{pmatrix} 0.01049 \\ -0.0095 \end{pmatrix} = \begin{pmatrix} 5.25 \\ -4.75 \end{pmatrix}.
+$$
+
+A tiny 0.01 gap between two marginal coefficients got amplified into $+5.25$ and $-4.75$ —
+absurd, unstable coefficients from a stable-looking input.
+
+**Regularized.** Add $\lambda = 0.1$ down the diagonal: $R + \lambda I = \begin{pmatrix}1.1 & 0.999 \\ 0.999 & 1.1\end{pmatrix}$,
+$\det = 1.21 - 0.998 = 0.212$ — comfortably away from zero. Now
+
+$$
+\hat\beta = (R + \lambda I)^{-1} b = \frac{1}{0.212}\begin{pmatrix} 0.0605 \\ 0.0395 \end{pmatrix} = \begin{pmatrix} 0.285 \\ 0.186 \end{pmatrix}.
+$$
+
+Sane, similar, positive coefficients — the two near-identical indicators now sensibly *share*
+the effect instead of fighting over it.
+
+```{r toy-example}
+R <- matrix(c(1, 0.999, 0.999, 1), 2); b <- c(0.5, 0.49)
+rbind(unregularized      = solve(R, b),                    # 5.25, -4.75  (explodes)
+      ridge_lambda_0.1   = solve(R + 0.1 * diag(2), b))    # 0.285, 0.186 (stable)
+```
+
+## Getting a feel for it
+
+**Leaning a wobbly table.** With $R$ near-singular, the least-squares problem is a nearly-flat
+valley — a long trough where wildly different coefficient pairs fit almost equally well, so
+the solver skids to an extreme. Adding $\lambda I$ tilts the floor of that trough, giving it a
+single clear low point near the origin. It's the ridge module's **leash**, now leashing the
+*reconstruction*: $\lambda$ pulls the coefficients back toward small, sensible values instead
+of letting them fly apart. Slack leash ($\lambda \to 0$): back to the exploding $R^{-1}b$.
+Tight leash (large $\lambda$): everything shrinks toward 0.
+
+**Why adding to the diagonal works.** A matrix is hard to invert when it has an eigenvalue
+near 0 (a direction it nearly flattens). Adding $\lambda I$ lifts *every* eigenvalue by
+$\lambda$, so the smallest becomes $\lambda_{\min} + \lambda$ — safely positive for any
+$\lambda > 0$ (VMLS §15.3). The near-zero determinant $0.001999$ became $0.212$; the matrix's
+**condition number** (how much it amplifies small changes) drops from enormous to modest.
+
+**What $\lambda$ costs.** Stability isn't free: like any ridge, $\lambda$ shrinks the
+recovered coefficients toward zero (bias) in exchange for taming their variance. Too small and
+the reconstruction still wobbles; too large and you over-shrink real effects. The useful
+$\lambda$ is the smallest one that makes the inversion well-behaved — often a value you sweep
+and inspect, as below.
+
+## What the notation is going to say
+
+The formula will say: *before inverting, add a small positive $\lambda$ to each diagonal entry
+of $R$; then reconstruct as usual.* $R + \lambda I$ is always invertible, so the exploding
+$R^{-1}b$ becomes the stable $(R + \lambda I)^{-1}b$; $\lambda$ dials how much stability (and
+how much shrinkage) you buy.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $R$ | "the correlation matrix R" | predictor correlations; near-singular when two correlate ~1 | $\left(\begin{smallmatrix}1&.999\\.999&1\end{smallmatrix}\right)$ |
+| $I$ | "the identity matrix" | 1s on the diagonal, 0 elsewhere | $\left(\begin{smallmatrix}1&0\\0&1\end{smallmatrix}\right)$ |
+| $\lambda$ | "lambda" | the ridge amount added to $R$'s diagonal ($>0$) | 0.1 |
+| $R + \lambda I$ | "R plus lambda I" | the regularized, safely-invertible matrix | $\left(\begin{smallmatrix}1.1&.999\\.999&1.1\end{smallmatrix}\right)$ |
+| $\det$ | "determinant" | near 0 ⇒ near-singular; away from 0 ⇒ safe to invert | $0.002 \to 0.212$ |
+| $\kappa(R)$ | "kappa of R" (condition number) | how much $R$ amplifies small errors; huge ⇒ unstable | large $\to$ modest |
+
+## The formal version
+
+**The problem.** As two indicators' correlation $\rho \to 1$, $R$ has an eigenvalue $\to 0$,
+so $\det R \to 0$ and $R^{-1}$ has entries $\to \infty$. The reconstruction $\hat\beta = R^{-1}b$
+then amplifies any tiny wiggle in $b$ into gigantic, opposite-signed coefficients (the toy's
+$+5.25 / -4.75$).
+
+**The fix.** Reconstruct with a ridge $\lambda$ on the correlation matrix:
+
+$$
+\boxed{\;\hat\beta_{\lambda} = (R + \lambda I)^{-1} b\;}.
+$$
+
+- $R + \lambda I$ adds $\lambda$ to every eigenvalue, so its smallest eigenvalue is
+  $\lambda_{\min}(R) + \lambda \ge \lambda > 0$ — **invertible for any $\lambda > 0$** (VMLS
+  §15.3), even when $R$ is exactly singular.
+- This is precisely the ridge move from the foundation, applied to the summary-world Gram
+  matrix $R$ instead of $X^\top X$: it minimizes $\lVert$reconstruction error$\rVert^2 + \lambda\lVert\beta\rVert^2$,
+  so $\lambda$ shrinks $\hat\beta_\lambda$ toward 0.
+
+Reading it aloud: "beta-hat-lambda equals the inverse of (R plus lambda I), times b" — or in
+everyday words: "pad the correlation matrix's diagonal a little so it inverts cleanly, then
+reconstruct."
+
+**Sanity check (toy):** $\det(R + 0.1 I) = 0.212 \gg 0.002 = \det R$, and the coefficients went
+from $(5.25, -4.75)$ to a stable $(0.285, 0.186)$ — matching the R output.
+
+## Explore it
+
+### Sweep λ on a ρ = 0.999 panel
+
+```{r sweep}
+sim <- sim_collinear(n = 200, seed = 3, rho = 0.999)      # cpi_infl / pce_infl at 0.999
+R <- cor(sim$X); b <- as.numeric(cor(sim$X, sim$y))
+
+sweep <- t(sapply(c(0, 0.01, 0.05, 0.1, 0.5), function(lam) {
+  beta <- solve(R + lam * diag(12), b)
+  c(lambda = lam, cpi_infl = beta[3], pce_infl = beta[4], max_abs_coef = max(abs(beta)))
+}))
+round(sweep, 3)
+```
+
+At $\lambda = 0$ the inflation twins explode to `cpi_infl` ≈ −2.02 and `pce_infl` ≈ +1.76
+(opposite signs, biggest coefficient ~2.0); by $\lambda = 0.1$ they settle to a sensible,
+similar −0.14 / −0.11 and the largest coefficient is ~0.28. The reconstruction is usable
+again.
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The largest reconstructed coefficient plotted against lambda from 0 to 0.5: it starts very large near lambda 0 and drops steeply, flattening to a small stable value as lambda increases."
+# TRY IT: change rho (the 0.999) toward 1, or change b's tiny gap, and re-run. Watch how
+# large the unregularized (lambda = 0) coefficients get, and how quickly lambda tames them.
+# PREDICT: at lambda = 0, roughly how big is the largest |coefficient| — and about where does
+# the curve flatten as lambda grows? Write your guess, then read the plot.
+rho <- 0.999
+R <- matrix(c(1, rho, rho, 1), 2); b <- c(0.5, 0.49)
+lams <- seq(0, 0.5, length.out = 60)
+maxc <- sapply(lams, function(l) max(abs(solve(R + l * diag(2), b))))
+plot(lams, maxc, type = "l", lwd = 2, col = "firebrick",
+     xlab = "ridge lambda", ylab = "largest |coefficient|",
+     main = "lambda tames the exploding reconstruction")
+abline(h = 0, lty = 3)
+```
+
+The selected *set*, meanwhile, is robust: running the switching search on this panel returns
+`{rate_10y, cpi_infl, unemp}` at every $\lambda$ swept — because the winning subset avoids
+keeping *both* twins, so its own small $R_S$ was never ill-conditioned. $\lambda$ rescues the
+*coefficients* (and any subset that does contain a near-collinear pair), not the selection
+here.
+
+## Common traps
+
+**Trap: "$\lambda$ just adds bias, so avoid it and use plain $R^{-1}b$."** At mild correlation,
+sure — $\lambda = 0$ is fine. But at $\rho \to 1$ the plain reconstruction is *unusable*
+(coefficients in the thousands, flipping sign on rounding). A small $\lambda$ trades a little
+bias for a reconstruction that exists and is stable — no contest when $R$ is near-singular.
+
+**Trap: "bigger $\lambda$ is safer, so crank it up."** Too-large $\lambda$ over-shrinks: every
+coefficient collapses toward 0 and you lose the real effects (the ridge module's "$\lambda$
+huge ⇒ predict the mean"). The goal is the *smallest* $\lambda$ that makes the inversion
+well-conditioned — big enough to stabilize, small enough to preserve signal.
+
+## Check yourself
+
+**1.** $R$ has smallest eigenvalue $0.0004$ (nearly singular). After adding $\lambda = 0.05\,I$,
+what is the new smallest eigenvalue, and is the matrix now safely invertible?
+
+::: {.callout-note collapse="true" title="Answer"}
+Adding $\lambda I$ lifts every eigenvalue by $\lambda$, so the smallest becomes
+$0.0004 + 0.05 = 0.0504$ — comfortably positive, so $R + \lambda I$ is safely invertible.
+That's why any $\lambda > 0$ guarantees invertibility.
+:::
+
+**2.** Two indicators correlate 0.9999 and the unregularized reconstruction gives coefficients
+$(83, -82)$. What does that pattern signal, and what will a small $\lambda$ do to them?
+
+::: {.callout-note collapse="true" title="Answer"}
+Huge opposite-signed coefficients are the signature of near-perfect collinearity: the two
+almost-identical indicators are fighting over the shared effect, and the near-singular $R$
+amplified a tiny difference. A small $\lambda$ will pull them to small, similar values that
+sensibly split the shared effect (like the toy's $(0.285, 0.186)$).
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why near-collinear
+indicators break $R^{-1}b$ and how $\lambda$ fixes it.
+
+::: {.callout-note collapse="true" title="A model answer"}
+When two indicators are nearly identical, $R$ is almost singular (an eigenvalue near zero), so
+$R^{-1}$ has enormous entries that amplify tiny differences into wild, opposite-signed
+coefficients. Adding $\lambda$ to $R$'s diagonal lifts that eigenvalue away from zero, making
+the inverse well-behaved and pulling the coefficients back to stable, sensible values.
+:::
+
+## What you can now do
+
+- **Recognize the collinearity blow-up** (near-zero $\det R$, huge opposite-signed
+  coefficients) in a summary-based reconstruction.
+- **Apply the ridge fix** $\hat\beta_\lambda = (R + \lambda I)^{-1}b$, and explain why $R+\lambda I$
+  is invertible for any $\lambda > 0$ (every eigenvalue lifted by $\lambda$).
+- **Read a $\lambda$ sweep**: coefficients settle from exploding to stable, and pick the
+  smallest $\lambda$ that stabilizes without over-shrinking.
+- **Separate what $\lambda$ fixes** (the coefficients / ill-conditioned subsets) from what can
+  stay robust (the selected set).
+
+If any feels shaky, revisit the [tiny example](#a-tiny-example-first) — the capstone assembles
+this $\lambda$ into the full procedure.
+
+## Where this goes next
+
+You now have all five pieces — reconstruct from summaries, search by switching, stop with BIC,
+speed up with rank-1 updates, stabilize with $\lambda$. Next: [the capstone](../05-capstone-switchstep/lesson.qmd)
+assembles them into one `switchstep()` function and runs it end-to-end on a simulated
+meta-analysis. Ready for reps? Do the [practice problems](practice.qmd). External readings:
+[resources](../../resources.md).

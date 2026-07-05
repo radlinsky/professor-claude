@@ -37,6 +37,10 @@ echo "== [R / full] stats::lm -> multiple-regression-full-lm.json + collinear ==
 env RENV_CONFIG_AUTOLOADER_ENABLED=FALSE R_LIBS_USER="$ENV/rlib" \
   Rscript equivalence/generate/multiple-regression_full_lm.R
 
+echo "== [R / full] SwitchStep oracles -> switchstep-*.json (5 fixtures) =="
+env RENV_CONFIG_AUTOLOADER_ENABLED=FALSE R_LIBS_USER="$ENV/rlib" \
+  Rscript equivalence/generate/switchstep_full_oracles.R
+
 echo "== [Python / full] numpy.linalg.lstsq -> ols-full-numpy.json =="
 # Create the venv WITH pip. `python3 -m venv` needs the distro's ensurepip
 # (python3-venv package); when that is missing we fall back to `virtualenv` (bundles

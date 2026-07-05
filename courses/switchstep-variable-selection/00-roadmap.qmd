@@ -1,0 +1,72 @@
+---
+title: "Roadmap"
+---
+
+How every module depends on the others. Blue nodes are reusable
+[foundations](../../foundations/README.md); green nodes are whole earlier courses; arrows
+mean "needed for".
+
+Like every course, this one assumes the notation grammar in
+[reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) — take it
+first if the symbols aren't yet second nature.
+
+This course **builds on** [Multiple Regression from Scratch](../multiple-regression/syllabus.md)
+(the joint fit via the normal equations; why joint ≠ marginal) and, transitively,
+[Simple Linear Regression](../simple-linear-regression/syllabus.md). If either is rusty,
+skim its syllabus first.
+
+```{mermaid}
+flowchart TD
+    classDef foundation fill:#e8f0fe,stroke:#4285f4
+    classDef priorcourse fill:#e6f4ea,stroke:#34a853
+
+    F1["model-selection-and-information-criteria<br/>(BIC, best-subset, stepwise)"]:::foundation
+    F2["sherman-morrison-rank-one-updates<br/>(update an inverse cheaply)"]:::foundation
+    F3["ridge-regularization<br/>(R + λI inverts stably)"]:::foundation
+    F4["hypothesis-tests-p-values-and-confidence-intervals<br/>(what a p-value claims)"]:::foundation
+
+    C1["course: simple-linear-regression<br/>(the line β₀+β₁x)"]:::priorcourse
+    C2["course: multiple-regression<br/>(joint fit XᵀXβ̂=Xᵀy; joint ≠ marginal)"]:::priorcourse
+
+    M1["01 · Joint fit from summaries<br/>(β̂ = R⁻¹b, R² and BIC from summaries)"]
+    M2["02 · The switching search<br/>(add / remove / swap under BIC)"]
+    M3["03 · Rank-one speed-ups<br/>(bordering updates of R_S⁻¹)"]
+    M4["04 · Lambda for stability<br/>(R + λI at ρ→1)"]
+    M5["05 · Capstone: assemble SwitchStep"]
+
+    C1 --> C2
+    C2 --> M1
+    M1 --> M2
+    F1 --> M2
+    F4 --> M2
+    M2 --> M3
+    F2 --> M3
+    M2 --> M4
+    F3 --> M4
+    M3 --> M5
+    M4 --> M5
+```
+
+## Suggested order
+
+1. Foundation: [model-selection-and-information-criteria](../../foundations/model-selection-and-information-criteria/lesson.qmd) —
+   new? take it fully; done before? skim its pronunciation table.
+2. Foundation: [sherman-morrison-rank-one-updates](../../foundations/sherman-morrison-rank-one-updates/lesson.qmd) —
+   same rule.
+3. Foundation: [ridge-regularization](../../foundations/ridge-regularization/lesson.qmd) —
+   same rule.
+4. Foundation: [hypothesis-tests-p-values-and-confidence-intervals](../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd) —
+   same rule (needed for Module 2's p-value contrast).
+5. [01 · The joint fit from summaries](modules/01-joint-fit-from-summaries/lesson.qmd)
+   (+ [practice](modules/01-joint-fit-from-summaries/practice.qmd))
+6. [02 · The switching search](modules/02-the-switching-search/lesson.qmd)
+   (+ [practice](modules/02-the-switching-search/practice.qmd))
+7. [03 · Rank-one speed-ups](modules/03-rank-one-speedups/lesson.qmd)
+   (+ [practice](modules/03-rank-one-speedups/practice.qmd))
+8. [04 · Lambda for stability](modules/04-lambda-stability/lesson.qmd)
+   (+ [practice](modules/04-lambda-stability/practice.qmd))
+9. [05 · Capstone — assembling SwitchStep](modules/05-capstone-switchstep/lesson.qmd)
+   (+ [practice](modules/05-capstone-switchstep/practice.qmd))
+
+After each lesson, do its practice page before moving on. External videos/readings for
+each module: [resources](resources.md).

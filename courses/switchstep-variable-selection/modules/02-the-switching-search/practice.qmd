@@ -1,0 +1,157 @@
+---
+title: "Practice: The switching search"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — pick the move, new numbers
+
+The search is currently at $S = \{x_1, x_4\}$ with BIC 210. Its candidate moves score:
+
+| Move | New subset | BIC |
+|---|---|---:|
+| add $x_2$ | $\{x_1, x_2, x_4\}$ | 208 |
+| remove $x_4$ | $\{x_1\}$ | 213 |
+| swap $x_4\to x_5$ | $\{x_1, x_5\}$ | 205 |
+
+Which move does the search take, and does it then stop?
+
+::: {.callout-note collapse="true" title="Answer"}
+It takes the **lowest-BIC** move that beats the current 210: the swap $x_4\to x_5$ (BIC 205).
+It does **not** stop — 205 < 210 is an improvement, so it moves to $\{x_1, x_5\}$ and looks for
+another improving move from there. It stops only when *no* move beats the current BIC.
+:::
+
+## Problem 2 — fill in the missing step
+
+Forward stepwise, starting empty, has BICs: add $x_2 \to -30$, then from $\{x_2\}$ add
+$x_3 \to -58$, then from $\{x_2, x_3\}$ every add makes BIC worse, so it stops at
+$\{x_2, x_3\}$. But $\{x_1, x_3\}$ scores $-61$.
+
+- Step 1: forward stops at $\{x_2, x_3\}$ (BIC $-58$) because it can only *add*, and no add helps.
+- Step 2: **your step here** — what single move, unavailable to forward, reaches $\{x_1, x_3\}$ from a set forward could hold?
+- Step 3: the switching search takes it, ending at $\{x_1, x_3\}$ (BIC $-61$).
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: a **swap** — from $\{x_2, x_3\}$, swap $x_2 \to x_1$ to get $\{x_1, x_3\}$ (or,
+if the search had first added $x_1$ to reach $\{x_1, x_2, x_3\}$, a **remove** of $x_2$).
+Either way it's a move forward stepwise doesn't have, which is why forward is stuck at the
+worse-BIC $\{x_2, x_3\}$.
+:::
+
+## Problem 3 — forward vs switching, in R
+
+On the 6-indicator panel below (seed 8), run forward-only and the switching search and compare
+their selected subsets and BICs.
+
+```{webr}
+#| autorun: false
+# p3-starter — the searches are provided; just run them and compare
+# PREDICT: will forward-only stop at a different (worse-BIC) subset than switching?
+sw_bic <- function(R,b,n,cols){ if(!length(cols)) return(0)
+  r2 <- min(as.numeric(crossprod(b[cols], solve(R[cols,cols,drop=FALSE], b[cols]))), 1 - 1e-9)
+  n*log(1-r2)+length(cols)*log(n) }
+forward_only <- function(R,b,n){p<-length(b);cur<-integer(0)
+  repeat{cd<-setdiff(1:p,cur);if(!length(cd))break
+    bx<-sapply(cd,function(j)sw_bic(R,b,n,sort(c(cur,j))))
+    if(min(bx)<sw_bic(R,b,n,cur)-1e-9)cur<-sort(c(cur,cd[which.min(bx)]))else break};sort(cur)}
+switching<-function(R,b,n){p<-length(b);cur<-integer(0);cb<-sw_bic(R,b,n,cur)
+  repeat{mv<-list();for(j in setdiff(1:p,cur))mv<-c(mv,list(sort(c(cur,j))))
+    for(j in cur)mv<-c(mv,list(setdiff(cur,j)))
+    for(j in cur)for(k in setdiff(1:p,cur))mv<-c(mv,list(sort(c(setdiff(cur,j),k))))
+    if(!length(mv))break;bx<-sapply(mv,function(m)sw_bic(R,b,n,m));i<-which.min(bx)
+    if(bx[i]<cb-1e-9){cur<-mv[[i]];cb<-bx[i]}else break};sort(cur)}
+set.seed(8); n<-200; p<-6; Rt<-diag(p); Rt[1,2]<-Rt[2,1]<-.85; Rt[3,4]<-Rt[4,3]<-.6
+X<-matrix(rnorm(n*p),n,p)%*%chol(Rt); y<-drop(X%*%c(.3,.45,.5,0,0,0)+rnorm(n,sd=1.2))
+R<-cor(X); b<-as.numeric(cor(X,y))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Forward-only stops at `{2,3}`; the switching search reaches `{1,3}` with lower BIC — `x1` and
+`x2` are 0.85-correlated, so once the search can swap the marginally-strong-but-redundant `x2`
+for `x1`, BIC improves.
+
+```{r}
+sw_bic <- function(R,b,n,cols){ if(!length(cols)) return(0)
+  r2 <- min(as.numeric(crossprod(b[cols], solve(R[cols,cols,drop=FALSE], b[cols]))), 1 - 1e-9)
+  n*log(1-r2)+length(cols)*log(n) }
+forward_only <- function(R,b,n){p<-length(b);cur<-integer(0)
+  repeat{cd<-setdiff(1:p,cur);if(!length(cd))break
+    bx<-sapply(cd,function(j)sw_bic(R,b,n,sort(c(cur,j))))
+    if(min(bx)<sw_bic(R,b,n,cur)-1e-9)cur<-sort(c(cur,cd[which.min(bx)]))else break};sort(cur)}
+switching<-function(R,b,n){p<-length(b);cur<-integer(0);cb<-sw_bic(R,b,n,cur)
+  repeat{mv<-list();for(j in setdiff(1:p,cur))mv<-c(mv,list(sort(c(cur,j))))
+    for(j in cur)mv<-c(mv,list(setdiff(cur,j)))
+    for(j in cur)for(k in setdiff(1:p,cur))mv<-c(mv,list(sort(c(setdiff(cur,j),k))))
+    if(!length(mv))break;bx<-sapply(mv,function(m)sw_bic(R,b,n,m));i<-which.min(bx)
+    if(bx[i]<cb-1e-9){cur<-mv[[i]];cb<-bx[i]}else break};sort(cur)}
+set.seed(8); n<-200; p<-6; Rt<-diag(p); Rt[1,2]<-Rt[2,1]<-.85; Rt[3,4]<-Rt[4,3]<-.6
+X<-matrix(rnorm(n*p),n,p)%*%chol(Rt); y<-drop(X%*%c(.3,.45,.5,0,0,0)+rnorm(n,sd=1.2))
+R<-cor(X); b<-as.numeric(cor(X,y))
+list(forward = forward_only(R,b,n), switching = switching(R,b,n),
+     bic_fwd = round(sw_bic(R,b,n,forward_only(R,b,n)),2),
+     bic_sw  = round(sw_bic(R,b,n,switching(R,b,n)),2))
+```
+:::
+
+## Problem 4 — spot the error
+
+After running the switching search, a colleague reports: *"`cpi_infl` was selected and its
+coefficient's p-value is 0.001, so it's very significantly related to GDP."* This contains
+**exactly one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: quoting a naïve p-value **for a coefficient in a model you selected by
+searching**. Because the search cherry-picked the best-looking indicators, the usual p-values
+are optimistically small (post-selection inference) — 0.001 overstates the evidence. That's
+exactly why the method stops with BIC rather than a p-value threshold; honest post-selection
+p-values need special methods.
+:::
+
+## Problem 5 — mixing it with Module 1 *(uses the summary-stat BIC)*
+
+Using Module 1's formula $\mathrm{BIC}(S) = n\log(1 - b_S^\top R_S^{-1}b_S) + |S|\log n$,
+compute the BIC of the single-indicator model $S = \{1\}$ when $b_1 = 0.6$ (so $R_S = 1$) and
+$n = 100$.
+
+```{webr}
+#| autorun: false
+# p5-starter
+b1 <- 0.6; n <- 100
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+For a single indicator, $R_S = 1$, so $b_S^\top R_S^{-1} b_S = b_1^2 = 0.36$. Then
+$\mathrm{BIC} = 100\log(1 - 0.36) + 1\cdot\log(100) = 100\log(0.64) + 4.605 = 100(-0.446) + 4.605
+= -44.63 + 4.605 = -40.03$. (Up to the additive constant common to all models on this data.)
+
+```{r}
+b1 <- 0.6; n <- 100
+n * log(1 - b1^2) + 1 * log(n)      # about -40.03
+```
+:::
+
+## Problem 6 — transfer: is the switch enough?
+
+For $p = 12$ indicators there are $2^{12} = 4096$ subsets — small enough to check *all* of them
+(exhaustive best-subset). For $p = 40$ there are over $10^{12}$. In one or two sentences: why do
+we validate the switching search against exhaustive best-subset only for small $p$, and what do
+we rely on for large $p$?
+
+::: {.callout-note collapse="true" title="Answer"}
+For small $p$ we can afford to enumerate every subset, so we can *check* that the switching
+search lands on the true global-best BIC subset (it did, on every tested seed). For large $p$
+exhaustive search is computationally impossible, so we rely on the switching search as a
+heuristic — trusting the small-$p$ validation as evidence it behaves well, while accepting it's
+no longer guaranteed to hit the global optimum.
+:::

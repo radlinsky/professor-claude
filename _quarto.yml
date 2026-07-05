@@ -40,6 +40,9 @@ project:
     - foundations/model-fit-error-and-validation/lesson.qmd
     - foundations/model-fit-error-and-validation/practice.qmd
     - foundations/model-fit-error-and-validation/resources.md
+    - foundations/model-selection-and-information-criteria/lesson.qmd
+    - foundations/model-selection-and-information-criteria/practice.qmd
+    - foundations/model-selection-and-information-criteria/resources.md
     - foundations/paper-and-proof-conventions/lesson.qmd
     - foundations/paper-and-proof-conventions/practice.qmd
     - foundations/paper-and-proof-conventions/resources.md
@@ -61,6 +64,12 @@ project:
     - foundations/resampling-bootstrap-and-permutation/lesson.qmd
     - foundations/resampling-bootstrap-and-permutation/practice.qmd
     - foundations/resampling-bootstrap-and-permutation/resources.md
+    - foundations/ridge-regularization/lesson.qmd
+    - foundations/ridge-regularization/practice.qmd
+    - foundations/ridge-regularization/resources.md
+    - foundations/sherman-morrison-rank-one-updates/lesson.qmd
+    - foundations/sherman-morrison-rank-one-updates/practice.qmd
+    - foundations/sherman-morrison-rank-one-updates/resources.md
     - foundations/variance-structure-and-standardization/lesson.qmd
     - foundations/variance-structure-and-standardization/practice.qmd
     - foundations/variance-structure-and-standardization/resources.md
@@ -112,6 +121,19 @@ project:
     - courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/lesson.qmd
     - courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/practice.qmd
     - courses/multiple-regression/resources.md
+    - courses/switchstep-variable-selection/syllabus.md
+    - courses/switchstep-variable-selection/00-roadmap.qmd
+    - courses/switchstep-variable-selection/modules/01-joint-fit-from-summaries/lesson.qmd
+    - courses/switchstep-variable-selection/modules/01-joint-fit-from-summaries/practice.qmd
+    - courses/switchstep-variable-selection/modules/02-the-switching-search/lesson.qmd
+    - courses/switchstep-variable-selection/modules/02-the-switching-search/practice.qmd
+    - courses/switchstep-variable-selection/modules/03-rank-one-speedups/lesson.qmd
+    - courses/switchstep-variable-selection/modules/03-rank-one-speedups/practice.qmd
+    - courses/switchstep-variable-selection/modules/04-lambda-stability/lesson.qmd
+    - courses/switchstep-variable-selection/modules/04-lambda-stability/practice.qmd
+    - courses/switchstep-variable-selection/modules/05-capstone-switchstep/lesson.qmd
+    - courses/switchstep-variable-selection/modules/05-capstone-switchstep/practice.qmd
+    - courses/switchstep-variable-selection/resources.md
 
 website:
   title: "Professor Claude"
@@ -221,6 +243,14 @@ website:
                 href: foundations/model-fit-error-and-validation/practice.qmd
               - text: "Resources"
                 href: foundations/model-fit-error-and-validation/resources.md
+          - section: "Model selection & information criteria"
+            contents:
+              - text: "Lesson"
+                href: foundations/model-selection-and-information-criteria/lesson.qmd
+              - text: "Practice"
+                href: foundations/model-selection-and-information-criteria/practice.qmd
+              - text: "Resources"
+                href: foundations/model-selection-and-information-criteria/resources.md
           - section: "Paper & proof conventions"
             contents:
               - text: "Lesson"
@@ -277,6 +307,22 @@ website:
                 href: foundations/resampling-bootstrap-and-permutation/practice.qmd
               - text: "Resources"
                 href: foundations/resampling-bootstrap-and-permutation/resources.md
+          - section: "Ridge regularization"
+            contents:
+              - text: "Lesson"
+                href: foundations/ridge-regularization/lesson.qmd
+              - text: "Practice"
+                href: foundations/ridge-regularization/practice.qmd
+              - text: "Resources"
+                href: foundations/ridge-regularization/resources.md
+          - section: "Sherman–Morrison rank-1 updates"
+            contents:
+              - text: "Lesson"
+                href: foundations/sherman-morrison-rank-one-updates/lesson.qmd
+              - text: "Practice"
+                href: foundations/sherman-morrison-rank-one-updates/practice.qmd
+              - text: "Resources"
+                href: foundations/sherman-morrison-rank-one-updates/resources.md
           - section: "Variance structure & standardization"
             contents:
               - text: "Lesson"
@@ -414,6 +460,42 @@ website:
                 href: courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/practice.qmd
           - text: "Resources"
             href: courses/multiple-regression/resources.md
+      - section: "SwitchStep Variable Selection"
+        contents:
+          - courses/switchstep-variable-selection/syllabus.md
+          - courses/switchstep-variable-selection/00-roadmap.qmd
+          - section: "1 · Joint fit from summaries"
+            contents:
+              - text: "Lesson"
+                href: courses/switchstep-variable-selection/modules/01-joint-fit-from-summaries/lesson.qmd
+              - text: "Practice"
+                href: courses/switchstep-variable-selection/modules/01-joint-fit-from-summaries/practice.qmd
+          - section: "2 · The switching search"
+            contents:
+              - text: "Lesson"
+                href: courses/switchstep-variable-selection/modules/02-the-switching-search/lesson.qmd
+              - text: "Practice"
+                href: courses/switchstep-variable-selection/modules/02-the-switching-search/practice.qmd
+          - section: "3 · Rank-one speed-ups"
+            contents:
+              - text: "Lesson"
+                href: courses/switchstep-variable-selection/modules/03-rank-one-speedups/lesson.qmd
+              - text: "Practice"
+                href: courses/switchstep-variable-selection/modules/03-rank-one-speedups/practice.qmd
+          - section: "4 · Lambda for stability"
+            contents:
+              - text: "Lesson"
+                href: courses/switchstep-variable-selection/modules/04-lambda-stability/lesson.qmd
+              - text: "Practice"
+                href: courses/switchstep-variable-selection/modules/04-lambda-stability/practice.qmd
+          - section: "5 · Capstone: assemble SwitchStep"
+            contents:
+              - text: "Lesson"
+                href: courses/switchstep-variable-selection/modules/05-capstone-switchstep/lesson.qmd
+              - text: "Practice"
+                href: courses/switchstep-variable-selection/modules/05-capstone-switchstep/practice.qmd
+          - text: "Resources"
+            href: courses/switchstep-variable-selection/resources.md
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that
 # lessons can host runnable in-browser WebR chunks with a single, uniform theme.
