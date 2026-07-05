@@ -194,7 +194,11 @@ re-render, and re-check.
     `answer=` value is independently verified correct against the lesson; ≥1 item is
     interleaved from an earlier module (unless this is an entry module with nothing
     earlier); attributes use `qid`/`qtype` (never `id`/`type`); the quiz contains no
-    code cells. Rules: `quiz-authoring.md`.
+    code cells. Item form (quiz-authoring.md §Writing the five items): stems positively
+    phrased (no NOT/EXCEPT); 3–4 options per MC item with no "all/none of the above" or
+    combined options; the key is not recognizably the longest option; key letters vary
+    across the set; no item's stem or options reveal another item's answer; decimal
+    numeric answers carry a rounding `tolerance=`. Rules: `quiz-authoring.md`.
 
 ## Reporting
 
