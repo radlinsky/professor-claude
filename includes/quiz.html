@@ -103,9 +103,15 @@
       containers.forEach(function (container) {
         var moduleKey     = container.getAttribute("data-module") || "";
         var passThreshold = parseInt(container.getAttribute("data-pass") || "4", 10);
+        /* persistence needs a real key: skip if missing or an unfilled template
+           placeholder, so quizzes never collide under "" or a literal "<…>" */
+        var canSave = moduleKey !== "" && moduleKey.indexOf("<") === -1;
+        if (!canSave) {
+          console.warn("module-check: missing/placeholder module= — grading works, results not saved");
+        }
 
         /* ── best-so-far banner (shown on return visits) ─────────────── */
-        var stored = blob.modules[moduleKey];
+        var stored = canSave ? blob.modules[moduleKey] : null;
         if (stored && stored.best) {
           var b       = stored.best;
           var bestDiv = document.createElement("div");
@@ -219,12 +225,16 @@
             if (qtype === "mc") {
               var checked = qDiv.querySelector("input[type='radio']:checked");
               given   = checked ? checked.value : "";
-              correct = (given !== "" && given === dataAns);
+              /* radio values are lowercase letters; normalize the answer key too */
+              correct = (given !== "" && given === dataAns.trim().toLowerCase());
 
             } else if (qtype === "numeric") {
-              var inp = qDiv.querySelector("[data-qid-input='" + qid + "']");
+              /* each numeric .quiz-q has exactly one input — no fragile qid selector */
+              var inp = qDiv.querySelector("input[data-qid-input]");
               given   = inp ? inp.value.trim() : "";
-              var num = parseFloat(given);
+              /* the WHOLE input must be a number: "14abc"/"14,0" grade wrong */
+              var num = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(given)
+                        ? Number(given) : NaN;
               var ans = parseFloat(dataAns);
               var tol = parseFloat(dataTol);
               /* guard: NaN in any operand → wrong; never propagate NaN */
@@ -247,7 +257,7 @@
               /* for MC: highlight the correct option */
               if (qtype === "mc") {
                 var correctRadio = qDiv.querySelector(
-                  "input[type='radio'][value='" + dataAns + "']"
+                  "input[type='radio'][value='" + dataAns.trim().toLowerCase() + "']"
                 );
                 if (correctRadio && correctRadio.parentElement) {
                   correctRadio.parentElement.classList.add("q-correct-option");
@@ -273,37 +283,41 @@
               : "Not yet — review the marked questions and try again.");
 
           /* persist: read-modify-write. Every attempt is appended to the
-             `attempts` array (full history); `best` is kept for the banner. */
-          blob = load();
-          var rec = blob.modules[moduleKey];
-          if (!rec || !Array.isArray(rec.attempts)) {
-            rec = { best: (rec && rec.best) || null, attempts: [] };
-            blob.modules[moduleKey] = rec;
-          }
+             `attempts` array (full history); `best` is kept for the banner.
+             Skipped entirely when there's no real module key. */
+          var didSave = true;
+          if (canSave) {
+            blob = load();
+            var rec = blob.modules[moduleKey];
+            if (!rec || !Array.isArray(rec.attempts)) {
+              rec = { best: (rec && rec.best) || null, attempts: [] };
+              blob.modules[moduleKey] = rec;
+            }
 
-          var entry = {
-            when:    new Date().toISOString(),
-            score:   score,
-            total:   total,
-            passed:  passed,
-            answers: answers
-          };
-          rec.attempts.push(entry);
-
-          /* keep best only when score improves */
-          if (!rec.best || score > rec.best.score) {
-            rec.best = {
-              score:  score,
-              total:  total,
-              passed: passed,
-              when:   entry.when
+            var entry = {
+              when:    new Date().toISOString(),
+              score:   score,
+              total:   total,
+              passed:  passed,
+              answers: answers
             };
-          }
+            rec.attempts.push(entry);
 
-          var didSave = save(blob);
+            /* keep best when the score ties or beats it (>= refreshes the date) */
+            if (!rec.best || score >= rec.best.score) {
+              rec.best = {
+                score:  score,
+                total:  total,
+                passed: passed,
+                when:   entry.when
+              };
+            }
+
+            didSave = save(blob);
+          }
 
           /* private-mode notice (shown once per session) */
-          if (!didSave && !container.querySelector(".quiz-private-note")) {
+          if (canSave && !didSave && !container.querySelector(".quiz-private-note")) {
             var note       = document.createElement("div");
             note.className = "quiz-private-note";
             note.textContent =
