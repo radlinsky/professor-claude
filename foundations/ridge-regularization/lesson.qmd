@@ -175,7 +175,8 @@ making a fit *computable* when plain least squares can't invert.
 #| autorun: true
 #| fig-alt: "Two coefficient paths plotted against increasing lambda on a log scale: both coefficients start at their OLS values and shrink smoothly toward zero as lambda grows."
 # TWO correlated predictors; trace each coefficient as lambda grows (the 'ridge path').
-# TRY IT: change the correlation (the 0.9) or the lambda range and re-run.
+# TRY IT: change the shared-noise sd (the 0.3 below — smaller sd -> more correlated x1, x2)
+# or the lambda range, and re-run.
 # PREDICT: at lambda = 0 you get OLS; what do both coefficients approach as lambda -> big?
 set.seed(1); n <- 60
 z <- rnorm(n)
