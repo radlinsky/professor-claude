@@ -236,3 +236,56 @@ Your descent and `lm()`'s exact formula agree: that's four routes now (your desc
 same squared-error bowl. Different methods, one answer — which is exactly the confidence
 an equivalence check buys you.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/gradient-descent/modules/03-fitting-a-line-by-descent" pass="4"}
+
+::: {.quiz-q qid="fld-mse-candidate" qtype="numeric" answer="4.667" tolerance="0.01"}
+**On the lesson's toy data $x = (1, 2, 3)$, $y = (3, 5, 7)$, what is the MSE of the
+candidate line $b_0 = 1, b_1 = 1$?** (Round to three decimals.)
+:::
+
+::: {.quiz-q qid="fld-mse-zero" qtype="mc" answer="b"}
+**When can the best-fitting line reach MSE $= 0$?**
+
+a) Whenever gradient descent runs for enough steps
+b) Only when the data points sit exactly on one straight line
+c) Whenever the learning rate is chosen well
+:::
+
+::: {.quiz-q qid="fld-optimizers-agree" qtype="mc" answer="c"}
+**Your from-scratch descent and scipy's L-BFGS-B landed on the same coefficients to
+seven decimals. Why did that have to happen?**
+
+a) Both methods take the same downhill steps internally
+b) It is a coincidence of this dataset; other data would split them
+c) The squared-error bowl has a single bottom, and every correct optimizer finds it
+:::
+
+::: {.quiz-q qid="fld-why-square" qtype="mc" answer="a"}
+**In the MSE, why are the misses squared before averaging?**
+
+a) Raw misses can cancel each other, letting a bad line fake a good score
+b) Squared misses are smaller, which speeds up the descent
+c) Squaring keeps the error in the same units as $y$
+:::
+
+::: {.quiz-q qid="fld-update-interleave" qtype="numeric" answer="1.4" tolerance="0.01"}
+**(From Module 1, *rolling downhill*.) You are at $x = 2$ on a curve whose slope there
+is $3$. With learning rate $\alpha = 0.2$, where does one gradient-descent step put
+you?** (Enter one decimal.)
+:::
+
+:::
+
+::::
