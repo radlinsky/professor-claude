@@ -204,7 +204,7 @@ c(lhs = sum(c_const * x), rhs = c_const * sum(x))   # both 120
 c(lhs = sum(rep(c_const, n)), rhs = n * c_const)    # both 30
 ```
 
-These three rules are the entire toolkit behind most "then it follows that…" steps
+These three rules are the entire toolkit behind most "then it follows that…" steps <!-- lint-ok -->
 in methods sections. When a later lesson says "split the sum (Rule 1)", it means
 exactly this.
 

@@ -1,0 +1,356 @@
+---
+title: "Marginal vs joint: the vanishing coefficient"
+subtitle: "Why a predictor that matters alone can vanish — or flip sign — in the full model"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+
+sim_indicators <- function(n = 200, seed = 1, rho_max = 0.95) {
+  set.seed(seed)
+  nm <- c("rate_10y", "rate_2y", "cpi_infl", "pce_infl", "unemp",
+          "oil", "usd_index", "sentiment", "housing", "pmi",
+          "credit_spread", "vix")
+  p <- length(nm)
+  R <- diag(p); dimnames(R) <- list(nm, nm)
+  R["rate_10y", "rate_2y"]  <- R["rate_2y", "rate_10y"]  <- 0.90
+  R["cpi_infl", "pce_infl"] <- R["pce_infl", "cpi_infl"] <- rho_max
+  R["sentiment", "pmi"]     <- R["pmi", "sentiment"]     <- 0.70
+  R["credit_spread", "vix"] <- R["vix", "credit_spread"] <- 0.65
+  X <- matrix(rnorm(n * p), n, p) %*% chol(R)
+  colnames(X) <- nm
+  beta <- setNames(numeric(p), nm)
+  beta[c("rate_10y", "cpi_infl", "unemp")] <- c(0.5, -0.4, -0.3)
+  y <- drop(X %*% beta + rnorm(n, sd = 1))
+  list(X = X, y = y, beta_true = beta)
+}
+```
+
+## Where we're going
+
+This is the module the course was built for. You can now fit a multiple regression and
+read its coefficients "holding the others fixed." But what happens when the predictors
+*refuse to be held fixed independently* — when they travel together, like two inflation
+measures that rise and fall as a pair? Then a predictor can look strongly related to the
+outcome **on its own** and yet contribute almost nothing — or the *opposite* of what you
+expect — **in the joint fit**. That is not a bug. It is exactly what "holding the others
+fixed" costs when there is barely any independent variation left to hold fixed. By the
+end you'll see it happen, measure it, and know not to trust a lone coefficient.
+
+**Builds on:** [Module 2](../02-least-squares-and-the-normal-equations/lesson.qmd) (the
+joint fit via the normal equations),
+[Module 1](../01-many-knobs-one-model/lesson.qmd) ("holding the others fixed"),
+[variance-structure-and-standardization](../../../../foundations/variance-structure-and-standardization/lesson.qmd)
+(correlation between predictors — "two knobs wired to one wheel").
+
+## Warm-up: do you remember?
+
+**1.** *(Module 1)* State the meaning of the coefficient $\beta_2$ in a two-predictor
+model, including the qualifier.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\beta_2$ is the change in predicted $y$ for a one-unit increase in $x_2$ **holding
+$x_1$ fixed**. The "holding $x_1$ fixed" part is what today's whole story turns on. See
+[Module 1](../01-many-knobs-one-model/lesson.qmd).
+:::
+
+**2.** *(variance structure)* Two predictors have correlation 0.95. In one plain
+sentence, what does that say about how they move?
+
+::: {.callout-note collapse="true" title="Answer"}
+They move almost in lockstep — when one is above its average, the other almost always is
+too. There is very little variation in one that isn't shared with the other. See
+[variance-structure-and-standardization](../../../../foundations/variance-structure-and-standardization/lesson.qmd).
+:::
+
+**3.** *(Module 2)* A "marginal" (one-at-a-time) regression fits $y$ on a single
+predictor. How would you get the marginal slope of $y$ on $x_2$ in R?
+
+::: {.callout-note collapse="true" title="Answer"}
+`coef(lm(y ~ x2))[2]` — just $y$ against $x_2$ alone, ignoring every other predictor.
+The **joint** slope, by contrast, comes from `lm(y ~ x1 + x2)`. Today is about how
+different those two can be.
+:::
+
+## A tiny example first
+
+Four observations, two predictors, and — the crucial ingredient — the two predictors
+are strongly correlated. To keep arithmetic clean, everything is centred (means are 0),
+so we can fit through the origin:
+
+$$
+x_1 = (-2, -1, 1, 2), \qquad x_2 = (-1, -1, 1, 1), \qquad y = (-2, -1, 1, 2).
+$$
+
+Two things to notice before any fitting. First, **$y$ is a perfect copy of $x_1$** —
+$y$ is driven *entirely* by $x_1$, and $x_2$ has nothing to do with generating it.
+Second, **$x_1$ and $x_2$ are strongly correlated** ($r \approx 0.95$): whenever $x_1$
+is negative $x_2$ tends to be negative, and likewise positive.
+
+**The marginal fit — $y$ on $x_2$ alone.** The one-at-a-time slope (through the origin)
+is $\sum x_{i2} y_i / \sum x_{i2}^2$:
+
+$$
+\sum x_{i2} y_i = (-1)(-2) + (-1)(-1) + (1)(1) + (1)(2) = 2 + 1 + 1 + 2 = 6, \qquad
+\sum x_{i2}^2 = 1 + 1 + 1 + 1 = 4,
+$$
+
+so the marginal slope of $x_2$ is $6/4 = 1.5$. Judged **alone**, $x_2$ looks like a
+strong, positive predictor of $y$.
+
+**The joint fit — $y$ on $x_1$ and $x_2$ together.** Use Module 2's normal equations.
+The dot-product grid and right-hand side are
+
+$$
+X^\top X = \begin{pmatrix} 10 & 6 \\ 6 & 4 \end{pmatrix}, \qquad X^\top y = \begin{pmatrix} 10 \\ 6 \end{pmatrix},
+$$
+
+with determinant $10\cdot4 - 6\cdot6 = 40 - 36 = 4$. Solving,
+
+$$
+b_1 = \frac{4\cdot10 - 6\cdot6}{4} = \frac{4}{4} = 1, \qquad
+b_2 = \frac{10\cdot6 - 6\cdot10}{4} = \frac{0}{4} = 0 .
+$$
+
+**The joint coefficient on $x_2$ is exactly zero.** The very same $x_2$ that looked like
+a strong predictor on its own contributes *nothing* once $x_1$ is in the room. The same
+thing in R:
+
+```{r toy-example}
+x1 <- c(-2, -1, 1, 2); x2 <- c(-1, -1, 1, 1); y <- c(-2, -1, 1, 2)
+
+marginal_x2 <- coef(lm(y ~ x2 - 1))[1]         # x2 alone, through origin: slope 1.5
+joint       <- coef(lm(y ~ x1 + x2 - 1))       # x1 and x2 together: (1, 0)
+c(marginal_x2 = marginal_x2, joint_x1 = joint[1], joint_x2 = joint[2])
+```
+
+## Getting a feel for it
+
+**Two knobs wired to one wheel.** Imagine a machine whose output really depends on one
+hidden wheel. You don't get to touch the wheel; you get two knobs, $x_1$ and $x_2$, and
+both are connected to that same wheel by nearly-rigid linkages — turn one and the other
+almost has to turn with it. If someone asks "what does knob $x_2$ do *while $x_1$ is held
+perfectly still*?", the honest answer is "almost nothing I can measure" — because holding
+$x_1$ still barely lets $x_2$ move at all, and the tiny wiggle of $x_2$ that *is*
+independent had nothing to do with the output. That is the joint coefficient. The
+marginal fit, by contrast, never held $x_1$ still — so when it wiggled $x_2$, the wheel
+(and $x_1$) came along for the ride, and $x_2$ got *credit for the wheel's work*.
+
+**Why the credit gets reassigned.** In the toy, $x_2$'s marginal slope of 1.5 is
+borrowed glory: $x_2$ correlates with $x_1$, $x_1$ drives $y$, so $x_2$ *appears* to
+predict $y$. The joint fit refuses to double-count: it asks what $x_2$ adds **beyond**
+$x_1$, finds nothing, and sets its coefficient to 0. With real, noisy data the joint fit
+can go further and hand back a *negative* coefficient to a truly-positive predictor — a
+**sign flip** — when noise makes one correlated twin look slightly better than the
+other. You'll watch exactly that happen on the economic panel below.
+
+**What it feels like as correlation grows.** The more correlated the two predictors, the
+less independent variation is left, and the more violently the joint fit swings the
+coefficients around trying to split a shared effect. At correlation 0 the marginal and
+joint coefficients agree; as correlation climbs toward 1 they diverge and the joint
+estimates get wild and unstable. The **variance inflation factor** puts a number on this
+(below): for our toy it is exactly 10.
+
+## What the notation is going to say
+
+We'll write down two things. First, a name for "how badly is predictor $j$ tangled up
+with the others": regress $x_j$ on all the *other* predictors, read off that fit's
+$R^2_j$, and the **variance inflation factor** is $1/(1 - R^2_j)$ — it says how many
+times wider $x_j$'s coefficient uncertainty is, compared to if $x_j$ were uncorrelated
+with the rest. Second, nothing new for the fit itself: "marginal" is Module 2's fit with
+one predictor, "joint" is Module 2's fit with all of them.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $r$ | "little r" | correlation between two predictors, in $[-1, 1]$ (in R: `cor`) | $r(x_1, x_2) \approx 0.95$ |
+| $\beta_j^{\text{marg}}$ | "beta jay marginal" | slope of $y$ on $x_j$ **alone** (one-at-a-time fit) | $\beta_2^{\text{marg}} = 1.5$ |
+| $\beta_j^{\text{joint}}$ | "beta jay joint" | coefficient on $x_j$ in the **full** model, others held fixed | $\beta_2^{\text{joint}} = 0$ |
+| $R^2_j$ | "R squared sub jay" | fraction of $x_j$ explained by the *other* predictors | $0.90$ (regress $x_2$ on $x_1$) |
+| $\mathrm{VIF}_j$ | "vif sub jay" | variance inflation factor $= 1/(1 - R^2_j)$ | $1/(1-0.9) = 10$ |
+| $\hat\beta$ | "beta hat" | the estimated joint coefficient vector | $(1, 0)$ |
+
+## The formal version
+
+There is no new fitting formula here — "marginal" and "joint" are both just Module 2's
+least-squares fit, run on one predictor or on all of them. The new object is the
+**variance inflation factor**, the standard one-number measure of how collinear a
+predictor is with the rest:
+
+$$
+\mathrm{VIF}_j = \frac{1}{1 - R^2_j},
+$$
+
+where $R^2_j$ is the $R^2$ from regressing predictor $x_j$ on **all the other
+predictors**. Reading it aloud: "vif-sub-jay equals one over, one minus R-squared-sub-jay"
+— or in everyday words: "if the other predictors already explain most of $x_j$ (high
+$R^2_j$), then $x_j$ adds little independent information, and its coefficient becomes
+that many times harder to pin down."
+
+Mapping onto the toy: regressing $x_2$ on $x_1$ gives $R^2_2 = 0.90$ (since
+$r = 0.9487$ and $0.9487^2 = 0.90$), so $\mathrm{VIF}_2 = 1/(1 - 0.90) = 10$. A common
+rule of thumb flags $\mathrm{VIF} > 10$ as serious collinearity — our toy sits right at
+the line, which is why $x_2$'s joint coefficient was so easily driven to zero.
+
+```{r vif-toy}
+# VIF for the toy, from the definition: regress x2 on x1, read R^2, invert (1 - R^2)
+x1 <- c(-2, -1, 1, 2); x2 <- c(-1, -1, 1, 1)
+R2_2 <- summary(lm(x2 ~ x1))$r.squared
+c(R2_2 = R2_2, VIF_2 = 1 / (1 - R2_2))          # 0.90 and 10
+```
+
+## Explore it
+
+### The economic panel: marginal vs joint, side by side
+
+Here is the real thing on the course's simulated panel ($n = 200$). We built it so the
+**true** driver in each correlated pair is only *one* of the twins: `rate_10y` (not
+`rate_2y`) and `cpi_infl` (not `pce_infl`). Watch what the marginal and joint fits say:
+
+```{r panel-marg-vs-joint}
+sim   <- sim_indicators(n = 200, seed = 1)
+panel <- data.frame(sim$X, gdp = sim$y)
+
+joint <- coef(lm(gdp ~ ., data = panel))[-1]                       # all together
+marg  <- sapply(colnames(sim$X),                                    # one at a time
+                function(v) coef(lm(sim$y ~ sim$X[, v]))[2])
+
+cmp <- data.frame(true = sim$beta_true, marginal = round(marg, 3), joint = round(joint, 3))
+cmp[c("rate_10y", "rate_2y", "cpi_infl", "pce_infl"), ]
+```
+
+Read the two twin pairs:
+
+- **Yield twins** (`rate_10y`, `rate_2y`, correlated 0.90). The true effect lives
+  entirely on `rate_10y` (0.5); `rate_2y`'s true effect is 0. Yet **marginally the two
+  look identical** (both ≈ 0.49) — because `rate_2y` rides along with `rate_10y`. The
+  joint fit splits the single real effect between them (≈ 0.27 and ≈ 0.30), crediting
+  neither with the full 0.5.
+- **Inflation twins** (`cpi_infl`, `pce_infl`, correlated 0.95). The true driver is
+  `cpi_infl` (−0.4); `pce_infl`'s true effect is 0. Both look moderately negative
+  marginally (≈ −0.29 and ≈ −0.31). But in the joint fit the near-collinear pair is so
+  hard to separate that the model hands the big negative coefficient to the **wrong**
+  twin, `pce_infl` (≈ −0.43), and **flips `cpi_infl` positive** (≈ +0.11). A predictor
+  with a genuine negative effect shows up with the opposite sign — purely because its
+  correlated partner absorbed the role.
+
+The lesson: **a single coefficient in a collinear model is not a verdict on that
+predictor.** The fit is still excellent at *prediction* (the twins together capture the
+inflation signal); it just can't reliably attribute the effect to one twin.
+
+### Turn the correlation knob yourself
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two curves plotted against the predictor correlation rho from 0 to about 1: the marginal slope of x2 (blue) rises steadily from near 0 toward about 1, while its joint coefficient (red) stays near 0 but grows jagged and swings negative as rho approaches 1."
+# TRY IT: change the rho grid (e.g. go all the way to 0.999) or n, and re-run.
+# PREDICT: as rho -> 1, which curve heads toward 1, and which stays near 0 but gets jumpy?
+# Throughout, y depends ONLY on x1 — x2's TRUE effect is 0.
+set.seed(1); n <- 400
+rhos <- seq(0, 0.99, by = 0.03)
+res <- sapply(rhos, function(rho) {
+  x1 <- rnorm(n)
+  x2 <- rho * x1 + sqrt(1 - rho^2) * rnorm(n)   # correlated with x1 at level rho
+  y  <- x1 + rnorm(n)                            # only x1 drives y
+  c(marginal = unname(coef(lm(y ~ x2))[2]),      # x2 alone: borrows x1's glory
+    joint    = unname(coef(lm(y ~ x1 + x2))[3])) # x2 with x1 held fixed: true role is 0
+})
+plot(rhos, res["marginal", ], type = "l", lwd = 2, col = "steelblue", ylim = range(res),
+     xlab = "correlation between x1 and x2  (rho)", ylab = "x2's estimated slope",
+     main = "x2 has NO true effect — only the joint fit knows")
+lines(rhos, res["joint", ], lwd = 2, col = "firebrick")
+abline(h = 0, lty = 3)
+legend("topleft", c("marginal (x2 alone)", "joint (x1 held fixed)"),
+       col = c("steelblue", "firebrick"), lwd = 2, bty = "n")
+```
+
+The blue marginal curve climbs steadily toward 1 as `rho` grows — `x2` looks ever more
+important on its own. The red joint curve tells the truth (`x2`'s real effect is 0),
+staying near 0 — but notice it grows jagged and even swings negative near `rho = 1`: with
+almost no independent variation left in `x2`, the joint fit can barely tell the twins
+apart, so its estimate gets unstable even while hovering around the correct 0.
+
+## Common traps
+
+**Trap: "a big (or 'significant') coefficient means the predictor matters."** In the
+panel, `pce_infl` gets the *largest* inflation coefficient (≈ −0.43) in the joint fit —
+yet its true effect is exactly 0. It won the coefficient only by being 0.95-correlated
+with the real driver. Size alone, in a collinear model, tells you nothing reliable about
+which predictor is truly responsible. (This is also why a coefficient's p-value from a
+model you *searched* for is not an honest p-value — a thread the next course picks up.)
+
+**Trap: "the marginal and joint coefficients should roughly agree; if they don't,
+something is broken."** They agree only when predictors are uncorrelated. When
+predictors are correlated they *should* differ — that difference is the whole point of a
+multiple regression. In the toy, marginal $x_2 = 1.5$ and joint $x_2 = 0$ are both
+correct answers to *different questions*: "how does $x_2$ track $y$ ignoring everything
+else?" versus "what does $x_2$ add once $x_1$ is accounted for?"
+
+## Check yourself
+
+**1.** A predictor has $R^2_j = 0.75$ when regressed on the others. What is its VIF, and
+is that cause for concern by the rule of thumb?
+
+```{webr}
+#| autorun: false
+# check1-starter (scalar plug-in — or just do it by hand)
+R2j <- 0.75
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mathrm{VIF} = 1/(1 - 0.75) = 1/0.25 = 4$. Below the usual "> 10" flag, so moderate
+collinearity — its coefficient's uncertainty is 4× inflated, worth noting but not alarming.
+:::
+
+**2.** In a fitted model, $x_A$ has a large positive marginal slope but a near-zero joint
+coefficient. Give a one-sentence explanation a colleague would accept.
+
+::: {.callout-note collapse="true" title="Answer"}
+$x_A$ is probably correlated with another predictor that carries the real effect; on its
+own $x_A$ borrows that predictor's association with $y$ (large marginal slope), but once
+the real driver is held fixed, $x_A$ adds nothing (near-zero joint coefficient).
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why a predictor's
+coefficient can flip sign between the marginal and joint fits, and what that does *not*
+imply about the model's predictions.
+
+::: {.callout-note collapse="true" title="A model answer"}
+When two predictors are strongly correlated, the joint fit struggles to split their
+shared effect, so noise can push one twin's coefficient negative while the other goes
+positive — even reversing the sign of a truly positive predictor. It does *not* mean the
+model predicts badly: the twins together still capture the signal; the instability is
+only in attributing the effect to one predictor rather than the other.
+:::
+
+## What you can now do
+
+- **Distinguish a marginal fit from a joint fit** and explain why correlated predictors
+  make them disagree — using "holding the others fixed" as the reason.
+- **Diagnose the vanishing/sign-flipping coefficient**: a predictor correlated with the
+  true driver borrows glory marginally and can lose it (or reverse) jointly.
+- **Compute and interpret a VIF** as $1/(1 - R^2_j)$, and apply the "> 10" rule of thumb.
+- **State the honest limit**: in a collinear model, an individual coefficient is not a
+  reliable verdict on that predictor, even though prediction can stay excellent.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+and the panel comparison before continuing — the capstone reads all of this off a real
+`summary(lm())`.
+
+## Where this goes next
+
+The capstone puts every piece together: [reading a multiple regression](../04-capstone-reading-a-multiple-regression/lesson.qmd)
+decodes a full `summary(lm())` on a fresh panel line by line, and connects the
+marginal-vs-joint story to how a statistics text frames it. Beyond this course, the
+`switchstep-variable-selection` course tackles the natural next question: *which* subset
+of these tangled predictors should the model even keep? Ready for more reps first? Do the
+[practice problems](practice.qmd).

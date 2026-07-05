@@ -1,0 +1,151 @@
+---
+title: "Practice: Least squares and the normal equations"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — solve the normal equations by hand, new numbers
+
+Two predictors, three observations (no intercept), rigged to fit exactly:
+$x_1 = (1, 1, 2)$, $x_2 = (0, 1, 1)$, $y = (3, 5, 8)$. Build $X^\top X$ and $X^\top y$
+from the column dot products, then solve $X^\top X\,\hat\beta = X^\top y$ for
+$(b_1, b_2)$.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to check your hand solve
+x1 <- c(1, 1, 2); x2 <- c(0, 1, 1); y <- c(3, 5, 8)
+X <- cbind(x1, x2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Dot products: $\sum x_1^2 = 1+1+4 = 6$, $\sum x_1 x_2 = 0+1+2 = 3$, $\sum x_2^2 = 0+1+1 = 2$,
+$\sum x_1 y = 3+5+16 = 24$, $\sum x_2 y = 0+5+8 = 13$. So
+$X^\top X = \left(\begin{smallmatrix}6&3\\3&2\end{smallmatrix}\right)$, $X^\top y = (24, 13)$,
+determinant $6\cdot2 - 3\cdot3 = 3$. Then $b_1 = (2\cdot24 - 3\cdot13)/3 = 9/3 = 3$ and
+$b_2 = (6\cdot13 - 3\cdot24)/3 = 6/3 = 2$.
+
+```{r}
+x1 <- c(1, 1, 2); x2 <- c(0, 1, 1); y <- c(3, 5, 8); X <- cbind(x1, x2)
+solve(t(X) %*% X, t(X) %*% y)      # 3, 2
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+Here is the start of the derivation of the first normal equation. Supply the blanked
+step.
+
+- Step 1: $\dfrac{\partial}{\partial b_1}\sum_i (y_i - b_1 x_{i1} - b_2 x_{i2})^2
+  = \sum_i 2(y_i - b_1 x_{i1} - b_2 x_{i2})(-x_{i1})$.
+- Step 2: **your step here** — set the derivative to zero and simplify by dividing out
+  the constant.
+- Step 3: $\sum_i x_{i1} y_i = b_1 \sum_i x_{i1}^2 + b_2 \sum_i x_{i1} x_{i2}$.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: setting the derivative to 0 and dividing both sides by $-2$ gives
+$\sum_i x_{i1}(y_i - b_1 x_{i1} - b_2 x_{i2}) = 0$. Multiplying out and splitting the sum
+(then moving the knob-terms to the right) yields Step 3. The move is: constant multiple
+$-2$ factors out of the sum, and a sum of three terms splits into three sums.
+:::
+
+## Problem 3 — from scratch vs `lm()`, in R
+
+For $x_1 = (1, 2, 3, 4)$, $x_2 = (2, 1, 0, 1)$, $y = (5, 4, 6, 9)$ (with an intercept),
+fit the model two ways: the normal equations with an explicit intercept column, and
+`lm(y ~ x1 + x2)`. Confirm they match.
+
+```{webr}
+#| autorun: false
+# p3-starter — build a design matrix WITH an intercept column of 1s, then solve
+# PREDICT: will your solve() coefficients match lm()'s to full precision?
+x1 <- c(1, 2, 3, 4); x2 <- c(2, 1, 0, 1); y <- c(5, 4, 6, 9)
+X <- cbind(1, x1, x2)     # the leading 1s column is the intercept
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Include the intercept as a column of 1s in $X$, then `solve(t(X) %*% X, t(X) %*% y)`
+gives the three coefficients (intercept, $x_1$, $x_2$), matching `coef(lm(y ~ x1 + x2))`
+to machine precision.
+
+```{r}
+x1 <- c(1, 2, 3, 4); x2 <- c(2, 1, 0, 1); y <- c(5, 4, 6, 9)
+X <- cbind(1, x1, x2)
+rbind(from_scratch = as.numeric(solve(t(X) %*% X, t(X) %*% y)),
+      lm           = as.numeric(coef(lm(y ~ x1 + x2))))
+```
+(The two rows are identical.)
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants the coefficients for `y ~ x1 + x2` *with an intercept*, and writes:
+
+```r
+X <- cbind(x1, x2)                 # two predictor columns
+beta <- solve(t(X) %*% X, t(X) %*% y)
+```
+
+They're surprised the intercept is missing and the slopes don't match `lm()`. This code
+contains **exactly one mistake** — find and fix it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: no **intercept column**. `lm(y ~ x1 + x2)` fits an intercept by default, but
+this `X` has only the two predictor columns, so `solve()` fits a no-intercept model — a
+different model, hence different slopes. Fix: `X <- cbind(1, x1, x2)` so the design
+matrix has a leading column of 1s. Then the first coefficient is the intercept and the
+slopes match `lm()`.
+:::
+
+## Problem 5 — mixing it with Module 1 *(uses Module 1's "holding others fixed")*
+
+You solve the normal equations and get $\hat\beta = (2, 3, -1)$ for the model
+$\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2$. Two observations have the same $x_2$,
+but the second has $x_1$ larger by 2. Using the coefficient's Module-1 meaning, how much
+larger is the second observation's fitted value?
+
+```{webr}
+#| autorun: false
+# p5-starter — you can reason it out, or check with the numbers
+beta <- c(b0 = 2, b1 = 3, b2 = -1)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Only $x_1$ changes (by 2), $x_2$ held fixed, so the fitted value changes by
+$\beta_1 \times 2 = 3 \times 2 = 6$ — larger by 6. The intercept and the $-1\cdot x_2$
+term are identical for both observations and cancel. (Solving the normal equations gave
+$\beta_1$; Module 1 told you how to read it.)
+:::
+
+## Problem 6 — transfer: what happens when a column is (nearly) redundant
+
+Take $x_1 = (1, 2, 3, 4)$ and set $x_2 = 2 x_1$ exactly (so $x_2 = (2, 4, 6, 8)$). Try to
+fit `y ~ x1 + x2` from scratch with the normal equations. Predict what `solve()` does,
+then say in one sentence what near-collinearity (say $x_2 \approx 2x_1$ plus a whisker of
+noise) would do instead. *(Module 3 is about this whisker.)*
+
+```{webr}
+#| autorun: false
+# p6-starter — PREDICT before running: does solve() return coefficients, or error?
+x1 <- c(1, 2, 3, 4); x2 <- 2 * x1; y <- c(3, 5, 8, 9)
+X <- cbind(1, x1, x2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+With $x_2$ an exact multiple of $x_1$, the column carries no new information, $X^\top X$
+is singular, and `solve()` errors ("system is computationally singular") — there is no
+unique coefficient vector. With a whisker of noise ($x_2 \approx 2x_1$), $X^\top X$
+becomes *barely* invertible: `solve()` returns coefficients, but huge and unstable ones
+that swing wildly with tiny data changes. That instability — real, near-collinear
+predictors — is exactly what Module 3 dissects.
+:::

@@ -1,0 +1,270 @@
+---
+title: "Ridge regularization: a leash on the coefficients"
+subtitle: "Trading a little fit for a lot of stability, with one dial λ"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+Least squares chases one goal: make the residuals small. When predictors are correlated
+or few data points are available, that single-minded fit can hand you wild, unstable
+coefficients — huge positive and negative values that cancel. **Ridge regularization**
+adds a *second* goal: keep the coefficients themselves small. One dial, $\lambda$
+("lambda"), trades between the two. Turn it up and the coefficients shrink toward zero;
+turn it to zero and you're back to ordinary least squares. This module builds that idea
+with one and two coefficients; the matrix form $(X^\top X + \lambda I)^{-1}$ is taught
+where a method needs it.
+
+**Builds on:** [loss-functions-and-optimization](../loss-functions-and-optimization/lesson.qmd)
+(minimizing a cost), [model-fit-error-and-validation](../model-fit-error-and-validation/lesson.qmd)
+(RSS, overfitting, bias–variance),
+[variance-structure-and-standardization](../variance-structure-and-standardization/lesson.qmd)
+(standardizing predictors — why it must come first).
+
+## Warm-up: do you remember?
+
+**1.** *(loss functions)* Least squares picks coefficients to make one quantity as small
+as possible. Which quantity?
+
+::: {.callout-note collapse="true" title="Answer"}
+The residual sum of squares, $\mathrm{RSS} = \sum_i (y_i - \hat{y}_i)^2$ — the total
+squared miss. See [loss-functions-and-optimization](../loss-functions-and-optimization/lesson.qmd).
+:::
+
+**2.** *(standardization)* To *standardize* a predictor you subtract its mean and divide
+by its standard deviation. After standardizing, what are every predictor's mean and
+spread?
+
+::: {.callout-note collapse="true" title="Answer"}
+Mean 0 and standard deviation 1 — all predictors put on the *same scale*, so none looks
+"bigger" just because of its units. See
+[variance-structure-and-standardization](../variance-structure-and-standardization/lesson.qmd).
+:::
+
+## A tiny example first
+
+One predictor, three points on an exact line: $x = (1, 2, 3)$, $y = (2, 4, 6)$, so the
+true slope is 2. Fit a slope $b$ through the origin, but now pay a penalty for making $b$
+large. The thing we minimize is **penalized RSS**:
+
+$$
+\text{cost}(b) = \underbrace{\sum_i (y_i - b\,x_i)^2}_{\text{fit}} \; + \; \underbrace{\lambda\, b^2}_{\text{penalty}} .
+$$
+
+For one predictor we can solve it with the same move as ordinary least squares —
+differentiate the cost with respect to $b$ and set the slope to zero — only now the
+penalty adds an extra term:
+
+$$
+\frac{d}{db}\,\text{cost}(b) = \underbrace{-2\sum_i x_i(y_i - b\,x_i)}_{\text{from the fit}} + \underbrace{2\lambda b}_{\text{from the penalty}} = 0
+\;\;\Longrightarrow\;\; b\Big(\textstyle\sum_i x_i^2 + \lambda\Big) = \sum_i x_i y_i .
+$$
+
+- Term 1: the derivative of $(y_i - b x_i)^2$ is $2(y_i - b x_i)(-x_i)$ (chain rule), summed
+  over the data — the ordinary-least-squares part.
+- Term 2: the derivative of $\lambda b^2$ is $2\lambda b$ — the *only* new piece the penalty adds.
+- Divide by 2 and collect the $b$ terms: the $\lambda$ lands right next to $\sum x_i^2$.
+
+So the clean answer is $b = \dfrac{\sum x_i y_i}{\sum x_i^2 + \lambda}$ — ordinary least
+squares' $\sum x_i y_i / \sum x_i^2$, with $\lambda$ added to the denominator.
+Here $\sum x_i y_i = 1\cdot2 + 2\cdot4 + 3\cdot6 = 2 + 8 + 18 = 28$ and
+$\sum x_i^2 = 1 + 4 + 9 = 14$. So:
+
+- $\lambda = 0$: $b = 28/14 = 2$ — ordinary least squares, the true slope.
+- $\lambda = 14$: $b = 28/(14+14) = 28/28 = 1$ — shrunk to half.
+- $\lambda = 56$: $b = 28/70 = 0.4$ — shrunk further.
+- $\lambda \to \infty$: $b \to 0$ — the penalty wins entirely.
+
+```{r toy-example}
+x <- c(1, 2, 3); y <- c(2, 4, 6)
+ridge_1d <- function(lambda) sum(x * y) / (sum(x^2) + lambda)   # closed form
+sapply(c(0, 14, 56, 1e6), ridge_1d)                              # 2, 1, 0.4, ~0
+```
+
+The penalty puts $\lambda$ in the denominator: bigger $\lambda$, smaller $b$. That's the
+whole mechanism — a **leash** on the coefficient.
+
+## Getting a feel for it
+
+**Two goals on one leash.** Ordinary least squares is a dog chasing one ball: "fit the
+data, whatever it takes." Ridge puts the dog on a leash held from the origin: it still
+lunges toward the fit, but the leash pulls its coefficients back toward zero. $\lambda$ is
+the leash's tension. Slack leash ($\lambda \to 0$): the dog reaches the OLS fit. Tight
+leash ($\lambda$ huge): the dog can barely move from zero, and predictions collapse toward
+a flat "predict the average" model. The useful settings live in between.
+
+**Why penalize the coefficients' size at all.** When predictors are correlated, OLS can
+fit the data well with *enormous* opposing coefficients (one huge positive, its correlated
+twin huge negative) that nearly cancel — a fit that's accurate on this sample but
+wildly unstable, flipping with tiny data changes. Squaring the coefficients in the penalty
+makes those blow-ups expensive, so ridge trades a *tiny* bit of fit for a *lot* of
+stability. That's the **bias–variance trade-off** from the
+[model-fit](../model-fit-error-and-validation/lesson.qmd) module: ridge accepts a little
+bias (coefficients pulled off the exact OLS values) to slash variance (their sample-to-
+sample wobble).
+
+**Why standardize first.** The penalty $\lambda \sum_j b_j^2$ treats every coefficient
+equally. But a predictor measured in dollars (range ~1000) gets a tiny per-unit
+coefficient, while one measured in fractions (range ~1) gets a large one — so the penalty
+would clobber the second and ignore the first, purely because of units. Standardizing
+puts all predictors on one scale first, so the penalty is *fair*. (Ridge on unstandardized
+predictors penalizes the wrong things.)
+
+## What the notation is going to say
+
+The formula will say: *minimize the usual squared error, plus $\lambda$ times the sum of
+the squared coefficients.* The first part wants a good fit; the second wants small
+coefficients; $\lambda$ sets the exchange rate. At $\lambda = 0$ the second part vanishes
+and it's plain least squares; as $\lambda$ grows, the second part dominates and drags
+every coefficient toward 0.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $b$, $\beta_j$ | "bee", "beta sub jay" | a coefficient we're fitting | slope $b$ |
+| $\lambda$ | "lambda" | the penalty dial (≥ 0): how hard to shrink coefficients | swept 0 → ∞ |
+| $n$ | "en" | number of observations | 3 |
+| $x_{ij}$ | "ex sub eye jay" | predictor $j$'s value for observation $i$ | the $x$ values |
+| $\arg\min_{\beta}$ | "arg min over beta" | the coefficient vector $\beta$ that makes the expression smallest | the fitted $\hat\beta$ |
+| $\sum_i$ | "the sum over i" | add over the data points | over the 3 points |
+| $\sum_j \beta_j^2$ | "the sum of the squared betas" | the total coefficient size the penalty charges for | $b^2$ (one predictor) |
+| $\lVert \beta \rVert^2$ | "the squared norm of beta" | same thing in vector shorthand: $\sum_j \beta_j^2$ | $b^2$ |
+| $I$ | "the identity matrix" | the matrix version of "1" (used in the matrix form, in the switchstep-variable-selection course) | — |
+
+## The formal version
+
+Ridge regression chooses the coefficient vector $\beta$ that minimizes **penalized RSS**:
+
+$$
+\hat\beta_{\text{ridge}} = \arg\min_{\beta} \; \underbrace{\sum_{i=1}^{n}\Big(y_i - \textstyle\sum_j \beta_j x_{ij}\Big)^2}_{\text{fit the data}} \; + \; \underbrace{\lambda \sum_{j} \beta_j^2}_{\text{keep coefficients small}} .
+$$
+
+Reading it aloud: "beta-hat-ridge is the beta minimizing the sum of squared residuals,
+plus lambda times the sum of the squared betas" — or in everyday words: "fit the data
+*and* keep the knobs small, with lambda deciding how much the second goal matters."
+
+- $\lambda = 0$ removes the penalty → ordinary least squares.
+- $\lambda \to \infty$ makes any nonzero coefficient infinitely expensive → all
+  coefficients driven to 0 (the model predicts the mean).
+- Every $\lambda$ in between gives a different, shrunk fit. Crucially, the penalty is on
+  the *slopes only* — the intercept is left unpenalized, which is why we standardize
+  predictors (and often centre $y$) first.
+
+**The matrix form (stated, used later).** With predictors stacked in $X$, the ridge
+solution is $\hat\beta = (X^\top X + \lambda I)^{-1} X^\top y$ — ordinary least squares
+with $\lambda$ added down the diagonal of $X^\top X$. The payoff, proved in the
+`switchstep-variable-selection` course: $X^\top X + \lambda I$ is invertible for **any** $\lambda > 0$, even
+when $X^\top X$ alone is singular (near-collinear predictors). That's ridge's other job —
+making a fit *computable* when plain least squares can't invert.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two coefficient paths plotted against increasing lambda on a log scale: both coefficients start at their OLS values and shrink smoothly toward zero as lambda grows."
+# TWO correlated predictors; trace each coefficient as lambda grows (the 'ridge path').
+# TRY IT: change the shared-noise sd (the 0.3 below — smaller sd -> more correlated x1, x2)
+# or the lambda range, and re-run.
+# PREDICT: at lambda = 0 you get OLS; what do both coefficients approach as lambda -> big?
+set.seed(1); n <- 60
+z <- rnorm(n)
+x1 <- scale(z + rnorm(n, sd = 0.3))          # standardized, correlated predictors
+x2 <- scale(z + rnorm(n, sd = 0.3))
+y  <- as.numeric(scale(2 * x1 - 1 * x2 + rnorm(n)))
+X  <- cbind(x1, x2)
+
+lambdas <- 10^seq(-2, 3, length.out = 40)
+paths <- sapply(lambdas, function(l)
+  solve(t(X) %*% X + l * diag(2), t(X) %*% y))  # ridge matrix form
+matplot(log10(lambdas), t(paths), type = "l", lwd = 2, lty = 1,
+        xlab = "log10(lambda)", ylab = "coefficient", main = "Ridge paths: shrink to 0")
+abline(h = 0, lty = 3); legend("topright", c("b1", "b2"), col = 1:2, lwd = 2, bty = "n")
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: the 1-D closed form vs a brute-force minimizer of penalized RSS — they agree.
+# PREDICT: at lambda = 14 the closed form gave b = 1 for x=(1,2,3), y=(2,4,6). Confirm.
+x <- c(1, 2, 3); y <- c(2, 4, 6); lambda <- 14
+closed  <- sum(x * y) / (sum(x^2) + lambda)
+bruteforce <- optimize(function(b) sum((y - b * x)^2) + lambda * b^2, c(-5, 5))$minimum
+c(closed_form = closed, optimize = bruteforce)   # both 1
+```
+
+## Common traps
+
+**Trap: "a larger $\lambda$ throws away real signal."** Not quite — it *shrinks* toward
+zero, it doesn't discard. Tiny $\lambda$ is essentially OLS (keeps all the signal); huge
+$\lambda$ collapses to predicting the mean (keeps none); the useful $\lambda$ is the sweet
+spot that trades a little fit for much less variance. In the toy, $\lambda = 14$ shrank the
+true slope from 2 to 1 — not "wrong," just biased toward zero in exchange for stability;
+you'd tune $\lambda$ (often by cross-validation) to balance the two.
+
+**Trap: "ridge zeroes out useless predictors, so it does variable selection."** No — ridge
+shrinks coefficients *toward* zero but almost never *to* exactly zero, so every predictor
+stays in the model. Its cousin the **lasso** (which penalizes $\sum_j |\beta_j|$ instead of
+$\sum_j \beta_j^2$) *does* drive some coefficients to exactly zero and so selects
+variables. Ridge stabilizes; lasso selects.
+
+## Check yourself
+
+**1.** For one predictor with $\sum x_i y_i = 40$ and $\sum x_i^2 = 10$, what is the ridge
+slope at $\lambda = 0$, at $\lambda = 10$, and at $\lambda = 30$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$b = 40/(10 + \lambda)$: at $\lambda = 0$, $b = 4$ (OLS); at $\lambda = 10$, $b = 40/20 = 2$;
+at $\lambda = 30$, $b = 40/40 = 1$. Each increase in $\lambda$ shrinks $b$ toward 0.
+:::
+
+**2.** Why must predictors be standardized before ridge, but not before ordinary least
+squares?
+
+::: {.callout-note collapse="true" title="Answer"}
+OLS is unaffected by rescaling a predictor — its coefficient just rescales to compensate,
+and the fit is identical. Ridge's penalty $\lambda\sum_j \beta_j^2$ is *not* scale-free: a
+predictor on a large scale has a small coefficient and is barely penalized, one on a small
+scale has a large coefficient and is heavily penalized. Standardizing puts all predictors
+on one scale so the penalty treats them fairly.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what $\lambda$ does and
+why you'd ever accept a *worse* fit to the training data.
+
+::: {.callout-note collapse="true" title="A model answer"}
+$\lambda$ sets how hard the model is pulled toward small coefficients: zero means plain
+least squares, large means everything shrinks toward the mean. You accept a slightly worse
+training fit because the shrunk coefficients are far more stable — less likely to be wild,
+noise-chasing values that predict new data badly (trading a bit of bias for a lot less
+variance).
+:::
+
+## What you can now do
+
+- **Write penalized RSS** (fit + $\lambda \sum_j \beta_j^2$) and explain each part.
+- **Predict how coefficients move** as $\lambda$ goes from 0 (OLS) to $\infty$ (all shrink
+  to 0), and read a ridge path plot.
+- **Say why standardization comes first**, and why the intercept is left unpenalized.
+- **Distinguish ridge from lasso** (shrinks toward 0 vs sets exactly to 0 / selects), and
+  state ridge's second job: making $(X^\top X + \lambda I)$ invertible for any $\lambda>0$.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) —
+methods that fit near-collinear predictors depend on the leash idea.
+
+## Where this goes next
+
+The matrix form $(X^\top X + \lambda I)^{-1}$ becomes essential when a correlation matrix
+is near-singular: the `switchstep-variable-selection` course uses a ridge $\lambda$ to
+invert a near-collinear predictor-correlation matrix stably. Ready for reps? Do the
+[practice problems](practice.qmd). External videos/readings: [resources](resources.md).

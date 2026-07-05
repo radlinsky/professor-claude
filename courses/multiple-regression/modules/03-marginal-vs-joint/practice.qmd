@@ -1,0 +1,143 @@
+---
+title: "Practice: Marginal vs joint"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — the vanishing coefficient, new numbers
+
+Centred data (fit through the origin): $x_1 = (-3, -1, 1, 3)$, $x_2 = (-1, -1, 1, 1)$,
+and $y = (-3, -1, 1, 3)$ — so $y$ is a perfect copy of $x_1$, and $x_2$ is correlated
+with $x_1$. Compute (a) the **marginal** slope of $y$ on $x_2$ alone, and (b) the
+**joint** coefficient on $x_2$ in the fit on both predictors. Are they the same?
+
+```{webr}
+#| autorun: false
+# p1-starter — marginal (x2 alone) vs joint (both), through the origin
+x1 <- c(-3, -1, 1, 3); x2 <- c(-1, -1, 1, 1); y <- c(-3, -1, 1, 3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Marginal: $\sum x_2 y / \sum x_2^2 = (3+1+1+3)/4 = 8/4 = 2$. Joint: the normal equations
+give $X^\top X = \left(\begin{smallmatrix}20&8\\8&4\end{smallmatrix}\right)$,
+$X^\top y = (20, 8)$, determinant 16, so $b_2 = (20\cdot8 - 8\cdot20)/16 = 0$. Marginally
+$x_2$ looks like a slope-2 predictor; jointly it contributes **nothing** — its apparent
+effect was entirely borrowed from the correlated real driver $x_1$.
+
+```{r}
+x1 <- c(-3, -1, 1, 3); x2 <- c(-1, -1, 1, 1); y <- c(-3, -1, 1, 3); X <- cbind(x1, x2)
+c(marginal_x2 = sum(x2 * y) / sum(x2^2),
+  joint = solve(t(X) %*% X, t(X) %*% y)[, 1])      # marginal 2; joint (1, 0)
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+A predictor is regressed on all the others and gets $R^2_j = 0.80$. Compute its variance
+inflation factor.
+
+- Step 1: the VIF formula is $\mathrm{VIF}_j = \dfrac{1}{1 - R^2_j}$.
+- Step 2: **your step here** — plug in $R^2_j = 0.80$ and simplify.
+- Step 3: interpret the number in one phrase.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: $\mathrm{VIF}_j = 1/(1 - 0.80) = 1/0.20 = 5$. Step 3: this predictor's coefficient
+has 5× the sampling variance it would have if the predictor were uncorrelated with the
+others — moderate collinearity, below the usual "> 10" alarm but worth noting.
+:::
+
+## Problem 3 — marginal vs joint, in R
+
+Here is a small correlated dataset. Fit $y$ on $x_2$ **alone**, then on $x_1$ and $x_2$
+**together**, and compare $x_2$'s slope in the two fits. Explain the direction of the
+change.
+
+```{webr}
+#| autorun: false
+# p3-starter — compare marginal and joint slopes of x2
+# PREDICT: x1 and x2 are strongly correlated; will x2's joint slope be bigger or smaller?
+x1 <- c(-2, -1, 0, 1, 2); x2 <- c(-1, -1, 0, 1, 1); y <- c(-1.5, -1, 0.5, 1, 1.5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`x1` and `x2` are correlated ≈ 0.95. The marginal slope of `x2` (≈ 1.25) overstates its
+role because `x2` tracks the real driver `x1`; in the joint fit, with `x1` held fixed,
+`x2`'s coefficient shrinks (to ≈ 0.5). The joint fit strips out the part of `x2`'s
+apparent effect that was really `x1`'s.
+
+```{r}
+x1 <- c(-2, -1, 0, 1, 2); x2 <- c(-1, -1, 0, 1, 1); y <- c(-1.5, -1, 0.5, 1, 1.5)
+c(cor_x1x2   = round(cor(x1, x2), 3),
+  marginal_x2 = round(coef(lm(y ~ x2))[2], 3),
+  joint_x2    = round(coef(lm(y ~ x1 + x2))[3], 3))
+```
+:::
+
+## Problem 4 — spot the error
+
+Reading the economic panel's joint fit, a colleague says: *"`pce_infl` has the largest
+(most negative) inflation coefficient in the joint model, so it must be the most
+important inflation driver of GDP."* We simulated the data with `pce_infl`'s true effect
+equal to **zero**. This reasoning contains **exactly one mistake** — name it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is treating coefficient **size** as importance in a **collinear** model.
+`pce_infl` is 0.95-correlated with `cpi_infl` (the real driver), so the joint fit can't
+reliably attribute the shared inflation effect — it happened to load onto `pce_infl` (and
+even flipped `cpi_infl` positive). A large coefficient on a highly collinear predictor is
+not evidence it's the true driver; you'd check the VIFs (both ≈ 10 on this panel) and
+recognize the attribution is unreliable.
+:::
+
+## Problem 5 — mixing it with Module 2 *(uses Module 2's normal equations)*
+
+For a centred two-predictor problem you're told
+$X^\top X = \left(\begin{smallmatrix}8&4\\4&4\end{smallmatrix}\right)$ and
+$X^\top y = (8, 2)$. (a) Solve the normal equations for the joint $(b_1, b_2)$. (b) The
+marginal slope of $y$ on $x_2$ alone is $(X^\top y)_2 / (X^\top X)_{22}$. Compute it and
+compare its **sign** to the joint $b_2$.
+
+```{webr}
+#| autorun: false
+# p5-starter — solve the joint system, then the marginal x2 slope
+XtX <- matrix(c(8, 4, 4, 4), 2); Xty <- c(8, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) Determinant $8\cdot4 - 4\cdot4 = 16$; $b_1 = (4\cdot8 - 4\cdot2)/16 = 24/16 = 1.5$,
+$b_2 = (8\cdot2 - 4\cdot8)/16 = -16/16 = -1$. So joint $(b_1, b_2) = (1.5, -1)$. (b)
+Marginal $x_2$ slope $= 2/4 = 0.5$ — **positive**, while the joint $b_2 = -1$ is
+**negative**: a full sign flip. On its own $x_2$ trends up with $y$; once $x_1$ is
+accounted for, $x_2$'s residual role is negative.
+
+```{r}
+XtX <- matrix(c(8, 4, 4, 4), 2); Xty <- c(8, 2)
+c(joint = solve(XtX, Xty), marginal_x2 = Xty[2] / XtX[2, 2])   # (1.5, -1) vs 0.5
+```
+:::
+
+## Problem 6 — interpretation
+
+You fit a model and report these VIFs: `age` 1.2, `income` 8.5, `savings` 9.1,
+`net_worth` 22.0. A reviewer asks which coefficient to trust least and what you might do.
+Answer in two or three sentences (no computation needed).
+
+::: {.callout-note collapse="true" title="Answer"}
+Trust `net_worth`'s coefficient least: its VIF of 22 is well over the "> 10" flag, meaning
+it's largely explained by the other predictors (probably `income` and `savings`), so its
+individual coefficient is unstable and hard to interpret. Reasonable responses: drop or
+combine the redundant predictors (e.g. keep `net_worth` and drop the pieces that make it
+up, or vice versa), or note explicitly that the collinear group's coefficients shouldn't
+be read individually. `age` (VIF 1.2) is essentially independent and its coefficient is
+trustworthy.
+:::

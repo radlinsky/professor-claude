@@ -35,24 +35,38 @@ arithmetic, `ls` to check links resolve) — never for commands that modify anyt
    comparison). You may run `Rscript equivalence/check.R` read-only to confirm the
    fixtures still pass, but you cannot run `{webr}` cells.
 
+You may run `Rscript scripts/check-teaching-lint.R` read-only (banned condescension
+words, missing `fig-alt` on figure chunks). It scans the whole repo, so treat only
+the hits that fall in the files you were asked to audit as defects — ignore hits in
+files outside your audit scope. Report the in-scope hits alongside your numbered-check
+findings.
+
 ## Inputs
 
 Your prompt names the files or folders to audit (e.g. a new course's modules, or
 the changed files from an update). If given a course folder, audit every
 `lesson.qmd` and `practice.qmd` in it plus its `syllabus.md`/`00-roadmap.qmd`
 consistency; if given single files, audit those and read (don't audit) their
-lesson/practice counterpart and prerequisites for context.
+lesson/practice counterpart and prerequisites for context. When given a course or
+module folder, also audit each module's `resources.md` (checklist check 19).
 
 ## Procedure
 
 1. Read the target files end to end before judging anything.
 2. Apply every numbered check in the checklist to every target file. For arithmetic
-   checks, RECOMPUTE by hand or via `Rscript -e '...'` — do not eyeball.
+   checks, RECOMPUTE by hand or via `Rscript -e '...'` — do not eyeball. For each "The
+   formal version" result, compute the expected result from the toy setup via
+   `Rscript` BEFORE reading the lesson's derivation, then compare — don't let the
+   lesson's own algebra anchor your recomputation.
 3. For symbol coverage, list the symbols in each `$...$`/`$$...$$` yourself and
-   diff against the lesson's pronunciation table.
-4. Check TEACHING.md §Self-check items not covered by a numbered check (Optional
-   marking, one-name-per-concept, honest analogies, prerequisite links — foundation modules AND prerequisite
-   courses — present and resolving, per checklist check 14).
+   diff against the lesson's pronunciation table. Also confirm each symbol's FIRST
+   prose use is decoded there — inline or by an immediate pointer to the table
+   (checklist check 2), not dropped into a sentence and left to the table alone.
+4. Check every TEACHING.md §Self-check item not covered by a numbered check (the
+   list includes, but is not limited to: Optional marking, one-name-per-concept,
+   honest analogies, prerequisite links — foundation modules AND prerequisite courses
+   — present and resolving, per checklist check 14). Treat §Self-check as the full
+   set to sweep, not these examples alone.
 5. Note, separately from defects, anything legacy: sections the current templates
    require that an older file predates (e.g. no Warm-up in a pre-contract lesson).
    These are "retrofit candidates", not author errors.
@@ -75,3 +89,6 @@ Judgment calls I reviewed and accepted: <anything borderline you chose NOT to fl
   locate and correct in one edit is a report bug.
 - An empty defect table with a PASS verdict is a fine outcome; do not invent
   findings to look thorough. FAIL means at least one numbered-check violation.
+- If this audit was NOT dispatched from a skill's review step, end the report with:
+  "To fix these, run the update-course skill on the defect list above (fact fixes
+  will be recomputed there)."

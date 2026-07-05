@@ -1,0 +1,275 @@
+---
+title: "Rank-one speed-ups"
+subtitle: "Grow and shrink the correlation matrix's inverse on every move — without re-inverting"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+
+# Bordering update: grow a k x k matrix (inverse Mi known) by one row/col [b_new; d].
+sw_border <- function(Mi, b_new, d) {
+  Mib <- Mi %*% b_new
+  s   <- as.numeric(d - crossprod(b_new, Mib))
+  TL  <- Mi + (Mib %*% t(Mib)) / s
+  TR  <- -Mib / s
+  rbind(cbind(TL, TR), c(t(TR), 1 / s))
+}
+```
+
+## Where we're going
+
+The switching search re-scores dozens of candidate subsets on every step, and each score
+needs the inverse of that subset's correlation matrix $R_S$. Re-inverting from scratch every
+time is the search's bottleneck. But consecutive candidates differ by just **one** indicator
+— add one, remove one, or swap — which changes $R_S$ by a single border (one row and one
+column). The Sherman–Morrison / **bordering** update (from the foundation module) produces
+the new inverse from the old one cheaply and *exactly*. This module wires that update into
+the search and measures the payoff.
+
+**Builds on:** [sherman-morrison-rank-one-updates](../../../../foundations/sherman-morrison-rank-one-updates/lesson.qmd)
+(update an inverse without re-inverting; exact; $O(p^2)$ vs $O(p^3)$),
+[Module 2](../02-the-switching-search/lesson.qmd) (the search re-solves $R_S^{-1}$ each move).
+
+## Warm-up: do you remember?
+
+**1.** *(Sherman–Morrison)* Is updating an inverse after a small change an approximation or
+exact, and roughly how does its cost compare to a fresh inverse?
+
+::: {.callout-note collapse="true" title="Answer"}
+**Exact** (an algebraic identity, matches a fresh inverse to machine precision), and cheaper:
+about $O(p^2)$ work vs $O(p^3)$ to re-invert. See
+[sherman-morrison-rank-one-updates](../../../../foundations/sherman-morrison-rank-one-updates/lesson.qmd).
+:::
+
+**2.** *(Module 2)* In the switching search, what has to be computed to score each candidate
+subset $S$, and how many candidates are scored per step?
+
+::: {.callout-note collapse="true" title="Answer"}
+Each candidate needs $R_S^{-1}$ (to get $b_S^\top R_S^{-1} b_S$ for its BIC), and a step
+scores every add/remove/swap neighbour — on the order of $p$ of them. So the inverse is
+computed over and over. See [Module 2](../02-the-switching-search/lesson.qmd).
+:::
+
+**3.** *(matrices)* If you add one indicator to a subset of size $k$, what happens to the
+shape of its correlation matrix $R_S$?
+
+::: {.callout-note collapse="true" title="Answer"}
+It grows from $k \times k$ to $(k{+}1) \times (k{+}1)$ — one new row and one new column (the
+new indicator's correlations with the others, and a 1 on the diagonal). That's a "border."
+:::
+
+## A tiny example first
+
+You already have two indicators in the model, with correlation matrix and inverse
+
+$$
+R_S = \begin{pmatrix} 1 & 0.5 \\ 0.5 & 1 \end{pmatrix}, \qquad
+R_S^{-1} = \frac{1}{0.75}\begin{pmatrix} 1 & -0.5 \\ -0.5 & 1 \end{pmatrix} = \begin{pmatrix} 1.333 & -0.667 \\ -0.667 & 1.333 \end{pmatrix}.
+$$
+
+Now **add** a third indicator whose correlations with the first two are $b_{\text{new}} = (0.3, 0.4)$
+(and 1 on its own diagonal). The grown matrix is
+
+$$
+R_S^{+} = \begin{pmatrix} 1 & 0.5 & 0.3 \\ 0.5 & 1 & 0.4 \\ 0.3 & 0.4 & 1 \end{pmatrix}.
+$$
+
+Bordering builds $\big(R_S^{+}\big)^{-1}$ from the $R_S^{-1}$ you already have. The one new
+number you need is the **Schur complement** — a scalar measuring how much *new* information
+the third indicator adds beyond the first two:
+
+$$
+s = d - b_{\text{new}}^\top R_S^{-1} b_{\text{new}} = 1 - (0.3, 0.4)\,R_S^{-1}\,(0.3, 0.4)^\top = 0.8267.
+$$
+
+Everything else in the update is built from $R_S^{-1} b_{\text{new}}$ and that scalar $s$ —
+no fresh $3\times3$ inversion. It reproduces `solve()` of $R_S^{+}$ exactly:
+
+```{r toy-example}
+RS <- matrix(c(1, 0.5, 0.5, 1), 2); RSi <- solve(RS)   # the inverse we already hold
+b_new <- c(0.3, 0.4); d <- 1                            # new indicator's border
+
+s <- as.numeric(d - t(b_new) %*% RSi %*% b_new)         # Schur complement
+grown_inv <- sw_border(RSi, b_new, d)                   # bordering update
+RS_plus <- rbind(cbind(RS, b_new), c(b_new, d))
+c(schur = s, max_diff_vs_solve = max(abs(grown_inv - solve(RS_plus))))   # s = 0.827; diff ~1e-16
+```
+
+## Getting a feel for it
+
+**Add a border, patch the inverse.** Growing $R_S$ by one indicator literally adds a border —
+a new bottom row and right column — to the matrix. The bordering formula patches the inverse
+to match, reusing the $R_S^{-1}$ you already computed. It's the "fix the pothole, don't
+re-pave the road" idea from the Sherman–Morrison module, specialized to "the change is a new
+row+column." Removing an indicator is the same idea in reverse (a *partition* update peels
+the border back off), and a **swap** is just a remove followed by an add.
+
+**Why the search cares.** A search over many indicators makes *thousands* of moves, each
+currently paying an $O(k^3)$ re-inversion. Replacing each with an $O(k^2)$ update changes the
+cost per move by a factor of about $k$ — the difference between a search that crawls and one
+that's instant. And because the update is exact, the search's answers are *identical* to the
+re-invert-every-time version; you pay nothing in accuracy for the speed.
+
+**What the Schur complement feels like.** The scalar $s = d - b_{\text{new}}^\top R_S^{-1} b_{\text{new}}$
+is the new indicator's *unique* variance — what's left after the indicators already in the
+model explain it. When the new indicator is nearly a combination of the existing ones (highly
+collinear), $s$ shrinks toward 0, the update divides by a tiny number, and things get
+unstable — foreshadowing exactly why Module 4 adds a ridge $\lambda$.
+
+## What the notation is going to say
+
+The update says: *to grow the inverse, compute the new indicator's leftover-variance scalar
+$s$; then the new inverse's blocks are the old inverse nudged by a rank-1 term (built from
+$R_S^{-1}b_{\text{new}}$ and $s$), a new corner $1/s$, and matching off-diagonal pieces.* No
+full inversion — just matrix-times-vector work and one division.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $R_S$ | "R sub S" | correlation matrix of the indicators currently in subset $S$ | $\left(\begin{smallmatrix}1&.5\\.5&1\end{smallmatrix}\right)$ |
+| $R_S^{-1}$ | "R sub S inverse" | its inverse, already held from the previous move | $\left(\begin{smallmatrix}1.33&-.67\\-.67&1.33\end{smallmatrix}\right)$ |
+| $b_{\text{new}}$ | "b new" | the new indicator's correlations with those already in $S$ | $(0.3, 0.4)$ |
+| $d$ | "dee" | the new indicator's own diagonal entry (1 for a correlation matrix) | 1 |
+| $s$ | "ess" (Schur complement) | new indicator's leftover variance $d - b_{\text{new}}^\top R_S^{-1} b_{\text{new}}$ | 0.827 |
+| $O(k^2),\,O(k^3)$ | "order k-squared / k-cubed" | update cost vs fresh-inverse cost | — |
+
+## The formal version
+
+**Grow by one (bordering).** If $R_S$ (size $k$) has known inverse $R_S^{-1}$, and we append a
+border — column/row $b_{\text{new}}$ and corner $d$ — then with the Schur complement
+$s = d - b_{\text{new}}^\top R_S^{-1} b_{\text{new}}$ and helper $w = R_S^{-1} b_{\text{new}}$,
+
+$$
+\big(R_S^{+}\big)^{-1} =
+\begin{pmatrix} R_S^{-1} + \dfrac{w\,w^\top}{s} & -\dfrac{w}{s} \\[1.2em] -\dfrac{w^\top}{s} & \dfrac{1}{s} \end{pmatrix}.
+$$
+
+- Top-left: the old inverse plus a rank-1 correction $w w^\top / s$ — the only place the old
+  indicators' inverse changes, and it's rank-1 (built from the vector $w$).
+- Corner $1/s$ and off-diagonals $-w/s$: the new indicator's own entries.
+- Everything is matrix–vector products and one division by $s$ — cost $O(k^2)$, no $O(k^3)$
+  inversion. (This is the Woodbury/bordering member of the Sherman–Morrison family named in
+  the foundation.)
+
+**Shrink by one (partition).** Removing an indicator reverses the formula: from the grown
+inverse's blocks you recover $R_S^{-1}$ as (top-left block) $- w w^\top / s$ — again rank-1,
+again $O(k^2)$.
+
+**Swap** an indicator for another = shrink then grow (remove + add), two cheap updates.
+
+Reading it aloud: "the new inverse is the old inverse plus a rank-1 patch, bordered by minus
+w-over-s and a corner of one-over-s." Everything hangs on the single scalar $s$.
+
+## Explore it
+
+```{r timing}
+# The search's inner loop, timed two ways: re-inverting each grown subset from scratch vs
+# bordering the previous inverse. The previous inverse (`base_inv`) is computed ONCE, up
+# front — exactly as the search holds it from the prior move — so the timed loop measures
+# only the O(k^2) update, not another inversion. (Times vary by machine; the ratio is the
+# point — this heavy loop is baked at build, not a browser cell.)
+set.seed(1); p <- 120
+Rt <- diag(p); Rt[1,2] <- Rt[2,1] <- 0.9; Rt[3,4] <- Rt[4,3] <- 0.95
+X <- matrix(rnorm(400 * p), 400, p) %*% chol(Rt); R <- cor(X)
+
+k <- 100
+base_inv <- solve(R[1:k, 1:k])                                        # the cached prior inverse
+grow_fresh  <- function() solve(R[1:(k+1), 1:(k+1)])                  # re-invert (k+1)x(k+1) from scratch
+grow_border <- function() sw_border(base_inv, R[1:k, k+1], R[k+1, k+1])  # O(k^2) update from the cache
+reps <- 2000
+t_fresh  <- system.time(for (i in 1:reps) grow_fresh())[["elapsed"]]
+t_border <- system.time(for (i in 1:reps) grow_border())[["elapsed"]]
+c(fresh_solve_s = round(t_fresh, 2), bordering_s = round(t_border, 2),
+  speedup = round(t_fresh / t_border, 1),
+  max_diff = max(abs(grow_fresh() - grow_border())))                  # identical to ~1e-14
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: change which indicator you add (b_new) or the base subset, and re-run. The
+# bordering update always matches a fresh solve of the grown matrix to ~1e-15.
+# PREDICT: the Schur complement s shrinks as the new indicator gets more collinear — watch it.
+sw_border <- function(Mi, b_new, d) { Mib <- Mi %*% b_new
+  s <- as.numeric(d - crossprod(b_new, Mib))
+  rbind(cbind(Mi + (Mib %*% t(Mib))/s, -Mib/s), c(-t(Mib)/s, 1/s)) }
+
+RS <- matrix(c(1, 0.5, 0.5, 1), 2); RSi <- solve(RS)
+b_new <- c(0.3, 0.4); d <- 1
+grown <- sw_border(RSi, b_new, d)
+RS_plus <- rbind(cbind(RS, b_new), c(b_new, d))
+c(schur_s = as.numeric(d - t(b_new) %*% RSi %*% b_new),
+  max_diff = max(abs(grown - solve(RS_plus))))
+```
+
+## Common traps
+
+**Trap: "the bordering update accumulates rounding error over many moves, so re-invert
+occasionally to be safe."** Each update is an exact identity, matching a fresh inverse to
+~$10^{-15}$; there's no systematic drift to accumulate over a search. (If you ever worry,
+compare to a fresh `solve()` at the end — it agrees.)
+
+**Trap: "a swap needs a fresh inverse."** No — a swap is a **remove** (partition update) then
+an **add** (bordering update), two $O(k^2)$ steps. You never re-invert for any single move:
+add, remove, and swap are all rank-1-style updates.
+
+## Check yourself
+
+**1.** Adding an indicator, you compute Schur complement $s = 0.02$. What does that tiny value
+say about the new indicator, and what risk does dividing by it create?
+
+::: {.callout-note collapse="true" title="Answer"}
+$s$ is the new indicator's leftover variance after the others explain it; $s = 0.02$ means it
+is *almost* a linear combination of indicators already in the model (highly collinear). The
+update divides by $s$, so a tiny $s$ makes the new inverse huge and numerically unstable —
+the motivation for Module 4's ridge $\lambda$.
+
+:::
+
+**2.** Why is replacing fresh inversion with bordering worth it in the search but pointless for
+a single one-off fit?
+
+::: {.callout-note collapse="true" title="Answer"}
+A one-off fit inverts once — no savings. The search inverts thousands of times, each on a
+matrix that differs from the last by one border, so each $O(k^3)$ re-inversion becomes an
+$O(k^2)$ update; multiplied over thousands of moves, that's the difference between fast and
+slow. The update pays off precisely because the work is *repeated on nearly-identical
+matrices*.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, how the search avoids
+re-inverting $R_S$ on every move.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Consecutive candidate subsets differ by only one indicator, so $R_S$ changes by just one
+row and column, and the bordering (Sherman–Morrison) update produces the new inverse from
+the old one with cheap matrix–vector work instead of a full re-inversion. It's exact, so the
+search gives the same answers as re-inverting every time, only much faster.
+:::
+
+## What you can now do
+
+- **Grow $R_S^{-1}$ by bordering** and **shrink it by partitioning**, and treat a swap as
+  remove-then-add — all without re-inverting.
+- **Compute and interpret the Schur complement** $s$ as the new indicator's leftover variance,
+  and see why a tiny $s$ threatens stability.
+- **Explain the $O(k^2)$-vs-$O(k^3)$ payoff** in the search's repeated-inversion loop, and that
+  the update is exact.
+
+If any feels shaky, revisit [The formal version](#the-formal-version) — Module 4 fixes the
+tiny-$s$ instability the update exposed.
+
+## Where this goes next
+
+When indicators are near-collinear, the Schur complement (and the whole matrix) gets
+dangerously close to singular. Next: [Lambda for stability](../04-lambda-stability/lesson.qmd)
+adds a ridge $\lambda$ to keep the correlation matrix comfortably invertible. Ready for reps?
+Do the [practice problems](practice.qmd). External readings: [resources](../../resources.md).

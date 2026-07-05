@@ -1,0 +1,273 @@
+---
+title: "Capstone — assembling SwitchStep"
+subtitle: "Return to the source: decode the method, build it, run it end-to-end"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+
+sim_study <- function(n, seed) {
+  set.seed(seed); p <- 12; R <- diag(p)
+  R[1,2] <- R[2,1] <- 0.9; R[3,4] <- R[4,3] <- 0.95
+  R[8,10] <- R[10,8] <- 0.7; R[11,12] <- R[12,11] <- 0.65
+  X <- matrix(rnorm(n*p), n, p) %*% chol(R)
+  colnames(X) <- c("rate_10y","rate_2y","cpi_infl","pce_infl","unemp","oil",
+                   "usd_index","sentiment","housing","pmi","credit_spread","vix")
+  beta <- numeric(p); beta[c(1,3,5)] <- c(0.5,-0.4,-0.3)
+  list(X = X, y = drop(X %*% beta + rnorm(n)))
+}
+```
+
+## Where we're going
+
+No new concepts — this is the proof you reached the goal. We return to the method's own
+description, decode every claim in it and point each to the module that built it, then
+assemble the five pieces into one small base-R function, `switchstep()`, and run it
+end-to-end on a simulated multi-study meta-analysis — comparing its answer to a full-data
+oracle. If you can read the method spec and rebuild it, you've reached the course goal.
+
+**Builds on:** every module — the summary reconstruction
+([M1](../01-joint-fit-from-summaries/lesson.qmd)), the switching search
+([M2](../02-the-switching-search/lesson.qmd)), the rank-one updates
+([M3](../03-rank-one-speedups/lesson.qmd)), and the ridge $\lambda$
+([M4](../04-lambda-stability/lesson.qmd)).
+
+## Warm-up: do you remember?
+
+**1.** *(M1)* From a correlation matrix $R$ and marginal coefficients $b$, how do you get the
+joint fit and its $R^2$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat\beta = R^{-1}b$ and $R^2 = b^\top R^{-1}b$. See [M1](../01-joint-fit-from-summaries/lesson.qmd).
+:::
+
+**2.** *(M2)* Name the three moves the switching search tries at each step, and its stopping
+rule.
+
+::: {.callout-note collapse="true" title="Answer"}
+Add, remove, and swap; stop when no move lowers **BIC**. See
+[M2](../02-the-switching-search/lesson.qmd).
+:::
+
+**3.** *(M3, M4)* What makes each search move cheap, and what keeps the reconstruction stable
+when two indicators are near-identical?
+
+::: {.callout-note collapse="true" title="Answer"}
+Rank-1 (Sherman–Morrison / bordering) **updates** of $R_S^{-1}$ make each move $O(k^2)$
+instead of re-inverting; a ridge **$\lambda$** on $R$'s diagonal keeps it invertible and the
+coefficients stable. See [M3](../03-rank-one-speedups/lesson.qmd),
+[M4](../04-lambda-stability/lesson.qmd).
+:::
+
+## Return to the source
+
+Here is the method, quoted from the course's own specification (the course-request brief
+`docs/fable-switchstep-prompt.md`, lines 17–36). We decode it claim by claim, linking each
+to the module that rebuilt it.
+
+> **THE METHOD:** A frequentist, likelihood-based procedure for variable selection in linear
+> regression. Two settings matter: the ordinary setting where you have the full data table,
+> and a META-ANALYSIS setting where you must combine results across many published studies
+> and only have each indicator's reported one-at-a-time (marginal) regression coefficient
+> plus a known correlation matrix among the indicators — never the raw rows. A key skill is
+> reconstructing the JOINT multiple-regression fit from those two ingredients alone.
+
+*Decode.* "Frequentist, likelihood-based" — it scores models by the Gaussian log-likelihood
+(no priors), through BIC. "Marginal coefficient + correlation matrix → joint fit" is the
+identity $\hat\beta = R^{-1}b$ from **[M1](../01-joint-fit-from-summaries/lesson.qmd)**: in the
+standardized world $R$ is $X^\top X/n$ and $b$ is $X^\top y/n$, so $R^{-1}b$ *is* the joint
+least-squares fit — computable from summaries, "never the raw rows."
+
+> - Because predictors are correlated, marginal effects != joint effects; the method recovers
+>   the joint effects.
+
+*Decode.* The whole reason a lone coefficient can mislead — **Multiple Regression Module 3's**
+marginal-vs-joint story — and $R^{-1}$ is what converts one into the other
+([M1](../01-joint-fit-from-summaries/lesson.qmd)).
+
+> - It searches models by iteratively SWITCHING predictors in and out (not just forward
+>   stepwise), evaluating the full joint likelihood at each step.
+
+*Decode.* The **[M2](../02-the-switching-search/lesson.qmd)** switching search: add / remove /
+swap, each candidate scored by the joint likelihood (via BIC) computed from summaries — the
+"switch" move is what beats plain forward stepwise.
+
+> - It chooses model size with an information criterion (BIC) rather than a p-value threshold.
+
+*Decode.* BIC from the [model-selection foundation](../../../../foundations/model-selection-and-information-criteria/lesson.qmd),
+used as the stopping rule; **[M2](../02-the-switching-search/lesson.qmd)** explained why a
+post-selection p-value threshold would be dishonest.
+
+> - It stays fast by using rank-1 (Sherman–Morrison) updates to avoid re-inverting the
+>   correlation matrix each time a predictor is added or removed.
+
+*Decode.* **[M3](../03-rank-one-speedups/lesson.qmd)**: the bordering/partition updates grow
+and shrink $R_S^{-1}$ in $O(k^2)$, exactly, so the search never re-inverts.
+
+> - It regularizes the correlation matrix (ridge-style, a lambda parameter) so it inverts
+>   stably when predictors are near-collinear.
+
+*Decode.* **[M4](../04-lambda-stability/lesson.qmd)**: replace $R$ with $R + \lambda I$,
+invertible for any $\lambda > 0$, taming the near-collinear blow-up.
+
+Every claim maps to a piece you built. Now assemble them.
+
+## The assembled procedure
+
+The whole method is a short base-R suite. Each function is one module's idea; `switchstep()`
+wires them together.
+
+```{r suite}
+# --- SwitchStep: likelihood-based variable selection from summaries (R, b, n, lambda) ---
+
+# M1 + M4: subset BIC from summaries, with a ridge lambda on the correlation sub-matrix.
+ss_bic <- function(R, b, n, cols, lambda = 0) {
+  if (length(cols) == 0) return(0)
+  RS <- R[cols, cols, drop = FALSE] + lambda * diag(length(cols))
+  bS <- b[cols]
+  r2 <- min(as.numeric(crossprod(bS, solve(RS, bS))), 1 - 1e-9)   # M1: b' R^{-1} b
+  n * log(1 - r2) + length(cols) * log(n)                          # BIC (up to a constant)
+}
+
+# M2: the switching search — add / remove / swap, stop when no move lowers BIC.
+ss_search <- function(R, b, n, lambda = 0) {
+  p <- length(b); cur <- integer(0); cur_bic <- ss_bic(R, b, n, cur, lambda)
+  repeat {
+    mv <- list()
+    for (j in setdiff(1:p, cur)) mv <- c(mv, list(sort(c(cur, j))))                 # add
+    for (j in cur)               mv <- c(mv, list(setdiff(cur, j)))                 # remove
+    for (j in cur) for (k in setdiff(1:p, cur)) mv <- c(mv, list(sort(c(setdiff(cur, j), k))))  # swap
+    if (!length(mv)) break
+    bx <- sapply(mv, function(m) ss_bic(R, b, n, m, lambda)); i <- which.min(bx)
+    if (bx[i] < cur_bic - 1e-9) { cur <- mv[[i]]; cur_bic <- bx[i] } else break
+  }
+  sort(cur)
+}
+
+# The whole method: select a subset, then reconstruct its ridge-stabilised joint coefficients.
+switchstep <- function(b, R, n, lambda = 0) {
+  S <- ss_search(R, b, n, lambda)
+  beta <- setNames(numeric(length(b)), names(b))
+  if (length(S)) beta[S] <- solve(R[S, S, drop = FALSE] + lambda * diag(length(S)), b[S])  # M1 + M4
+  list(selected = S, beta = beta)
+}
+```
+
+(The $O(k^2)$ rank-1 updates from [M3](../03-rank-one-speedups/lesson.qmd) would slot into
+`ss_search` to avoid the `solve()` inside `ss_bic` — omitted here for readability, since for
+$p = 12$ the plain solves are already instant; they matter when $p$ is large.)
+
+## Explore it — end-to-end on a simulated meta-analysis
+
+Five "published studies" each report marginal coefficients for the same twelve indicators
+(different sample sizes, no shared raw data). We inverse-variance-average them into one $b$,
+take $R$ from a reference panel, and run `switchstep()` — then compare to a **full-data
+oracle** that pools every study's raw rows and does exhaustive best-subset selection.
+
+```{r meta-end-to-end}
+ns <- c(120, 200, 90, 150, 180); seeds <- 101:105       # five studies
+B <- SE <- matrix(NA, 5, 12); allX <- NULL; allY <- NULL
+for (i in 1:5) {
+  s <- sim_study(ns[i], seeds[i])
+  B[i, ]  <- as.numeric(cor(s$X, s$y))                  # study i's marginal std coefs
+  SE[i, ] <- (1 - B[i, ]^2) / sqrt(ns[i])               # approx SE of each correlation
+  allX <- rbind(allX, s$X); allY <- c(allY, s$y)        # (oracle only) pool raw rows
+}
+w <- 1 / SE^2
+b_combined <- setNames(colSums(w * B) / colSums(w), colnames(allX))   # meta: precision-weighted b
+R_ref <- cor(sim_study(1000, 999)$X)                                  # reference-panel correlations
+N <- sum(ns)
+
+fit <- switchstep(b_combined, R_ref, N, lambda = 0.05)   # <- summaries only, never allX/allY
+names(fit$beta)[fit$selected]                            # selected indicators
+round(fit$beta[fit$selected], 3)                         # their joint coefficients
+```
+
+```{r meta-oracle}
+# Full-data oracle: pool the raw rows, exhaustive best-subset over BIC(lm).
+exhaustive <- function(X, y) {
+  p <- ncol(X); best <- integer(0); best_bic <- BIC(lm(y ~ 1))
+  for (k in 1:p) { cb <- combn(p, k)
+    for (i in seq_len(ncol(cb))) { v <- BIC(lm(y ~ X[, cb[, i], drop = FALSE]))
+      if (v < best_bic) { best_bic <- v; best <- cb[, i] } } }
+  sort(best)
+}
+oracle_set <- exhaustive(allX, allY)
+list(meta_selected   = colnames(allX)[fit$selected],
+     oracle_selected = colnames(allX)[oracle_set],
+     sets_match      = identical(fit$selected, oracle_set))
+```
+
+`switchstep()`, working only from per-study summaries and a reference correlation matrix,
+selects the same indicators the pooled full-data oracle does — the true
+`{rate_10y, cpi_infl, unemp}`. The joint coefficients are close (not identical): the small gap
+is the price of combining summaries instead of raw rows, plus the $\lambda$ shrinkage — an
+honest reconstruction, not magic.
+
+```{webr}
+#| autorun: true
+# TRY IT: change lambda (0, 0.05, 0.5) or the studies' seeds and re-run switchstep.
+# PREDICT: does the selected set stay {rate_10y, cpi_infl, unemp} as lambda changes?
+ss_bic <- function(R,b,n,cols,lambda=0){ if(!length(cols)) return(0)
+  RS <- R[cols,cols,drop=FALSE]+lambda*diag(length(cols))
+  r2 <- min(as.numeric(crossprod(b[cols], solve(RS, b[cols]))), 1-1e-9)
+  n*log(1-r2)+length(cols)*log(n) }
+ss_search <- function(R,b,n,lambda=0){ p<-length(b); cur<-integer(0); cb<-ss_bic(R,b,n,cur,lambda)
+  repeat{ mv<-list(); for(j in setdiff(1:p,cur)) mv<-c(mv,list(sort(c(cur,j))))
+    for(j in cur) mv<-c(mv,list(setdiff(cur,j)))
+    for(j in cur) for(k in setdiff(1:p,cur)) mv<-c(mv,list(sort(c(setdiff(cur,j),k))))
+    if(!length(mv))break; bx<-sapply(mv,function(m)ss_bic(R,b,n,m,lambda)); i<-which.min(bx)
+    if(bx[i]<cb-1e-9){cur<-mv[[i]];cb<-bx[i]}else break }; sort(cur) }
+
+# One study's summaries as a quick stand-in (b = marginal std coefs, R = its correlations)
+set.seed(101); p<-12; Rt<-diag(p); Rt[1,2]<-Rt[2,1]<-.9; Rt[3,4]<-Rt[4,3]<-.95
+Rt[8,10]<-Rt[10,8]<-.7; Rt[11,12]<-Rt[12,11]<-.65
+X<-matrix(rnorm(200*p),200,p)%*%chol(Rt); bt<-numeric(p); bt[c(1,3,5)]<-c(.5,-.4,-.3)
+y<-drop(X%*%bt+rnorm(200)); R<-cor(X); b<-as.numeric(cor(X,y))
+ss_search(R, b, 200, lambda = 0.05)      # the selected indicator indices
+```
+
+## Common traps
+
+**Trap: "the meta-analysis reconstruction should exactly equal the pooled-data fit."** The
+*selected set* matches the oracle here, but the coefficients are only close: averaging
+published marginals (with a reference-panel $R$) and adding a stabilizing $\lambda$ is an
+approximation to having every raw row. It recovers the right model and approximately the right
+effects — honest, and often all the raw data would let you conclude anyway.
+
+**Trap: "SwitchStep found a set, so those indicators are *the* true causal drivers."** It found
+the subset that best trades fit against complexity under BIC, given correlated indicators. Under
+heavy collinearity (Module 4's twins), a different seed can select the *other* twin — as the
+equivalence harness's collinear fixture shows, matching the oracle both times. Selection tells
+you which indicators best *predict* jointly, not which are causal.
+
+## What you can now do
+
+- **Decode the method spec** claim by claim and name the module (and formula) behind each.
+- **Reconstruct a joint fit from summaries** ($R^{-1}b$), **search** subsets by switching under
+  BIC, **speed** it with rank-1 updates, and **stabilize** it with a ridge $\lambda$ — the five
+  pieces of SwitchStep.
+- **Assemble `switchstep(b, R, n, lambda)`** and run it end-to-end on a multi-study
+  meta-analysis, validating the selected set against a full-data oracle.
+- **State the honest limits**: it's a greedy (heuristic) search, coefficients from summaries are
+  approximate, and selection under collinearity is about prediction, not causation.
+
+If any bullet feels shaky, revisit the module it points to — these can-dos *are* the course goal.
+
+## Where this goes next
+
+**What you still can't do (yet).** SwitchStep selects and reconstructs, but it doesn't give you
+*honest* post-selection confidence intervals for the chosen coefficients — that needs
+post-selection inference methods this course only named. Other natural next steps: the **lasso**
+(selection by an $\ell_1$ penalty, from the [ridge foundation](../../../../foundations/ridge-regularization/lesson.qmd)),
+cross-validation to *choose* $\lambda$, and time-series structure in the indicators (our
+simulator is deliberately iid — real economic series are autocorrelated). Ready for a final
+workout? Do the cumulative [practice problems](practice.qmd).

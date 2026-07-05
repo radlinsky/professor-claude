@@ -68,9 +68,6 @@ jobs:
               quit(status = 1)
             }'
 
-      - name: Check autorun {webr} cells execute in native R
-        run: Rscript scripts/check-webr-cells.R
-
       # Fail on dangling internal links in the rendered site (e.g. a renamed or
       # moved lesson leaving a broken cross-link). --offline checks only local
       # file/anchor targets, so there is no network flakiness — external URLs are
@@ -93,11 +90,41 @@ jobs:
         with:
           path: _site
 
+  # Native-R execution check for autorun {webr} cells (issue #75). Nothing else in
+  # the pipeline runs {webr} cells: render.yml only executes baked {r} chunks; live
+  # {webr} cells run in the browser. So a broken autorun cell (a typo in a starter's
+  # data, a function renamed by a later edit) ships to the live site behind a green
+  # build. This closes that gap for cells marked `#| autorun: true`.
+  #
+  # Its OWN job (issue #84) so its ~3min runs in PARALLEL with the ~9min render
+  # instead of adding serially to it. Base R only — the cells are self-contained base
+  # R (interactive-webr.md contract), so skip renv restore and disable the .Rprofile
+  # renv autoloader, same as index-check.yml. deploy gates on it below.
+  webr-check:
+    runs-on: ubuntu-latest
+    # Read-only validation — drop the workflow-level pages/id-token perms it inherits
+    # but never uses (same least-privilege token as index-check.yml).
+    permissions:
+      contents: read
+    env:
+      RENV_CONFIG_AUTOLOADER_ENABLED: FALSE
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.5.2'
+          use-public-rspm: true
+
+      - name: Check autorun {webr} cells execute in native R
+        run: Rscript scripts/check-webr-cells.R
+
   # Separate job so ONLY the deploy carries the github-pages environment. Its
   # branch policy is evaluated at job start (before steps), which is why binding
   # it to the render job would block every PR — see PR #4.
   deploy:
-    needs: render
+    needs: [render, webr-check]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # Serialize Pages deploys so rapid pushes to main don't race; never cancel an

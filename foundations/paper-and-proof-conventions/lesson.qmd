@@ -159,7 +159,7 @@ buckets, and knowing the bucket tells you how hard to read:
 - **Stop-and-check** — the assumption list ("Assume iid", "Assume the variance is finite").
   These are the conditions the guarantees ride on; if your data breaks one, the guarantee may
   not hold for you. Never skim these.
-- **Reading-glue** — the ritual phrases ("it follows that", "it suffices to show", "WLOG",
+- **Reading-glue** — the ritual phrases ("it follows that", "it suffices to show", "WLOG", <!-- lint-ok -->
   "by construction"). They don't add facts; they signpost the *logic* connecting the facts.
 
 ## What the notation is going to say
@@ -198,8 +198,8 @@ quantities.
 | $O(\cdot)$ | "big-oh of …" | **how fast** a quantity grows or shrinks with $n$, ignoring constants — a rate label, e.g. $O(n)$ = "grows in step with $n$" |
 | WLOG | "without loss of generality" | "we simplify now; it costs us nothing — the general case follows the same way" |
 | it suffices to show | "it suffices to show" | "proving this smaller claim is enough to prove the whole thing" |
-| it follows that | "it follows that" | "the next statement is a direct consequence of the last" (a logic connector, not a new fact) |
-| by construction | "by construction" | "this is true simply because of how we *built* the object — no extra argument needed" |
+| it follows that | "it follows that" | "the next statement is a direct consequence of the last" (a logic connector, not a new fact) | <!-- lint-ok -->
+| by construction | "by construction" | "this is true simply because of how we *built* the object — no extra argument needed" | <!-- lint-ok -->
 
 ## The formal version (the convention glossary, expanded)
 
@@ -265,7 +265,7 @@ skip.
 These recur in every proof and derivation. They connect statements; they do not introduce data
 or results. Knowing them stops you re-reading a sentence hunting for content that isn't there.
 
-- **"it follows that"** — "the next line is a direct logical consequence of the previous one."
+- **"it follows that"** — "the next line is a direct logical consequence of the previous one." <!-- lint-ok -->
   A connector. (Note: our own [teaching contract](../../TEACHING.md) bans this phrase in
   *teaching* material precisely because it hides a step the learner needs — but *papers* use it
   constantly, so you must be able to read it.)
@@ -276,14 +276,14 @@ or results. Knowing them stops you re-reading a sentence hunting for content tha
 - **"it suffices to show"** — "instead of proving the big claim directly, we'll prove this
   smaller claim, which is enough." It tells you the proof just *changed targets* to something
   easier.
-- **"by construction"** — "this holds simply because of how we defined/built the thing — there's
+- **"by construction"** — "this holds simply because of how we defined/built the thing — there's <!-- lint-ok -->
   nothing more to prove." E.g., "the weights sum to 1 by construction" means "we *built* them
   to sum to 1."
 
 A tiny excerpt with three of them:
 
 > WLOG assume the data are centered at 0. It suffices to show the estimator's average error is
-> 0; the rest follows. By construction, each weight is non-negative, so it follows that the
+> 0; the rest follows. By construction, each weight is non-negative, so it follows that the <!-- lint-ok -->
 > weighted sum is non-negative.
 
 Decoded: "We simplify by centering (costs nothing). We've swapped the goal to an easier one.
@@ -348,7 +348,7 @@ Most methods parcel their required conditions into a labelled list — **A1, A2,
 **Why they're pulled out into a list:** so the guarantees can name them ("under A1–A3, Theorem 1
 holds") and so *you can check them against your own situation.* This is the stop-and-check
 bucket. If your data violate A1 (say, repeated measures on the same subject, so not
-independent), the paper's promises may simply not apply to you — quietly, with no warning in the
+independent), the paper's promises may not apply to you — quietly, with no warning in the
 result itself. **Checking the assumptions is how you find out whether a method's guarantees are
 yours to keep.** Reading move: whenever a theorem says "under A2," jump back to what A2 *is* and
 ask "does my data satisfy that?"
@@ -483,7 +483,7 @@ you specifically want to understand or audit *why* it holds.
 - **Read theorem/lemma/corollary/proof strategically** — trust a boxed statement, recognise the
   role each label plays, and use the $\square$/QED box as permission to skip a proof on a first
   pass.
-- **Translate the ritual phrases** — "it follows that", "WLOG", "it suffices to show", and "by
+- **Translate the ritual phrases** — "it follows that", "WLOG", "it suffices to show", and "by <!-- lint-ok -->
   construction" — as logic glue, not new facts.
 - **Read asymptotics at the right level** — say what "as $n \to \infty$", "consistent", and a
   big-O rate (e.g. $O(n)$ vs $O(n^2)$) each *promise*, without needing to prove any of them.

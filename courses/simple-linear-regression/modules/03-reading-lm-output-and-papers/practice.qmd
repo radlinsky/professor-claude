@@ -102,7 +102,7 @@ average — the estimated slope $\hat{\beta}_1$.
 (c) No contradiction. The star answers "is the slope distinguishable from zero?"
 (yes, barely). R² answers "how much of yield's variation does rainfall explain?"
 (11% — rainfall matters, but most variation comes from everything else). A
-coefficient can be clearly nonzero and still explain little; with n = 214 even
+coefficient can be reliably nonzero and still explain little; with n = 214 even
 modest effects earn stars. Reading both numbers together is exactly the skill
 papers assume.
 :::

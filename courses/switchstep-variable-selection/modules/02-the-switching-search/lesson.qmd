@@ -1,0 +1,301 @@
+---
+title: "The switching search"
+subtitle: "Add, remove, AND swap predictors — escaping the traps greedy stepwise walks into"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+
+# Summary-stat BIC and the two searches (mirrored from equivalence/reimplementations).
+sw_bic <- function(R, b, n, cols) {
+  if (length(cols) == 0) return(0)
+  RS <- R[cols, cols, drop = FALSE]; bS <- b[cols]
+  r2 <- min(as.numeric(crossprod(bS, solve(RS, bS))), 1 - 1e-9)  # cap: summary R2 can exceed 1
+  n * log(1 - r2) + length(cols) * log(n)
+}
+forward_only <- function(R, b, n) {
+  p <- length(b); cur <- integer(0)
+  repeat {
+    cand <- setdiff(1:p, cur); if (!length(cand)) break
+    bics <- sapply(cand, function(j) sw_bic(R, b, n, sort(c(cur, j))))
+    if (min(bics) < sw_bic(R, b, n, cur) - 1e-9) cur <- sort(c(cur, cand[which.min(bics)])) else break
+  }
+  sort(cur)
+}
+switching <- function(R, b, n, start = integer(0)) {
+  p <- length(b); cur <- sort(start); cb <- sw_bic(R, b, n, cur)
+  repeat {
+    mv <- list()
+    for (j in setdiff(1:p, cur)) mv[[length(mv)+1]] <- sort(c(cur, j))
+    for (j in cur)              mv[[length(mv)+1]] <- setdiff(cur, j)
+    for (j in cur) for (k in setdiff(1:p, cur)) mv[[length(mv)+1]] <- sort(c(setdiff(cur, j), k))
+    if (!length(mv)) break
+    bics <- sapply(mv, function(m) sw_bic(R, b, n, m)); i <- which.min(bics)
+    if (bics[i] < cb - 1e-9) { cur <- mv[[i]]; cb <- bics[i] } else break
+  }
+  sort(cur)
+}
+sim6 <- function(seed = 15, n = 200) {
+  set.seed(seed); p <- 6
+  Rt <- diag(p); Rt[1,2] <- Rt[2,1] <- 0.85; Rt[3,4] <- Rt[4,3] <- 0.6
+  X <- matrix(rnorm(n*p), n, p) %*% chol(Rt)
+  y <- drop(X %*% c(0.3, 0.45, 0.5, 0, 0, 0) + rnorm(n, sd = 1.2))
+  list(X = X, y = y)
+}
+```
+
+## Where we're going
+
+We can now score any subset of indicators by its BIC, using only summaries (Module 1). Now
+we *search*: which subset is best? Checking all $2^p$ subsets is hopeless for many
+indicators, and plain forward stepwise — add the best predictor each step, never remove —
+can walk into a trap it can't climb out of. The **switching search** adds one move: at each
+step it also tries **removing** a predictor and **swapping** one for another, and takes
+whichever move most improves BIC. That extra freedom lets it escape greedy's traps and,
+on our tests, land on the same subset an exhaustive search would.
+
+**Builds on:** [Module 1](../01-joint-fit-from-summaries/lesson.qmd) (summary-stat BIC),
+[model-selection-and-information-criteria](../../../../foundations/model-selection-and-information-criteria/lesson.qmd)
+(BIC, best-subset, why greedy stepwise gets stuck),
+[hypothesis-tests-p-values-and-confidence-intervals](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+(for the p-value contrast).
+
+## Warm-up: do you remember?
+
+**1.** *(model selection)* Why can't we just keep the subset with the smallest RSS, and what
+do we use instead?
+
+::: {.callout-note collapse="true" title="Answer"}
+RSS only falls as predictors are added, so it always picks the biggest model. We use a
+penalized score — here **BIC** $= -2\log L + k\log n$ — that charges for complexity. See
+[model-selection](../../../../foundations/model-selection-and-information-criteria/lesson.qmd).
+:::
+
+**2.** *(model selection)* What is the documented weakness of *forward* stepwise selection?
+
+::: {.callout-note collapse="true" title="Answer"}
+It's greedy and can't undo an early pick: once it adds a predictor, that predictor stays,
+so an early commitment can trap it on a subset a fuller search would beat (ISLR Table 6.1).
+:::
+
+**3.** *(Module 1)* How do we get a subset $S$'s BIC from summaries $R$ and $b$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mathrm{BIC}(S) = n\log(1 - b_S^\top R_S^{-1} b_S) + |S|\log n$ (up to a constant common to
+all models), where $R_S, b_S$ are the sub-matrix and sub-vector for $S$. See
+[Module 1](../01-joint-fit-from-summaries/lesson.qmd).
+:::
+
+## A tiny example first
+
+Suppose you've scored four candidate subsets of indicators by their summary-stat BIC (lower
+is better):
+
+| Subset | BIC |
+|---|---:|
+| $\{x_2\}$ | −31.6 |
+| $\{x_2, x_3\}$ | −58.0 |
+| $\{x_1, x_2, x_3\}$ | −58.3 |
+| $\{x_1, x_3\}$ | **−61.5** |
+
+A **forward-only** search, starting empty, adds whichever single predictor helps most:
+it adds $x_2$ (−31.6), then $x_3$ (−58.0), then $x_1$ (−58.3) — and now every *add* makes
+BIC worse, so it **stops at $\{x_1, x_2, x_3\}$**. But look: $\{x_1, x_3\}$ scores −61.5,
+*better* than where forward stopped. Forward can never reach it, because getting there means
+**removing** $x_2$ — a move forward doesn't have. The switching search does have it: from
+$\{x_1, x_2, x_3\}$ it tries removing each predictor, sees that dropping $x_2$ improves BIC
+to −61.5, and takes it. These are real numbers from the panel below.
+
+```{r toy-example}
+sim <- sim6(seed = 15)                              # 6 indicators; x1,x2 correlated 0.86
+R <- cor(sim$X); b <- as.numeric(cor(sim$X, sim$y)); n <- nrow(sim$X)
+
+c(fwd_stops_at = paste(forward_only(R, b, n), collapse = ","),
+  its_BIC      = round(sw_bic(R, b, n, forward_only(R, b, n)), 2),
+  switch_finds = paste(switching(R, b, n), collapse = ","),
+  its_BIC      = round(sw_bic(R, b, n, switching(R, b, n)), 2))
+```
+
+Forward stops at `1,2,3` (BIC −58.3); switching removes the redundant `2` and finishes at
+`1,3` (BIC −61.5). Why is `x2` redundant? It's 0.86-correlated with `x1`, so once `x1` is in,
+`x2` adds little — but forward had already committed to `x2` first (it was marginally the
+strongest) and couldn't let go.
+
+## Getting a feel for it
+
+**Hiring vs hiring-and-firing.** Forward stepwise is a manager who can only *hire*: each
+round they add the most impressive-looking candidate and can never let anyone go. If they
+hire someone early who later turns out redundant once a better colleague joins, they're
+stuck with the bloated team. The switching search can **hire, fire, and swap** — so when
+`x1` joins and makes `x2` redundant, it fires `x2`. That one extra freedom is what lets it
+reach subsets forward can't.
+
+**Why swapping escapes traps.** Forward's problem is that its path is one-directional: the
+only neighbours it considers are "current set plus one." A subset like $\{x_1, x_3\}$ isn't
+a neighbour of $\{x_1, x_2, x_3\}$ under "add," but it *is* under "remove," and $\{x_2, x_4\}$
+is a neighbour of $\{x_1, x_4\}$ under "swap." By considering add **and** remove **and** swap,
+the search's neighbourhood is rich enough to walk downhill past the ridges that trap forward
+— much like the multiple-regression course's point that a predictor's value depends on which
+others are present.
+
+**What "best" means here, honestly.** The switching search is still *greedy* on BIC — it
+takes the best single move each step and stops at a **local** optimum (no single move helps).
+That's not guaranteed to equal the global best-subset optimum. But it's dramatically closer
+than forward-only, and on every seed we tested (see the validation below) it matched the
+exhaustive best-subset answer exactly — for far less work than checking all $2^p$ subsets.
+
+## What the notation is going to say
+
+The search says: *hold a current subset $S$; look at every subset one move away — add any
+one predictor, remove any one, or swap an in for an out; if the best of those has lower BIC
+than $S$, move there; otherwise stop.* The stopping subset is the answer. "One move away" is
+the whole difference from forward, which only ever looks at "add one."
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our example |
+|---|---|---|---|
+| $S$ | "ess" | the current subset of selected indicators | e.g. $\{1,2,3\}$ |
+| $|S|$ | "size of S" | how many indicators are in $S$ | 3 |
+| $\mathrm{BIC}(S)$ | "the BIC of S" | the summary-stat BIC of subset $S$ (Module 1) | −58.3 |
+| add / remove / **swap** | — | the three moves: $S\cup\{j\}$, $S\setminus\{j\}$, $(S\setminus\{j\})\cup\{k\}$ | remove 2 |
+| $\arg\min$ | "arg min" | the move giving the smallest BIC | pick best move |
+
+## The formal version
+
+The switching search, step by step:
+
+1. **Start** from a subset $S$ (often empty, or forward's answer) and compute
+   $\mathrm{BIC}(S)$ from summaries.
+2. **Enumerate the neighbours** — every subset reachable in one move:
+   - *add*: $S \cup \{j\}$ for each indicator $j \notin S$,
+   - *remove*: $S \setminus \{j\}$ for each $j \in S$,
+   - *swap*: $(S \setminus \{j\}) \cup \{k\}$ for each in-out pair.
+3. **Score** each neighbour's BIC (each is a small $R^{-1}$ solve on summaries).
+4. **Move** to the neighbour with the lowest BIC **if** it beats $\mathrm{BIC}(S)$;
+   otherwise **stop** — $S$ is a local BIC optimum and is returned.
+
+Reading it aloud: "score the current set; try every add, remove, and swap; jump to the best
+if it lowers BIC, else stop." The stopping rule *is* BIC — no p-value threshold anywhere
+(the next point explains why that matters).
+
+**Validation.** For $p \le 12$ we can still afford the exhaustive best-subset search
+(all $2^p$ subsets), so we can check the switching search against the true optimum. This
+repo's equivalence harness freezes exactly that comparison on two panels (**tier: full**,
+oracle = exhaustive best-subset over `BIC(lm)`): on a clean seed the switching search
+returns the true `{rate_10y, cpi_infl, unemp}`; on a collinear seed it returns
+`{rate_2y, pce_infl, unemp}` — and **both match the exhaustive oracle exactly**. (The second
+picks the *noise* twins, honestly reproducing what full-data BIC does under collinearity —
+the search is faithful, not clairvoyant.)
+
+**BIC, not a p-value threshold.** A tempting alternative is "keep every predictor with
+$p < 0.05$." But once you *search* over models, the usual p-values are no longer honest:
+you deliberately hunted for the predictors that look most significant, so their p-values are
+optimistically small (the [hypothesis-tests](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+module's caution, amplified by searching). This is **post-selection inference**, and naïve
+p-values understate the true uncertainty. BIC sidesteps the threshold game: it scores whole
+models by fit-plus-complexity, and comparing model scores is not the same as testing each
+coefficient. (Honest post-selection p-values exist but need special methods — beyond this
+course.)
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# TRY IT: change the seed (or the true coefficients / correlations) and re-run. Watch how
+# often forward-only STOPS at a bigger, worse-BIC subset than the switching search.
+# PREDICT: will the two ever agree? (Yes — when forward's greedy path happens to be optimal.)
+sw_bic <- function(R, b, n, cols) { if (!length(cols)) return(0)
+  r2 <- min(as.numeric(crossprod(b[cols], solve(R[cols,cols,drop=FALSE], b[cols]))), 1 - 1e-9)
+  n*log(1-r2) + length(cols)*log(n) }
+forward_only <- function(R,b,n){p<-length(b);cur<-integer(0)
+  repeat{cand<-setdiff(1:p,cur);if(!length(cand))break
+    bx<-sapply(cand,function(j)sw_bic(R,b,n,sort(c(cur,j))))
+    if(min(bx)<sw_bic(R,b,n,cur)-1e-9)cur<-sort(c(cur,cand[which.min(bx)]))else break};sort(cur)}
+switching<-function(R,b,n){p<-length(b);cur<-integer(0);cb<-sw_bic(R,b,n,cur)
+  repeat{mv<-list();for(j in setdiff(1:p,cur))mv<-c(mv,list(sort(c(cur,j))))
+    for(j in cur)mv<-c(mv,list(setdiff(cur,j)))
+    for(j in cur)for(k in setdiff(1:p,cur))mv<-c(mv,list(sort(c(setdiff(cur,j),k))))
+    if(!length(mv))break;bx<-sapply(mv,function(m)sw_bic(R,b,n,m));i<-which.min(bx)
+    if(bx[i]<cb-1e-9){cur<-mv[[i]];cb<-bx[i]}else break};sort(cur)}
+
+set.seed(15); n <- 200; p <- 6
+Rt <- diag(p); Rt[1,2]<-Rt[2,1]<-0.85; Rt[3,4]<-Rt[4,3]<-0.6
+X <- matrix(rnorm(n*p),n,p) %*% chol(Rt); y <- drop(X %*% c(.3,.45,.5,0,0,0) + rnorm(n,sd=1.2))
+R <- cor(X); b <- as.numeric(cor(X,y))
+list(forward = forward_only(R,b,n), forward_BIC = round(sw_bic(R,b,n,forward_only(R,b,n)),2),
+     switching = switching(R,b,n),  switch_BIC  = round(sw_bic(R,b,n,switching(R,b,n)),2))
+```
+
+## Common traps
+
+**Trap: "the switching search is guaranteed to find the best subset."** It is a *greedy*
+search that stops at a local BIC optimum, so in general it can miss the global best — it's a
+heuristic, just a much stronger one than forward-only. It happened to match the exhaustive
+optimum on every tested seed here, but that's an empirical result for these problems, not a
+guarantee. (For small $p$ you can still run exhaustive best-subset to be sure.)
+
+**Trap: "the selected predictors' p-values tell me they're significant."** After a search,
+no. You picked the models that look best, so the reported p-values are optimistically small
+— they don't account for the searching. Selection is done by BIC precisely to avoid leaning
+on those dishonest thresholds; treating a post-selection p-value as a normal one overstates
+your confidence.
+
+## Check yourself
+
+**1.** Forward-only stops at $\{x_1, x_4, x_6\}$ with BIC 102. The switching search reports
+$\{x_1, x_6\}$ with BIC 99. Which move did switching make that forward could not, and is the
+switching model better?
+
+::: {.callout-note collapse="true" title="Answer"}
+A **remove** (drop $x_4$) — forward can only add, so it could never shrink $\{x_1,x_4,x_6\}$.
+Lower BIC (99 < 102) means the switching model is preferred: $x_4$ wasn't earning its
+penalty once $x_1$ and $x_6$ were present.
+:::
+
+**2.** Why does the search use BIC as its stopping rule rather than "add predictors while
+each is significant at $p < 0.05$"?
+
+::: {.callout-note collapse="true" title="Answer"}
+Because searching over many models invalidates the usual p-values — you cherry-picked the
+significant-looking predictors, so their p-values are optimistically small (post-selection
+inference). BIC scores whole models by fit-plus-complexity and doesn't rely on a per-
+coefficient significance threshold, so it isn't fooled by the search the same way.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the "switch" move
+adds over forward stepwise and why it helps.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Forward stepwise can only add predictors and never remove them, so an early pick that later
+becomes redundant is stuck in the model. The switching search can remove and swap as well as
+add, so it can undo early mistakes and reach lower-BIC subsets forward can never get to.
+:::
+
+## What you can now do
+
+- **Run the switching search**: from a current subset, try every add/remove/swap, move to the
+  best if it lowers BIC, stop otherwise.
+- **Explain why it beats forward stepwise** (remove/swap escape early greedy commitments) and
+  why it's still a heuristic (local, not guaranteed global).
+- **Validate it** against exhaustive best-subset BIC for small $p$, and read the honest
+  result (it can select noise twins under collinearity, matching the oracle).
+- **Say why BIC, not a p-value threshold**, is the stopping rule (post-selection inference).
+
+If any feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) — Module 3 makes
+this search fast enough to run on many indicators.
+
+## Where this goes next
+
+Each move re-solves an $R_S^{-1}$; on many indicators that's the bottleneck. Next:
+[Rank-one speed-ups](../03-rank-one-speedups/lesson.qmd) replaces each re-inversion with a
+cheap Sherman–Morrison update. Ready for reps? Do the [practice problems](practice.qmd).
+External readings: [resources](../../resources.md).

@@ -1,0 +1,146 @@
+---
+title: "Practice: Many knobs, one model"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — the toy rule, new numbers
+
+A model predicts by the rule $\hat{y} = 1 + 2\,x_1 + 5\,x_2$. Fill in the predictions
+for these three knob settings, then say which number is the effect of $x_1$ (others
+held fixed) and which is the effect of $x_2$.
+
+| $x_1$ | $x_2$ | $\hat{y}$ |
+|---:|---:|---:|
+| 0 | 0 | ? |
+| 1 | 0 | ? |
+| 0 | 1 | ? |
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to check your hand answers
+b0 <- 1; b1 <- 2; b2 <- 5
+x1 <- c(0, 1, 0); x2 <- c(0, 0, 1)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Predictions: $1+0+0 = 1$, $1+2+0 = 3$, $1+0+5 = 6$. Comparing rows 1→2 ($x_1$ up 1, $x_2$
+fixed) the prediction rises by 2 — the effect of $x_1$. Comparing rows 1→3 ($x_2$ up 1,
+$x_1$ fixed) it rises by 5 — the effect of $x_2$.
+
+```{r}
+b0 <- 1; b1 <- 2; b2 <- 5
+x1 <- c(0, 1, 0); x2 <- c(0, 0, 1)
+b0 + b1 * x1 + b2 * x2      # 1 3 6
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+A colleague is interpreting the coefficient on `income` in the model
+$\widehat{\text{spend}} = 200 + 0.3\,\text{income} - 15\,\text{kids}$. They write:
+
+- Step 1: "The coefficient on `income` is 0.3."
+- Step 2: **your step here** — state the full interpretation, with the qualifier.
+- Step 3: "So two households differing by \$1,000 in income (but the same number of
+  kids) are predicted to differ by \$300 in spending."
+
+Supply Step 2.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: "Holding the number of kids fixed, each extra \$1 of income raises predicted
+spending by \$0.30." The essential part is **holding kids fixed** — without it, "0.3 is
+income's effect" is incomplete, because in a multiple regression a coefficient is always
+a *ceteris paribus* (others-held-fixed) effect. Step 3 then just scales \$0.30 by 1,000.
+:::
+
+## Problem 3 — predict from a fitted model, in R
+
+A fitted model of house price (in \$1000s) is
+$\widehat{\text{price}} = 50 + 0.10\,\text{sqft} + 20\,\text{baths}$. Predict the price
+of a 2000-sqft, 2-bath house, and of a 2000-sqft, 3-bath house. By how much does the
+extra bathroom change the prediction?
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: compute both predictions and their difference
+# PREDICT: the "+20 per bath" coefficient tells you the difference before you compute it.
+price <- function(sqft, baths) 50 + 0.10 * sqft + 20 * baths
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$50 + 0.10\times2000 + 20\times2 = 50 + 200 + 40 = 290$ (\$290k) for 2 baths, and
+$50 + 200 + 60 = 310$ (\$310k) for 3 baths. The difference is \$20k — exactly the
+`baths` coefficient, because `sqft` was held fixed at 2000.
+
+```{r}
+price <- function(sqft, baths) 50 + 0.10 * sqft + 20 * baths
+c(two = price(2000, 2), three = price(2000, 3), diff = price(2000, 3) - price(2000, 2))
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague fits $\widehat{\text{gdp}} = 0.02 + 0.5\,\text{rate\_10y} + 0.001\,\text{oil\_price}$
+(where `oil_price` is in dollars, roughly 20–120) and concludes: *"`rate_10y` matters
+far more than `oil_price`, because 0.5 is 500 times bigger than 0.001."* This contains
+**exactly one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is comparing raw coefficient sizes across predictors on **different scales**.
+`rate_10y` moves over a small range (a few units) while `oil_price` ranges over ~100
+dollars, so `oil_price`'s coefficient is small *per dollar* but its total contribution
+($0.001 \times 100 = 0.1$) is not negligible. Coefficient size is not importance unless
+the predictors are on a common scale (e.g. standardized). The correct statement compares
+either standardized coefficients or each coefficient times its predictor's spread.
+:::
+
+## Problem 5 — mixing it with linear combinations *(uses linear-combinations' weighted-sum-of-columns)*
+
+The prediction for a whole dataset is a **linear combination of the predictor columns**.
+Given columns $x_1 = (2, 4, 6)$ and $x_2 = (1, 0, 1)$ and coefficients $\beta_0 = 3$,
+$\beta_1 = 1$, $\beta_2 = 10$, compute the vector of fitted values
+$\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2$ (an intercept added to every entry).
+
+```{webr}
+#| autorun: false
+# p5-starter — build the fitted-value vector as a linear combination
+x1 <- c(2, 4, 6); x2 <- c(1, 0, 1)
+b0 <- 3; b1 <- 1; b2 <- 10
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat{y} = 3 + 1\cdot(2,4,6) + 10\cdot(1,0,1) = 3 + (2,4,6) + (10,0,10) = (15, 7, 19)$.
+The intercept adds 3 to every entry; the rest is the warm-up's weighted sum of columns.
+
+```{r}
+x1 <- c(2, 4, 6); x2 <- c(1, 0, 1); b0 <- 3; b1 <- 1; b2 <- 10
+b0 + b1 * x1 + b2 * x2      # 15 7 19
+```
+:::
+
+## Problem 6 — a gentle cliffhanger
+
+You fit `gdp` on two inflation measures, `cpi_infl` and `pce_infl`, that are correlated
+0.95. On its own, `pce_infl` has a solidly negative slope with `gdp`. You predict its
+coefficient in the *joint* model (with `cpi_infl` also included) will also come out
+negative. Will it be? *(You can't fully settle this yet — the next module is about
+exactly this.)*
+
+::: {.callout-note collapse="true" title="Answer"}
+Not necessarily — and that's the whole point of Module 3. When two predictors are
+0.95-correlated, the joint fit can shrink one twin's coefficient toward zero or even flip
+its sign, because "holding the other fixed" leaves almost no independent variation to
+work with. The marginal (alone) slope and the joint coefficient answer different
+questions and can disagree sharply. Module 3, *Marginal vs joint*, shows this happen.
+:::

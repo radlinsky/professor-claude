@@ -1,4 +1,4 @@
 ShortName: Variance structure & standardization
 Concepts: Standardizing / z-scores (center then scale, `scale()`, comparing different-unit columns), the covariance matrix (`cov(df)`: diagonal = variances, off-diagonal = covariances, symmetry, the correlation matrix), splitting spread into within-group vs between-group variation, collinearity (near-duplicate columns as "two knobs, one wheel"), and pooling / shrinkage / borrowing strength in words
 BuildsOn: [mean-variance-covariance](mean-variance-covariance/lesson.qmd), [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd)
-UsedBy: —
+UsedBy: [multiple-regression](../courses/multiple-regression/syllabus.md)
