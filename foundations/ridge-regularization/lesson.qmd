@@ -165,7 +165,7 @@ plus lambda times the sum of the squared betas" — or in everyday words: "fit t
 **The matrix form (stated, used later).** With predictors stacked in $X$, the ridge
 solution is $\hat\beta = (X^\top X + \lambda I)^{-1} X^\top y$ — ordinary least squares
 with $\lambda$ added down the diagonal of $X^\top X$. The payoff, proved in the
-`switchstep` course: $X^\top X + \lambda I$ is invertible for **any** $\lambda > 0$, even
+`switchstep-variable-selection` course: $X^\top X + \lambda I$ is invertible for **any** $\lambda > 0$, even
 when $X^\top X$ alone is singular (near-collinear predictors). That's ridge's other job —
 making a fit *computable* when plain least squares can't invert.
 
