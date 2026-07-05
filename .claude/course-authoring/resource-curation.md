@@ -3,7 +3,7 @@
 Goal: give the learner 2–4 REAL, working, well-matched external resources per module
 (minimum 2 unless the TODO sentinel applies; videos preferred, then
 posts/interactive demos). A dead or hallucinated link destroys trust in the whole
-course. Follow this procedure exactly.
+course. Follow this procedure exactly. (Audited by content-review-checklist check 19.)
 
 ## Non-negotiable rules
 

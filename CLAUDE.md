@@ -51,7 +51,8 @@ professor_claude/
 ├── scripts/                   # repo maintenance (base R, no deps)
 │   ├── gen-indexes.R          # regenerates the foundation blocks of _quarto.yml + foundations/README.md
 │   │                          #   from each module's meta.dcf (--check = CI drift guard)
-│   └── check-indexes.R        # index-check CI: foundation↔course links, Used-by, Builds-on (+lesson sync), Status
+│   ├── check-indexes.R        # index-check CI: foundation↔course links, Used-by, Builds-on (+lesson sync), Status
+│   └── check-teaching-lint.R  # index-check CI: banned condescension words + missing fig-alt on figure chunks
 ├── docs/                      # decision records (e.g., webr-decision.md)
 ├── foundations/               # SHARED, recyclable prerequisite modules
 │   ├── README.md              # index: module, concepts, used-by, learner status (table body GENERATED)
@@ -77,7 +78,7 @@ professor_claude/
 | Rebuild a real method (an R/Python/C/C++/Fortran library, a paper's methods, or a repo) from scratch into a course AND prove the rebuild matches the original | **`port-library` skill** — does source analysis + equivalence fixtures, then runs create-course phases 3–8 (if ANY validation reference exists — runnable code, reported numbers, or a closed form — port-library applies; only a bare concept with nothing to validate against goes to create-course) |
 | Change ANYTHING in existing material (fix, improve, extend, add a module/section) | **`update-course` skill** — never edit course content ad hoc |
 | Only add practice problems / check-yourself questions to an existing module | **`add-problems` skill**, or the **`problem-creator` agent** (ADDING new problems; CHANGING existing problems is update-course) |
-| Grade material against the contract (after a build/update, or on demand) | **`course-auditor` agent** (read-only) |
+| Grade material against the contract (after a build/update, or on demand) | **`course-auditor` agent** (read-only) (its findings are fixed via the update-course skill — the auditor never edits) |
 
 Everything the skills need (templates, notation glossary, problem-authoring
 contract, structure spec, review checklist) lives in `.claude/course-authoring/`.

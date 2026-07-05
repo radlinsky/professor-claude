@@ -432,7 +432,7 @@ is what bends the two legs into the single slanted path. (`sum(abs(A - B))` is 7
 
 **Trap 2 — "columns with bigger numbers matter more."** When income (in the thousands)
 swamps age (in the tens), it feels like the data is *telling* you income matters more.
-It is not — distance simply counts one dollar the same as one year, so whichever column
+It is not — distance counts one dollar the same as one year, so whichever column
 has the larger raw spread dominates the arithmetic. In our people example, changing
 income by \$1,000 moved the distance by 1,000 while a 5-year age change moved it by only
 5, even if age were the more meaningful variable. The numbers, not the importance, did

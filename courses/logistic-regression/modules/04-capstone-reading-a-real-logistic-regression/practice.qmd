@@ -94,7 +94,7 @@ about $-1.150$.
 ## Problem 4 — spot the error
 
 A colleague summarizes a logistic fit: "Adding the predictor `dose` **raised** the residual
-deviance from a null deviance of $30$ to a residual deviance of $42$, so `dose` clearly
+deviance from a null deviance of $30$ to a residual deviance of $42$, so `dose` clearly <!-- lint-ok -->
 **improves** the model." The statement contains **exactly one conceptual mistake** — find
 it and explain the correct reading.
 

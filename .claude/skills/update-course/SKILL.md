@@ -172,5 +172,5 @@ file touched, render status, and the review verdict. If the change altered what 
 module teaches, say whether the learner should redo it (and update nothing in the
 Status column yourself).
 
-**GATE 6 (definition of done):** ☐ Auditor (or disclosed self-review) clean.
-☐ Report delivered.
+**GATE 6 (definition of done):** ☐ Auditor clean (disclosed self-review ONLY when no
+Task/Agent tool available). ☐ Report delivered.

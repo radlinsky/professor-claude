@@ -34,12 +34,22 @@ re-render, and re-check.
    one appears in that lesson's "How to read the symbols" table. Subscripted twins
    count: if $y_i$ appears in a formula, $y_i$ (not just $\bar{y}$) needs a row.
    Inheriting a symbol from a prerequisite lesson is NOT enough — the contract is
-   "decoded in the same lesson."
+   "decoded in the same lesson." Also confirm the symbol's FIRST prose use is decoded
+   there — its pronunciation given inline or by an immediate pointer to the table — not
+   dropped into a sentence and left to the table alone.
 
-3. **Toy-example arithmetic matches the R chunk and the stated result.**
-   Re-compute every hand-worked number yourself. Confirm the prose number, the R
-   chunk's commented result, and any later reference to it all agree. Watch $n$ vs
-   $n-1$ divisors, sign of deviations, and squared-vs-summed order.
+3. **Hand-worked arithmetic matches everywhere — lesson AND practice.**
+   Re-compute every hand-worked number in the target file yourself, then confirm
+   every place it appears agrees. In the lesson: the toy example's prose number, the
+   R chunk's commented result, and any later reference to it. In `practice.qmd`: every
+   collapsed worked answer (its prose numbers vs the baked chunk's output vs the
+   problem statement's data), every faded-example blank's correct value, and the
+   spot-the-error solution's intended-correct values (the numbers the learner should
+   land on once the planted mistake is removed — check 11 owns the mistake's LOCATION,
+   this check owns the surrounding arithmetic). A wrong number in a hidden answer
+   callout is the highest-stakes defect: it is the learner's only signal for grading
+   their own pencil work. Watch $n$ vs $n-1$ divisors, sign of deviations, and
+   squared-vs-summed order.
 
 4. **No derivation step is asserted without teaching its trick.**
    Every algebra/calculus move (factor, expand, chain rule, "set derivative to 0",
@@ -138,6 +148,44 @@ re-render, and re-check.
     course(s) this one builds on* section and as a `:::priorcourse` node in the
     roadmap. A silently-assumed course, or a declared prerequisite whose link
     dangles, is a defect.
+
+15. **Check-yourself prompts for own words, and practice tests interpretation.**
+    The lesson's Check-yourself contains at least one prompt that makes the learner
+    explain a concept in their OWN words (not restate a definition, not recompute a
+    number), per `TEACHING.md` §Self-check. AND at least one practice question tests
+    INTERPRETATION over computation — asking what a result MEANS, whether a claim
+    holds, or which of two setups behaves a certain way, rather than "compute X". A
+    Check-yourself with only recompute/recall prompts, or a practice set that is
+    all arithmetic with no interpretation item, is a defect.
+
+16. **Every formula is restated in plain English, and the formal version gives both readings.**
+    Each displayed formula (`$$...$$`) has a plain-English restatement beside it —
+    one sentence saying what it does in words, not just its symbol decode. AND "The
+    formal version" section gives BOTH readings of its result: the symbol-by-symbol
+    walk AND the everyday-words paraphrase. A displayed formula with no prose
+    restatement, or a formal version that decodes symbols without the plain-words
+    reading, is a defect.
+
+17. **"Explore it" computes the concept both ways and shows they agree.**
+    The Explore section computes the concept from the raw formula (built up by hand)
+    AND via the built-in function, and shows the two results MATCH (an explicit
+    comparison — same printed value, an `all.equal`, or a side-by-side). Computing it
+    only one way, or showing both without demonstrating they agree, is a defect.
+    (Checks 8 and 12 cover the predict-then-run prompt and the live/static wiring;
+    this check owns the from-scratch-vs-built-in agreement.)
+
+18. **"Where this goes next" exists with a resolving forward link.**
+    The lesson ends with a "Where this goes next" section (golden step 11) that
+    points forward — to the next module, a later course, or a concrete practice
+    pointer — and that link/pointer resolves to a real target. A missing section, or
+    a forward pointer that names nothing the learner can actually go to, is a defect.
+
+19. **Resources are curated per `resource-curation.md`.**
+    Each module's `resources.md` has 2–4 annotated entries or an explicit TODO
+    sentinel; every entry carries the prescribed annotation (what it is / why it
+    earns its place / when to use it); no bare unannotated URLs. You cannot verify
+    liveness (no network) — check FORM and the verified-on claim, and flag any entry
+    missing one.
 
 ## Reporting
 

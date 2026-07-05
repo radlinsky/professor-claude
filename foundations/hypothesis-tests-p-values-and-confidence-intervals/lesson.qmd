@@ -393,7 +393,7 @@ effect might be real and just too small for your sample to catch (a **missed sig
 Numeric proof: shrink our study to a weaker, noisier effect $d = (1, 0, 2, 0, 1)$ and the
 statistic falls to about 2.1 and the p-value rises to about 0.10 — above the 0.05 line,
 so this time we do **not** reject — yet a genuine effect could still be lurking; you
-simply couldn't see it through the noise with 5 plants. Absence of evidence is not
+just couldn't see it through the noise with 5 plants. Absence of evidence is not
 evidence of absence.
 
 ```{r trap2-weaker}

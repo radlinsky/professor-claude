@@ -77,7 +77,7 @@ season. We grow 5 plants at $x = (1, 2, 3, 4, 5)$ and run three seasons:
 
 Same true slope (2) every time — but the *estimates* came out 1.8, 2.3, 2.0. The
 estimate is a lottery ticket: mostly near the truth, never exactly it. The
-**standard error** is simply the typical size of that bounce, estimated from the
+**standard error** is the typical size of that bounce, estimated from the
 one sample you actually have.
 
 The same thing in R, so you can check every step:

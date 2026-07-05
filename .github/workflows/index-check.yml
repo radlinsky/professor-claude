@@ -18,6 +18,7 @@ on:
       - 'courses/**'
       - '_quarto.yml'
       - 'scripts/check-indexes.R'
+      - 'scripts/check-teaching-lint.R'
       - 'scripts/gen-indexes.R'
       - '.github/workflows/index-check.yml'
   pull_request:
@@ -26,6 +27,7 @@ on:
       - 'courses/**'
       - '_quarto.yml'
       - 'scripts/check-indexes.R'
+      - 'scripts/check-teaching-lint.R'
       - 'scripts/gen-indexes.R'
       - '.github/workflows/index-check.yml'
 
@@ -57,3 +59,6 @@ jobs:
 
       - name: Index-consistency check (foundation<->course links, Used-by, Status)
         run: Rscript scripts/check-indexes.R
+
+      - name: Teaching-lint check (banned condescension words, missing fig-alt)
+        run: Rscript scripts/check-teaching-lint.R

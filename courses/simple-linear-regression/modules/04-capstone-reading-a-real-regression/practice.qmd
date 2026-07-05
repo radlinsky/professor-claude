@@ -94,7 +94,7 @@ x <- c(1, 2, 3); y <- c(2, 1, 6)
 ::: {.callout-note collapse="true" title="Answer"}
 The ratio is upside down. The slope is **covariance over variance**,
 $\hat{\beta}_1 = s_{xy}/s_x^2 = 2/1 = 2$ — not variance over covariance. (A quick
-sanity check catches it: this data clearly trends upward overall, so the slope should
+sanity check catches it: this data trends upward overall, so the slope should
 be a solid positive number like 2, not a shallow 0.5.)
 
 ```{r p4-answer}

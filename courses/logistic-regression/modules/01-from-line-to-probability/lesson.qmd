@@ -265,6 +265,7 @@ abline(h = 0.5, lty = 3)
 
 ```{webr}
 #| autorun: false
+#| fig-alt: "A single sigmoid curve from -8 to 8, with dotted lines marking the 0.5 level and the x where the score is zero; its steepness changes as b1 is adjusted."
 # explore-3 — LIVE: turn the knobs. The slope b1 controls how SHARP the S is; the
 # intercept b0 slides it left/right. PREDICT: does a bigger b1 make the S steeper or
 # gentler? Change b1 to 3, then to 0.2, and watch.

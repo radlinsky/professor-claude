@@ -246,7 +246,7 @@ $B$ (length = $B$'s row count), **$A$'s column count must equal $B$'s row count.
 shorthand, an $n \times p$ matrix can only multiply a $p \times m$ matrix — the two
 inner numbers ($p$ and $p$) must match, and the answer is $n \times m$ (the two outer
 numbers). This matching-up is called **conformability**; when the inner numbers
-disagree, the multiplication is simply undefined and R throws a "non-conformable"
+disagree, the multiplication is undefined and R throws a "non-conformable"
 error. A matrix-times-*vector* is just the special case where $B$ has one column
 ($p \times 1$).
 
