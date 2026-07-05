@@ -264,12 +264,12 @@ c) Whenever the learning rate is chosen well
 :::
 
 ::: {.quiz-q qid="fld-optimizers-agree" qtype="mc" answer="c"}
-**Your from-scratch descent and scipy's L-BFGS-B landed on the same coefficients to
-seven decimals. Why did that have to happen?**
+**Your from-scratch descent and R's built-in `optim()` landed on the same coefficients
+to seven decimals. Why did that have to happen?**
 
 a) Both methods take the same downhill steps internally
 b) It is a coincidence of this dataset; other data would split them
-c) The squared-error bowl has a single bottom, and every correct optimizer finds it
+c) The squared-error bowl has one bottom, so any correct optimizer lands there
 :::
 
 ::: {.quiz-q qid="fld-why-square" qtype="mc" answer="a"}

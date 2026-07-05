@@ -244,7 +244,7 @@ the $a$-direction slope is $2(a-2)$.)
 **At the bottom of any smooth bowl, why does gradient descent stop moving?**
 
 a) The function value reaches zero there, which ends the loop
-b) The gradient there is the zero vector, so the update leaves the position unchanged
+b) The gradient is the zero vector there, so the step changes nothing
 c) The learning rate has decayed to zero by the time it arrives
 :::
 
