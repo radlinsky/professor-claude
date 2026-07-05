@@ -149,3 +149,36 @@ x <- c(...)
 ::: {.callout-note collapse="true" title="Answer"}
 <worked answer — for a cliffhanger, the honest partial answer plus what's coming>
 :::
+
+<!-- ========================================================================
+     Module check — the 5-item, closed-answer, machine-graded quiz that ends
+     every practice.qmd. Full rules: .claude/course-authoring/quiz-authoring.md
+     Fill the module= path, keep exactly 5 .quiz-q items (3-4 local + 1-2
+     interleaved, each interleaved item labeled; entry modules: all 5 local).
+     Never use id=/type= — only qid=/qtype=. No {webr}/code cells here.
+     ======================================================================== -->
+
+## Module check
+
+Five quick questions, graded on the page. Take it in your next session, after the
+practice set. 4/5 or better means this module is solid; results are saved in this
+browser only.
+
+::: {.module-check module="<courses/<course>/modules/NN-slug or foundations/slug>" pass="4"}
+
+::: {.quiz-q qid="<init>-<concept>" qtype="mc" answer="<letter>"}
+<question stem>
+
+a) <distractor from a Common trap>
+b) <correct answer>
+c) <distractor>
+d) <distractor>
+:::
+
+::: {.quiz-q qid="<init>-<concept>" qtype="numeric" answer="<number>" tolerance="0"}
+<question stem using the lesson's own toy numbers>
+:::
+
+<!-- ... total exactly 5 .quiz-q items; label any interleaved item in its stem ... -->
+
+:::

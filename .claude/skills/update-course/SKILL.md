@@ -7,8 +7,9 @@ description: >
   lessons, restructure modules, or update links. Use when the user says
   "improve/fix/revise/extend <lesson|module|course>" or "add a module to
   <course>". Tie-breaker: ADDING new problems is add-problems; CHANGING existing
-  problems is update-course. For building a whole NEW course use create-course;
-  for ONLY adding practice problems use add-problems.
+  problems is update-course. Retrofitting a Module check into existing material
+  is update-course (add-problems never touches quizzes). For building a whole NEW
+  course use create-course; for ONLY adding practice problems use add-problems.
 ---
 
 # update-course

@@ -153,6 +153,25 @@ Practice sets ramp from imitation to transfer:
 Full mechanics (starter chunks, answer format, chunk labels) live in
 `.claude/course-authoring/problem-authoring.md`.
 
+## Module check
+
+Each module's `practice.qmd` ends with a **Module check**: five closed-answer
+(multiple-choice / numeric) questions, graded on the page and recorded in the
+learner's browser. It is *summative-lite* — it sits after the free-response practice
+set (best taken the next session, so the spacing does work) and gives the mastery rule
+the one thing self-report can't: an objective signal. **≥4/5 = the module is solid**,
+and that pass is the learner's evidence for flipping their Status column to `done`.
+
+- **Cumulative:** 3–4 items test this module; 1–2 are interleaved from earlier modules
+  of the course (or a foundation's `Builds on` modules), each labeled in its question
+  text. **Entry modules** (nothing earlier) are exempt — all five items module-local.
+- **This is NOT a final exam.** The capstone is already the cumulative, unlabeled final
+  (see `course-structure.md` §Capstone) and is unchanged; do not add a separate exam.
+  The capstone module gets a Module check like any other.
+
+Syntax, the stable-qid rule, and the item-design rules live in
+`.claude/course-authoring/quiz-authoring.md`.
+
 ## Misconceptions (Common traps)
 
 - Each lesson names 1–2 predictable wrong beliefs **explicitly**, states why each
@@ -216,6 +235,8 @@ Full mechanics (starter chunks, answer format, chunk labels) live in
 - [ ] Recap can-dos present, with the mastery rule?
 - [ ] Practice ramp complete (confidence rep → faded → full/spot-the-error →
       interleaved → transfer)?
+- [ ] Module check present: 5 closed-answer items, ≥1 interleaved (unless entry
+      module), stable qids, answers verified?
 - [ ] Everything beyond the applied need marked **Optional**?
 - [ ] Quoted numbers re-verified against the code they came from?
 

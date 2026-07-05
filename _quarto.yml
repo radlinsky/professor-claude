@@ -512,6 +512,7 @@ format:
     toc: true
     code-fold: false
     code-tools: true
+    include-after-body: includes/quiz.html
 
 execute:
   warning: false
