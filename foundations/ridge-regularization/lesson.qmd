@@ -141,7 +141,7 @@ every coefficient toward 0.
 | $\sum_i$ | "the sum over i" | add over the data points | over the 3 points |
 | $\sum_j \beta_j^2$ | "the sum of the squared betas" | the total coefficient size the penalty charges for | $b^2$ (one predictor) |
 | $\lVert \beta \rVert^2$ | "the squared norm of beta" | same thing in vector shorthand: $\sum_j \beta_j^2$ | $b^2$ |
-| $I$ | "the identity matrix" | the matrix version of "1" (used in the matrix form, Course B) | — |
+| $I$ | "the identity matrix" | the matrix version of "1" (used in the matrix form, in the switchstep-variable-selection course) | — |
 
 ## The formal version
 
