@@ -20,6 +20,7 @@ source(file.path(EQ, "reimplementations", "trapz.R"))
 source(file.path(EQ, "reimplementations", "ols.R"))
 source(file.path(EQ, "reimplementations", "welford.R"))
 source(file.path(EQ, "reimplementations", "gradient_descent.R"))
+source(file.path(EQ, "reimplementations", "multiple-regression.R"))
 
 fixture <- function(name) file.path(EQ, "fixtures", name)
 
@@ -35,7 +36,11 @@ targets <- list(
   list(path = fixture("welford-full-c.json"),
        fn = function(inp) welford_reimpl(inp$x)),
   list(path = fixture("gradient-descent-full-scipy.json"),
-       fn = function(inp) list(coef = gradient_descent_reimpl(inp$x, inp$y, inp$lr, inp$n_iter)))
+       fn = function(inp) list(coef = gradient_descent_reimpl(inp$x, inp$y, inp$lr, inp$n_iter))),
+  list(path = fixture("multiple-regression-full-lm.json"),
+       fn = function(inp) multiple_regression_reimpl(inp$X, inp$y)),
+  list(path = fixture("multiple-regression-collinear-lm.json"),
+       fn = function(inp) multiple_regression_reimpl(inp$X, inp$y))
 )
 
 cat("== Professor Claude — equivalence checks ==\n\n")

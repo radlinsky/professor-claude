@@ -1,0 +1,415 @@
+---
+title: "Least squares and the normal equations"
+subtitle: "Where the coefficients come from — and how to rebuild lm() in one line"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+Module 1 told you what the coefficients *mean*. This module shows where they *come
+from*. In the earlier course, one predictor gave the tidy formula
+$\hat{\beta}_1 = s_{xy}/s_x^2$ (the x–y covariance $s_{xy}$ over $x$'s variance $s_x^2$).
+With many predictors that single formula falls apart —
+the predictors interfere, and you need to solve for all the coefficients *together*.
+The tool is the **normal equations**, written compactly as $X^\top X\,\hat\beta = X^\top y$,
+and by the end you'll reproduce `lm()`'s entire coefficient vector with one line of base
+R: `solve(t(X) %*% X, t(X) %*% y)`.
+
+**Builds on:** [Module 1](../01-many-knobs-one-model/lesson.qmd) (the model and its
+coefficients),
+[partial-derivatives-and-the-gradient](../../../../foundations/partial-derivatives-and-the-gradient/lesson.qmd)
+(set every partial slope to zero at the bottom),
+[matrices-and-linear-transforms](../../../../foundations/matrices-and-linear-transforms/lesson.qmd)
+(transpose $X^\top$, the product $X^\top X$, and `solve()` as matrix inverse).
+
+## Warm-up: do you remember?
+
+**1.** *(Module 1)* In $\hat{y}_i = \beta_0 + \beta_1 x_{i1} + \beta_2 x_{i2}$, what is
+the **residual** for observation $i$ (observed minus predicted)?
+
+::: {.callout-note collapse="true" title="Answer"}
+$e_i = y_i - \hat{y}_i = y_i - \beta_0 - \beta_1 x_{i1} - \beta_2 x_{i2}$. The residual
+is the leftover the fitted model misses. See
+[Module 1](../01-many-knobs-one-model/lesson.qmd).
+:::
+
+**2.** *(partial derivatives)* At the bottom of a valley $f(b_1, b_2)$ with two knobs,
+what is true of **both** partial derivatives $\partial f/\partial b_1$ and
+$\partial f/\partial b_2$?
+
+::: {.callout-note collapse="true" title="Answer"}
+Both are **zero** — the ground is level in every direction at the bottom. Finding the
+minimum means setting each partial slope to 0 and solving the resulting equations. See
+[partial-derivatives-and-the-gradient](../../../../foundations/partial-derivatives-and-the-gradient/lesson.qmd).
+:::
+
+**3.** *(matrices)* For $X = \begin{pmatrix} 1 & 1 \\ 2 & 0 \\ 3 & 2 \end{pmatrix}$
+(columns $x_1 = (1,2,3)$, $x_2 = (1,0,2)$), what is the top-left entry of $X^\top X$?
+
+::: {.callout-note collapse="true" title="Answer"}
+The top-left entry is $x_1 \cdot x_1 = 1^2 + 2^2 + 3^2 = 14$. Each entry of $X^\top X$
+is a dot product of two predictor columns (in R: `t(X) %*% X`). See
+[matrices-and-linear-transforms](../../../../foundations/matrices-and-linear-transforms/lesson.qmd).
+:::
+
+## A tiny example first
+
+Take two predictors and three observations, and — to keep the arithmetic clean — pick
+numbers that sit *exactly* on a plane through the origin (no intercept, no noise):
+
+$$
+x_1 = (1, 2, 3), \qquad x_2 = (1, 0, 2), \qquad y = (5, 4, 12).
+$$
+
+We'll look for the two coefficients $b_1, b_2$ that best predict $y$ from
+$b_1 x_1 + b_2 x_2$. "Best" means the smallest sum of squared residuals, just like the
+earlier course — only now there are two knobs to turn at once.
+
+Here is the trick that finds them, worked in plain arithmetic. The best coefficients
+make the residual "use up" all the information each predictor column carries about
+$y$. Concretely, they satisfy these two equations (we derive them below):
+
+$$
+\begin{aligned}
+(\textstyle\sum x_{i1}^2)\,b_1 + (\textstyle\sum x_{i1}x_{i2})\,b_2 &= \textstyle\sum x_{i1} y_i \\
+(\textstyle\sum x_{i1}x_{i2})\,b_1 + (\textstyle\sum x_{i2}^2)\,b_2 &= \textstyle\sum x_{i2} y_i .
+\end{aligned}
+$$
+
+Plug in the sums from our data (each is a dot product):
+
+- $\sum x_{i1}^2 = 1 + 4 + 9 = 14$
+- $\sum x_{i1} x_{i2} = 1\cdot1 + 2\cdot0 + 3\cdot2 = 7$
+- $\sum x_{i2}^2 = 1 + 0 + 4 = 5$
+- $\sum x_{i1} y_i = 1\cdot5 + 2\cdot4 + 3\cdot12 = 49$
+- $\sum x_{i2} y_i = 1\cdot5 + 0\cdot4 + 2\cdot12 = 29$
+
+So the two equations are:
+
+$$
+14\,b_1 + 7\,b_2 = 49, \qquad 7\,b_1 + 5\,b_2 = 29 .
+$$
+
+Solve them like any two-equations-two-unknowns pair. Multiply the first by 5 and the
+second by 7 to line up $b_2$... or just use the shortcut for a 2×2 system: the
+determinant is $14\cdot5 - 7\cdot7 = 70 - 49 = 21$, and
+
+$$
+b_1 = \frac{5\cdot49 - 7\cdot29}{21} = \frac{245 - 203}{21} = \frac{42}{21} = 2,
+\qquad
+b_2 = \frac{14\cdot29 - 7\cdot49}{21} = \frac{406 - 343}{21} = \frac{63}{21} = 3 .
+$$
+
+So $b_1 = 2$, $b_2 = 3$. The same thing in R:
+
+```{r toy-example}
+x1 <- c(1, 2, 3); x2 <- c(1, 0, 2); y <- c(5, 4, 12)
+X <- cbind(x1, x2)                 # design matrix: two predictor columns, no intercept
+
+t(X) %*% X                          # the 2x2 grid of column dot products: [[14,7],[7,5]]
+t(X) %*% y                          # the right-hand side: (49, 29)
+solve(t(X) %*% X, t(X) %*% y)       # solve the pair: b1 = 2, b2 = 3
+```
+
+(These three points were rigged to lie exactly on the plane $2x_1 + 3x_2$, so the fit
+is perfect and the residuals are all zero. Real data won't be exact — but the solving
+step is *identical*.)
+
+## Getting a feel for it
+
+**Casting a shadow onto a plane.** Picture the response $y$ as a single point floating
+in space, and the predictor columns as directions spanning a flat sheet (a plane). The
+fitted values $\hat{y}$ are forced to live *on* that sheet — they can only be
+combinations of the predictor columns. The best fit is the point on the sheet
+**closest** to $y$, and the closest point is the *shadow* $y$ casts straight down onto
+it. The line from $y$ to its shadow — the residual — is **perpendicular** to the sheet.
+
+**Why "perpendicular" gives exactly our two equations.** Perpendicular to the sheet
+means perpendicular to every direction *in* it — to every predictor column. Two vectors
+are perpendicular when their dot product is zero. So "residual perpendicular to column
+$x_1$" is $\sum x_{i1}\,e_i = 0$, and "residual perpendicular to column $x_2$" is
+$\sum x_{i2}\,e_i = 0$. Those two "zero dot product" statements, written out, are
+exactly the two equations above. This is why they're called the **normal** equations —
+"normal" is the geometry word for "perpendicular."
+
+**What the numbers feel like.** $X^\top X$ is just the grid of dot products *among the
+predictor columns* — how much each column overlaps with itself and with the others; big
+off-diagonal entries mean the predictors point in similar directions (they're
+correlated — the seed of Module 3's trouble). $X^\top y$ is how much each column
+overlaps with the response. The normal equations balance the two: they pick the
+coefficients so the predictor columns, combined, line up with $y$ as well as a flat
+sheet can.
+
+## What the notation is going to say
+
+The formula will say: *stack the predictors into a matrix $X$; the best coefficients
+make the residual perpendicular to every column of $X$; written compactly that is
+"$X^\top X$ times the coefficients equals $X^\top y$."* Solving it is exactly the two
+lines of R you just ran, and $X^\top X$ is exactly the little dot-product grid you
+computed as $\left(\begin{smallmatrix}14&7\\7&5\end{smallmatrix}\right)$.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\mathbf{X}$ | "the matrix ex" | design matrix: rows = observations, columns = predictors (in R: `cbind(...)`) | the $x_1, x_2$ columns |
+| $\mathbf{y}$ | "the vector why" | the response column | $(5, 4, 12)$ |
+| $\boldsymbol{\beta}$, $b$ | "beta" / "bee" | the coefficient vector we solve for | $(2, 3)$ |
+| $\hat{\beta}$ | "beta hat" | the *estimated* coefficients (the solution) | $(2, 3)$ |
+| $X^\top$ | "ex transpose" | $X$ flipped so rows become columns (in R: `t(X)`) | a 2×3 matrix |
+| $X^\top X$ | "ex transpose ex" | the grid of dot products among the columns of $X$ (the "Gram matrix") | $\left(\begin{smallmatrix}14&7\\7&5\end{smallmatrix}\right)$ |
+| $X^\top y$ | "ex transpose why" | each column's dot product with $y$ | $(49, 29)$ |
+| $A^{-1}$ | "A inverse" | the matrix that undoes $A$ (in R: `solve(A)`) | — |
+| $e_i$ | "ee sub eye" | residual $y_i - \hat{y}_i$ | 0 (rigged toy) |
+| $\mathrm{RSS}$ | "residual sum of squares" | $\sum_i e_i^2$, the total squared miss (in R: `sum(resid^2)`) | 0 (rigged toy) |
+| $\nabla$ | "del" / "the gradient" | the vector of all partial derivatives at once | see Optional box |
+
+## The formal version
+
+The thing we minimize is the **residual sum of squares** — the same badness score as
+the earlier course, now over all the knobs at once. For the two-predictor case:
+
+$$
+\mathrm{RSS}(b_1, b_2) = \sum_{i=1}^{n}\big(y_i - b_1 x_{i1} - b_2 x_{i2}\big)^2 .
+$$
+
+Find the bottom by setting each partial derivative to zero.
+
+### Step 1 — partial derivative with respect to $b_1$
+
+$$
+\begin{aligned}
+\frac{\partial\,\mathrm{RSS}}{\partial b_1}
+&= \sum_{i=1}^{n} 2\big(y_i - b_1 x_{i1} - b_2 x_{i2}\big)\cdot(-x_{i1}) \\
+&= -2\sum_{i=1}^{n} x_{i1}\big(y_i - b_1 x_{i1} - b_2 x_{i2}\big) .
+\end{aligned}
+$$
+
+- Line 1: chain rule, lite — derivative of (stuff)² is $2\cdot$(stuff)$\cdot$(derivative
+  of the stuff); treating $b_2$ as constant, the inside's derivative with respect to
+  $b_1$ is $-x_{i1}$. The derivative of a sum is the sum of the derivatives.
+- Line 2: pull the constant $-2$ out of the sum (a constant multiple factors out — the
+  sum rule from [vectors-and-summation](../../../../foundations/vectors-and-summation/lesson.qmd)).
+
+Set it to zero and divide by $-2$, then split the sum:
+
+$$
+\begin{aligned}
+\sum_i x_{i1}\big(y_i - b_1 x_{i1} - b_2 x_{i2}\big) &= 0 \\
+\Rightarrow\quad \sum_i x_{i1} y_i &= b_1 \sum_i x_{i1}^2 + b_2 \sum_i x_{i1}x_{i2} .
+\end{aligned}
+$$
+
+- Line 2: multiply through and split into three sums; pull each constant coefficient
+  ($b_1$, $b_2$) out of its sum, then move the two knob-terms to the right.
+
+That is the **first normal equation** — the top row of the pair we used above.
+
+### Step 2 — partial derivative with respect to $b_2$
+
+The identical move, now differentiating the inside by $b_2$ (its derivative is
+$-x_{i2}$):
+
+$$
+\sum_i x_{i2} y_i = b_1 \sum_i x_{i1}x_{i2} + b_2 \sum_i x_{i2}^2 .
+$$
+
+That is the **second normal equation** — the bottom row.
+
+### Packaging the pair as one matrix equation
+
+Line the two equations up. On the left, the coefficient grid multiplying $(b_1, b_2)$
+is exactly the dot-product grid $X^\top X$; on the right is $X^\top y$:
+
+$$
+\underbrace{\begin{pmatrix} \sum x_{i1}^2 & \sum x_{i1}x_{i2} \\ \sum x_{i1}x_{i2} & \sum x_{i2}^2 \end{pmatrix}}_{X^\top X}
+\underbrace{\begin{pmatrix} b_1 \\ b_2 \end{pmatrix}}_{\hat\beta}
+=
+\underbrace{\begin{pmatrix} \sum x_{i1} y_i \\ \sum x_{i2} y_i \end{pmatrix}}_{X^\top y} .
+$$
+
+Nothing about this is special to two predictors: with $p$ predictors (and an intercept
+column of 1s folded into $X$) you get $p{+}1$ normal equations, and they package into
+the very same shape:
+
+$$
+\boxed{\,X^\top X\,\hat\beta = X^\top y\,} \qquad\Longrightarrow\qquad \hat\beta = (X^\top X)^{-1} X^\top y .
+$$
+
+Reading it aloud: "ex-transpose-ex times beta-hat equals ex-transpose-why" — or in
+everyday words: "the column dot-product grid, times the coefficients, equals the
+columns' overlap with $y$; solve for the coefficients." In R you never form the inverse
+by hand — `solve(A, b)` solves $A\hat\beta = b$ directly and more stably:
+
+$$
+\texttt{beta\_hat <- solve(t(X) \%*\% X, t(X) \%*\% y)} .
+$$
+
+**Sanity check (toy numbers).** $X^\top X = \left(\begin{smallmatrix}14&7\\7&5\end{smallmatrix}\right)$,
+$X^\top y = (49, 29)$, and solving gave $(b_1, b_2) = (2, 3)$ — matching the hand
+arithmetic and `lm()` (below).
+
+::: {.callout-note title="Optional: the whole derivation in one vector-calculus line"}
+If you're comfortable with the gradient $\nabla$ (all partial derivatives stacked into
+a vector), the two steps above collapse to one. Writing $\mathrm{RSS} = \lVert y - Xb \rVert^2$,
+its gradient is $\nabla_b\,\mathrm{RSS} = -2X^\top(y - Xb)$; setting it to the zero
+vector gives $X^\top(y - X\hat\beta) = 0$, i.e. $X^\top X\hat\beta = X^\top y$. This
+buys brevity, not new truth — it's the same "residual perpendicular to every column"
+statement. Skip it freely; the scalar derivation above is the whole story.
+:::
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# TRY IT: change y (say, make the last value 13 instead of 12) and re-run. The fit is
+# no longer perfect, but solve() still returns the least-squares coefficients.
+# PREDICT: will solve()'s answer still match lm()'s exactly? Write your guess, then run.
+x1 <- c(1, 2, 3); x2 <- c(1, 0, 2); y <- c(5, 4, 12)
+X  <- cbind(x1, x2)
+
+beta_hat <- solve(t(X) %*% X, t(X) %*% y)   # normal equations, from scratch
+lm_coef  <- coef(lm(y ~ x1 + x2 - 1))        # lm(), no intercept (-1), as the referee
+cbind(from_scratch = as.numeric(beta_hat), lm = as.numeric(lm_coef))
+```
+
+### Rebuild `lm()` on the real panel, and check it against the frozen proof
+
+Here is the payoff. The `equivalence/` harness in this repo froze `lm()`'s answer on a
+simulated 30-row indicator panel (validation **tier: full** — the reference is R's own
+`stats::lm`, which also runs right here in your browser). The cell below regenerates
+that exact panel, fits it two ways, and checks both against the frozen numbers:
+
+```{webr}
+#| autorun: true
+# The SAME generator the equivalence fixture used (base R; reproduced by seed).
+sim_indicators <- function(n = 30, seed = 1, rho_max = 0.95) {
+  set.seed(seed)
+  nm <- c("rate_10y","rate_2y","cpi_infl","pce_infl","unemp","oil","usd_index",
+          "sentiment","housing","pmi","credit_spread","vix")
+  p <- length(nm); R <- diag(p); dimnames(R) <- list(nm, nm)
+  R["rate_10y","rate_2y"]  <- R["rate_2y","rate_10y"]  <- 0.90
+  R["cpi_infl","pce_infl"] <- R["pce_infl","cpi_infl"] <- rho_max
+  R["sentiment","pmi"]     <- R["pmi","sentiment"]     <- 0.70
+  R["credit_spread","vix"] <- R["vix","credit_spread"] <- 0.65
+  X <- matrix(rnorm(n * p), n, p) %*% chol(R); colnames(X) <- nm
+  beta <- setNames(numeric(p), nm); beta[c("rate_10y","cpi_infl","unemp")] <- c(0.5,-0.4,-0.3)
+  list(X = X, y = drop(X %*% beta + rnorm(n, sd = 1)))
+}
+sim <- sim_indicators()
+Xd  <- cbind(`(Intercept)` = 1, sim$X)          # design matrix WITH the intercept column
+y   <- sim$y
+
+beta_scratch <- as.numeric(solve(t(Xd) %*% Xd, t(Xd) %*% y))   # from scratch
+beta_lm      <- as.numeric(coef(lm(y ~ sim$X)))                # lm(), live
+
+# The frozen reference from equivalence/fixtures/multiple-regression-full-lm.json:
+beta_frozen <- c(-0.12945157, 0.38793328, 0.11812846, -1.69810596, 0.73806047,
+                 -0.08225275, 0.05353800, 0.04667165, -0.07781305, 0.22603827,
+                  0.10805845, -0.32544980, 0.63931982)
+
+cat("scratch vs lm  max diff:", max(abs(beta_scratch - beta_lm)),    "\n")
+cat("scratch vs frozen ref  :", max(abs(beta_scratch - beta_frozen)),"\n")
+# Both differences are ~1e-8 or smaller: your one-line rebuild IS what lm() computes.
+```
+
+## Common traps
+
+**Trap: "`solve()` always returns the coefficients."** `solve(t(X) %*% X, ...)` needs
+$X^\top X$ to be invertible, which fails when a predictor column is a copy of another
+(or an exact linear combination of others). Then there is *no unique* answer — infinitely
+many coefficient vectors fit equally well — and R throws a "system is computationally
+singular" error. Try it: give the toy a third column equal to `x1 + x2` and `solve()`
+refuses.
+
+```{webr}
+#| autorun: false
+# p-trap-starter: add a redundant column and watch solve() fail.
+# PREDICT: what happens when x3 is exactly x1 + x2?
+x1 <- c(1, 2, 3); x2 <- c(1, 0, 2); y <- c(5, 4, 12)
+X  <- cbind(x1, x2, x3 = x1 + x2)     # x3 carries no new information
+solve(t(X) %*% X, t(X) %*% y)          # error: X'X is singular
+```
+
+**Trap: "the normal equations are the *only* way, and always the best."** They're the
+cleanest to *understand*, but forming $X^\top X$ squares how spread-out the predictors'
+scales are (technically, it squares the condition number), which can lose precision when
+predictors are nearly collinear. That's why `lm()` actually fits with a QR
+decomposition instead — same answer, more numerically stable. On well-behaved data (our
+first panel) the two agree to ~15 digits; on a near-collinear panel they still agree, but
+to fewer digits (the `equivalence/` harness records exactly this by widening the
+tolerance for its collinear fixture). Knowing the normal equations is knowing *what*
+`lm()` computes; QR is a *how*.
+
+## Check yourself
+
+**1.** For predictors $x_1 = (2, 0, 1)$ and $x_2 = (1, 1, 0)$, what are the two
+diagonal entries of $X^\top X$ (i.e. $\sum x_{i1}^2$ and $\sum x_{i2}^2$)?
+
+```{webr}
+#| autorun: false
+# check1-starter
+x1 <- c(2, 0, 1); x2 <- c(1, 1, 0)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\sum x_{i1}^2 = 4 + 0 + 1 = 5$ and $\sum x_{i2}^2 = 1 + 1 + 0 = 2$. In R,
+`diag(t(cbind(x1,x2)) %*% cbind(x1,x2))` gives `5 2`.
+:::
+
+**2.** The normal equations say the residual is perpendicular to every predictor
+column. What single number does that make $\sum_i x_{i1}\, e_i$ equal to at the best
+fit?
+
+::: {.callout-note collapse="true" title="Answer"}
+Zero. "Perpendicular to column $x_1$" *is* "the dot product of $x_1$ with the residuals
+is 0," i.e. $\sum_i x_{i1} e_i = 0$. One such equation per column — that's the whole set
+of normal equations.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what
+$X^\top X\,\hat\beta = X^\top y$ says and why solving it gives the best-fitting
+coefficients.
+
+::: {.callout-note collapse="true" title="A model answer"}
+It says: pick the coefficients that make the leftover residual perpendicular to every
+predictor column — equivalently, make the predictors' combined pull line up with $y$ as
+closely as a flat combination of them can. Solving it lands $\hat{y}$ on the point of the
+predictor-plane closest to $y$, which is exactly the least-squares (smallest total
+squared miss) fit.
+:::
+
+## What you can now do
+
+- **Derive the normal equations** for two predictors by setting each partial derivative
+  of RSS to zero, naming the trick behind each step.
+- **Read $X^\top X\,\hat\beta = X^\top y$** as "residual perpendicular to every column,"
+  and recognize $X^\top X$ as the grid of column dot products.
+- **Fit a multiple regression from scratch** with `solve(t(X) %*% X, t(X) %*% y)` and
+  confirm it reproduces `lm()` — the validation this course's `equivalence/` harness
+  freezes.
+- **Explain when the solve fails** (a redundant/collinear column makes $X^\top X$
+  singular) and why `lm()` prefers QR for stability.
+
+If any of these feels shaky, revisit [The formal version](#the-formal-version) before
+continuing — Module 3 takes the collinearity crack we just saw and shows the damage it
+does to the coefficients themselves.
+
+## Where this goes next
+
+You can now compute the coefficients. Next: [Marginal vs joint](../03-marginal-vs-joint/lesson.qmd)
+asks what they *say* when predictors travel together — and shows a predictor that looks
+important on its own vanishing (or flipping sign) in the joint fit. That "singular when
+collinear" crack becomes the main event. Ready for more reps first? Do the
+[practice problems](practice.qmd).

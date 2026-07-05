@@ -1,0 +1,309 @@
+---
+title: "Capstone — reading a multiple regression"
+subtitle: "Return to the source: decode a full summary(lm()) line by line"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+
+sim_indicators <- function(n = 200, seed = 1, rho_max = 0.95) {
+  set.seed(seed)
+  nm <- c("rate_10y", "rate_2y", "cpi_infl", "pce_infl", "unemp",
+          "oil", "usd_index", "sentiment", "housing", "pmi",
+          "credit_spread", "vix")
+  p <- length(nm)
+  R <- diag(p); dimnames(R) <- list(nm, nm)
+  R["rate_10y", "rate_2y"]  <- R["rate_2y", "rate_10y"]  <- 0.90
+  R["cpi_infl", "pce_infl"] <- R["pce_infl", "cpi_infl"] <- rho_max
+  R["sentiment", "pmi"]     <- R["pmi", "sentiment"]     <- 0.70
+  R["credit_spread", "vix"] <- R["vix", "credit_spread"] <- 0.65
+  X <- matrix(rnorm(n * p), n, p) %*% chol(R)
+  colnames(X) <- nm
+  beta <- setNames(numeric(p), nm)
+  beta[c("rate_10y", "cpi_infl", "unemp")] <- c(0.5, -0.4, -0.3)
+  y <- drop(X %*% beta + rnorm(n, sd = 1))
+  list(X = X, y = y, beta_true = beta)
+}
+
+# A FRESH panel (new seed) the learner has not seen — the artifact to decode.
+sim   <- sim_indicators(n = 150, seed = 3)
+panel <- data.frame(sim$X, gdp = sim$y)
+fit   <- lm(gdp ~ ., data = panel)
+```
+
+## Where we're going
+
+No new concepts here — this is the proof you reached the goal. We take a **fresh**
+simulated indicator panel (150 quarters, 12 indicators, a seed you haven't seen) and
+read its complete `summary(lm())` the way you'd read a regression in a paper: every
+number named, every number traced back to the module that taught it. Then we connect it
+to how a statistics text frames the same questions. If you can decode this print-out
+end to end, you can read the regression tables this course was built to demystify.
+
+**Builds on:** all three modules — the model and coefficients
+([Module 1](../01-many-knobs-one-model/lesson.qmd)), the least-squares fit and RSS
+([Module 2](../02-least-squares-and-the-normal-equations/lesson.qmd)), and the
+marginal-vs-joint / collinearity story
+([Module 3](../03-marginal-vs-joint/lesson.qmd)).
+
+## Warm-up: do you remember?
+
+**1.** *(Module 1)* Write the multiple-regression model equation for observation $i$
+with $p$ predictors, including the leftover term.
+
+::: {.callout-note collapse="true" title="Answer"}
+$y_i = \beta_0 + \beta_1 x_{i1} + \cdots + \beta_p x_{ip} + \varepsilon_i$ — baseline,
+plus each predictor times its coefficient, plus the leftover $\varepsilon_i$. See
+[Module 1](../01-many-knobs-one-model/lesson.qmd).
+:::
+
+**2.** *(Module 2)* What does `lm()` minimize to choose the coefficients, and what
+matrix equation characterizes the solution?
+
+::: {.callout-note collapse="true" title="Answer"}
+It minimizes the residual sum of squares $\sum_i (y_i - \hat{y}_i)^2$; the minimizer
+solves the normal equations $X^\top X\,\hat\beta = X^\top y$. See
+[Module 2](../02-least-squares-and-the-normal-equations/lesson.qmd).
+:::
+
+**3.** *(Module 3)* If two predictors are correlated 0.95, what happens to the
+reliability of their individual coefficients, and what one number measures it?
+
+::: {.callout-note collapse="true" title="Answer"}
+Their coefficients become unreliable — hard to attribute the shared effect to one twin,
+with inflated uncertainty. The **variance inflation factor** $\mathrm{VIF}_j = 1/(1-R^2_j)$
+measures it (flag above 10). See [Module 3](../03-marginal-vs-joint/lesson.qmd).
+:::
+
+## How to read the symbols
+
+No new symbols here — these are carried over from Modules 1–3, gathered in one place for
+the decode (each links back to where it was taught):
+
+| Symbol | How to say it | What it means | Taught in |
+|---|---|---|---|
+| $\hat\beta_j$ | "beta hat sub jay" | the estimated coefficient on predictor $j$ (an `Estimate`) | [M1](../01-many-knobs-one-model/lesson.qmd) |
+| $e_i$ | "ee sub eye" | residual $y_i - \hat{y}_i$ (the `Residuals` summary) | [M2](../02-least-squares-and-the-normal-equations/lesson.qmd) |
+| $\mathrm{RSS}$ | "residual sum of squares" | $\sum e_i^2$, the total squared miss | [M2](../02-least-squares-and-the-normal-equations/lesson.qmd) |
+| $\mathrm{TSS}$, $R^2$ | "total sum of squares", "R squared" | $\sum (y_i - \bar{y})^2$, the total spread of $y$; and $1 - \mathrm{RSS}/\mathrm{TSS}$, the fraction explained | this lesson |
+| $t$ | "tee value" | `Estimate / Std. Error` — estimate's distance from 0 in std-error units | this lesson |
+| $p$ (as $\Pr(>\lvert t\rvert)$) | "pee value" | chance of a $t$ this large if the true coefficient were 0 | this lesson |
+| $\mathrm{VIF}_j$ | "vif sub jay" | variance inflation factor $1/(1 - R^2_j)$ | [M3](../03-marginal-vs-joint/lesson.qmd) |
+| $F$ | "eff statistic" | whole-model test: is *any* predictor related to $y$? | this lesson |
+| $n$, $p$ | "en", "pee" | number of observations; number of predictors | [M1](../01-many-knobs-one-model/lesson.qmd) |
+
+## The artifact
+
+Here is the full summary, exactly as R prints it — the thing to decode:
+
+```{r artifact}
+summary(fit)
+```
+
+## The decode
+
+We walk it top to bottom, one block at a time.
+
+### `Call` and `Residuals`
+
+```
+Call:
+lm(formula = gdp ~ ., data = panel)
+```
+
+The **`Call`** just echoes the model: `gdp ~ .` means "regress `gdp` on every other
+column" — our twelve indicators, each with its own coefficient (Module 1), plus an
+intercept R adds automatically.
+
+The **`Residuals`** line is the five-number summary of the leftovers
+$e_i = y_i - \hat{y}_i$ (Module 2): minimum ≈ −2.42, median ≈ −0.06, maximum ≈ 2.12. A
+median near 0 and roughly symmetric quartiles are the reassuring pattern — the fit isn't
+systematically over- or under-predicting.
+
+### The `Coefficients` table — one row per knob
+
+Each row is one coefficient $\hat\beta_j$ with four numbers. Take `rate_10y`:
+
+```
+               Estimate Std. Error t value Pr(>|t|)
+rate_10y       0.396782   0.183472   2.163   0.0323 *
+```
+
+- **`Estimate`** (0.397) is $\hat\beta_{\text{rate\_10y}}$ — the joint coefficient,
+  "change in `gdp` per unit of `rate_10y`, **holding the other eleven fixed**" (Module 1).
+  The true value we simulated was 0.5, so the fit recovered it reasonably from 150 noisy
+  quarters.
+- **`Std. Error`** (0.183) is how much that estimate would wobble across repeated
+  samples — the ruler for judging whether the estimate is distinguishable from 0.
+- **`t value`** (2.163) is `Estimate / Std. Error` = how many standard errors the
+  estimate sits from 0. Big (in size) means "far from 0 relative to its wobble."
+- **`Pr(>|t|)`** (0.0323) is the p-value: the probability of a $t$ this large in size if
+  the true coefficient were exactly 0. Small means "unlikely to be a fluke of noise."
+- The **`*`** is R's significance flag (see the `Signif. codes` legend): `*` marks
+  $p < 0.05$, `**` marks $p < 0.01$, and so on.
+
+This is exactly the coefficient table a paper prints — often with the stars, sometimes
+with the standard errors in parentheses under each estimate.
+
+### Reading the twins — collinearity in the wild (Module 3)
+
+Look at the two inflation measures:
+
+```
+cpi_infl      -0.215549   0.251926  -0.856   0.3937
+pce_infl      -0.282008   0.254550  -1.108   0.2699
+```
+
+Neither is "significant" (both p-values are large) — yet we *know* `cpi_infl` is a
+genuine driver (its true effect is −0.4). What happened? The two are correlated 0.95, so
+each one's standard error is inflated: the fit can't tell which twin owns the shared
+inflation effect, so it is unsure about *both*. This is Module 3 on a real print-out. The
+`{webr}` cell below confirms it with their VIFs:
+
+```{webr}
+#| autorun: true
+# Recompute the inflation twins' VIFs on this exact panel (regress each on the others).
+# PREDICT: both correlated ~0.95, so expect VIF > 10 (Module 3's flag).
+set.seed(3); n <- 150
+nm <- c("rate_10y","rate_2y","cpi_infl","pce_infl","unemp","oil","usd_index",
+        "sentiment","housing","pmi","credit_spread","vix")
+p <- length(nm); R <- diag(p); dimnames(R) <- list(nm, nm)
+R["rate_10y","rate_2y"] <- R["rate_2y","rate_10y"] <- 0.90
+R["cpi_infl","pce_infl"] <- R["pce_infl","cpi_infl"] <- 0.95
+R["sentiment","pmi"] <- R["pmi","sentiment"] <- 0.70
+R["credit_spread","vix"] <- R["vix","credit_spread"] <- 0.65
+X <- matrix(rnorm(n*p), n, p) %*% chol(R); colnames(X) <- nm
+vif <- function(v) 1 / (1 - summary(lm(X[, v] ~ X[, setdiff(nm, v)]))$r.squared)
+c(cpi_infl = round(vif("cpi_infl"), 2), pce_infl = round(vif("pce_infl"), 2),
+  oil = round(vif("oil"), 2))   # inflation twins ~ 11 (flagged); oil ~ 1 (independent)
+```
+
+Both inflation twins land near 11 — over the "> 10" line — while an uncorrelated
+predictor like `oil` sits near 1. High VIF is exactly why the twins' coefficients came
+out uncertain and non-significant.
+
+### A caution the table itself demands — false positives
+
+Two predictors we simulated with **zero** true effect, `housing` and `vix`, show up
+`*`-significant (p ≈ 0.038 and 0.046). With twelve predictors tested at the 5% level,
+seeing one or two cross the line by chance alone is expected — testing many coefficients
+multiplies the chances of a false alarm. A single star is weak evidence when you're
+reading a wide table.
+
+### The bottom block — whole-model summaries
+
+```
+Residual standard error: 0.956 on 137 degrees of freedom
+Multiple R-squared:  0.4002,	Adjusted R-squared:  0.3477
+F-statistic: 7.618 on 12 and 137 DF,  p-value: 1.109e-10
+```
+
+- **Residual standard error** (0.956) is the typical size of a leftover $e_i$ — the
+  square root of RSS spread over the **degrees of freedom** $n - (p{+}1) = 150 - 13 = 137$
+  (150 observations, minus 13 fitted numbers: the intercept and twelve slopes). We
+  simulated the noise with standard deviation 1, so 0.956 is a faithful recovery.
+- **Multiple R-squared** (0.400) is the fraction of `gdp`'s variance the model explains,
+  $1 - \mathrm{RSS}/\mathrm{TSS}$ — where RSS is Module 2's residual sum of squares and
+  TSS (total sum of squares) is how much `gdp` varies around its own mean. **Adjusted
+  R-squared** (0.348) is
+  the same idea with a penalty for the number of predictors — it docks you for adding
+  columns that don't earn their keep, which is why it's lower.
+- **F-statistic** (7.618, p ≈ 1.1e-10) answers the single most important whole-model
+  question: *is at least one predictor genuinely related to `gdp`, or could the entire
+  fit be noise?* The tiny p-value says: not noise — something real is in here.
+
+### Connecting to the textbook framing
+
+An introductory statistics text (for example, *An Introduction to Statistical Learning*,
+2nd ed., §3.2.2, "Some Important Questions") organizes exactly this read around a few
+questions. The first — *"Is at least one predictor useful?"* — is answered by the
+**F-statistic**, not by scanning the individual t-tests, and for a good reason the text
+stresses: when you test many coefficients one by one, some will look significant by pure
+chance (our `housing` and `vix`), so the whole-model F-test is the honest gate to pass
+first. The next question — *"which* predictors matter, and can we trust each
+coefficient?" — is where Module 3's collinearity caution lives: with correlated
+predictors, individual coefficients (like our inflation twins) get unreliable even when
+the group plainly carries signal. Reading a regression well means holding both in mind:
+the F-test for "is there anything here," and the VIF / marginal-vs-joint lens for "can I
+trust this one number." *(We paraphrase the text's questions and cite the section; the
+argument, re-created here on our own simulated data, is the same one.)*
+
+## Common traps
+
+**Trap: "a non-significant coefficient means the predictor doesn't matter."** The
+inflation twins are the counterexample: `cpi_infl` has a real −0.4 effect yet a large
+p-value, purely because its collinear partner inflated its standard error. Non-significance
+in a collinear model can mean "we can't tell *which* twin," not "neither matters."
+
+**Trap: "a high $R^2$ means the coefficients are trustworthy."** These are separate
+questions. A model can predict well (decent $R^2$, tiny F-test p-value) while individual
+coefficients are unreliable because of collinearity. Prediction quality and coefficient
+attribution are not the same thing — Module 3's central lesson, restated on the summary.
+
+## Check yourself
+
+**1.** In the table, a coefficient has `Estimate` 0.40 and `Std. Error` 0.20. What is its
+`t value`, and would you expect a `*`?
+
+::: {.callout-note collapse="true" title="Answer"}
+$t = 0.40 / 0.20 = 2.0$. A $t$ near 2 typically corresponds to $p \approx 0.05$, right at
+the `*` threshold — borderline significant. (Here `rate_10y`'s $t = 2.16$ earned its `*`
+at $p = 0.032$.)
+:::
+
+**2.** The F-statistic's p-value is 1.1e-10, but two coefficients with true effect zero
+are starred. Reconcile these — is the model "significant" or not?
+
+::: {.callout-note collapse="true" title="Answer"}
+Both are true at once. The F-test says the model *as a whole* explains real signal
+(overwhelmingly so) — driven by the genuine predictors. The two starred zero-effect
+predictors are false positives from testing many coefficients; they don't contradict the
+F-test, they illustrate why you check the whole-model F first and treat lone stars
+cautiously.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why you'd report the
+F-statistic *and* the VIFs when presenting this regression, rather than just the
+coefficient table.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The F-statistic confirms the model captures real signal overall, which the individual
+t-tests can't establish on their own once you're testing a dozen of them. The VIFs flag
+which coefficients (the correlated inflation twins) are unreliable despite the model
+fitting well, so a reader doesn't over-interpret a single wobbly number.
+:::
+
+## What you can now do
+
+- **Decode a full `summary(lm())`** — Call, residuals, the coefficient table
+  (estimate / std. error / t / p / stars), residual standard error and degrees of
+  freedom, $R^2$ and adjusted $R^2$, and the F-statistic — naming each and tracing it to
+  its module.
+- **Read a coefficient safely**: as a "holding others fixed" effect whose trustworthiness
+  depends on its collinearity (VIF), not just its size or star.
+- **Use the F-test correctly** as the whole-model "is anything here?" gate, and explain
+  why lone significant coefficients in a wide table can be false positives.
+- **Explain the course's headline** — a predictor important alone can vanish or flip sign
+  jointly — off a real regression print-out.
+
+If any bullet feels shaky, revisit the module it points to before calling the course done
+— these can-dos *are* the course goal.
+
+## Where this goes next
+
+**What you still can't read (yet).** This course fit *all* the predictors and read what
+comes out. It did not decide *which* predictors to keep — with a dozen tangled
+indicators, "use them all" is rarely the right model. Choosing a subset (and doing it
+honestly, without lying to yourself with post-selection p-values) is its own subject:
+the **`switchstep-variable-selection`** course builds a likelihood-based search that adds,
+drops, and swaps predictors under a principled stopping rule — and even reconstructs the
+joint fit from published summary statistics alone. It picks up exactly where this
+capstone leaves off. Ready for a final workout? Do the cumulative [practice problems](practice.qmd).

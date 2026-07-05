@@ -101,6 +101,17 @@ project:
     - courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/lesson.qmd
     - courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/practice.qmd
     - courses/logistic-regression/resources.md
+    - courses/multiple-regression/syllabus.md
+    - courses/multiple-regression/00-roadmap.qmd
+    - courses/multiple-regression/modules/01-many-knobs-one-model/lesson.qmd
+    - courses/multiple-regression/modules/01-many-knobs-one-model/practice.qmd
+    - courses/multiple-regression/modules/02-least-squares-and-the-normal-equations/lesson.qmd
+    - courses/multiple-regression/modules/02-least-squares-and-the-normal-equations/practice.qmd
+    - courses/multiple-regression/modules/03-marginal-vs-joint/lesson.qmd
+    - courses/multiple-regression/modules/03-marginal-vs-joint/practice.qmd
+    - courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/lesson.qmd
+    - courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/practice.qmd
+    - courses/multiple-regression/resources.md
 
 website:
   title: "Professor Claude"
@@ -373,6 +384,36 @@ website:
                 href: courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression/practice.qmd
           - text: "Resources"
             href: courses/logistic-regression/resources.md
+      - section: "Multiple Regression"
+        contents:
+          - courses/multiple-regression/syllabus.md
+          - courses/multiple-regression/00-roadmap.qmd
+          - section: "1 · Many knobs, one model"
+            contents:
+              - text: "Lesson"
+                href: courses/multiple-regression/modules/01-many-knobs-one-model/lesson.qmd
+              - text: "Practice"
+                href: courses/multiple-regression/modules/01-many-knobs-one-model/practice.qmd
+          - section: "2 · Least squares & the normal equations"
+            contents:
+              - text: "Lesson"
+                href: courses/multiple-regression/modules/02-least-squares-and-the-normal-equations/lesson.qmd
+              - text: "Practice"
+                href: courses/multiple-regression/modules/02-least-squares-and-the-normal-equations/practice.qmd
+          - section: "3 · Marginal vs joint"
+            contents:
+              - text: "Lesson"
+                href: courses/multiple-regression/modules/03-marginal-vs-joint/lesson.qmd
+              - text: "Practice"
+                href: courses/multiple-regression/modules/03-marginal-vs-joint/practice.qmd
+          - section: "4 · Capstone: reading a multiple regression"
+            contents:
+              - text: "Lesson"
+                href: courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/lesson.qmd
+              - text: "Practice"
+                href: courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/practice.qmd
+          - text: "Resources"
+            href: courses/multiple-regression/resources.md
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that
 # lessons can host runnable in-browser WebR chunks with a single, uniform theme.
