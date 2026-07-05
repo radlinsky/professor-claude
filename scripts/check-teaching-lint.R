@@ -99,7 +99,11 @@ for (f in qmd_files) {
   lines <- read_lines(f)
   i <- 1L; n <- length(lines)
   while (i <= n) {
-    open <- grepl("^\\s*```\\{(r|webr)\\}", lines[i])
+    # Accept bare ```{r} / ```{webr} AND labelled/optioned headers like
+    # ```{r toy-example} or ```{r, fig.width=5} — the [ ,}] after the language
+    # name keeps ```{ruby}/```{python} etc. from matching. (Without this, a
+    # figure chunk written with an inline label would silently escape Lint 2.)
+    open <- grepl("^\\s*```\\{(r|webr)[ ,}]", lines[i])
     if (open) {
       label <- sub("^\\s*```\\{(r|webr)[ ,]*", "", lines[i]); label <- sub("\\}.*$", "", label)
       opts <- character(0); body <- character(0)

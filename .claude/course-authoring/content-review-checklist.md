@@ -182,10 +182,11 @@ re-render, and re-check.
 
 19. **Resources are curated per `resource-curation.md`.**
     Each module's `resources.md` has 2–4 annotated entries or an explicit TODO
-    sentinel; every entry carries the prescribed annotation (what it is / why it
-    earns its place / when to use it); no bare unannotated URLs. You cannot verify
-    liveness (no network) — check FORM and the verified-on claim, and flag any entry
-    missing one.
+    sentinel; every entry follows the prescribed annotation format — a type emoji
+    (📺/📖/🎮/📚), a link, format + length if known, and one or two lines on why it
+    suits this learner and when to use it; no bare unannotated URLs. You cannot
+    verify liveness (no network) — check FORM only, and flag any entry missing a
+    piece of that format or any bare URL.
 
 ## Reporting
 

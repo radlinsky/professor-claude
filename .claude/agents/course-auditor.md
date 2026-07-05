@@ -36,8 +36,10 @@ arithmetic, `ls` to check links resolve) — never for commands that modify anyt
    fixtures still pass, but you cannot run `{webr}` cells.
 
 You may run `Rscript scripts/check-teaching-lint.R` read-only (banned condescension
-words, missing `fig-alt` on figure chunks); its hits are automatic defects — report
-them alongside your numbered-check findings.
+words, missing `fig-alt` on figure chunks). It scans the whole repo, so treat only
+the hits that fall in the files you were asked to audit as defects — ignore hits in
+files outside your audit scope. Report the in-scope hits alongside your numbered-check
+findings.
 
 ## Inputs
 
@@ -57,7 +59,9 @@ module folder, also audit each module's `resources.md` (checklist check 19).
    `Rscript` BEFORE reading the lesson's derivation, then compare — don't let the
    lesson's own algebra anchor your recomputation.
 3. For symbol coverage, list the symbols in each `$...$`/`$$...$$` yourself and
-   diff against the lesson's pronunciation table.
+   diff against the lesson's pronunciation table. Also confirm each symbol's FIRST
+   prose use is decoded there — inline or by an immediate pointer to the table
+   (checklist check 2), not dropped into a sentence and left to the table alone.
 4. Check every TEACHING.md §Self-check item not covered by a numbered check (the
    list includes, but is not limited to: Optional marking, one-name-per-concept,
    honest analogies, prerequisite links — foundation modules AND prerequisite courses
