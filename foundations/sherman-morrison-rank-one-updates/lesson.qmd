@@ -1,0 +1,252 @@
+---
+title: "Sherman–Morrison: update an inverse without redoing it"
+subtitle: "Poke one rank-1 change into a matrix and fix its inverse cheaply — exactly"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+Inverting a matrix is expensive. If you already have $A^{-1}$ and then make a *small*
+change to $A$, redoing the whole inverse from scratch is wasteful. The **Sherman–Morrison
+formula** patches $A^{-1}$ into the inverse of the changed matrix directly — and it is
+**exact, not an approximation**. This short module builds the one identity, shows it's
+exact to machine precision, counts why it's fast, and names the family it belongs to
+(including the *bordering* trick that grows a matrix by one row and column — the exact move
+a variable-selection search needs when it adds a predictor).
+
+**Builds on:** [matrices-and-linear-transforms](../matrices-and-linear-transforms/lesson.qmd)
+(matrix × vector, the transpose, the inverse as "undo").
+
+## Warm-up: do you remember?
+
+**1.** *(matrices)* What does the inverse $A^{-1}$ do, and how do you get it in R?
+
+::: {.callout-note collapse="true" title="Answer"}
+$A^{-1}$ is the matrix that undoes $A$: $A^{-1}A = I$ (the identity). In R: `solve(A)`.
+See [matrices-and-linear-transforms](../matrices-and-linear-transforms/lesson.qmd).
+:::
+
+**2.** *(matrices)* If $u$ and $v$ are two length-$p$ column vectors, what shape is the
+product $u v^\top$ ("u times v-transpose")?
+
+::: {.callout-note collapse="true" title="Answer"}
+A $p \times p$ matrix (an "outer product") — a column times a row. It is a **rank-1**
+matrix: every row is a multiple of $v^\top$. In R: `u %*% t(v)`.
+:::
+
+## A tiny example first
+
+Start with $A = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}$, whose inverse is easy:
+$A^{-1} = \begin{pmatrix} 0.5 & 0 \\ 0 & 0.5 \end{pmatrix}$.
+
+Now bump the top-left entry by 1, using $u = v = (1, 0)$: the change $u v^\top$ is
+$\begin{pmatrix} 1 & 0 \\ 0 & 0 \end{pmatrix}$, so
+$A + u v^\top = \begin{pmatrix} 3 & 0 \\ 0 & 2 \end{pmatrix}$, whose inverse is just the
+reciprocals down the diagonal, $\begin{pmatrix} 1/3 & 0 \\ 0 & 0.5 \end{pmatrix}$.
+
+Sherman–Morrison gets that *same* answer from $A^{-1}$ without re-inverting. Plug into the
+formula (below): $A^{-1}u = (0.5, 0)$, $v^\top A^{-1} u = 0.5$, so the correction is the
+rank-1 matrix $\begin{pmatrix} 0.25 & 0 \\ 0 & 0\end{pmatrix}$ divided by $1 + 0.5 = 1.5$,
+i.e. $\begin{pmatrix} 1/6 & 0 \\ 0 & 0 \end{pmatrix}$. Subtract it from $A^{-1}$:
+$0.5 - 1/6 = 1/3$ in the top-left, everything else unchanged →
+$\begin{pmatrix} 1/3 & 0 \\ 0 & 0.5 \end{pmatrix}$. Exactly right.
+
+```{r toy-example}
+# PREDICT: A + uv' just bumps the (1,1) entry to 3. What top-left value should its inverse
+# have? Write your guess, then check that Sherman-Morrison lands on it.
+A <- matrix(c(2, 0, 0, 2), 2); u <- c(1, 0); v <- c(1, 0)
+Ai <- solve(A)                                   # the inverse we already have
+
+# Sherman-Morrison: A^{-1} minus a rank-1 correction
+correction <- (Ai %*% u %*% t(v) %*% Ai) / as.numeric(1 + t(v) %*% Ai %*% u)
+sm <- Ai - correction
+
+list(sherman_morrison = sm, direct = solve(A + u %*% t(v)),
+     identical = isTRUE(all.equal(sm, solve(A + u %*% t(v)))))   # TRUE
+```
+
+## Getting a feel for it
+
+**Patch the pothole, don't re-pave the road.** Computing $A^{-1}$ from scratch is
+re-paving an entire road. A rank-1 change $u v^\top$ is one pothole. Sherman–Morrison
+patches just that spot — it adjusts the inverse with a single cheap correction built from
+$A^{-1}$ you already have, instead of rebuilding the whole thing.
+
+**Why it's exact, not approximate.** This is the misconception to kill up front: the
+formula is an *algebraic identity*, not a first-order approximation or an iterative guess.
+It comes from multiplying $(A + uv^\top)$ by the claimed inverse and watching everything
+cancel to $I$. So it matches a fresh inverse to machine precision (`all.equal` returns
+`TRUE` above) — there is no accuracy penalty for the speed.
+
+**Why it's fast.** A fresh inverse of a $p \times p$ matrix costs on the order of $p^3$
+operations (grows *cubically* — double $p$, eight times the work). The Sherman–Morrison
+update is just a few matrix-times-vector products, on the order of $p^2$ (grows
+*quadratically*). For $p = 200$ that's roughly a $200\times$ gap in raw operation count;
+measured, with overhead, it's still a large speedup — you'll time it below.
+
+## What the notation is going to say
+
+The formula will say: *the new inverse is the old inverse, minus a rank-1 correction
+made from the old inverse applied to $u$ and to $v$, all divided by a single number*
+$1 + v^\top A^{-1} u$. If that number is not zero, the update exists and is exact.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $A$ | "ay" | the matrix we already inverted | $\left(\begin{smallmatrix}2&0\\0&2\end{smallmatrix}\right)$ |
+| $A^{-1}$ | "A inverse" | its inverse, already computed (in R: `solve(A)`) | $\left(\begin{smallmatrix}.5&0\\0&.5\end{smallmatrix}\right)$ |
+| $u,\ v$ | "you", "vee" | the two vectors defining the rank-1 change | both $(1,0)$ |
+| $u v^\top$ | "u v-transpose" | the rank-1 change to $A$ (a column times a row) | bumps entry (1,1) by 1 |
+| $v^\top A^{-1} u$ | "v-transpose A-inverse u" | a single scalar; $1$ plus it is the divisor | $0.5$ |
+| $O(p^2),\ O(p^3)$ | "order p-squared / p-cubed" | how the work grows with matrix size $p$ | update vs fresh |
+
+## The formal version
+
+For an invertible $A$ and vectors $u, v$, **as long as $1 + v^\top A^{-1} u \neq 0$**:
+
+$$
+(A + u v^\top)^{-1} = A^{-1} - \frac{A^{-1} u\, v^\top A^{-1}}{1 + v^\top A^{-1} u}.
+$$
+
+Reading it aloud: "the inverse of A plus u-v-transpose equals A-inverse, minus (A-inverse
+u, times v-transpose A-inverse) over one plus v-transpose A-inverse u" — or in everyday
+words: "take the inverse you already have and subtract one cheap rank-1 patch."
+
+- The numerator $A^{-1}u\,v^\top A^{-1}$ is itself a rank-1 matrix — a column
+  ($A^{-1}u$) times a row ($v^\top A^{-1}$) — so the whole correction is built from two
+  matrix–vector products, never a full inversion.
+- The denominator $1 + v^\top A^{-1} u$ is a single number. If it were zero, $A + uv^\top$
+  would be singular (no inverse) and the formula would (correctly) blow up.
+
+**Sanity check (toy numbers):** with $A^{-1}u = (0.5,0)$ and $v^\top A^{-1} u = 0.5$, the
+formula gave the top-left entry $0.5 - \tfrac{0.25}{1.5} = 0.5 - \tfrac16 = \tfrac13$,
+matching the obvious inverse of $\left(\begin{smallmatrix}3&0\\0&2\end{smallmatrix}\right)$.
+
+::: {.callout-note title="Optional: the family — Woodbury and the bordering update"}
+Sherman–Morrison is the rank-1 case of the **Woodbury identity**, which updates an inverse
+after a rank-$k$ change. A close relative, the **bordering** (block-inverse) update, grows
+a matrix by a whole new row *and* column and produces the enlarged inverse from the old
+one — and a matching **partition** formula shrinks it by one. A variable-selection search
+uses exactly these: adding a predictor borders the correlation matrix by one row/column,
+removing one partitions it away, and a swap is a remove-then-add. Course B derives and
+uses them; here we just verify one numerically:
+
+```{r bordering}
+set.seed(1); k <- 4
+M <- crossprod(matrix(rnorm(k * k), k)); Mi <- solve(M)   # a k x k matrix + its inverse
+b <- rnorm(k); d <- rnorm(1)^2 + 2                        # the new column/row and corner
+Mnew <- rbind(cbind(M, b), c(b, d))                       # grown (k+1) x (k+1) matrix
+
+s   <- as.numeric(d - t(b) %*% Mi %*% b)                  # Schur complement (a scalar)
+Mib <- Mi %*% b
+border <- rbind(cbind(Mi + (Mib %*% t(Mib)) / s, -Mib / s), c(-t(Mib) / s, 1 / s))
+max(abs(border - solve(Mnew)))                            # ~1e-15: exact, no re-inversion
+```
+:::
+
+## Explore it
+
+```{r timing}
+# Invert a 200x200 matrix ONCE, then compare: 1000 fresh solve()s of a rank-1-changed
+# matrix vs 1000 Sherman-Morrison updates. (Your exact times vary by machine; the gap is
+# the point.) This is baked at build time — a heavy timing loop, not a browser cell.
+set.seed(2); p <- 200
+A <- crossprod(matrix(rnorm(p * p), p)); Ai <- solve(A)   # the one expensive inverse
+u <- rnorm(p); v <- rnorm(p)
+
+t_fresh <- system.time(for (i in 1:1000) solve(A + u %*% t(v)))[["elapsed"]]
+t_update <- system.time(for (i in 1:1000) {
+  Aiu <- Ai %*% u
+  Ai - (Aiu %*% (t(v) %*% Ai)) / as.numeric(1 + t(v) %*% Aiu)
+})[["elapsed"]]
+c(fresh_solve_s = round(t_fresh, 2), sm_update_s = round(t_update, 2),
+  speedup = round(t_fresh / t_update, 1))
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: change u and v (any vectors) and re-run — the update always matches a fresh
+# solve to ~1e-15. PREDICT: will `identical` ever come back FALSE for a non-singular case?
+set.seed(9); p <- 25
+A <- crossprod(matrix(rnorm(p * p), p)); Ai <- solve(A)
+u <- rnorm(p); v <- rnorm(p)
+
+Aiu <- Ai %*% u
+sm  <- Ai - (Aiu %*% (t(v) %*% Ai)) / as.numeric(1 + t(v) %*% Aiu)
+c(max_diff = max(abs(sm - solve(A + u %*% t(v)))),
+  identical = isTRUE(all.equal(sm, solve(A + u %*% t(v)))))
+```
+
+## Common traps
+
+**Trap: "Sherman–Morrison is an approximation, so it drifts."** No — it is an exact
+algebraic identity. The `all.equal` checks above return `TRUE` and the max difference is
+~$10^{-15}$ (ordinary floating-point rounding, the same you'd get comparing two ways of
+computing any inverse). There is no approximation error to accumulate.
+
+**Trap: "it always works."** It fails in exactly one case: when $1 + v^\top A^{-1} u = 0$,
+the denominator is zero — and that is precisely when $A + uv^\top$ is **singular** and has
+no inverse at all. The formula doesn't break the math; it faithfully reports "no inverse
+here."
+
+## Check yourself
+
+**1.** In the update formula, what shape is the correction term $\dfrac{A^{-1}u\,v^\top A^{-1}}{1 + v^\top A^{-1} u}$
+— matrix or scalar — and what is the denominator?
+
+::: {.callout-note collapse="true" title="Answer"}
+The correction is a **matrix** (rank-1: a column $A^{-1}u$ times a row $v^\top A^{-1}$).
+The denominator $1 + v^\top A^{-1} u$ is a **scalar** (a single number). You subtract the
+matrix from $A^{-1}$.
+:::
+
+**2.** Roughly how does the cost of a fresh $p \times p$ inverse compare to a
+Sherman–Morrison update, in big-O terms, and why does the gap matter in a loop?
+
+::: {.callout-note collapse="true" title="Answer"}
+Fresh inverse is $O(p^3)$; the update is $O(p^2)$ (a few matrix–vector products). In a
+search that changes the matrix thousands of times, replacing each $O(p^3)$ re-inversion
+with an $O(p^2)$ update is the difference between minutes and seconds.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what Sherman–Morrison
+buys you and why it doesn't cost accuracy.
+
+::: {.callout-note collapse="true" title="A model answer"}
+If you already have a matrix's inverse and make a small (rank-1) change, Sherman–Morrison
+gives you the new inverse with one cheap correction instead of re-inverting from scratch.
+It costs no accuracy because it's an exact algebraic identity, not an approximation — it
+matches a fresh inverse to floating-point precision.
+:::
+
+## What you can now do
+
+- **State the Sherman–Morrison formula** and identify its rank-1 correction and its scalar
+  denominator.
+- **Explain that it is exact**, and verify it against a fresh `solve()` with `all.equal`.
+- **Give the cost argument** ($O(p^3)$ fresh vs $O(p^2)$ update) and why it matters in a
+  loop.
+- **Name the family** (Woodbury; the bordering/partition updates that grow or shrink a
+  matrix by one row+column) that a variable-selection search uses to add/remove predictors.
+
+If any feels shaky, revisit [The formal version](#the-formal-version) — the switching
+search reuses this identity on every move.
+
+## Where this goes next
+
+A model search that adds and drops predictors re-inverts a correlation matrix on every
+step; the `switchstep-variable-selection` course replaces each re-inversion with a
+bordering/Sherman–Morrison update and times the payoff. Ready for reps? Do the
+[practice problems](practice.qmd). External readings: [resources](resources.md).

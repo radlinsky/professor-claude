@@ -1,0 +1,121 @@
+---
+title: "Practice: Lambda for stability"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — explode, then stabilize, new numbers
+
+Two indicators correlated 0.99, with marginals $b = (0.6, 0.55)$ and
+$R = \begin{pmatrix}1 & 0.99\\0.99 & 1\end{pmatrix}$. Compute the unregularized
+reconstruction $R^{-1}b$, then the ridge version $(R + 0.1\,I)^{-1}b$.
+
+```{webr}
+#| autorun: false
+# p1-starter
+R <- matrix(c(1, 0.99, 0.99, 1), 2); b <- c(0.6, 0.55)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\det R = 1 - 0.99^2 = 0.0199$, tiny, so $R^{-1}b \approx (2.79, -2.21)$ — huge, opposite
+signs, from marginals only 0.05 apart. With $\lambda = 0.1$, $\det(R + 0.1I) = 1.21 - 0.9801 = 0.2299$,
+and $(R + 0.1I)^{-1}b \approx (0.50, 0.05)$ — small, same-signed, sensible.
+
+```{r}
+R <- matrix(c(1, 0.99, 0.99, 1), 2); b <- c(0.6, 0.55)
+rbind(unregularized = solve(R, b), ridge_0.1 = solve(R + 0.1 * diag(2), b))
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+$R$ has eigenvalues $\{1.99, 0.01\}$ (the small one makes it nearly singular). You add
+$\lambda = 0.05$ down the diagonal.
+
+- Step 1: adding $\lambda I$ adds $\lambda$ to *every* eigenvalue.
+- Step 2: **your step here** — what are the new eigenvalues, and is the matrix now safely
+  invertible?
+- Step 3: since the smallest eigenvalue is now well above 0, the inverse is well-behaved.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: the new eigenvalues are $\{1.99 + 0.05,\ 0.01 + 0.05\} = \{2.04,\ 0.06\}$. The smallest
+went from 0.01 to 0.06 — comfortably positive — so $R + \lambda I$ is safely invertible. (Any
+$\lambda > 0$ lifts the smallest eigenvalue to at least $\lambda$.)
+:::
+
+## Problem 3 — a lambda sweep, in R
+
+For the near-collinear pair below, reconstruct at several $\lambda$ values and watch the largest
+coefficient shrink from huge to stable.
+
+```{webr}
+#| autorun: false
+# p3-starter — reconstruct at each lambda and report the largest |coefficient|
+# PREDICT: at lambda = 0 it will be large; where does it settle?
+R <- matrix(c(1, 0.995, 0.995, 1), 2); b <- c(0.7, 0.6)
+lambdas <- c(0, 0.01, 0.05, 0.2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+At $\lambda = 0$ the coefficients are large and opposite-signed; by $\lambda = 0.05$–$0.2$ they
+are small and stable.
+
+```{r}
+R <- matrix(c(1, 0.995, 0.995, 1), 2); b <- c(0.7, 0.6)
+t(sapply(c(0, 0.01, 0.05, 0.2), function(l) {
+  beta <- solve(R + l * diag(2), b); c(lambda = l, beta1 = beta[1], beta2 = beta[2])
+}))
+```
+The unregularized row is wild; adding a small $\lambda$ tames it.
+:::
+
+## Problem 4 — spot the error
+
+A colleague says: *"To be safe against collinearity I always use a very large $\lambda$, like
+100 — bigger $\lambda$ means more stable, so more is better."* This contains **exactly one
+mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: "bigger $\lambda$ is always better." A very large $\lambda$ over-shrinks — it drags
+every coefficient toward 0, erasing the real effects (at $\lambda = 100$ the fit is essentially
+"predict the mean"). Stability and signal trade off; the goal is the *smallest* $\lambda$ that
+makes the matrix well-conditioned, not the largest.
+:::
+
+## Problem 5 — mixing it with the ridge foundation *(uses $(X^\top X + \lambda I)$ invertibility)*
+
+The ridge foundation showed $(X^\top X + \lambda I)$ is invertible for any $\lambda > 0$. Explain,
+in a sentence, why the *same* guarantee applies to $R + \lambda I$ here, even when two indicators
+are perfectly correlated ($\rho = 1$, so $R$ is exactly singular).
+
+::: {.callout-note collapse="true" title="Answer"}
+$R$ is symmetric with non-negative eigenvalues (it's a correlation matrix), and adding $\lambda I$
+lifts every eigenvalue by $\lambda$; so even if $R$ has an eigenvalue of exactly 0 (perfect
+collinearity), $R + \lambda I$ has smallest eigenvalue $\lambda > 0$ and is therefore invertible.
+It's the identical diagonal-loading argument, applied to $R$ instead of $X^\top X$.
+:::
+
+## Problem 6 — transfer: which lambda?
+
+A $\lambda$ sweep shows the selected set and coefficients are wild at $\lambda = 0$, stabilize by
+$\lambda \approx 0.05$, and by $\lambda = 1$ every coefficient has shrunk close to 0. You must
+pick one $\lambda$. Which region would you choose and why — and what standard technique (named,
+not built here) would automate the choice? *(It's outside this course.)*
+
+::: {.callout-note collapse="true" title="Answer"}
+Pick a $\lambda$ in the *stable-but-not-over-shrunk* region — around 0.05 here: large enough that
+the reconstruction has settled, small enough that real effects aren't crushed. The standard way
+to choose it automatically is **cross-validation** — try a grid of $\lambda$ values, measure
+out-of-sample prediction error for each, and keep the $\lambda$ that minimizes it. (This course
+fixes or sweeps $\lambda$ by hand; CV-based selection is a natural next step.)
+:::

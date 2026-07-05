@@ -1,0 +1,127 @@
+---
+title: "Practice: Choosing a model with information criteria"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — AIC and BIC by hand, new numbers
+
+A model has log-likelihood $\log L = -80$ and $k = 3$ parameters, fit on $n = 50$
+observations. Compute its AIC and BIC.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mathrm{AIC} = -2(-80) + 2\times3 = 160 + 6 = 166$.
+$\mathrm{BIC} = -2(-80) + 3\log(50) = 160 + 3(3.912) = 160 + 11.74 = 171.74$. BIC exceeds
+AIC because $\log(50) = 3.91 > 2$.
+
+```{r}
+logL <- -80; k <- 3; n <- 50
+c(AIC = -2*logL + 2*k, BIC = -2*logL + k*log(n))   # 166, 171.74
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+Two models fit on $n = 100$ points: Model A has $\log L = -120$, $k = 2$; Model B has
+$\log L = -118$, $k = 5$. Which does BIC prefer?
+
+- Step 1: $\mathrm{BIC}_A = -2(-120) + 2\log(100) = 240 + 2(4.605) = 249.21$.
+- Step 2: **your step here** — compute $\mathrm{BIC}_B$.
+- Step 3: compare and state the winner.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: $\mathrm{BIC}_B = -2(-118) + 5\log(100) = 236 + 5(4.605) = 236 + 23.03 = 259.03$.
+Step 3: $\mathrm{BIC}_A = 249.21 < \mathrm{BIC}_B = 259.03$, so **BIC prefers Model A**.
+Model B's better fit (log-likelihood up by 2, so misfit down by 4) didn't cover its 3
+extra parameters' penalty ($3\log 100 \approx 13.8$).
+:::
+
+## Problem 3 — RSS falls but BIC picks smaller (in R)
+
+Fit `y` on `x1` alone, then on `x1` plus two pure-noise predictors. Confirm RSS drops but
+BIC rises, and state which model BIC selects.
+
+```{webr}
+#| autorun: false
+# p3-starter — compare RSS and BIC across the three models
+# PREDICT: RSS will fall each time; will BIC?
+set.seed(3); n <- 40
+x1 <- rnorm(n); y <- 1.5 * x1 + rnorm(n)
+z1 <- rnorm(n); z2 <- rnorm(n)     # pure noise, unrelated to y
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+RSS falls as the noise predictors are added (they always can), but BIC is lowest for the
+`x1`-only model — the penalty rejects the noise.
+
+```{r}
+set.seed(3); n <- 40
+x1 <- rnorm(n); y <- 1.5 * x1 + rnorm(n); z1 <- rnorm(n); z2 <- rnorm(n)
+m1 <- lm(y ~ x1); m2 <- lm(y ~ x1 + z1); m3 <- lm(y ~ x1 + z1 + z2)
+rbind(RSS = c(sum(resid(m1)^2), sum(resid(m2)^2), sum(resid(m3)^2)),
+      BIC = c(BIC(m1), BIC(m2), BIC(m3)))
+```
+RSS decreases left to right; BIC is smallest for `m1`. BIC selects `x1` alone.
+:::
+
+## Problem 4 — spot the error
+
+A colleague compares five nested models and reports: *"Model 5 has the highest $R^2$
+(0.94) of all five, so it's the best model — we should report it."* This contains
+**exactly one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: using $R^2$ (equivalently, training RSS) to *choose among models of
+different sizes*. $R^2$ can only rise as predictors are added, so the largest model
+(Model 5) will essentially always have the highest $R^2$ — even if its extra predictors
+are noise. To choose model size you need a criterion that penalizes complexity (AIC, BIC,
+or adjusted $R^2$), or an out-of-sample estimate (cross-validation).
+:::
+
+## Problem 5 — mixing it with likelihood *(uses likelihood-and-log-likelihood's $\log L$)*
+
+R reports `logLik(fit)` is $-45.2$ with `df = 4` (that `df` is $k$, the parameter count
+including the noise variance), on $n = 60$ points. Reconstruct the BIC R would print, and
+confirm with `BIC()`-style arithmetic.
+
+```{webr}
+#| autorun: false
+# p5-starter
+logL <- -45.2; k <- 4; n <- 60
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mathrm{BIC} = -2\log L + k\log n = -2(-45.2) + 4\log(60) = 90.4 + 4(4.094) = 90.4 +
+16.38 = 106.78$. R's `BIC()` uses exactly this: `-2*logLik + k*log(n)` with `k` the
+`df` from `logLik` (parameters *including* the estimated variance).
+
+```{r}
+logL <- -45.2; k <- 4; n <- 60
+-2 * logL + k * log(n)      # 106.78
+```
+:::
+
+## Problem 6 — transfer: greedy can miss
+
+You run forward stepwise on 8 predictors and it selects `{x1, x4, x6}`. A colleague runs
+best-subset (all $2^8 = 256$ subsets) and the best size-3 model is `{x2, x4, x6}`. Is one
+of them wrong? What does the disagreement tell you? *(The switching search in the next
+course is built to reduce exactly this gap.)*
+
+::: {.callout-note collapse="true" title="Answer"}
+Neither is a bug. Forward stepwise is **greedy**: it added whichever single predictor
+helped most first (`x1`), then could never remove it, so it can get stuck on a subset that
+best-subset beats. The disagreement means the greedy path made an early commitment it
+couldn't undo. A search that can also *swap* predictors in and out (the switching search)
+can escape such traps and get closer to the best-subset answer without checking all $2^p$.
+:::
