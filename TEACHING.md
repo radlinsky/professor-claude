@@ -163,6 +163,8 @@ because the spacing is the point (taking it while the lesson is fresh only measu
 short-term fluency). It gives
 the mastery rule the one thing self-report can't: an objective signal. **≥4/5 = the module is solid**,
 and that pass is the learner's evidence for flipping their Status column to `done`.
+A miss is a prescription, not a verdict: revisit what the wrong items point at, then
+retake in a **later session** — passing after another gap is the durable evidence.
 
 - **Cumulative:** 3–4 items test this module; 1–2 are interleaved from earlier modules
   of the course (or a foundation's `Builds on` modules), each labeled in its question
