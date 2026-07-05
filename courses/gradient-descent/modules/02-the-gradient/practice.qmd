@@ -234,7 +234,7 @@ browser only.
 
 ::: {.module-check module="courses/gradient-descent/modules/02-the-gradient" pass="4"}
 
-::: {.quiz-q qid="tg-partial-at-point" qtype="numeric" answer="-2" tolerance="0.01"}
+::: {.quiz-q qid="tg-partial-at-point" qtype="numeric" answer="-2" tolerance="0"}
 **On the lesson's bowl $f(a, b) = (a-2)^2 + (b-5)^2$, what is the slope in the $a$
 direction at the point $(a, b) = (1, 2)$?** (The lesson's slope rule for this bowl:
 the $a$-direction slope is $2(a-2)$.)
@@ -244,7 +244,7 @@ the $a$-direction slope is $2(a-2)$.)
 **At the bottom of any smooth bowl, why does gradient descent stop moving?**
 
 a) The function value reaches zero there, which ends the loop
-b) The gradient is the zero vector there, so the step changes nothing
+b) The gradient is zero there, so the step changes nothing
 c) The learning rate has decayed to zero by the time it arrives
 :::
 
@@ -262,7 +262,7 @@ straight at the minimum?**
 
 a) Yes — the steepest-downhill direction always aims at the lowest point
 b) No — the gradient points uphill, so the path drifts away from the minimum
-c) No — it is only the steepest direction *right where you stand*, so the path zig-zags in
+c) No — it is the steepest direction only *right where you stand*, so the path zig-zags inward
 :::
 
 ::: {.quiz-q qid="tg-sum-recall" qtype="numeric" answer="20" tolerance="0"}

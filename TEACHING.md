@@ -169,9 +169,11 @@ retake in a **later session** — passing after another gap is the durable evide
 - **Cumulative:** 3–4 items test this module; 1–2 are interleaved from earlier modules
   of the course (or a foundation's `Builds on` modules), each labeled in its question
   text. **Entry modules** (nothing earlier) are exempt — all five items module-local.
+  **Capstone modules** are the mirror image: all five items are cumulative and left
+  unlabeled, matching the capstone practice set's unlabeled retrieval.
 - **This is NOT a final exam.** The capstone is already the cumulative, unlabeled final
   (see `course-structure.md` §Capstone) and is unchanged; do not add a separate exam.
-  The capstone module gets a Module check like any other.
+  The capstone module gets a Module check like any other (all-cumulative, unlabeled).
 
 Syntax, the stable-qid rule, and the item-design rules live in
 `.claude/course-authoring/quiz-authoring.md`.

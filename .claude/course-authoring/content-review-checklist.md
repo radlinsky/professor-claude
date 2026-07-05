@@ -193,7 +193,8 @@ re-render, and re-check.
     unique within the module and follows the stable `<init>-<concept>` format; every
     `answer=` value is independently verified correct against the lesson; ≥1 item is
     interleaved from an earlier module (unless this is an entry module with nothing
-    earlier); attributes use `qid`/`qtype` (never `id`/`type`); the quiz contains no
+    earlier, or a capstone — where all items are cumulative and left unlabeled);
+    attributes use `qid`/`qtype` (never `id`/`type`); the quiz contains no
     code cells. Item form (quiz-authoring.md §Writing the five items): stems positively
     phrased (no NOT/EXCEPT); 3–4 options per MC item with no "all/none of the above" or
     combined options; the key is not recognizably the longest option; key letters vary

@@ -213,19 +213,19 @@ c) Subtraction is what makes each step smaller than the last
 **Starting from $x = 1$ on the lesson's bowl, your iterates are $1$, then $7.12$, then
 $0.75$, each landing farther from $x = 4$ than the last. What is going on?**
 
-a) The learning rate is too small, so the walk crawls
-b) The learning rate is too big, so every step overshoots the bottom by more
-c) The walk found a different valley of the curve
-d) This is normal: steps grow before they shrink
+a) The learning rate is too small, so the walk barely crawls forward
+b) The learning rate is too big, so each step overshoots the bottom
+c) The walk has slipped into a different valley of the curve
+d) This is normal — the steps grow for a while before they shrink
 :::
 
 ::: {.quiz-q qid="rd-step-taper" qtype="mc" answer="c"}
 **With a fixed $\alpha = 0.1$, the steps in the lesson shrank on their own: $0.6$, then
 $0.48$, then $0.38$. What makes them shrink?**
 
-a) The algorithm detects the minimum coming and brakes
-b) The learning rate decays a little on every iteration
-c) The slope itself shrinks as the curve flattens, so $\alpha \times \text{slope}$ shrinks
+a) The algorithm senses the minimum approaching and gently brakes
+b) The learning rate quietly decays a little on every iteration
+c) The slope flattens near the bottom, so $\alpha \times$ slope shrinks too
 :::
 
 ::: {.quiz-q qid="rd-slope-at-bottom" qtype="mc" answer="b"}
