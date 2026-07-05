@@ -102,6 +102,10 @@ jobs:
   # renv autoloader, same as index-check.yml. deploy gates on it below.
   webr-check:
     runs-on: ubuntu-latest
+    # Read-only validation — drop the workflow-level pages/id-token perms it inherits
+    # but never uses (same least-privilege token as index-check.yml).
+    permissions:
+      contents: read
     env:
       RENV_CONFIG_AUTOLOADER_ENABLED: FALSE
     steps:
