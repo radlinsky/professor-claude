@@ -1,13 +1,27 @@
 ---
 title: "Professor Claude"
-subtitle: "A personal applied math & statistics school"
+subtitle: "A personalized course factory for the math in hard papers"
 toc: false
 ---
 
-Welcome. This site hosts example courses that teach the fundamentals behind a
-statistical method or math concept, working up from building blocks to the real
-thing, with toy numerical examples, plain-English notation decoding, and runnable
-in-browser R (WebR) cells. No install needed.
+This is a personalized course factory. Point it at an academic paper whose math
+methods you cannot follow, and it builds an applied math and statistics course
+tailored to your background and how you learn, one that re-derives and re-codes the
+method from the ground up. You learn the method by rebuilding it, not by reading
+someone else's summary.
+
+Each course is assembled from small modules. Shared prerequisites live in a
+recyclable foundations library, so a building block like "the derivative as a
+slope" is written once, linked wherever it is needed, and never re-taught from
+scratch.
+
+The whole thing is one Quarto site that works on a phone, with code and plots you
+can run and edit inline. You practice the code anywhere instead of only reading
+about it.
+
+This published site is just an example, tuned to one learner (a strong R programmer
+with rusty AP-level calculus). The system is meant to be forked and pointed at your
+own background, so the courses here are demos, not the product.
 
 ## How to use this site
 
