@@ -1,0 +1,318 @@
+---
+title: "Many knobs, one model"
+subtitle: "From one predictor to many — and the phrase that unlocks every coefficient"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — live `{webr}` cells below re-state their own data.
+needed <- c()   # base R is all we need
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+
+# The shared running example for this course: a simulated economic-indicator panel.
+# Signal sits on ONE member of each correlated twin pair (rate_10y, cpi_infl, unemp),
+# so later modules can show correlated predictors interfering. Base R only.
+sim_indicators <- function(n = 200, seed = 1, rho_max = 0.95) {
+  set.seed(seed)
+  nm <- c("rate_10y", "rate_2y", "cpi_infl", "pce_infl", "unemp",
+          "oil", "usd_index", "sentiment", "housing", "pmi",
+          "credit_spread", "vix")
+  p <- length(nm)
+  R <- diag(p); dimnames(R) <- list(nm, nm)
+  R["rate_10y", "rate_2y"]  <- R["rate_2y", "rate_10y"]  <- 0.90
+  R["cpi_infl", "pce_infl"] <- R["pce_infl", "cpi_infl"] <- rho_max
+  R["sentiment", "pmi"]     <- R["pmi", "sentiment"]     <- 0.70
+  R["credit_spread", "vix"] <- R["vix", "credit_spread"] <- 0.65
+  X <- matrix(rnorm(n * p), n, p) %*% chol(R)
+  colnames(X) <- nm
+  beta <- setNames(numeric(p), nm)
+  beta[c("rate_10y", "cpi_infl", "unemp")] <- c(0.5, -0.4, -0.3)
+  y <- drop(X %*% beta + rnorm(n, sd = 1))
+  list(X = X, y = y, beta_true = beta)
+}
+```
+
+## Where we're going
+
+In the earlier course you fit a *line*: one predictor, one slope. Real questions
+rarely come with one predictor. An analyst asking *"which indicators drive next
+quarter's GDP growth?"* has a dozen candidates at once — interest rates, inflation,
+unemployment, oil. **Multiple regression** fits them all in a single model, giving
+each predictor its own coefficient. This module builds the picture and teaches the one
+phrase you need to read any of those coefficients correctly: *"holding the others
+fixed."* No new formula machinery yet — that's Module 2. Here we learn what the model
+*says*.
+
+**Builds on:** [Simple Linear Regression](../../../simple-linear-regression/syllabus.md)
+(a slope is "change in y per unit change in x"),
+[linear-combinations-and-data-matrices](../../../../foundations/linear-combinations-and-data-matrices/lesson.qmd)
+(stacking predictors into columns; a weighted sum of columns).
+
+## Warm-up: do you remember?
+
+Three quick reps — answer from memory first, then check.
+
+**1.** *(simple linear regression)* In the line $\hat{y} = 3 + 2x$, the slope is 2.
+Say in one sentence what that 2 *means* in terms of $x$ and $\hat{y}$.
+
+::: {.callout-note collapse="true" title="Answer"}
+"When $x$ increases by 1 unit, the predicted $\hat{y}$ increases by 2 units." A slope
+is a *change per unit change* — the single idea we're about to give many predictors.
+See [Simple Linear Regression](../../../simple-linear-regression/syllabus.md).
+:::
+
+**2.** *(linear combinations)* You have columns $c_1 = (1, 2)$ and $c_2 = (10, 20)$.
+What is the linear combination $3\,c_1 + 0.5\,c_2$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$3\,(1,2) + 0.5\,(10,20) = (3, 6) + (5, 10) = (8, 16)$. A **linear combination** is a
+weighted sum of columns — exactly how a multiple regression builds its predictions.
+See [linear-combinations-and-data-matrices](../../../../foundations/linear-combinations-and-data-matrices/lesson.qmd).
+:::
+
+**3.** *(baseline)* If a recipe's cost is `2 + 1*flour + 3*sugar` (in some units), and
+you use 2 flour and 1 sugar, what is the cost?
+
+::: {.callout-note collapse="true" title="Answer"}
+$2 + 1\times 2 + 3\times 1 = 2 + 2 + 3 = 7$. Plugging numbers into a
+"intercept plus weighted ingredients" formula is exactly what prediction will be.
+:::
+
+## A tiny example first
+
+Forget economics for a moment. Suppose the predicted value $\hat{y}$ is built from two
+knobs $x_1$ and $x_2$ by this exact rule:
+
+> $\hat{y} = 2 + 1\cdot x_1 + 3\cdot x_2.$
+
+Here are four settings of the knobs and what the rule predicts:
+
+| $x_1$ | $x_2$ | $\hat{y} = 2 + 1\cdot x_1 + 3\cdot x_2$ |
+|---:|---:|---:|
+| 0 | 0 | $2 + 0 + 0 = 2$ |
+| 1 | 0 | $2 + 1 + 0 = 3$ |
+| 0 | 1 | $2 + 0 + 3 = 5$ |
+| 2 | 1 | $2 + 2 + 3 = 7$ |
+
+Look at the first two rows. $x_2$ stays at 0; $x_1$ goes from 0 to 1; the prediction
+goes from 2 to 3 — **up by 1**. That 1 is the number multiplying $x_1$. Now rows one
+and three: $x_1$ stays at 0; $x_2$ goes from 0 to 1; the prediction goes from 2 to 5 —
+**up by 3**, the number multiplying $x_2$. The "2" out front is what you predict when
+both knobs are at zero.
+
+The same thing in R:
+
+```{r toy-example}
+# The toy rule, applied to the four knob settings
+x1 <- c(0, 1, 0, 2)
+x2 <- c(0, 0, 1, 1)
+y  <- c(2, 3, 5, 7)          # = 2 + 1*x1 + 3*x2, exactly
+
+# Ask R to recover the rule from the data (Module 2 shows HOW; here just read it)
+coef(lm(y ~ x1 + x2))        # (Intercept) 2, x1 1, x2 3 — the rule, read back out
+```
+
+## Getting a feel for it
+
+**A studio mixing board.** Picture a sound engineer at a mixing board with a row of
+sliders — one for vocals, one for bass, one for drums. The final sound is all of them
+added together. Each slider has its own effect on the mix, and — this is the key —
+you judge what the *bass* slider does by pushing **only** the bass slider and leaving
+every other slider exactly where it is. Multiple regression is that board: each
+predictor is a slider, its coefficient is how much the output moves when you nudge
+*that* slider a notch **with all the others held still.**
+
+**Why "holding the others fixed" is the whole game.** With one predictor there was
+nothing to hold fixed, so a slope was just "change in $y$ per change in $x$." With many
+predictors, if you change $x_1$ *and* let $x_2$ drift at the same time, you can't tell
+which one moved $y$. So the coefficient on $x_1$ is defined as the effect of $x_1$
+*when $x_2$ (and every other predictor) is pinned down.* In the toy table we engineered
+exactly that: to read the $x_1$ effect we compared two rows where $x_2$ didn't change.
+
+**What the coefficients feel like.** In the toy rule the $x_2$ knob (3) is "stronger"
+than the $x_1$ knob (1) — a one-unit nudge of $x_2$ moves the prediction three times as
+far. The intercept (2) is the baseline the prediction sits at before any knob is
+touched. Where the analogy breaks: a real mixing board's sliders are independent, but
+real predictors often move *together* (inflation measures rise as a group) — and that
+is precisely the trouble Module 3 is about.
+
+## What the notation is going to say
+
+The formula will say: *the prediction is a baseline, plus each predictor multiplied by
+its own coefficient, all added up.* In the toy example that baseline is 2, and the
+"each predictor times its coefficient" part is $1\cdot x_1 + 3\cdot x_2$. Real data
+won't land *exactly* on the rule, so the honest model also admits a leftover — the part
+no straight-line-in-the-predictors rule can capture.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $y_i$ | "why sub eye" | the outcome for observation $i$ (in R: `y[i]`) | 2, 3, 5, 7 |
+| $x_{ij}$ | "ex sub eye jay" | value of the $j$-th predictor for observation $i$ | e.g. $x_{4,1} = 2$ |
+| $p$ | "pee" | how many predictors (not counting the intercept) | 2 |
+| $n$ | "en" | how many observations (in R: `nrow`) | 4 |
+| $\beta_0$ | "beta zero" | the intercept — the prediction when every predictor is 0 | 2 |
+| $\beta_j$ | "beta sub jay" | the coefficient on predictor $j$: change in $y$ per unit of $x_j$, others held fixed | $\beta_1 = 1,\ \beta_2 = 3$ |
+| $\hat{y}_i$ | "why hat sub eye" | the model's prediction for observation $i$ (in R: `predict`) | matches $y_i$ here |
+| $\varepsilon_i$ | "epsilon sub eye" | the leftover for observation $i$ — what the predictors don't explain | 0 in this rigged toy |
+| $\mathbf{X}$ | "the matrix ex" | the table of predictors, rows = observations, columns = predictors | the $x_1, x_2$ columns |
+| $\sum_{j=1}^{p}$ | "the sum from jay equals 1 to pee" | add the term to its right once per predictor | $\beta_1 x_1 + \beta_2 x_2$ |
+
+## The formal version
+
+We build the model one piece at a time.
+
+- Start with a **baseline** every prediction shares: $\beta_0$.
+- Add each predictor scaled by its own coefficient: $\beta_1 x_{i1}$, then
+  $\beta_2 x_{i2}$, and so on up to $\beta_p x_{ip}$. Each term is "one slider's
+  contribution."
+- Real data misses the rule slightly, so add a leftover $\varepsilon_i$ for each
+  observation.
+
+Put together, the multiple linear regression model for observation $i$ is:
+
+$$
+y_i = \beta_0 + \beta_1 x_{i1} + \beta_2 x_{i2} + \cdots + \beta_p x_{ip} + \varepsilon_i
+    = \beta_0 + \sum_{j=1}^{p} \beta_j x_{ij} + \varepsilon_i .
+$$
+
+Reading it aloud: "why-sub-eye equals beta-zero, plus the sum from jay equals 1 to pee
+of beta-sub-jay times ex-sub-eye-jay, plus epsilon-sub-eye" — or in everyday words:
+"each outcome is a baseline, plus every predictor times its own weight, plus whatever's
+left over."
+
+The model's **prediction** drops the leftover (we don't know it in advance):
+
+$$
+\hat{y}_i = \beta_0 + \sum_{j=1}^{p} \beta_j x_{ij} .
+$$
+
+Mapping onto the toy example (row 4, where $x_1 = 2, x_2 = 1$):
+
+- $\beta_0$ is the "2" baseline.
+- $\sum_j \beta_j x_{ij}$ is $1\cdot 2 + 3\cdot 1 = 5$.
+- So $\hat{y}_4 = 2 + 5 = 7$, matching the table — and $\varepsilon_4 = y_4 - \hat{y}_4 = 0$
+  because we built the data to sit exactly on the rule.
+
+**The prediction is a linear combination of the predictor columns** (plus the
+intercept) — the warm-up's weighted-sum-of-columns idea, with the coefficients as the
+weights.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# TRY IT: change the coefficient on x2 (the 3) and re-run. Watch how the gap between
+# the x2=0 rows and the x2=1 rows changes — that gap IS the coefficient.
+# PREDICT: if you change the 3 to a 10, what will the last prediction (x1=2, x2=1) be?
+b0 <- 2; b1 <- 1; b2 <- 3
+x1 <- c(0, 1, 0, 2)
+x2 <- c(0, 0, 1, 1)
+
+yhat <- b0 + b1 * x1 + b2 * x2      # the model's prediction, straight from the formula
+data.frame(x1, x2, yhat)
+```
+
+Now the real thing. Here is the course's running example: a simulated panel of GDP
+growth against twelve economic indicators. We fit all twelve at once with `lm(y ~ .)`
+("`.`" means "every other column as a predictor"). This is a listing to *read*, not
+edit — it runs on the desktop/CI build:
+
+```{r panel-fit}
+# The simulated economic panel (defined in this page's hidden setup)
+sim <- sim_indicators(n = 200, seed = 1)
+panel <- data.frame(sim$X, gdp_growth = sim$y)
+
+fit <- lm(gdp_growth ~ ., data = panel)
+round(coef(fit), 3)          # one intercept + twelve coefficients, each "others held fixed"
+```
+
+```{r panel-predict}
+# Predict GDP growth for one new quarter (all twelve indicators supplied at once).
+# PREDICT: prediction = intercept + sum of (each indicator * its coefficient).
+new_quarter <- panel[1, names(coef(fit))[-1]]   # reuse row 1's indicator values
+predict(fit, newdata = new_quarter)              # a single number: the model's forecast
+```
+
+Every one of those twelve coefficients carries the "holding the *other eleven* fixed"
+meaning. Reading them safely is what the rest of the course is about.
+
+## Common traps
+
+**Trap: "the coefficient on $x_1$ is the effect of $x_1$ on $y$, full stop."** It's
+tempting to read $\beta_1$ as "$x_1$'s effect" with no strings attached. But the honest
+reading always has strings: it is $x_1$'s effect *with every other predictor held
+fixed*. Change which other predictors are in the model and $\beta_1$ can change. In the
+toy table, "$x_1$'s effect is 1" was only true because we compared rows with $x_2$
+frozen; if $x_2$ had drifted along with $x_1$, the apparent $x_1$ effect would have
+been different. (Module 3 makes this concrete and a little alarming.)
+
+**Trap: "the biggest coefficient is the most important predictor."** A coefficient's
+size depends on the predictor's *units*. If $x_1$ were measured in thousands and $x_2$
+in ones, their coefficients would scale accordingly even if the predictors mattered
+equally. Comparing raw coefficient sizes across predictors on different scales is
+comparing apples to kilometres. (Standardizing predictors first — the
+[variance-structure](../../../../foundations/variance-structure-and-standardization/lesson.qmd)
+module's job — is what makes such comparisons fair; Module 3 leans on it.)
+
+## Check yourself
+
+**1.** A fitted model is $\hat{y} = 5 + 2\,x_1 - 4\,x_2$. Two neighbourhoods have the
+same $x_2$, but the second has $x_1$ larger by 3. How much higher is its predicted
+$\hat{y}$?
+
+::: {.callout-note collapse="true" title="Answer"}
+Only $x_1$ changes (by 3), $x_2$ is held fixed, so $\hat{y}$ changes by
+$2 \times 3 = 6$ — up 6. The $-4\,x_2$ term is identical for both and cancels.
+:::
+
+**2.** In that same model, what does the $-4$ tell you, stated with the crucial
+qualifier?
+
+::: {.callout-note collapse="true" title="Answer"}
+Holding $x_1$ (and any other predictor) fixed, a one-unit increase in $x_2$ *lowers*
+the prediction by 4. The qualifier "holding $x_1$ fixed" is not optional — it is what a
+multiple-regression coefficient means.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what a coefficient
+in a multiple regression measures and why the phrase "holding the others fixed" is part
+of the definition.
+
+::: {.callout-note collapse="true" title="A model answer"}
+A coefficient is how much the prediction moves when you nudge that one predictor by a
+unit while every other predictor stays put — like judging one slider on a mixing board
+by moving only it. The "held fixed" part is essential because if the other predictors
+were free to move too, you couldn't tell which predictor was responsible for the change
+in $y$.
+:::
+
+## What you can now do
+
+- **Read the multiple-regression model** $y_i = \beta_0 + \sum_j \beta_j x_{ij} + \varepsilon_i$
+  and name every part (baseline, per-predictor weighted terms, leftover).
+- **Interpret any coefficient** as "change in $y$ per unit of that predictor, holding
+  all the others fixed" — and know why the qualifier can't be dropped.
+- **Compute a prediction** as the intercept plus a linear combination of the predictor
+  values, by hand or with `predict()`.
+- **Resist two traps:** a coefficient is not an unconditional effect, and its raw size
+  is not importance when predictors are on different scales.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+before continuing — Module 2 shows exactly how `lm()` finds those coefficients, and it
+assumes you can read them.
+
+## Where this goes next
+
+You can read the model and its coefficients; you don't yet know where the numbers
+*come from*. Next: [Least squares and the normal equations](../02-least-squares-and-the-normal-equations/lesson.qmd)
+derives the coefficients by minimizing squared error over all the knobs at once, and
+you'll rebuild `lm()`'s answer in one line of base R. Ready for more reps first? Do the
+[practice problems](practice.qmd).

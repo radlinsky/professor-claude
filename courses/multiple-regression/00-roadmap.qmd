@@ -1,0 +1,68 @@
+---
+title: "Roadmap"
+---
+
+How every module depends on the others. Blue nodes are reusable
+[foundations](../../foundations/README.md) modules shared across courses; the green
+node is a whole earlier course; arrows mean "needed for".
+
+Like every course, this one assumes the notation grammar in
+[reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) — take it
+first if the symbols aren't yet second nature.
+
+This course also **builds on** [Simple Linear Regression from Scratch](../simple-linear-regression/syllabus.md)
+(fitting one predictor by least squares; reading `lm()` output) and reuses its anchors
+rather than re-teaching them; if rusty, skim its syllabus first.
+
+```{mermaid}
+flowchart TD
+    classDef foundation fill:#e8f0fe,stroke:#4285f4
+    classDef priorcourse fill:#e6f4ea,stroke:#34a853
+
+    F1["linear-combinations-and-data-matrices<br/>(design matrix X, linear combinations)"]:::foundation
+    F2["matrices-and-linear-transforms<br/>(Xᵀ, XᵀX, solve, inverse)"]:::foundation
+    F3["variance-structure-and-standardization<br/>(correlation between predictors)"]:::foundation
+    F4["partial-derivatives-and-the-gradient<br/>(set every partial slope to 0)"]:::foundation
+
+    C1["course: simple-linear-regression<br/>(the line β₀+β₁x; reading lm())"]:::priorcourse
+
+    M1["01 · Many knobs, one model<br/>(y = β₀+β₁x₁+…+βₚxₚ, 'others held fixed')"]
+    M2["02 · Least squares & the normal equations<br/>(XᵀX β̂ = Xᵀy)"]
+    M3["03 · Marginal vs joint<br/>(the vanishing / sign-flipping coefficient)"]
+    M4["04 · Capstone<br/>(decode a full summary(lm()))"]
+
+    F2 --> F1
+    F2 --> F3
+
+    C1 --> M1
+    F1 --> M1
+    M1 --> M2
+    F2 --> M2
+    F4 --> M2
+    M2 --> M3
+    F3 --> M3
+    M3 --> M4
+```
+
+## Suggested order
+
+1. Foundation: [matrices-and-linear-transforms](../../foundations/matrices-and-linear-transforms/lesson.qmd) —
+   new? take it fully; done before? skim its pronunciation table.
+   (Take this before linear-combinations, which builds on it.)
+2. Foundation: [linear-combinations-and-data-matrices](../../foundations/linear-combinations-and-data-matrices/lesson.qmd) —
+   same rule.
+3. Foundation: [variance-structure-and-standardization](../../foundations/variance-structure-and-standardization/lesson.qmd) —
+   same rule.
+4. Foundation: [partial-derivatives-and-the-gradient](../../foundations/partial-derivatives-and-the-gradient/lesson.qmd) —
+   same rule (you likely met this in the earlier regression course).
+5. [01 · Many knobs, one model](modules/01-many-knobs-one-model/lesson.qmd)
+   (+ [practice](modules/01-many-knobs-one-model/practice.qmd))
+6. [02 · Least squares and the normal equations](modules/02-least-squares-and-the-normal-equations/lesson.qmd)
+   (+ [practice](modules/02-least-squares-and-the-normal-equations/practice.qmd))
+7. [03 · Marginal vs joint](modules/03-marginal-vs-joint/lesson.qmd)
+   (+ [practice](modules/03-marginal-vs-joint/practice.qmd))
+8. [04 · Capstone — reading a multiple regression](modules/04-capstone-reading-a-multiple-regression/lesson.qmd)
+   (+ [practice](modules/04-capstone-reading-a-multiple-regression/practice.qmd))
+
+After each lesson, do its practice page before moving on — the problems are the part
+that makes it stick. External videos/readings for each module: [resources](resources.md).

@@ -1,0 +1,137 @@
+---
+title: "Practice: Capstone — reading a multiple regression"
+subtitle: "Cumulative. No labels saying which tool — recalling that is part of the test."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+set.seed(42)
+```
+
+These draw on the whole course, in mixed order — deciding *which* idea each problem needs
+is part of the workout. Try each honestly before opening the answer.
+
+## Problem 1 — warm-up prediction
+
+A fitted model is $\widehat{\text{gdp}} = 0.5 + 0.3\,x_1 - 0.2\,x_2$. Predict `gdp` when
+$x_1 = 4$ and $x_2 = 5$.
+
+```{webr}
+#| autorun: false
+# p1-starter
+x1 <- 4; x2 <- 5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$0.5 + 0.3\times4 - 0.2\times5 = 0.5 + 1.2 - 1.0 = 0.7$. A prediction is the intercept
+plus each predictor times its coefficient.
+:::
+
+## Problem 2 — fit it from scratch
+
+For a centred two-predictor problem you're given
+$X^\top X = \left(\begin{smallmatrix}3&1\\1&2\end{smallmatrix}\right)$ and
+$X^\top y = (9, 8)$. Solve the normal equations for $(b_1, b_2)$ by hand, then check in R.
+
+```{webr}
+#| autorun: false
+# p2-starter
+XtX <- matrix(c(3, 1, 1, 2), 2); Xty <- c(9, 8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Determinant $3\cdot2 - 1\cdot1 = 5$; $b_1 = (2\cdot9 - 1\cdot8)/5 = 10/5 = 2$,
+$b_2 = (3\cdot8 - 1\cdot9)/5 = 15/5 = 3$. So $(b_1, b_2) = (2, 3)$.
+
+```{r}
+solve(matrix(c(3, 1, 1, 2), 2), c(9, 8))    # 2, 3
+```
+:::
+
+## Problem 3 — read one coefficient row
+
+A regression table row reads:
+
+```
+              Estimate Std. Error t value Pr(>|t|)
+unemployment   -0.240      0.080   -3.00    0.003 **
+```
+
+State (a) the `t value` from the estimate and standard error, (b) what the coefficient
+means in words with the necessary qualifier, and (c) what the `**` says.
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $t = -0.240 / 0.080 = -3.00$ — the estimate sits 3 standard errors below 0. (b)
+Holding every other predictor fixed, a one-unit rise in unemployment is associated with a
+0.24 *decrease* in predicted GDP. (c) `**` marks $p < 0.01$ (here $p = 0.003$): strong
+evidence the coefficient isn't zero.
+:::
+
+## Problem 4 — spot the error
+
+A colleague reports: *"Our model's $R^2$ is 0.85 and the F-test p-value is 2e-9, so every
+coefficient in the table is trustworthy and can be interpreted on its own."* This
+contains **exactly one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: a high $R^2$ and a tiny F-test p-value certify the model **as a whole**
+explains real signal — they say nothing about whether *individual* coefficients are
+trustworthy. Collinear predictors can have unreliable, even sign-flipped coefficients
+while the model predicts well. Trustworthiness of a single coefficient is a separate
+question, checked with its standard error and VIF, not with $R^2$ or the overall F-test.
+:::
+
+## Problem 5 — interpretation
+
+A model of GDP includes two interest-rate measures correlated 0.97. In the joint fit,
+one has a large positive coefficient and the other a moderate negative one, and both have
+big standard errors. Your manager asks: "Does this mean one rate raises GDP and the other
+lowers it?" Answer in two or three sentences.
+
+::: {.callout-note collapse="true" title="Answer"}
+No — with the two rates correlated 0.97 (VIFs will be very high), the joint fit can't
+separate their shared effect, so it splits it into a large-positive / moderate-negative
+pair with wide uncertainty; the opposite signs are an artifact of collinearity, not a
+real opposing mechanism. The honest read is that the *pair* carries interest-rate signal
+but the individual coefficients can't be trusted — you'd report the group effect, drop or
+combine one measure, or flag the VIFs rather than tell a story about one raising and one
+lowering GDP.
+:::
+
+## Problem 6 — decode a fresh regression
+
+Here is a `summary(lm())` you haven't seen, predicting `gdp` from a lagged GDP term and
+two near-identical interest-rate measures (`rate`, `rate2`), on 80 quarters:
+
+```
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)
+(Intercept)   0.0049     0.1147   0.043   0.9661
+gdp_lag       0.5811     0.1302   4.464   1.4e-05 ***
+rate          1.1015     0.4978   2.213   0.0299 *
+rate2        -0.5982     0.5215  -1.147   0.2549
+
+Residual standard error: 0.98 on 76 degrees of freedom
+Multiple R-squared:  0.3661,  Adjusted R-squared:  0.3411
+F-statistic: 14.63 on 3 and 76 DF,  p-value: 1.3e-07
+```
+
+You're told `rate` and `rate2` are correlated 0.97 (VIFs ≈ 20 each), and that the data
+were generated with `gdp_lag` and `rate` truly mattering while `rate2`'s true effect is
+zero. Decode it: (a) Is at least one predictor useful? (b) Which coefficient is most
+the most trustworthy? (c) Explain the odd-looking `rate` / `rate2` pair.
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) **Yes** — the F-statistic (14.63, p ≈ 1.3e-07) says the model as a whole explains
+real signal, well beyond noise; the degrees of freedom are $80 - 4 = 76$. (b) **`gdp_lag`**:
+$t = 0.5811/0.1302 = 4.46$, $p \approx 1.4\text{e-}5$ (`***`), and it isn't tangled in the
+collinear pair — a trustworthy, well-determined coefficient. (c) `rate` and `rate2` are
+0.97-correlated (VIF ≈ 20 ≫ 10), so the fit can't attribute the shared interest-rate
+effect: it inflated `rate` to 1.10 (true value 0.4) and handed `rate2` a spurious −0.60
+(true 0), both with large standard errors. The pair carries signal together, but neither
+individual coefficient should be read as that predictor's real effect — the course's
+headline, on a brand-new table.
+:::
