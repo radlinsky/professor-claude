@@ -181,3 +181,62 @@ nudge only $a$? only $b$?), bundle those two slopes into a little vector called 
 a)$ and $b \leftarrow b - \alpha(\text{slope in } b)$. Same downhill idea, one step per
 direction. [The next module](../02-the-gradient/lesson.qmd) makes this precise.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/gradient-descent/modules/01-rolling-downhill" pass="4"}
+
+::: {.quiz-q qid="rd-update-step" qtype="numeric" answer="5.6" tolerance="0.01"}
+**On the lesson's bowl $f(x) = (x-4)^2 + 1$, you are standing at $x = 6$, where the
+slope is $4$. With learning rate $\alpha = 0.1$, where does one update step put you?**
+(Enter one decimal.)
+:::
+
+::: {.quiz-q qid="rd-minus-sign" qtype="mc" answer="a"}
+**In the update $x_{t+1} = x_t - \alpha f'(x_t)$, why is the slope *subtracted*?**
+
+a) The slope points uphill, so moving opposite to it goes downhill
+b) Slopes near a minimum are negative, and subtracting a negative moves you forward
+c) Subtraction is what makes each step smaller than the last
+:::
+
+::: {.quiz-q qid="rd-lr-diagnosis" qtype="mc" answer="b"}
+**Starting from $x = 1$ on the lesson's bowl, your iterates are $1$, then $7.12$, then
+$0.75$, each landing farther from $x = 4$ than the last. What is going on?**
+
+a) The learning rate is too small, so the walk crawls
+b) The learning rate is too big, so every step overshoots the bottom by more
+c) The walk found a different valley of the curve
+d) This is normal: steps grow before they shrink
+:::
+
+::: {.quiz-q qid="rd-step-taper" qtype="mc" answer="c"}
+**With a fixed $\alpha = 0.1$, the steps in the lesson shrank on their own: $0.6$, then
+$0.48$, then $0.38$. What makes them shrink?**
+
+a) The algorithm detects the minimum coming and brakes
+b) The learning rate decays a little on every iteration
+c) The slope itself shrinks as the curve flattens, so $\alpha \times \text{slope}$ shrinks
+:::
+
+::: {.quiz-q qid="rd-slope-at-bottom" qtype="mc" answer="b"}
+**(From the foundation *derivative-as-slope*.) At the exact bottom of a smooth U-shaped
+curve, and just to the *left* of that bottom, the slopes are:**
+
+a) zero at the bottom; positive just left of it
+b) zero at the bottom; negative just left of it
+c) negative at the bottom; zero just left of it
+:::
+
+:::
+
+::::
