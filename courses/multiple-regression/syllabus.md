@@ -10,10 +10,7 @@ shrink to nothing, or even flip sign, once its correlated neighbours join the mo
 `lm.fit` (via the `port-library` skill). The running example is a simulated
 economic-indicator panel (predict next quarter's GDP growth from twelve indicators).
 
-**Source license:** GPL-2 | GPL-3 (base R `stats::lm`) — flagged (copyleft), confirmed by
-human 2026-07-05. The method itself (the normal equations) is public-domain mathematics,
-rebuilt from scratch in base R; no GPL source code was copied. See
-`.claude/course-authoring/source-licensing.md`.
+**Source license:** GPL-2 | GPL-3 (base R `stats::lm`) — flagged (copyleft), confirmed by human 2026-07-05; the method itself (the normal equations) is public-domain mathematics, rebuilt from scratch in base R, no GPL source code copied. See `.claude/course-authoring/source-licensing.md`.
 
 ## How to take this course
 
@@ -47,8 +44,8 @@ table as a refresher instead.
 | Module | Why this course needs it |
 |---|---|
 | [reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) | The standing first prerequisite — it decodes the accents, Greek letters, subscripts, and operators every other formula uses. New? take it fully; done before? skim its symbol table. |
+| [matrices-and-linear-transforms](../../foundations/matrices-and-linear-transforms/lesson.qmd) | Module 2 forms $X^\top X$, calls `solve()`, and asks when a matrix *can't* be inverted — the transpose and the inverse are the tools. (Take before linear-combinations, which builds on it.) |
 | [linear-combinations-and-data-matrices](../../foundations/linear-combinations-and-data-matrices/lesson.qmd) | A fit is a *linear combination* of predictor columns; the predictors stack into a data matrix $X$. Both are the vocabulary of Module 1. |
-| [matrices-and-linear-transforms](../../foundations/matrices-and-linear-transforms/lesson.qmd) | Module 2 forms $X^\top X$, calls `solve()`, and asks when a matrix *can't* be inverted — the transpose and the inverse are the tools. |
 | [variance-structure-and-standardization](../../foundations/variance-structure-and-standardization/lesson.qmd) | Correlated predictors — "two knobs wired to one wheel" — are the whole story of Module 3; this module is where correlation between predictors gets its picture. |
 | [partial-derivatives-and-the-gradient](../../foundations/partial-derivatives-and-the-gradient/lesson.qmd) | Module 2 sets every partial slope of the error to zero at once — the multi-knob version of "take the derivative, set it to zero". |
 

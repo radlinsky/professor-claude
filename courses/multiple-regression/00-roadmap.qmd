@@ -46,9 +46,10 @@ flowchart TD
 
 ## Suggested order
 
-1. Foundation: [linear-combinations-and-data-matrices](../../foundations/linear-combinations-and-data-matrices/lesson.qmd) —
+1. Foundation: [matrices-and-linear-transforms](../../foundations/matrices-and-linear-transforms/lesson.qmd) —
    new? take it fully; done before? skim its pronunciation table.
-2. Foundation: [matrices-and-linear-transforms](../../foundations/matrices-and-linear-transforms/lesson.qmd) —
+   (Take this before linear-combinations, which builds on it.)
+2. Foundation: [linear-combinations-and-data-matrices](../../foundations/linear-combinations-and-data-matrices/lesson.qmd) —
    same rule.
 3. Foundation: [variance-structure-and-standardization](../../foundations/variance-structure-and-standardization/lesson.qmd) —
    same rule.
