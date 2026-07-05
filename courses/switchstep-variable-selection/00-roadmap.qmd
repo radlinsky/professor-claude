@@ -59,13 +59,13 @@ flowchart TD
    same rule (needed for Module 2's p-value contrast).
 5. [01 · The joint fit from summaries](modules/01-joint-fit-from-summaries/lesson.qmd)
    (+ [practice](modules/01-joint-fit-from-summaries/practice.qmd))
-5. [02 · The switching search](modules/02-the-switching-search/lesson.qmd)
+6. [02 · The switching search](modules/02-the-switching-search/lesson.qmd)
    (+ [practice](modules/02-the-switching-search/practice.qmd))
-6. [03 · Rank-one speed-ups](modules/03-rank-one-speedups/lesson.qmd)
+7. [03 · Rank-one speed-ups](modules/03-rank-one-speedups/lesson.qmd)
    (+ [practice](modules/03-rank-one-speedups/practice.qmd))
-7. [04 · Lambda for stability](modules/04-lambda-stability/lesson.qmd)
+8. [04 · Lambda for stability](modules/04-lambda-stability/lesson.qmd)
    (+ [practice](modules/04-lambda-stability/practice.qmd))
-8. [05 · Capstone — assembling SwitchStep](modules/05-capstone-switchstep/lesson.qmd)
+9. [05 · Capstone — assembling SwitchStep](modules/05-capstone-switchstep/lesson.qmd)
    (+ [practice](modules/05-capstone-switchstep/practice.qmd))
 
 After each lesson, do its practice page before moving on. External videos/readings for

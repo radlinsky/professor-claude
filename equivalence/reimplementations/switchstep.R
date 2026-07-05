@@ -29,7 +29,7 @@ sw_bic <- function(R, b, n, cols) {
   if (length(cols) == 0) return(0)                       # empty model: R2 = 0, penalty 0
   RS <- as.matrix(R)[cols, cols, drop = FALSE]
   bS <- as.numeric(b)[cols]
-  r2 <- as.numeric(crossprod(bS, solve(RS, bS)))
+  r2 <- min(as.numeric(crossprod(bS, solve(RS, bS))), 1 - 1e-9)  # cap: summary R2 can exceed 1
   n * log(1 - r2) + length(cols) * log(n)
 }
 

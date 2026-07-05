@@ -18,7 +18,7 @@ set.seed(42)
 sw_bic <- function(R, b, n, cols) {
   if (length(cols) == 0) return(0)
   RS <- R[cols, cols, drop = FALSE]; bS <- b[cols]
-  r2 <- as.numeric(crossprod(bS, solve(RS, bS)))
+  r2 <- min(as.numeric(crossprod(bS, solve(RS, bS))), 1 - 1e-9)  # cap: summary R2 can exceed 1
   n * log(1 - r2) + length(cols) * log(n)
 }
 forward_only <- function(R, b, n) {
@@ -214,7 +214,7 @@ course.)
 # often forward-only STOPS at a bigger, worse-BIC subset than the switching search.
 # PREDICT: will the two ever agree? (Yes — when forward's greedy path happens to be optimal.)
 sw_bic <- function(R, b, n, cols) { if (!length(cols)) return(0)
-  r2 <- as.numeric(crossprod(b[cols], solve(R[cols,cols,drop=FALSE], b[cols])))
+  r2 <- min(as.numeric(crossprod(b[cols], solve(R[cols,cols,drop=FALSE], b[cols]))), 1 - 1e-9)
   n*log(1-r2) + length(cols)*log(n) }
 forward_only <- function(R,b,n){p<-length(b);cur<-integer(0)
   repeat{cand<-setdiff(1:p,cur);if(!length(cand))break

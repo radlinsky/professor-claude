@@ -59,7 +59,7 @@ their selected subsets and BICs.
 # p3-starter — the searches are provided; just run them and compare
 # PREDICT: will forward-only stop at a different (worse-BIC) subset than switching?
 sw_bic <- function(R,b,n,cols){ if(!length(cols)) return(0)
-  r2 <- as.numeric(crossprod(b[cols], solve(R[cols,cols,drop=FALSE], b[cols])))
+  r2 <- min(as.numeric(crossprod(b[cols], solve(R[cols,cols,drop=FALSE], b[cols]))), 1 - 1e-9)
   n*log(1-r2)+length(cols)*log(n) }
 forward_only <- function(R,b,n){p<-length(b);cur<-integer(0)
   repeat{cd<-setdiff(1:p,cur);if(!length(cd))break
@@ -83,7 +83,7 @@ for `x1`, BIC improves.
 
 ```{r}
 sw_bic <- function(R,b,n,cols){ if(!length(cols)) return(0)
-  r2 <- as.numeric(crossprod(b[cols], solve(R[cols,cols,drop=FALSE], b[cols])))
+  r2 <- min(as.numeric(crossprod(b[cols], solve(R[cols,cols,drop=FALSE], b[cols]))), 1 - 1e-9)
   n*log(1-r2)+length(cols)*log(n) }
 forward_only <- function(R,b,n){p<-length(b);cur<-integer(0)
   repeat{cd<-setdiff(1:p,cur);if(!length(cd))break
