@@ -220,3 +220,56 @@ bottom of the error bowl. That bottom is the best-fitting line, and
 [the next module](../03-fitting-a-line-by-descent/lesson.qmd) runs it — then checks the
 answer against a professional optimizer.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/gradient-descent/modules/02-the-gradient" pass="4"}
+
+::: {.quiz-q qid="tg-partial-at-point" qtype="numeric" answer="-2" tolerance="0"}
+**On the lesson's bowl $f(a, b) = (a-2)^2 + (b-5)^2$, what is the slope in the $a$
+direction at the point $(a, b) = (1, 2)$?** (The lesson's slope rule for this bowl:
+the $a$-direction slope is $2(a-2)$.)
+:::
+
+::: {.quiz-q qid="tg-stop-condition" qtype="mc" answer="b"}
+**At the bottom of any smooth bowl, why does gradient descent stop moving?**
+
+a) The function value reaches zero there, which ends the loop
+b) The gradient is zero there, so the step changes nothing
+c) The learning rate has decayed to zero by the time it arrives
+:::
+
+::: {.quiz-q qid="tg-both-knobs" qtype="mc" answer="a"}
+**A function has two knobs, $a$ and $b$. How does one gradient-descent step move them?**
+
+a) Both at once, each nudged against its own partial slope
+b) It tunes $a$ all the way to its best value first, then does the same for $b$
+c) It moves only the knob whose slope is steeper this step
+:::
+
+::: {.quiz-q qid="tg-zigzag" qtype="mc" answer="c"}
+**On the stretched bowl of explore-2, does the negative gradient $-\nabla f$ point
+straight at the minimum?**
+
+a) Yes — the steepest-downhill direction always aims at the lowest point
+b) No — the gradient points uphill, so the path drifts away from the minimum
+c) No — it is the steepest direction only *right where you stand*, so the path zig-zags inward
+:::
+
+::: {.quiz-q qid="tg-sum-recall" qtype="numeric" answer="20" tolerance="0"}
+**(From the foundation *vectors & summation*.) For $v = (4, 7, 9)$, what is
+$\sum_{i=1}^{3} v_i$?**
+:::
+
+:::
+
+::::

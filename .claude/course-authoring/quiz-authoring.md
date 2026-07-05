@@ -94,7 +94,9 @@ For $x = (3, 5, 6)$: what is $\sum_{i=1}^{n} x_i$?
 - **Exactly 5 items.** 3–4 test this module; **1–2 are interleaved** from earlier
   modules of the course (or the foundation's `Builds on` modules), each interleaved
   item labeled in its question text (mirrors the practice-ramp labeling). **Entry
-  modules** — nothing earlier — are exempt: all 5 items module-local.
+  modules** — nothing earlier — are exempt: all 5 items module-local. **Capstone
+  modules** are the opposite: all 5 items are cumulative and, like the capstone
+  practice set, left **unlabeled** — recalling which module applies is the point.
 - **Distractors** come from the lesson's **Common traps**; **numeric answers** use the
   lesson's own toy numbers, so every answer is verifiable against the lesson. Full
   distractor and stem rules: §Writing the five items, below.
