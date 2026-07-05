@@ -62,7 +62,22 @@ $$
 \text{cost}(b) = \underbrace{\sum_i (y_i - b\,x_i)^2}_{\text{fit}} \; + \; \underbrace{\lambda\, b^2}_{\text{penalty}} .
 $$
 
-For one predictor this has a clean answer: $b = \dfrac{\sum x_i y_i}{\sum x_i^2 + \lambda}$.
+For one predictor we can solve it with the same move as ordinary least squares —
+differentiate the cost with respect to $b$ and set the slope to zero — only now the
+penalty adds an extra term:
+
+$$
+\frac{d}{db}\,\text{cost}(b) = \underbrace{-2\sum_i x_i(y_i - b\,x_i)}_{\text{from the fit}} + \underbrace{2\lambda b}_{\text{from the penalty}} = 0
+\;\;\Longrightarrow\;\; b\Big(\textstyle\sum_i x_i^2 + \lambda\Big) = \sum_i x_i y_i .
+$$
+
+- Term 1: the derivative of $(y_i - b x_i)^2$ is $2(y_i - b x_i)(-x_i)$ (chain rule), summed
+  over the data — the ordinary-least-squares part.
+- Term 2: the derivative of $\lambda b^2$ is $2\lambda b$ — the *only* new piece the penalty adds.
+- Divide by 2 and collect the $b$ terms: the $\lambda$ lands right next to $\sum x_i^2$.
+
+So the clean answer is $b = \dfrac{\sum x_i y_i}{\sum x_i^2 + \lambda}$ — ordinary least
+squares' $\sum x_i y_i / \sum x_i^2$, with $\lambda$ added to the denominator.
 Here $\sum x_i y_i = 1\cdot2 + 2\cdot4 + 3\cdot6 = 2 + 8 + 18 = 28$ and
 $\sum x_i^2 = 1 + 4 + 9 = 14$. So:
 
@@ -124,7 +139,7 @@ every coefficient toward 0.
 | $x_{ij}$ | "ex sub eye jay" | predictor $j$'s value for observation $i$ | the $x$ values |
 | $\arg\min_{\beta}$ | "arg min over beta" | the coefficient vector $\beta$ that makes the expression smallest | the fitted $\hat\beta$ |
 | $\sum_i$ | "the sum over i" | add over the data points | over the 3 points |
-| $\sum_j b_j^2$ | "the sum of the squared b's" | the total coefficient size the penalty charges for | $b^2$ (one predictor) |
+| $\sum_j \beta_j^2$ | "the sum of the squared betas" | the total coefficient size the penalty charges for | $b^2$ (one predictor) |
 | $\lVert \beta \rVert^2$ | "the squared norm of beta" | same thing in vector shorthand: $\sum_j \beta_j^2$ | $b^2$ |
 | $I$ | "the identity matrix" | the matrix version of "1" (used in the matrix form, Course B) | — |
 
