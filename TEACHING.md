@@ -158,8 +158,10 @@ Full mechanics (starter chunks, answer format, chunk labels) live in
 Each module's `practice.qmd` ends with a **Module check**: five closed-answer
 (multiple-choice / numeric) questions, graded on the page and recorded in the
 learner's browser. It is *summative-lite* — it sits after the free-response practice
-set (best taken the next session, so the spacing does work) and gives the mastery rule
-the one thing self-report can't: an objective signal. **≥4/5 = the module is solid**,
+set, presented as a **collapsed callout that tells the learner to wait at least a day**
+because the spacing is the point (taking it while the lesson is fresh only measures
+short-term fluency). It gives
+the mastery rule the one thing self-report can't: an objective signal. **≥4/5 = the module is solid**,
 and that pass is the learner's evidence for flipping their Status column to `done`.
 
 - **Cumulative:** 3–4 items test this module; 1–2 are interleaved from earlier modules

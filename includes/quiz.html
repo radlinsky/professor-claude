@@ -144,7 +144,8 @@
               radio.style.marginRight = "0.4em";
 
               var span       = document.createElement("span");
-              span.innerHTML = letter + ")&nbsp;" + inner;
+              /* the <ol type="a"> already renders the "a." marker — don't repeat it */
+              span.innerHTML = inner;
 
               label.appendChild(radio);
               label.appendChild(span);
@@ -271,22 +272,23 @@
               ? "Passed! This module is solid."
               : "Not yet — review the marked questions and try again.");
 
-          /* persist: read-modify-write */
+          /* persist: read-modify-write. Every attempt is appended to the
+             `attempts` array (full history); `best` is kept for the banner. */
           blob = load();
-          if (!blob.modules[moduleKey]) {
-            blob.modules[moduleKey] = { attempts: 0 };
+          var rec = blob.modules[moduleKey];
+          if (!rec || !Array.isArray(rec.attempts)) {
+            rec = { best: (rec && rec.best) || null, attempts: [] };
+            blob.modules[moduleKey] = rec;
           }
-          var rec     = blob.modules[moduleKey];
-          rec.attempts = (rec.attempts || 0) + 1;
 
           var entry = {
+            when:    new Date().toISOString(),
             score:   score,
             total:   total,
             passed:  passed,
-            when:    new Date().toISOString(),
             answers: answers
           };
-          rec.last = entry;
+          rec.attempts.push(entry);
 
           /* keep best only when score improves */
           if (!rec.best || score > rec.best.score) {

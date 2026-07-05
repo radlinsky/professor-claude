@@ -26,8 +26,9 @@ the cumulative capstone.
 
 The grader is `includes/quiz.html` (injected site-wide via `include-after-body` in
 `_quarto.yml`). It converts the rendered markup into radios/inputs, grades on the page,
-and persists **best + last per module** under the localStorage key
-`professor-claude.quiz.v1`. Without JavaScript the quiz stays a readable list — the
+and persists each module's `best` plus its **full attempt history** (a chronological
+`attempts` array) under the localStorage key `professor-claude.quiz.v1`; "Download my
+results" exports the whole blob. Without JavaScript the quiz stays a readable list — the
 answers live only in `data-*` attributes, never in visible prose.
 
 ## Syntax
@@ -44,12 +45,21 @@ letter. The rendered `<ol type="a">` becomes radios; without JS it stays a list.
 
 Copy-able example:
 
+The whole thing is wrapped in a **collapsed `.callout-tip`** whose title tells the
+learner to wait at least a day — the spacing is the point (testing while the lesson is
+fresh only measures short-term fluency), so the quiz reads as a deferred checkpoint,
+not more practice. Use `::::`
+for the callout so it nests unambiguously around the `:::` quiz divs.
+
 ````markdown
 ## Module check
 
-Five quick questions, graded on the page. Take it in your next session, after the
-practice set. 4/5 or better means this module is solid; results are saved in this
-browser only.
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Results are
+saved in this browser only.
 
 ::: {.module-check module="foundations/reading-math-notation" pass="4"}
 
@@ -67,6 +77,8 @@ For $x = (3, 5, 6)$: what is $\sum_{i=1}^{n} x_i$?
 :::
 
 :::
+
+::::
 ````
 
 ## Rules

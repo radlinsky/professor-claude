@@ -160,9 +160,12 @@ x <- c(...)
 
 ## Module check
 
-Five quick questions, graded on the page. Take it in your next session, after the
-practice set. 4/5 or better means this module is solid; results are saved in this
-browser only.
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Results are
+saved in this browser only.
 
 ::: {.module-check module="<courses/<course>/modules/NN-slug or foundations/slug>" pass="4"}
 
@@ -182,3 +185,5 @@ d) <distractor>
 <!-- ... total exactly 5 .quiz-q items; label any interleaved item in its stem ... -->
 
 :::
+
+::::
