@@ -178,7 +178,7 @@ abline(h = 0, lty = 3); legend("topright", c("b1", "b2"), col = 1:2, lwd = 2, bt
 ```
 
 ```{webr}
-#| autorun: false
+#| autorun: true
 # TRY IT: the 1-D closed form vs a brute-force minimizer of penalized RSS — they agree.
 # PREDICT: at lambda = 14 the closed form gave b = 1 for x=(1,2,3), y=(2,4,6). Confirm.
 x <- c(1, 2, 3); y <- c(2, 4, 6); lambda <- 14

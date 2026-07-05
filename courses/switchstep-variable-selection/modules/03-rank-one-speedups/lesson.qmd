@@ -172,20 +172,25 @@ w-over-s and a corner of one-over-s." Everything hangs on the single scalar $s$.
 ## Explore it
 
 ```{r timing}
-# The search's inner loop, timed two ways on a p=12 correlation matrix: re-inverting each
-# grown subset from scratch vs bordering the previous inverse. (Times vary by machine; the
-# ratio is the point — this heavy loop is baked at build, not a browser cell.)
-set.seed(1); p <- 12
+# The search's inner loop, timed two ways: re-inverting each grown subset from scratch vs
+# bordering the previous inverse. The previous inverse (`base_inv`) is computed ONCE, up
+# front — exactly as the search holds it from the prior move — so the timed loop measures
+# only the O(k^2) update, not another inversion. (Times vary by machine; the ratio is the
+# point — this heavy loop is baked at build, not a browser cell.)
+set.seed(1); p <- 120
 Rt <- diag(p); Rt[1,2] <- Rt[2,1] <- 0.9; Rt[3,4] <- Rt[4,3] <- 0.95
 X <- matrix(rnorm(400 * p), 400, p) %*% chol(Rt); R <- cor(X)
 
-grow_fresh  <- function(k) solve(R[1:(k+1), 1:(k+1)])                  # re-invert
-grow_border <- function(k) sw_border(solve(R[1:k, 1:k]), R[1:k, k+1], R[k+1, k+1])
-reps <- 3000
-t_fresh  <- system.time(for (i in 1:reps) grow_fresh(8))[["elapsed"]]
-t_border <- system.time(for (i in 1:reps) grow_border(8))[["elapsed"]]
+k <- 100
+base_inv <- solve(R[1:k, 1:k])                                        # the cached prior inverse
+grow_fresh  <- function() solve(R[1:(k+1), 1:(k+1)])                  # re-invert (k+1)x(k+1) from scratch
+grow_border <- function() sw_border(base_inv, R[1:k, k+1], R[k+1, k+1])  # O(k^2) update from the cache
+reps <- 2000
+t_fresh  <- system.time(for (i in 1:reps) grow_fresh())[["elapsed"]]
+t_border <- system.time(for (i in 1:reps) grow_border())[["elapsed"]]
 c(fresh_solve_s = round(t_fresh, 2), bordering_s = round(t_border, 2),
-  max_diff = max(abs(grow_fresh(8) - grow_border(8))))                 # identical to ~1e-15
+  speedup = round(t_fresh / t_border, 1),
+  max_diff = max(abs(grow_fresh() - grow_border())))                  # identical to ~1e-14
 ```
 
 ```{webr}
