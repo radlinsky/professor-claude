@@ -208,6 +208,7 @@
             var qid       = qDiv.getAttribute("data-qid")       || "";
             var qtype     = qDiv.getAttribute("data-qtype")     || "mc";
             var dataAns   = qDiv.getAttribute("data-answer")    || "";
+            var ansNorm   = dataAns.trim().toLowerCase(); /* MC answer key, normalized */
             var dataTol   = qDiv.getAttribute("data-tolerance") || "0";
             var correct   = false;
             var given     = "";
@@ -225,8 +226,8 @@
             if (qtype === "mc") {
               var checked = qDiv.querySelector("input[type='radio']:checked");
               given   = checked ? checked.value : "";
-              /* radio values are lowercase letters; normalize the answer key too */
-              correct = (given !== "" && given === dataAns.trim().toLowerCase());
+              /* radio values are lowercase letters; ansNorm matches that casing */
+              correct = (given !== "" && given === ansNorm);
 
             } else if (qtype === "numeric") {
               /* each numeric .quiz-q has exactly one input — no fragile qid selector */
@@ -257,7 +258,7 @@
               /* for MC: highlight the correct option */
               if (qtype === "mc") {
                 var correctRadio = qDiv.querySelector(
-                  "input[type='radio'][value='" + dataAns.trim().toLowerCase() + "']"
+                  "input[type='radio'][value='" + ansNorm + "']"
                 );
                 if (correctRadio && correctRadio.parentElement) {
                   correctRadio.parentElement.classList.add("q-correct-option");
@@ -287,11 +288,12 @@
              Skipped entirely when there's no real module key. */
           var didSave = true;
           if (canSave) {
-            blob = load();
-            var rec = blob.modules[moduleKey];
+            /* local blob per handler — don't mutate the shared outer reference */
+            var current = load();
+            var rec = current.modules[moduleKey];
             if (!rec || !Array.isArray(rec.attempts)) {
               rec = { best: (rec && rec.best) || null, attempts: [] };
-              blob.modules[moduleKey] = rec;
+              current.modules[moduleKey] = rec;
             }
 
             var entry = {
@@ -313,7 +315,7 @@
               };
             }
 
-            didSave = save(blob);
+            didSave = save(current);
           }
 
           /* private-mode notice (shown once per session) */
