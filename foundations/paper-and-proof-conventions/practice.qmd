@@ -189,7 +189,7 @@ counts.
 finite variance is a reasonable assumption here.
 
 **What follows:** because the guarantees are stated *"under A1–A2,"* and **A1 fails**, the
-paper's promises (e.g. its consistency or error-rate claims) **may simply not hold for your
+paper's promises (e.g. its consistency or error-rate claims) **may not hold for your
 data** — quietly, with nothing in the result itself to warn you. That is exactly why the
 assumption list is the *stop-and-check* bucket: reading it against your own situation is how you
 learn whether a method's guarantees are actually yours to keep.

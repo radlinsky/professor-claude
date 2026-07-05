@@ -388,6 +388,9 @@ see a true (if partial) slice of the cloud. It is honest but throws the other co
 away. Here are 4 people with 3 measurements each — plot columns 1 and 2:
 
 ```{r highdim-slice}
+#| fig-alt: Scatterplot of measurement 1 versus measurement 2 for four labelled
+#|   points; P1 and P2 sit close together in the lower-left, P3 and P4 close
+#|   together in the upper-right, forming two tight pairs.
 # 4 people, 3 measurements each (one ROW per person) — a matrix, from the module we build on
 people <- matrix(c(2, 1, 5,
                    3, 2, 4,
@@ -432,7 +435,7 @@ is what bends the two legs into the single slanted path. (`sum(abs(A - B))` is 7
 
 **Trap 2 — "columns with bigger numbers matter more."** When income (in the thousands)
 swamps age (in the tens), it feels like the data is *telling* you income matters more.
-It is not — distance simply counts one dollar the same as one year, so whichever column
+It is not — distance counts one dollar the same as one year, so whichever column
 has the larger raw spread dominates the arithmetic. In our people example, changing
 income by \$1,000 moved the distance by 1,000 while a 5-year age change moved it by only
 5, even if age were the more meaningful variable. The numbers, not the importance, did

@@ -471,7 +471,7 @@ words. Every model's expected error on new data splits into two competing pieces
 
 - **Bias** is error from the model being *too rigid* to capture the real pattern — the
   underfitting side. Our flat mean-line has high bias: it is systematically wrong because
-  a horizontal line simply cannot follow a rising trend, no matter what data you feed it.
+  a horizontal line cannot follow a rising trend, no matter what data you feed it.
 - **Variance** here means error from the model being *too sensitive* to the particular
   data it was trained on — the overfitting side. Our wiggly curve has high variance:
   reshuffle the points and it would draw a wildly different curve, because it is chasing

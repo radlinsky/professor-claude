@@ -248,7 +248,7 @@ $$
 Reading it aloud: "grad f equals the vector: partial of f with respect to a, partial of f
 with respect to b" — everyday words: **"the gradient is the list of every direction's
 slope."** For a function with $k$ inputs it has $k$ entries, one per input. At $(3, 2)$ it is
-$(6, 4)$ — the vector we stacked. And the "you're at a bottom" condition is simply every
+$(6, 4)$ — the vector we stacked. And the "you're at a bottom" condition is just every
 entry being zero:
 
 $$

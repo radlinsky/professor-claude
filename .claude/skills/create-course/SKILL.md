@@ -311,10 +311,17 @@ compiles is not a course that is correct — this gate is the difference.
 
 If a Task/Agent tool is available, dispatch the **`course-auditor` agent**
 (`.claude/agents/course-auditor.md`) on every new lesson/practice file — it
-re-derives nothing, reads with genuinely fresh eyes, and reports defects with
-evidence (self-review is NOT permitted when dispatch is possible). Fix every
-confirmed defect, re-render (back through Phase 7), and re-dispatch until it
-reports clean.
+re-derives everything itself and trusts nothing it is told, reading with genuinely
+fresh eyes, and reports defects with evidence (self-review is NOT permitted when
+dispatch is possible). Fix every confirmed defect, re-render (back through Phase 7),
+and re-dispatch until it reports clean.
+
+**Confirmation pass (new course or new module set only):** after the auditor first
+reports clean, dispatch ONE additional fresh `course-auditor` instance on the full
+set — a fresh instance has no memory of the earlier pass, so it is a genuine second
+opinion on the highest-stakes content (all-new math, no prior review history). Its
+clean verdict is the done condition; any defects it finds re-enter the fix loop
+above (fix, re-render, re-dispatch, then confirm again).
 
 Fallback (no Task/Agent tool available): read
 `.claude/course-authoring/content-review-checklist.md` and run it yourself against
@@ -326,5 +333,6 @@ first, with "new" vs "review" flags from the Status column), module list, render
 status, resource counts, and the content-review result.
 
 **GATE 8 (definition of done):** ☐ Every new lesson/practice file reviewed
-(auditor, or self + disclosed). ☐ All defect classes clear. ☐ Any fixes re-rendered
-green. ☐ Final report delivered.
+(auditor; self + disclosed ONLY when no Task/Agent tool is available). ☐ Confirmation
+pass (second fresh auditor) clean — new-build case only. ☐ All defect classes clear.
+☐ Any fixes re-rendered green. ☐ Final report delivered.
