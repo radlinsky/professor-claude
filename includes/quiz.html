@@ -1,0 +1,355 @@
+<style>
+/* ── Quiz card ─────────────────────────────────────────────────────────── */
+.quiz-q {
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  background: #fff;
+}
+.quiz-q.q-correct { border-left: 4px solid #198754; }
+.quiz-q.q-wrong   { border-left: 4px solid #dc3545; }
+
+/* Tick / cross appended to each question card */
+.q-mark           { font-weight: bold; margin-left: 0.45em; }
+.q-mark.correct   { color: #198754; }
+.q-mark.wrong     { color: #dc3545; }
+
+/* "Correct answer: …" line revealed on wrong */
+.q-reveal {
+  font-size: 0.875em;
+  color: #6c757d;
+  margin-top: 0.4rem;
+}
+
+/* Highlighted correct option for MC after grading */
+.q-correct-option {
+  background: rgba(25, 135, 84, 0.1);
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.25rem;
+}
+
+/* Row of action buttons below the questions */
+.quiz-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* "Best so far" line shown above questions on return visits */
+.quiz-best {
+  font-size: 0.875em;
+  color: #6c757d;
+  margin-bottom: 0.75rem;
+}
+
+/* Private-mode save warning */
+.quiz-private-note {
+  font-size: 0.8em;
+  color: #6c757d;
+  margin-top: 0.3rem;
+}
+</style>
+<script>
+(function () {
+  "use strict";
+
+  /* ── localStorage helpers ─────────────────────────────────────────── */
+  var KEY = "professor-claude.quiz.v1";
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return { version: 1, modules: {} };
+      var blob = JSON.parse(raw);
+      if (!blob || blob.version !== 1 || typeof blob.modules !== "object") {
+        return { version: 1, modules: {} };
+      }
+      return blob;
+    } catch (e) {
+      return { version: 1, modules: {} };
+    }
+  }
+
+  function save(blob) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(blob));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* ── Utility ──────────────────────────────────────────────────────── */
+  function indexToLetter(i) {
+    return String.fromCharCode(97 + i); /* 0→'a', 1→'b', … */
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return "";
+    try { return iso.slice(0, 10); } catch (e) { return ""; }
+  }
+
+  /* ── Main init (wrapped so a bug cannot break lesson pages) ────────── */
+  document.addEventListener("DOMContentLoaded", function () {
+    try {
+      var containers = document.querySelectorAll(".module-check");
+      if (!containers.length) return; /* no-op on pages without a quiz */
+
+      var blob = load();
+
+      containers.forEach(function (container) {
+        var moduleKey     = container.getAttribute("data-module") || "";
+        var passThreshold = parseInt(container.getAttribute("data-pass") || "4", 10);
+        /* persistence needs a real key: skip if missing or an unfilled template
+           placeholder, so quizzes never collide under "" or a literal "<…>" */
+        var canSave = moduleKey !== "" && moduleKey.indexOf("<") === -1;
+        if (!canSave) {
+          console.warn("module-check: missing/placeholder module= — grading works, results not saved");
+        }
+
+        /* ── best-so-far banner (shown on return visits) ─────────────── */
+        var stored = canSave ? blob.modules[moduleKey] : null;
+        if (stored && stored.best) {
+          var b       = stored.best;
+          var bestDiv = document.createElement("div");
+          bestDiv.className   = "quiz-best";
+          bestDiv.textContent =
+            "Best so far: " + b.score + "/" + b.total +
+            " (" + (b.passed ? "passed" : "not yet") + ") — " +
+            fmtDate(b.when);
+          container.insertBefore(bestDiv, container.firstChild);
+        }
+
+        /* ── instrument each .quiz-q ─────────────────────────────────── */
+        var questions = container.querySelectorAll(".quiz-q");
+        questions.forEach(function (qDiv) {
+          var qid   = qDiv.getAttribute("data-qid")   || "";
+          var qtype = qDiv.getAttribute("data-qtype") || "mc";
+
+          if (qtype === "mc") {
+            /* Pandoc renders `a) …` lists as <ol type="a"> */
+            var ol = qDiv.querySelector("ol[type='a']");
+            if (!ol) return;
+            var items = Array.from(ol.querySelectorAll("li"));
+            items.forEach(function (li, idx) {
+              var letter = indexToLetter(idx);
+              var inner  = li.innerHTML;  /* preserve any inline math */
+
+              var label        = document.createElement("label");
+              label.style.display = "block";
+              label.style.cursor  = "pointer";
+              label.style.padding = "0.15rem 0";
+
+              var radio   = document.createElement("input");
+              radio.type  = "radio";
+              radio.name  = qid;
+              radio.value = letter;
+              radio.style.marginRight = "0.4em";
+
+              var span       = document.createElement("span");
+              /* the <ol type="a"> already renders the "a." marker — don't repeat it */
+              span.innerHTML = inner;
+
+              label.appendChild(radio);
+              label.appendChild(span);
+              li.innerHTML = "";
+              li.appendChild(label);
+            });
+
+          } else if (qtype === "numeric") {
+            var inp = document.createElement("input");
+            inp.type      = "text";
+            inp.setAttribute("inputmode", "decimal");
+            inp.className = "form-control form-control-sm";
+            inp.style.width      = "12rem";
+            inp.style.marginTop  = "0.5rem";
+            /* tag so the grader can locate it without a fragile querySelector */
+            inp.setAttribute("data-qid-input", qid);
+            qDiv.appendChild(inp);
+          }
+        });
+
+        /* ── action controls ─────────────────────────────────────────── */
+        var actionsDiv       = document.createElement("div");
+        actionsDiv.className = "quiz-actions";
+
+        var checkBtn             = document.createElement("button");
+        checkBtn.type            = "button";
+        checkBtn.className       = "btn btn-primary btn-sm";
+        checkBtn.textContent     = "Check answers";
+
+        var dlBtn                = document.createElement("button");
+        dlBtn.type               = "button";
+        dlBtn.className          = "btn btn-outline-secondary btn-sm";
+        dlBtn.textContent        = "Download my results";
+
+        actionsDiv.appendChild(checkBtn);
+        actionsDiv.appendChild(dlBtn);
+
+        var resultBanner         = document.createElement("div");
+        resultBanner.className   = "alert";
+        resultBanner.style.display      = "none";
+        resultBanner.style.marginTop    = "0.75rem";
+        resultBanner.style.marginBottom = "0";
+
+        container.appendChild(actionsDiv);
+        container.appendChild(resultBanner);
+
+        /* ── grade on click ──────────────────────────────────────────── */
+        checkBtn.addEventListener("click", function () {
+          var score   = 0;
+          var total   = questions.length;
+          var answers = {};
+
+          questions.forEach(function (qDiv) {
+            var qid       = qDiv.getAttribute("data-qid")       || "";
+            var qtype     = qDiv.getAttribute("data-qtype")     || "mc";
+            var dataAns   = qDiv.getAttribute("data-answer")    || "";
+            var ansNorm   = dataAns.trim().toLowerCase(); /* MC answer key, normalized */
+            var dataTol   = qDiv.getAttribute("data-tolerance") || "0";
+            var correct   = false;
+            var given     = "";
+
+            /* clear residue from any previous attempt */
+            qDiv.classList.remove("q-correct", "q-wrong");
+            var old;
+            old = qDiv.querySelector(".q-mark");   if (old) old.remove();
+            old = qDiv.querySelector(".q-reveal"); if (old) old.remove();
+            /* clear option highlight */
+            qDiv.querySelectorAll(".q-correct-option").forEach(function (el) {
+              el.classList.remove("q-correct-option");
+            });
+
+            if (qtype === "mc") {
+              var checked = qDiv.querySelector("input[type='radio']:checked");
+              given   = checked ? checked.value : "";
+              /* radio values are lowercase letters; ansNorm matches that casing */
+              correct = (given !== "" && given === ansNorm);
+
+            } else if (qtype === "numeric") {
+              /* each numeric .quiz-q has exactly one input — no fragile qid selector */
+              var inp = qDiv.querySelector("input[data-qid-input]");
+              given   = inp ? inp.value.trim() : "";
+              /* the WHOLE input must be a number: "14abc"/"14,0" grade wrong */
+              var num = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(given)
+                        ? Number(given) : NaN;
+              var ans = parseFloat(dataAns);
+              var tol = parseFloat(dataTol);
+              /* guard: NaN in any operand → wrong; never propagate NaN */
+              correct = (!isNaN(num) && !isNaN(ans) && !isNaN(tol) &&
+                         Math.abs(num - ans) <= tol);
+            }
+
+            if (correct) { score++; }
+            answers[qid] = { given: given, correct: correct };
+
+            /* visual feedback on the card */
+            qDiv.classList.add(correct ? "q-correct" : "q-wrong");
+
+            var mark       = document.createElement("span");
+            mark.className = "q-mark " + (correct ? "correct" : "wrong");
+            mark.textContent = correct ? " ✓" : " ✗";
+            qDiv.appendChild(mark);
+
+            if (!correct) {
+              /* for MC: highlight the correct option */
+              if (qtype === "mc") {
+                var correctRadio = qDiv.querySelector(
+                  "input[type='radio'][value='" + ansNorm + "']"
+                );
+                if (correctRadio && correctRadio.parentElement) {
+                  correctRadio.parentElement.classList.add("q-correct-option");
+                }
+              }
+              /* for any type: text reveal */
+              var reveal       = document.createElement("div");
+              reveal.className = "q-reveal";
+              reveal.textContent = "Correct answer: " + dataAns;
+              qDiv.appendChild(reveal);
+            }
+          });
+
+          /* result banner */
+          var passed = score >= passThreshold;
+          resultBanner.style.display = "block";
+          resultBanner.className =
+            "alert " + (passed ? "alert-success" : "alert-warning");
+          resultBanner.textContent =
+            score + "/" + total + " — " +
+            (passed
+              ? "Passed! This module is solid."
+              : "Not yet — review the marked questions and try again.");
+
+          /* persist: read-modify-write. Every attempt is appended to the
+             `attempts` array (full history); `best` is kept for the banner.
+             Skipped entirely when there's no real module key. */
+          var didSave = true;
+          if (canSave) {
+            /* local blob per handler — don't mutate the shared outer reference */
+            var current = load();
+            var rec = current.modules[moduleKey];
+            if (!rec || !Array.isArray(rec.attempts)) {
+              rec = { best: (rec && rec.best) || null, attempts: [] };
+              current.modules[moduleKey] = rec;
+            }
+
+            var entry = {
+              when:    new Date().toISOString(),
+              score:   score,
+              total:   total,
+              passed:  passed,
+              answers: answers
+            };
+            rec.attempts.push(entry);
+
+            /* keep best when the score ties or beats it (>= refreshes the date) */
+            if (!rec.best || score >= rec.best.score) {
+              rec.best = {
+                score:  score,
+                total:  total,
+                passed: passed,
+                when:   entry.when
+              };
+            }
+
+            didSave = save(current);
+          }
+
+          /* private-mode notice (shown once per session) */
+          if (canSave && !didSave && !container.querySelector(".quiz-private-note")) {
+            var note       = document.createElement("div");
+            note.className = "quiz-private-note";
+            note.textContent =
+              "Private browsing detected — results graded but not saved.";
+            resultBanner.insertAdjacentElement("afterend", note);
+          }
+        });
+
+        /* ── download ────────────────────────────────────────────────── */
+        dlBtn.addEventListener("click", function () {
+          var current = load();
+          var json    = JSON.stringify(current, null, 2);
+          var blobObj = new Blob([json], { type: "application/json" });
+          var url     = URL.createObjectURL(blobObj);
+          var a       = document.createElement("a");
+          a.href      = url;
+          a.download  = "professor-claude-results.json";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        });
+
+      }); /* end containers.forEach */
+
+    } catch (err) {
+      /* safety net: a bug in the quiz must never break lesson pages */
+      console.error("quiz.html init error:", err);
+    }
+  });
+
+})();
+</script>

@@ -188,6 +188,14 @@ re-render, and re-check.
     verify liveness (no network) — check FORM only, and flag any entry missing a
     piece of that format or any bare URL.
 
+20. **Module check present and well-formed.**
+    `practice.qmd` ends in a Module check with exactly 5 `.quiz-q` divs; every `qid` is
+    unique within the module and follows the stable `<init>-<concept>` format; every
+    `answer=` value is independently verified correct against the lesson; ≥1 item is
+    interleaved from an earlier module (unless this is an entry module with nothing
+    earlier); attributes use `qid`/`qtype` (never `id`/`type`); the quiz contains no
+    code cells. Rules: `quiz-authoring.md`.
+
 ## Reporting
 
 List each defect as: file path, exact offending quote, why it is wrong, minimal fix.

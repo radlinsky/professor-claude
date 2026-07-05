@@ -14,6 +14,9 @@ this file adds the problem-specific mechanics.
 - **Practice set:** `<module>/practice.qmd` — 4–7 problems on the fading ramp.
 - **Check yourself:** the quick questions inside a lesson's "Check yourself"
   section (answerable in under a minute each, straight from that lesson).
+- **Module check:** the 5-item, closed-answer, machine-graded quiz that ends
+  `practice.qmd` — its syntax and item-design rules live in `quiz-authoring.md`,
+  not here.
 
 ## The fading ramp (practice sets)
 
