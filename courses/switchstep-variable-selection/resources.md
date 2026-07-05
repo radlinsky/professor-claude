@@ -1,8 +1,8 @@
 # Resources: SwitchStep Variable Selection
 
 External readings and videos per module. All links verified 2026-07-05. The method's own
-specification is [docs/fable-switchstep-prompt.md](../../docs/fable-switchstep-prompt.md)
-(decoded in the capstone). The two free textbooks it builds on:
+specification is the course-request brief `docs/fable-switchstep-prompt.md` (quoted and
+decoded in the capstone). The two free textbooks it builds on:
 
 - 📖 [*An Introduction to Statistical Learning*, 2nd ed. (ISLR)](https://www.statlearning.com/)
   — free PDF: [ISLRv2_corrected_June_2023.pdf](https://hastie.su.domains/ISLR2/ISLRv2_corrected_June_2023.pdf).

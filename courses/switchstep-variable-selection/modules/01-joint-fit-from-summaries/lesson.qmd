@@ -319,4 +319,4 @@ switching search scores every candidate subset with exactly this summary-stat BI
 You can score any subset's BIC from summaries. Next: [The switching search](../02-the-switching-search/lesson.qmd)
 uses that score to *search* for the best subset — adding, removing, and swapping indicators.
 Ready for reps? Do the [practice problems](practice.qmd). External readings:
-[resources](resources.md).
+[resources](../../resources.md).

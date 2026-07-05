@@ -69,9 +69,9 @@ coefficients stable. See [M3](../03-rank-one-speedups/lesson.qmd),
 
 ## Return to the source
 
-Here is the method, quoted from the course's own specification
-([docs/fable-switchstep-prompt.md](../../../../docs/fable-switchstep-prompt.md), lines 17–36).
-We decode it claim by claim, linking each to the module that rebuilt it.
+Here is the method, quoted from the course's own specification (the course-request brief
+`docs/fable-switchstep-prompt.md`, lines 17–36). We decode it claim by claim, linking each
+to the module that rebuilt it.
 
 > **THE METHOD:** A frequentist, likelihood-based procedure for variable selection in linear
 > regression. Two settings matter: the ordinary setting where you have the full data table,

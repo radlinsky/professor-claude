@@ -7,9 +7,9 @@ multiple regression, search predictor subsets by *switching* indicators in and o
 the joint likelihood, stop with BIC, keep it fast with rank-1 (Sherman–Morrison) updates,
 and keep it stable with a ridge $\lambda$ on the correlation matrix.
 
-**Source:** concept — the method described in
-[docs/fable-switchstep-prompt.md](../../docs/fable-switchstep-prompt.md) (a frequentist,
-likelihood-based variable-selection procedure), built up from ISLR ch. 3 & 6 and VMLS
+**Source:** concept — the method described in the course-request brief
+`docs/fable-switchstep-prompt.md` (a frequentist, likelihood-based variable-selection
+procedure; quoted and decoded in the capstone), built up from ISLR ch. 3 & 6 and VMLS
 ch. 12–15. Rebuilt from scratch in base R and validated against `lm()`/`solve()` oracles
 via this repo's equivalence harness.
 

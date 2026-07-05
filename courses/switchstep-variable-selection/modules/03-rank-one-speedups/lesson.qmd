@@ -267,4 +267,4 @@ tiny-$s$ instability the update exposed.
 When indicators are near-collinear, the Schur complement (and the whole matrix) gets
 dangerously close to singular. Next: [Lambda for stability](../04-lambda-stability/lesson.qmd)
 adds a ridge $\lambda$ to keep the correlation matrix comfortably invertible. Ready for reps?
-Do the [practice problems](practice.qmd). External readings: [resources](resources.md).
+Do the [practice problems](practice.qmd). External readings: [resources](../../resources.md).

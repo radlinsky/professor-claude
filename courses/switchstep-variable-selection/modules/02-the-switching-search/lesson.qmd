@@ -298,4 +298,4 @@ this search fast enough to run on many indicators.
 Each move re-solves an $R_S^{-1}$; on many indicators that's the bottleneck. Next:
 [Rank-one speed-ups](../03-rank-one-speedups/lesson.qmd) replaces each re-inversion with a
 cheap Sherman–Morrison update. Ready for reps? Do the [practice problems](practice.qmd).
-External readings: [resources](resources.md).
+External readings: [resources](../../resources.md).
