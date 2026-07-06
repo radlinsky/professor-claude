@@ -124,3 +124,60 @@ Name the two Swap-Stepwise ideas this describes, and give the formula or move be
 (the penalty $\log n$ grows with $n$, unlike AIC's fixed $2k$). Both are pieces you assembled into
 `swap_stepwise()`.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/swap-stepwise-selection/modules/05-capstone-swap-stepwise" pass="4"}
+
+::: {.quiz-q qid="cap-reconstruct-piece" qtype="mc" answer="a"}
+In `swap_stepwise`, which piece turns the marginal coefficients $b$ and correlation matrix $R$
+into joint coefficients?
+
+a) $\hat\beta = R^{-1}b$, the summary reconstruction
+b) The add / remove / swap search
+c) The ridge $\lambda$ on the diagonal
+:::
+
+::: {.quiz-q qid="cap-swap-vs-forward" qtype="mc" answer="c"}
+`swap_stepwise` beats plain forward stepwise mainly because its search can also:
+
+a) stop using a $p < 0.05$ threshold
+b) invert the correlation matrix exactly
+c) remove and swap predictors, not only add
+:::
+
+::: {.quiz-q qid="cap-meta-approx" qtype="mc" answer="b"}
+Run on combined study summaries, `swap_stepwise` selects the same set as a full-data oracle,
+but its coefficients differ slightly. Why?
+
+a) The search selected the wrong subset entirely
+b) Combining marginals only approximates having the raw data
+c) The full-data oracle made a rounding error
+:::
+
+::: {.quiz-q qid="cap-not-causal" qtype="mc" answer="a"}
+`swap_stepwise` selects three indicators. What does that support?
+
+a) That they jointly predict $y$ well — not that they cause it
+b) That they are the true causal drivers of $y$
+c) That no other subset predicts $y$ comparably
+:::
+
+::: {.quiz-q qid="cap-ridge-eigenvalue" qtype="numeric" answer="0.021" tolerance="0.001"}
+`swap_stepwise` stabilises a near-singular $R$ by adding $\lambda$ down the diagonal. If $R$'s
+smallest eigenvalue is $0.001$ and $\lambda = 0.02$, what is the smallest eigenvalue of
+$R + \lambda I$? (Enter 3 decimals.)
+:::
+
+:::
+
+::::
