@@ -240,3 +240,59 @@ bias — which is the sense in which "the data eventually wins" over the prior. 
 step — where the posterior has no tidy formula and MCMC does the drawing for you — is a
 course-level topic; here you've built every piece it stands on.*
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/priors-posteriors-and-updating" pass="4"}
+
+::: {.quiz-q qid="ppu-bayes-flip" qtype="mc" answer="b"}
+Bayes' rule says the posterior is proportional to what?
+
+a) The prior alone
+b) Likelihood $\times$ prior
+c) Likelihood $\div$ prior
+:::
+
+::: {.quiz-q qid="ppu-prior-matters" qtype="mc" answer="a"}
+With little data, is it safe to ignore the prior and treat the posterior as just the
+likelihood?
+
+a) No — with little data the prior pulls hard; the same likelihood can flip the conclusion under a different prior
+b) Yes — the prior never matters
+c) Yes — the prior only rescales and changes nothing
+:::
+
+::: {.quiz-q qid="ppu-credible-vs-confidence" qtype="mc" answer="c"}
+How does a 95% credible interval differ from a 95% confidence interval?
+
+a) They are identical in meaning
+b) The credible interval is always the wider of the two
+c) The credible interval is a statement about the parameter given your data; the confidence interval is about the procedure across re-runs
+:::
+
+::: {.quiz-q qid="ppu-conditional-prob" qtype="numeric" answer="0.25" tolerance="0.01"}
+Of $100$ people, $40$ own a dog; of those $40$, $10$ also own a cat. What is
+$P(\text{cat} \mid \text{dog})$? Round to two decimals.
+:::
+
+::: {.quiz-q qid="ppu-likelihood-ratio" qtype="mc" answer="a"}
+(From likelihood & log-likelihood.) Bayes multiplies the prior by the likelihood. If the
+data are $4\times$ more likely under "biased" than under "fair", that $4$ is called the:
+
+a) Likelihood ratio — how strongly the data favor one hypothesis over the other
+b) Prior odds
+c) Posterior probability
+:::
+
+:::
+
+::::

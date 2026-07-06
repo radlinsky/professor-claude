@@ -185,3 +185,58 @@ c(original  = x^2 + 4 * x + 1,     # 46
   completed = (x + 2)^2 - 3)       # 46 — same value; the square makes the minimum readable
 ```
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/algebra-moves-for-derivations" pass="4"}
+
+::: {.quiz-q qid="amd-cross-term" qtype="mc" answer="a"}
+A student expands $(a + b)^2$ as $a^2 + b^2$. For $a = 3, b = 5$, what did they drop?
+
+a) The cross term $2ab = 30$; the correct value is $64$, not $34$
+b) Nothing — $(a + b)^2 = a^2 + b^2$
+c) They should have written $a^2 b^2$
+:::
+
+::: {.quiz-q qid="amd-cancel-zero" qtype="mc" answer="b"}
+To solve $x^2 = x$, a student divides both sides by $x$ and concludes $x = 1$. What went
+wrong?
+
+a) Nothing — $x = 1$ is the only solution
+b) Dividing by $x$ assumes $x \neq 0$ and drops the solution $x = 0$; factor $x(x-1) = 0$ instead
+c) You can never divide both sides of an equation by a variable
+:::
+
+::: {.quiz-q qid="amd-two-ab" qtype="numeric" answer="20" tolerance="0"}
+Expand and evaluate $(a + b)^2 - a^2 - b^2$ for $a = 2, b = 5$. (It is the cross term the
+"$a^2 + b^2$" trap drops.)
+:::
+
+::: {.quiz-q qid="amd-complete-square" qtype="mc" answer="c"}
+Completing the square rewrites $x^2 + 6x$ as $(x + 3)^2 + c$. What is $c$?
+
+a) $+9$
+b) $0$
+c) $-9$
+:::
+
+::: {.quiz-q qid="amd-argmin" qtype="mc" answer="a"}
+(From reading math notation.) What does $\arg\min_{\beta} f(\beta)$ denote?
+
+a) The input $\beta$ that makes $f$ smallest
+b) The smallest value that $f$ attains
+c) The slope of $f$ at its minimum
+:::
+
+:::
+
+::::

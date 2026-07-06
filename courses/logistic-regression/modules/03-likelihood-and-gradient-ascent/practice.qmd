@@ -222,3 +222,59 @@ can't fully unpack the z value, p-value, and deviance yet — the
 [capstone](../04-capstone-reading-a-real-logistic-regression/lesson.qmd) decodes every one
 of them and ties each back to what you built.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/logistic-regression/modules/03-likelihood-and-gradient-ascent" pass="4"}
+
+::: {.quiz-q qid="mle-loglik-zero" qtype="numeric" answer="-4.159" tolerance="0.0005"}
+For the lesson's six-student data ($x = 1{:}6$, $y = 0,0,1,0,1,1$) at the starting
+guess $\beta = (0,0)$, every predicted probability is $0.5$. What is the
+log-likelihood? Round to three decimals.
+:::
+
+::: {.quiz-q qid="mle-why-log" qtype="mc" answer="c"}
+Why does fitting logistic regression use the **log**-likelihood rather than the
+likelihood directly?
+
+a) The log converts probabilities to log-odds, reconnecting the optimizer to the logit link
+b) The log-likelihood can be positive, which makes it easier to tell when it is maximized
+c) Taking log turns a product of sub-1 probabilities into a sum, preventing underflow
+:::
+
+::: {.quiz-q qid="mle-ascent-step" qtype="mc" answer="b"}
+The gradient of the log-likelihood at $\beta = (0,0)$ is $(0,\ 3.5)$. Using gradient
+ascent with learning rate $\alpha = 0.1$, what is $\beta$ after one step?
+
+a) $(0,\ -0.35)$ — stepping downhill by subtracting the scaled gradient
+b) $(0,\ 0.35)$ — stepping uphill by adding the scaled gradient
+c) $(0,\ 3.5)$ — using the gradient vector itself as the new parameter
+:::
+
+::: {.quiz-q qid="mle-sign-convention" qtype="mc" answer="a"}
+After gradient ascent on the lesson's data, the log-likelihood rises to about
+$-2.478$ from its starting value at $\beta = (0,0)$. What does this change show?
+
+a) The fitted coefficients make the observed outcomes more probable
+b) The model worsened — more negative log-likelihood values are preferred
+c) The likelihood itself doubled, from roughly $-4$ to $-2$
+:::
+
+::: {.quiz-q qid="mle-sigmoid-recall" qtype="numeric" answer="0.269" tolerance="0.0005"}
+(From module 2, the logit link.) For the lesson's loan model ($\beta_0 = -2$,
+$\beta_1 = 1$), the log-odds at $x = 1$ is $-1$. What is the predicted repayment
+probability? Round to three decimals.
+:::
+
+:::
+
+::::

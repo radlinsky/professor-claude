@@ -206,3 +206,58 @@ product into a sum, from
 climb to the top by gradient ascent. You can't do the full fit yet —
 [the next module](../03-likelihood-and-gradient-ascent/lesson.qmd) builds it.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/logistic-regression/modules/02-odds-log-odds-and-the-logit" pass="4"}
+
+::: {.quiz-q qid="logit-x2-prob" qtype="mc" answer="c"}
+The lesson's loan model has log-odds $= -2 + 1 \cdot x$. Which statement about
+$x = 2$ is correct?
+
+a) The log-odds equals the odds, which is $e^0 = 1$
+b) The log-odds is already a probability equal to the sigmoid output
+c) The log-odds equals $0$, so the repayment probability is $0.5$
+:::
+
+::: {.quiz-q qid="logit-odds-x1" qtype="numeric" answer="0.368" tolerance="0.0005"}
+For the lesson's loan model ($\beta_0 = -2$, $\beta_1 = 1$), the log-odds at $x = 1$
+is $-1$. What are the odds of repayment at $x = 1$? Round to three decimals.
+:::
+
+::: {.quiz-q qid="logit-beta-scale" qtype="mc" answer="a"}
+For the lesson's loan model ($\beta_1 = 1$), a one-unit rise in income changes which
+quantity by exactly 1?
+
+a) The log-odds of repayment
+b) The probability of repayment
+c) The odds of repayment
+:::
+
+::: {.quiz-q qid="logit-odds-ratio-def" qtype="mc" answer="b"}
+For the lesson's loan model ($\beta_1 = 1$), what is the odds ratio and how is it
+computed?
+
+a) $\beta_1 = 1$ itself — the log-odds slope is already the odds multiplier
+b) $e^{\beta_1} \approx 2.718$ — exponentiate the slope
+c) $e^{-\beta_1} \approx 0.368$ — negate and exponentiate the slope
+:::
+
+::: {.quiz-q qid="logit-sigmoid-check" qtype="numeric" answer="0.731" tolerance="0.0005"}
+(From module 1, the sigmoid.) For the lesson's loan model ($\beta_0 = -2$,
+$\beta_1 = 1$), the log-odds at $x = 3$ is $1$. Apply the sigmoid to this score to
+get the predicted repayment probability. Round to three decimals.
+:::
+
+:::
+
+::::

@@ -193,3 +193,58 @@ the sigmoid" is really a line for the *log-odds*. You can't fully unpack why tha
 natural choice yet — [the next module](../02-odds-log-odds-and-the-logit/lesson.qmd) makes
 it precise.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/logistic-regression/modules/01-from-line-to-probability" pass="4"}
+
+::: {.quiz-q qid="ltp-sigmoid-zero" qtype="mc" answer="b"}
+The part at $x = 2$ (from the lesson's model with $\beta_0 = -1$, $\beta_1 = 0.5$)
+has linear score $\eta = 0$. What is $\sigma(0)$?
+
+a) $\sigma(0) = 0$: a score of zero means the outcome has no predicted probability
+b) $\sigma(0) = 0.5$: $e^{-0} = 1$ so the denominator is 2 and the reciprocal is $0.5$
+c) $\sigma(0) = 1$: zero is where the S-curve transitions from below 1 to at 1
+:::
+
+::: {.quiz-q qid="ltp-sigmoid-neg4" qtype="numeric" answer="0.018" tolerance="0.0005"}
+For the lesson's part model ($\beta_0 = -1$, $\beta_1 = 0.5$), the part at $x = -6$
+gets linear score $\eta = -4$. Compute $\sigma(-4)$. Round to three decimals.
+:::
+
+::: {.quiz-q qid="ltp-exact-bounds" qtype="mc" answer="a"}
+For any finite score $z$, what keeps $\sigma(z) = 1/(1 + e^{-z})$ from ever equaling
+exactly 1?
+
+a) $e^{-z}$ is always positive, so the denominator $1 + e^{-z}$ is always greater than 1
+b) The sigmoid is bounded by the probability axiom, which forbids values of exactly 1
+c) For very large $z$, the computer rounds the output up to display exactly 1
+:::
+
+::: {.quiz-q qid="ltp-sigmoid-job" qtype="mc" answer="c"}
+The lesson's part model scores the part at $x = 10$ as $\eta = 4$. What is the
+sigmoid's job here?
+
+a) Re-center the score by subtracting the mean so it lands near zero
+b) Take the natural log of the score to compress it into $[0, 1]$
+c) Squash the runaway score to a probability strictly inside $(0, 1)$
+:::
+
+::: {.quiz-q qid="ltp-linear-score" qtype="numeric" answer="4" tolerance="0"}
+(From simple linear regression's line $\beta_0 + \beta_1 x$.) For the lesson's part
+model ($\beta_0 = -1$, $\beta_1 = 0.5$), what is the linear score $\eta$ at $x = 10$?
+Enter a whole number.
+:::
+
+:::
+
+::::

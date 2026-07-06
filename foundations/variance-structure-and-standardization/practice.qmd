@@ -236,3 +236,59 @@ for (w in c(0.25, 0.5, 0.9)) {
 # weight 0.9  -> 286   (trust group lots: near the group's own mean)
 ```
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/variance-structure-and-standardization" pass="4"}
+
+::: {.quiz-q qid="vss-zscore" qtype="numeric" answer="2" tolerance="0"}
+A value is $70$; its column has mean $60$ and standard deviation $5$. What is its
+standardized value (z-score), $(x - \text{mean})/\text{sd}$?
+:::
+
+::: {.quiz-q qid="vss-covariance-units" qtype="mc" answer="b"}
+Can you compare raw covariances across differently-scaled columns to judge which pair
+moves together most?
+
+a) Yes — a bigger covariance always means stronger co-movement
+b) No — covariances carry the columns' units; read the correlation matrix ($[-1, 1]$) to compare
+c) No — covariances across columns are always equal
+:::
+
+::: {.quiz-q qid="vss-split-total-spread" qtype="mc" answer="c"}
+Between-group spread is $15000$ and within-group is $400$, so the total is $15400$. If
+the group means move closer together, what happens?
+
+a) The total spread stays fixed while between-spread grows
+b) Within-spread grows to keep the total constant
+c) Between-spread collapses toward $0$; which bucket dominates is a numeric question, not an eyeball call
+:::
+
+::: {.quiz-q qid="vss-collinearity" qtype="mc" answer="a"}
+Two nearly-duplicate columns ("two knobs, one wheel") show up in a fit as:
+
+a) An `NA` coefficient or a near-$\pm 1$ correlation, flagging collinearity
+b) A perfectly stable, precise coefficient for each column
+c) A higher $R^2$ with no downside
+:::
+
+::: {.quiz-q qid="vss-covariance-diagonal" qtype="mc" answer="a"}
+(From mean, variance & covariance.) In a covariance matrix, what sits on the diagonal?
+
+a) Each column's variance
+b) Each pair's correlation
+c) All ones
+:::
+
+:::
+
+::::

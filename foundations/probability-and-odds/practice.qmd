@@ -168,3 +168,54 @@ probabilities are above $0.5$: Test A's is $9/10 = 0.9$ and Test B's is $1.5/2.5
 The lesson: any odds above 1 means "more likely than not," and the bigger the odds, the
 closer the probability creeps toward 1 (without ever reaching it).
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/probability-and-odds" pass="4"}
+
+::: {.quiz-q qid="po-prob-to-odds" qtype="numeric" answer="4" tolerance="0"}
+A probability of $0.8$ corresponds to what odds? Use $p/(1-p)$.
+:::
+
+::: {.quiz-q qid="po-odds-to-prob" qtype="numeric" answer="0.667" tolerance="0.001"}
+An event has odds of $2$. What is its probability? Use $\text{odds}/(1+\text{odds})$.
+Round to three decimals.
+:::
+
+::: {.quiz-q qid="po-odds-not-prob" qtype="mc" answer="a"}
+Someone says "the odds of rain are 75%." What is the confusion?
+
+a) A probability of $0.75$ is odds of $3$ (that is, $0.75/0.25$), not odds of $0.75$
+b) Nothing — a probability of $0.75$ is the same number as odds of $0.75$
+c) Odds expressed as "75%" means a probability of $0.43$
+:::
+
+::: {.quiz-q qid="po-logodds-range" qtype="mc" answer="b"}
+A log-odds (logit) value of $-2.20$ is reported. Is it valid, and what does the sign say?
+
+a) Invalid — log-odds must lie in $[0, 1]$ like a probability
+b) Valid — log-odds range over all real numbers; negative means less likely than not
+c) Valid, but a negative log-odds means the probability itself is negative
+:::
+
+::: {.quiz-q qid="po-invert-logit" qtype="mc" answer="c"}
+(From exponentials & logs.) The undo pair says $e^{\log y} = y$. To recover the odds from
+a log-odds value $\ell$, which operation do you apply?
+
+a) Take the log again: $\text{odds} = \log \ell$
+b) Negate it: $\text{odds} = -\ell$
+c) Exponentiate: $\text{odds} = e^{\ell}$
+:::
+
+:::
+
+::::

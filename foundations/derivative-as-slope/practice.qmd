@@ -155,3 +155,56 @@ $x = 4$** — the bottom of the bowl. That "slope is zero at the lowest point, n
 before it, positive after" pattern is the whole idea behind *rolling downhill to the
 minimum* — the tool that turns this scan into an automatic search is next.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/derivative-as-slope" pass="4"}
+
+::: {.quiz-q qid="das-central-difference" qtype="numeric" answer="8" tolerance="0"}
+Using the central-difference formula $(f(x+h) - f(x-h))/(2h)$ with a small $h$, estimate
+the slope of $f(x) = x^2$ at $x = 4$.
+:::
+
+::: {.quiz-q qid="das-flat-slope-zero" qtype="mc" answer="a"}
+At a point where a curve is momentarily flat (the top of a hill), what does the measured
+slope equal?
+
+a) Zero — the output isn't changing there, so rise over run is $0$
+b) Undefined — a flat point has no slope
+c) A large positive number — the peak is the steepest part of the curve
+:::
+
+::: {.quiz-q qid="das-tiny-h-noise" qtype="mc" answer="b"}
+A student sets $h = 10^{-16}$ in the central-difference formula, reasoning that smaller
+is always more accurate. What actually happens?
+
+a) The estimate keeps getting more accurate, with no lower limit on $h$
+b) $f(x+h)$ and $f(x-h)$ round to nearly the same stored value, so the result is mostly rounding noise
+c) The formula returns the exact slope, since $h \to 0$ is the definition
+:::
+
+::: {.quiz-q qid="das-two-points-needed" qtype="mc" answer="c"}
+Why can't the slope at a point be read from that single point's height alone?
+
+a) Because the height must first be converted into a rate
+b) Because a single point's height is always zero
+c) Because steepness is about how the height *changes* between nearby points, so it needs at least two
+:::
+
+::: {.quiz-q qid="das-negative-slope" qtype="numeric" answer="-6" tolerance="0"}
+Using the central difference on $f(x) = x^2$, estimate the slope at $x = -3$. (The sign
+tells you which way the curve is heading.)
+:::
+
+:::
+
+::::

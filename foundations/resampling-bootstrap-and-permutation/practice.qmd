@@ -226,3 +226,61 @@ The CI includes 0, so with only five values per group the difference of medians 
 pinned down away from zero. Notice you never needed a formula — the same resample-recompute-
 summarize loop handled a two-group difference of medians exactly as it handled one mean.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/resampling-bootstrap-and-permutation" pass="4"}
+
+::: {.quiz-q qid="rbp-with-replacement" qtype="mc" answer="b"}
+A bootstrap resample of $n$ values is drawn:
+
+a) Without replacement — a reshuffle of the same $n$ values
+b) With replacement — values can repeat, so resamples genuinely differ
+c) By dropping one value each time
+:::
+
+::: {.quiz-q qid="rbp-zero-se" qtype="mc" answer="a"}
+You bootstrap a standard error and get exactly $0$. What went wrong?
+
+a) You forgot `replace = TRUE`, so every resample is just a reordering with the same mean
+b) The statistic has no variance by nature
+c) You used too many replications
+:::
+
+::: {.quiz-q qid="rbp-shuffle-labels" qtype="mc" answer="c"}
+A permutation test for a group difference shuffles what?
+
+a) The values within each group
+b) The order of the rows, leaving the groups intact
+c) The group *labels* across the pooled values — because the null is "the label doesn't matter"
+:::
+
+::: {.quiz-q qid="rbp-when-right" qtype="mc" answer="a"}
+When is resampling the right tool?
+
+a) When no clean formula exists for the statistic's uncertainty; be wary with very small $n$ or dependent data
+b) Always — it replaces every formula
+c) Only when the data are normally distributed
+:::
+
+::: {.quiz-q qid="rbp-bootstrap-se" qtype="mc" answer="b"}
+(From randomness & sampling distributions.) A bootstrap estimates a standard error as the
+spread of the resampled statistics. Which R function gives that spread?
+
+a) `mean()`
+b) `sd()` — the standard deviation of the resampled statistics
+c) `sum()`
+:::
+
+:::
+
+::::

@@ -167,3 +167,49 @@ x <- c(3, 1, 4, 2)
 sum(x - mean(x))   # 0 (up to tiny floating-point dust)
 ```
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/vectors-and-summation" pass="4"}
+
+::: {.quiz-q qid="vs-square-then-add" qtype="numeric" answer="29" tolerance="0"}
+For $x = (2, 3, 4)$, what is $\sum_{i=1}^{3} x_i^2$?
+:::
+
+::: {.quiz-q qid="vs-sum-then-square" qtype="mc" answer="b"}
+For $x = (1, 3, 5)$, what is $\left(\sum_{i=1}^{3} x_i\right)^2$?
+
+a) $1^2 + 3^2 + 5^2 = 35$ — squaring each term first
+b) $(1 + 3 + 5)^2 = 81$ — summing first, then squaring
+c) $1 + 3 + 5 = 9$ — forgetting to square at all
+:::
+
+::: {.quiz-q qid="vs-sigma-reach-constant" qtype="mc" answer="a"}
+In $\sum_{i=1}^{n} x_i + c$, where does the $+c$ land?
+
+a) Added once, outside the sum: $\left(\sum x_i\right) + c$
+b) Added to every term: $\sum (x_i + c)$, so $c$ is added $n$ times
+c) Multiplied by the sum: $c \sum x_i$
+:::
+
+::: {.quiz-q qid="vs-summed-constant" qtype="numeric" answer="15" tolerance="0"}
+Using the sum rule for a constant, what is $\sum_{i=1}^{5} 3$?
+:::
+
+::: {.quiz-q qid="vs-subscript-index" qtype="numeric" answer="4" tolerance="0"}
+(From reading math notation.) For the list $x = (2, 4, 6)$, the subscript in $x_2$ marks
+a position, not a power. What is $x_2$?
+:::
+
+:::
+
+::::
