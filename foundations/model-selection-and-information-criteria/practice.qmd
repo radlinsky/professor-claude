@@ -125,3 +125,56 @@ best-subset beats. The disagreement means the greedy path made an early commitme
 couldn't undo. A search that can also *swap* predictors in and out (the switching search)
 can escape such traps and get closer to the best-subset answer without checking all $2^p$.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/model-selection-and-information-criteria" pass="4"}
+
+::: {.quiz-q qid="msic-rss-cant-choose" qtype="mc" answer="a"}
+Why can't the model with the lowest training RSS be crowned the best?
+
+a) RSS always falls as predictors are added, even useless ones — so it always picks the biggest model
+b) RSS is impossible to compute for large models
+c) RSS ignores the training data
+:::
+
+::: {.quiz-q qid="msic-aic" qtype="numeric" answer="38" tolerance="0"}
+AIC $= -2\log L + 2k$. For $-2\log L = 30$ and $k = 4$ parameters, what is the AIC?
+:::
+
+::: {.quiz-q qid="msic-bic-smaller" qtype="mc" answer="b"}
+Compared with AIC, why does BIC ($-2\log L + k\log n$) tend to prefer smaller models?
+
+a) BIC ignores the likelihood entirely
+b) Its per-parameter penalty $\log n$ grows with sample size, so it penalizes extra parameters harder
+c) BIC always picks the model with the most predictors
+:::
+
+::: {.quiz-q qid="msic-stepwise-greedy" qtype="mc" answer="c"}
+Forward stepwise selection is greedy. What does that risk?
+
+a) Nothing — a greedy search always finds the best subset
+b) It must evaluate all $2^p$ subsets first
+c) It commits to early picks it cannot undo, so it can miss the true best subset of a given size
+:::
+
+::: {.quiz-q qid="msic-loglik" qtype="mc" answer="a"}
+(From likelihood & log-likelihood.) AIC and BIC both contain $\log L$. What is $L$?
+
+a) The likelihood — how probable the observed data is under the fitted model
+b) The number of predictors
+c) The residual sum of squares
+:::
+
+:::
+
+::::
