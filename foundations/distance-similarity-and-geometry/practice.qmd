@@ -223,3 +223,56 @@ Z <- c(3, 2, 1)
 1 - cor(X, Z)    # 2 — perfectly opposed pattern
 ```
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/distance-similarity-and-geometry" pass="4"}
+
+::: {.quiz-q qid="dsg-euclidean" qtype="numeric" answer="10" tolerance="0"}
+Two points differ by $6$ units east and $8$ units north. What is the straight-line
+(Euclidean) distance between them — the square root of the summed squared gaps?
+:::
+
+::: {.quiz-q qid="dsg-manhattan-vs-euclidean" qtype="mc" answer="b"}
+Two towns are $3$ units apart east and $4$ north. A student adds the gaps, $3 + 4 = 7$,
+and calls that the distance. What is $7$?
+
+a) The Euclidean (straight-line) distance
+b) The Manhattan (grid-walking) distance; the straight-line distance is $\sqrt{3^2 + 4^2} = 5$
+c) An error — a distance cannot be found from coordinate gaps
+:::
+
+::: {.quiz-q qid="dsg-scaling-dominates" qtype="mc" answer="a"}
+In a table with income (in thousands) and age (in tens), income dominates every
+distance. Why?
+
+a) Distance weighs each column by its raw numeric spread, so the large-scale column dominates until you rescale
+b) Income is genuinely the more important variable
+c) Age should be dropped from the calculation
+:::
+
+::: {.quiz-q qid="dsg-zero-dot-orthogonal" qtype="mc" answer="c"}
+Two vectors have a dot product of $0$. What does that mean geometrically?
+
+a) They point in the same direction
+b) They have zero length
+c) They are orthogonal — at right angles, carrying separate information
+:::
+
+::: {.quiz-q qid="dsg-vector-norm" qtype="numeric" answer="13" tolerance="0"}
+(From vectors & summation.) A vector's length (norm) is $\sqrt{\sum v_i^2}$. For
+$v = (5, 12)$, what is its length?
+:::
+
+:::
+
+::::

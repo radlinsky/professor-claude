@@ -285,3 +285,55 @@ direction, and how to repeat it until you reach the bottom, is the **gradient-de
 recipe — a whole course of its own. This lesson gives you the compass ($-\nabla f$ points
 downhill); the next one teaches you how to walk.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/partial-derivatives-and-the-gradient" pass="4"}
+
+::: {.quiz-q qid="pdg-partial-value" qtype="numeric" answer="6" tolerance="0"}
+For $f(a, b) = a^2 + b^2$, the partial $\partial f / \partial a$ at $(3, 2)$ freezes $b$
+and measures the slope in the $a$ direction. What is it?
+:::
+
+::: {.quiz-q qid="pdg-freeze-others" qtype="mc" answer="b"}
+To compute the partial $\partial f / \partial a$, how do you nudge the inputs?
+
+a) Nudge $a$ and $b$ together
+b) Nudge only $a$, holding $b$ fixed
+c) Nudge $b$, holding $a$ fixed
+:::
+
+::: {.quiz-q qid="pdg-gradient-is-vector" qtype="mc" answer="c"}
+For a function of two inputs, the gradient is:
+
+a) A single slope number
+b) The larger of the two partial derivatives
+c) A vector — one partial derivative per input
+:::
+
+::: {.quiz-q qid="pdg-gradient-length" qtype="numeric" answer="10" tolerance="0"}
+The gradient at a point is $(6, 8)$. Its length $\lVert \nabla f \rVert$ — how steep the
+steepest climb is — equals what?
+:::
+
+::: {.quiz-q qid="pdg-zero-gradient" qtype="mc" answer="a"}
+(From loss functions & optimization.) With one input, the bottom of a bowl has slope
+zero. What is the gradient at the floor of a multi-input valley?
+
+a) The zero vector — flat in every direction
+b) A vector pointing straight down
+c) Undefined
+:::
+
+:::
+
+::::

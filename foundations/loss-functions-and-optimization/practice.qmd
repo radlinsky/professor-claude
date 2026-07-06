@@ -216,3 +216,59 @@ median(y)                                      # 6 -> matches the search
 L_abs(6)                                        # 4 -> total absolute distance at the best m
 ```
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/loss-functions-and-optimization" pass="4"}
+
+::: {.quiz-q qid="lfo-evaluate-loss" qtype="numeric" answer="18" tolerance="0"}
+For data $y = (2, 5, 8)$ and a guess $m = 5$, the loss is $\sum_i (y_i - m)^2$. Compute
+it.
+:::
+
+::: {.quiz-q qid="lfo-argmin-vs-min" qtype="mc" answer="a"}
+A loss has $\min_m L(m) = 8$ and $\arg\min_m L(m) = 6$. What does $\hat m = \arg\min_m
+L(m)$ report?
+
+a) The setting $m = 6$
+b) The smallest loss, $8$
+c) Both $6$ and $8$
+:::
+
+::: {.quiz-q qid="lfo-zero-slope-check" qtype="mc" answer="b"}
+"Differentiate, set to zero, solve" finds where the slope is zero. Does that always
+locate a minimum?
+
+a) Yes — zero slope always means the lowest point
+b) No — zero slope means momentarily flat, which also happens at a hilltop or a shelf; you must check it is a valley
+c) No — the slope is never exactly zero at a minimum
+:::
+
+::: {.quiz-q qid="lfo-derivative-squared" qtype="mc" answer="c"}
+By chain-rule-lite, the derivative of $(y - m)^2$ with respect to $m$ is:
+
+a) $2(y - m)$
+b) $(y - m)$
+c) $-2(y - m)$
+:::
+
+::: {.quiz-q qid="lfo-slope-at-bottom" qtype="mc" answer="a"}
+(From derivative as slope.) At the bottom of a loss bowl, what is the slope?
+
+a) Zero
+b) Negative
+c) Steeply positive
+:::
+
+:::
+
+::::
