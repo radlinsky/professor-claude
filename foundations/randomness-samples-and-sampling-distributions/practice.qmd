@@ -221,3 +221,60 @@ kicks in; and no matter the shape, the standard error keeps shrinking as $n$ gro
 (~28.7 at $n=2$ down to ~5.5 at $n=50$). A later module turns this simulate-the-redraws
 engine into the bootstrap. For now: means steady and bell-ify as samples grow.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/randomness-samples-and-sampling-distributions" pass="4"}
+
+::: {.quiz-q qid="rss-se-vs-sd-data" qtype="mc" answer="b"}
+The standard error and the data's standard deviation both use `sd()`. How do they
+differ?
+
+a) They are the same thing
+b) `sd(data)` is the spread of the raw numbers; the standard error is the spread of the *statistic* across redraws
+c) The standard error is always the larger of the two
+:::
+
+::: {.quiz-q qid="rss-n-shrinks-se" qtype="mc" answer="c"}
+As the sample size $n$ grows, what happens?
+
+a) Both the data's sd and the standard error shrink
+b) The data's sd shrinks while the standard error stays fixed
+c) The data's sd stays near $\sigma$ while the standard error shrinks
+:::
+
+::: {.quiz-q qid="rss-statistic-random" qtype="mc" answer="a"}
+Why is a statistic such as the sample mean random?
+
+a) Because redrawing the sample yields a different value each time
+b) Because the population itself changes over time
+c) Because `sd()` introduces noise
+:::
+
+::: {.quiz-q qid="rss-clt" qtype="mc" answer="b"}
+Even when the population is not bell-shaped, the histogram of the sample *mean* across
+many redraws tends toward what shape?
+
+a) The same shape as the population
+b) A bell (normal) curve — the Central Limit Theorem
+c) A flat, uniform spread
+:::
+
+::: {.quiz-q qid="rss-se-from-variance" qtype="numeric" answer="4" tolerance="0"}
+(From mean, variance & covariance.) The standard error is the standard deviation of the
+redrawn statistics. If those redrawn means have variance $16$, what is the standard
+error?
+:::
+
+:::
+
+::::
