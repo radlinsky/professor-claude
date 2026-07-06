@@ -143,3 +143,62 @@ list(b_combined = round(b_comb, 3), joint = round(solve(R, b_comb), 3))
 The precision-weighted $b$ leans toward the tighter Study B; $R^{-1}$ then turns it into the
 joint effects.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/swap-stepwise-selection/modules/01-joint-fit-from-summaries" pass="4"}
+
+::: {.quiz-q qid="jfs-joint-formula" qtype="mc" answer="b"}
+You have the predictor correlation matrix $R$ and the vector of marginal (one-at-a-time)
+coefficients $b$, but no raw data. How do you reconstruct the joint multiple-regression
+coefficients?
+
+a) $\hat\beta = Rb$
+b) $\hat\beta = R^{-1}b$
+c) $\hat\beta = b$ — read the marginals off directly
+:::
+
+::: {.quiz-q qid="jfs-overlap-discount" qtype="mc" answer="a"}
+In the lesson's toy, a marginal coefficient of 0.5 became a joint coefficient of 0.2 after
+multiplying by $R^{-1}$. What is $R^{-1}$ doing?
+
+a) Removing the credit a predictor shares with its correlated neighbours
+b) Rescaling the coefficients so they sum to one
+c) Confirming that marginal effects equal joint effects
+:::
+
+::: {.quiz-q qid="jfs-r2-summaries" qtype="numeric" answer="0.38" tolerance="0.01"}
+A summary reconstruction gives joint coefficients $\hat\beta = R^{-1}b = (0.5,\ 0.2)$ from
+marginals $b = (0.6,\ 0.4)$. What is the fit's $R^2 = b^\top\hat\beta$? (Enter 2 decimals.)
+:::
+
+::: {.quiz-q qid="jfs-combine-studies" qtype="mc" answer="c"}
+Three studies each report a marginal coefficient for the same indicator, each with a standard
+error (SE). To combine them into one $b$, how should you weight each study?
+
+a) Equally — a simple average of the three coefficients
+b) By $\text{SE}^2$, so noisier studies count more
+c) By $1/\text{SE}^2$, so more precise studies count more
+:::
+
+::: {.quiz-q qid="jfs-normal-equations" qtype="mc" answer="b"}
+(From multiple regression.) The joint least-squares coefficients $\hat\beta$ satisfy which
+matrix equation?
+
+a) $X\hat\beta = y$
+b) $X^\top X\,\hat\beta = X^\top y$
+c) $X^\top y\,\hat\beta = X^\top X$
+:::
+
+:::
+
+::::
