@@ -119,3 +119,61 @@ to choose it automatically is **cross-validation** — try a grid of $\lambda$ v
 out-of-sample prediction error for each, and keep the $\lambda$ that minimizes it. (This course
 fixes or sweeps $\lambda$ by hand; CV-based selection is a natural next step.)
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/swap-stepwise-selection/modules/04-lambda-stability" pass="4"}
+
+::: {.quiz-q qid="lam-blowup-signature" qtype="mc" answer="b"}
+A summary reconstruction returns coefficients $(83, -82)$ for two indicators. What does this
+pattern most likely signal?
+
+a) Both indicators genuinely have very large effects on $y$
+b) Near-perfect collinearity between the two indicators
+c) A data-entry error in the marginal coefficients
+:::
+
+::: {.quiz-q qid="lam-any-lambda" qtype="mc" answer="a"}
+$R$ is near-singular (smallest eigenvalue near 0). Why does adding $\lambda I$ (any
+$\lambda > 0$) make $R + \lambda I$ invertible?
+
+a) It lifts every eigenvalue by $\lambda$, keeping the smallest $\ge \lambda > 0$
+b) It zeros out all off-diagonal correlations
+c) It only helps when $\lambda > 1$
+:::
+
+::: {.quiz-q qid="lam-eigenvalue-compute" qtype="numeric" answer="0.032" tolerance="0.001"}
+$R$ has smallest eigenvalue $0.002$ (near-singular). After adding $\lambda = 0.03$ down the
+diagonal, what is the smallest eigenvalue of $R + \lambda I$? (Enter 3 decimals.)
+:::
+
+::: {.quiz-q qid="lam-set-vs-coef" qtype="mc" answer="c"}
+On a $\rho = 0.999$ panel, sweeping $\lambda$ leaves the selected set unchanged but changes the
+coefficients a lot. What does $\lambda$ mainly rescue here?
+
+a) The selected set, which would otherwise be wrong
+b) Nothing — $\lambda$ has no effect on this panel
+c) The coefficients, not the selected set
+:::
+
+::: {.quiz-q qid="lam-schur-link" qtype="mc" answer="a"}
+(From Module 3.) The rank-one update's Schur complement $s$ shrinks toward 0 for a
+near-collinear indicator. How does that connect to this module's ridge $\lambda$?
+
+a) A tiny $s$ means dividing by near-zero; $\lambda$ keeps it away from zero
+b) A tiny $s$ speeds the update, so $\lambda$ isn't needed
+c) $s$ and $\lambda$ are unrelated quantities
+:::
+
+:::
+
+::::
