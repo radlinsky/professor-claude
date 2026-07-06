@@ -261,8 +261,8 @@ c) $(0,\ 3.5)$ — using the gradient vector itself as the new parameter
 :::
 
 ::: {.quiz-q qid="mle-sign-convention" qtype="mc" answer="a"}
-After gradient ascent on the lesson's data, the log-likelihood rises from $-4.159$ to
-about $-2.478$. What does this change show?
+After gradient ascent on the lesson's data, the log-likelihood rises to about
+$-2.478$ from its starting value at $\beta = (0,0)$. What does this change show?
 
 a) The fitted coefficients make the observed outcomes more probable
 b) The model worsened — more negative log-likelihood values are preferred
