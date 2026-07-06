@@ -282,3 +282,59 @@ per hour instead of 2 — the per-hour rate *bends by group*. **Choosing** good 
 for columns like these is exactly the job a specific method takes on; here you've built
 the columns it would act on.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/linear-combinations-and-data-matrices" pass="4"}
+
+::: {.quiz-q qid="lcdm-linear-combination" qtype="numeric" answer="16" tolerance="0"}
+A data row is $(3, 2)$ with weights $\beta = (2, 5)$. Its score is the linear combination
+$\sum_j x_j \beta_j$. What is it?
+:::
+
+::: {.quiz-q qid="lcdm-k-minus-1-indicators" qtype="mc" answer="b"}
+A category has $3$ levels (A, B, C) and the model already carries an all-1s column. How
+many indicator columns should you add?
+
+a) $3$ — one per level
+b) $2$ — a $k$-level category takes $k-1$ columns, with the dropped level as the reference
+c) $1$ — a single column coding A/B/C as $1/2/3$
+:::
+
+::: {.quiz-q qid="lcdm-interaction-product" qtype="mc" answer="c"}
+An interaction column between `hours` and `tierB` is built how?
+
+a) By adding the two columns entry by entry
+b) By concatenating them into one longer column
+c) By multiplying the two columns entry by entry
+:::
+
+::: {.quiz-q qid="lcdm-weight-meaning" qtype="mc" answer="a"}
+In a linear model, what does a variable's weight (coefficient) mean?
+
+a) The change in the score per one-unit change in that column, with the others held fixed
+b) The total contribution of that column summed over all rows
+c) The correlation between that column and the outcome
+:::
+
+::: {.quiz-q qid="lcdm-matrix-product-shape" qtype="mc" answer="b"}
+(From matrices & linear transforms.) Scoring every row at once is the matrix product
+$X\beta$. For $X$ of shape $4 \times 2$ and $\beta$ a length-$2$ vector, what is $X\beta$?
+
+a) A $4 \times 2$ matrix
+b) A length-$4$ vector — one score per row
+c) A length-$2$ vector
+:::
+
+:::
+
+::::
