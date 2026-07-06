@@ -155,3 +155,61 @@ exhaustive search is computationally impossible, so we rely on the switching sea
 heuristic — trusting the small-$p$ validation as evidence it behaves well, while accepting it's
 no longer guaranteed to hit the global optimum.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/swap-stepwise-selection/modules/02-the-switching-search" pass="4"}
+
+::: {.quiz-q qid="sws-which-move" qtype="mc" answer="b"}
+Forward-only selection stops at $\{x_1, x_2, x_3\}$, but $\{x_1, x_3\}$ scores a lower (better)
+BIC. Which move — one forward-only lacks — lets the switching search reach it?
+
+a) Add — include another predictor
+b) Remove — drop $x_2$
+c) None; forward-only could reach it too
+:::
+
+::: {.quiz-q qid="sws-why-bic" qtype="mc" answer="a"}
+Why does the switching search stop using BIC rather than "keep every predictor with
+$p < 0.05$"?
+
+a) Searching over many models makes the usual p-values dishonestly small
+b) BIC is faster to compute than a p-value
+c) p-values cannot be computed from summary statistics
+:::
+
+::: {.quiz-q qid="sws-best-bic" qtype="numeric" answer="-61.5" tolerance="0.1"}
+Four candidate subsets score BIC $-31.6$, $-58.0$, $-58.3$, and $-61.5$ (lower is better). What
+BIC value should the search finish at?
+:::
+
+::: {.quiz-q qid="sws-not-guaranteed" qtype="mc" answer="b"}
+The switching search matched the exhaustive best-subset answer on every seed tested here. Does
+that guarantee it always finds the global-best subset?
+
+a) Yes — matching the oracle on those tests proves it always will
+b) No — it's a greedy search that can stop at a local optimum
+c) Yes — the swap move guarantees the global optimum
+:::
+
+::: {.quiz-q qid="sws-r2-term" qtype="mc" answer="c"}
+(From Module 1.) A subset's summary-stat BIC is $n\log(1 - b_S^\top R_S^{-1}b_S) + |S|\log n$.
+What does the quantity $b_S^\top R_S^{-1}b_S$ represent?
+
+a) The number of predictors in the subset
+b) The subset's residual (unexplained) variance
+c) The subset's $R^2$ (variance explained)
+:::
+
+:::
+
+::::
