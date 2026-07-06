@@ -209,3 +209,55 @@ curve explains an observed value** — that's the seed of **likelihood**, which 
 likelihood module builds out fully. Here it's only a cliffhanger: we flipped `dnorm`
 from "curve → height of a value" into "which curve best fits this value?"
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/distributions-and-densities" pass="4"}
+
+::: {.quiz-q qid="dd-height-is-density" qtype="mc" answer="b"}
+For a smooth density curve, `dnorm(30, 30, 3)` is $0.133$. Is that "a 13.3% chance of
+exactly $30$"?
+
+a) Yes — the curve's height is the probability of that value
+b) No — the height is a *density* (probability per unit width); an exact point has zero width, so its probability is $0$
+c) No — the height must first be divided by the standard deviation
+:::
+
+::: {.quiz-q qid="dd-pnorm-left" qtype="mc" answer="a"}
+`pnorm(33, 30, 3)` is $0.841$. What does $0.841$ represent?
+
+a) The area to the *left* of $33$, i.e. $P(X < 33)$
+b) The probability of landing exactly on $33$
+c) The height of the curve at $33$
+:::
+
+::: {.quiz-q qid="dd-slice-prob" qtype="numeric" answer="0.682" tolerance="0.001"}
+For a normal, $P(X < 33) = 0.841$ and $P(X < 27) = 0.159$. What is the slice probability
+$P(27 < X < 33)$? Round to three decimals.
+:::
+
+::: {.quiz-q qid="dd-normal-knobs" qtype="mc" answer="c"}
+A normal curve is fully described by which two numbers?
+
+a) Its minimum and its maximum
+b) Its total area and its peak height
+c) Its center $\mu$ (the mean) and its spread $\sigma$ (the standard deviation)
+:::
+
+::: {.quiz-q qid="dd-sd-from-variance" qtype="numeric" answer="3" tolerance="0"}
+(From mean, variance & covariance.) The normal's spread knob is the standard deviation.
+If a sample has variance $9$, what is its standard deviation?
+:::
+
+:::
+
+::::
