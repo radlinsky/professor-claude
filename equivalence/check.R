@@ -24,6 +24,7 @@ source(file.path(EQ, "reimplementations", "multiple-regression.R"))
 source(file.path(EQ, "reimplementations", "swap-stepwise.R"))
 source(file.path(EQ, "reimplementations", "wakefield-abf.R"))
 source(file.path(EQ, "reimplementations", "coloc-abf.R"))
+source(file.path(EQ, "reimplementations", "proportional-colocalisation.R"))
 
 fixture <- function(name) file.path(EQ, "fixtures", name)
 
@@ -65,7 +66,23 @@ targets <- list(
                                     inp$W1, inp$W2, inp$p1, inp$p2, inp$p12)),
   list(path = fixture("coloc-abf-distinct.json"),
        fn = function(inp) coloc_abf(inp$beta1, inp$se1, inp$beta2, inp$se2,
-                                    inp$W1, inp$W2, inp$p1, inp$p2, inp$p12))
+                                    inp$W1, inp$W2, inp$p1, inp$p2, inp$p12)),
+  list(path = fixture("propcoloc-pairwise.json"),
+       fn = function(inp) {
+         m <- nrow(inp$beta1)
+         out <- vapply(seq_len(m), function(i) {
+           r <- prop_test_pair(inp$beta1[i, ], inp$vbeta1[i, ],
+                               inp$beta2[i, ], inp$vbeta2[i, ], inp$rho[i])
+           c(r$chisquare, r$eta_hat, r$p)
+         }, numeric(3))
+         list(chisquare = out[1, ], eta = out[2, ], p = out[3, ])
+       }),
+  list(path = fixture("propcoloc-run-shared.json"),
+       fn = function(inp) prop_run(inp$beta1, inp$vbeta1, inp$beta2, inp$vbeta2,
+                                   inp$LD, inp$pairs, inp$ntests)),
+  list(path = fixture("propcoloc-run-distinct.json"),
+       fn = function(inp) prop_run(inp$beta1, inp$vbeta1, inp$beta2, inp$vbeta2,
+                                   inp$LD, inp$pairs, inp$ntests))
 )
 
 cat("== Professor Claude — equivalence checks ==\n\n")

@@ -33,7 +33,7 @@ Every fixture records which tier produced it (`meta.tier`):
 - **`full`** — the real library was installed/compiled and run on simulated inputs;
   the reimplementation must match it within tolerance. *(Self-tests: `pracma::trapz`,
   `numpy.linalg.lstsq`, a compiled C Welford, `coloc::coloc.abf` for Wakefield's ABF and
-  colocalisation.)*
+  colocalisation, `colocPropTest` for the proportional colocalisation test.)*
 - **`partial`** — no runnable reference, but the paper or repo reports specific
   numbers/figures; the fixture holds those (transcribed, with citation in
   `meta.source`).
