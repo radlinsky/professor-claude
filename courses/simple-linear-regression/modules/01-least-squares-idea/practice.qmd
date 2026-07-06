@@ -193,3 +193,54 @@ SSE with respect to the line's parameters, set it equal to zero, and solve. That
 "take the derivative, set it to zero, solve" move is the entire engine of the next
 module — and of a remarkable fraction of every methods section you'll ever read.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/simple-linear-regression/modules/01-least-squares-idea" pass="4"}
+
+::: {.quiz-q qid="lsi-residual" qtype="numeric" answer="0.5" tolerance="0"}
+For the tomato data $x = (1,2,3,4)$, $y = (2,3,5,6)$: candidate line $b_0 = 0$,
+$b_1 = 1.5$ (guess 2 from the lesson). What is the residual $e_3 = y_3 - \hat{y}_3$
+at plant 3? Enter one decimal.
+:::
+
+::: {.quiz-q qid="lsi-raw-misses" qtype="mc" answer="b"}
+The flat line at $\bar{y} = 4$ on the tomato data scores $\sum e_i = 0$ (the raw
+misses cancel). What does this reveal about using $\sum e_i$ as a fit score?
+
+a) A score of zero means the flat line fits the data perfectly and is the best line
+b) Balanced misses can give any line a zero score, hiding a poor fit
+c) The flat line's misses are all negative, since it overshoots every observation
+:::
+
+::: {.quiz-q qid="lsi-sse-flat" qtype="numeric" answer="10" tolerance="0"}
+For $y = (2,3,5,6)$, the flat line at $\bar{y} = 4$ has residuals $(-2,-1,+1,+2)$.
+What is its SSE? Enter a whole number.
+:::
+
+::: {.quiz-q qid="lsi-argmin" qtype="mc" answer="a"}
+The notation $(\hat{\beta}_0,\hat{\beta}_1) = \arg\min_{b_0,b_1}\mathrm{SSE}(b_0,b_1)$
+means:
+
+a) The $(b_0, b_1)$ pair with the smallest SSE
+b) The minimum SSE value — the score at the best line
+c) The $(b_0, b_1)$ pair where every residual equals zero
+:::
+
+::: {.quiz-q qid="lsi-sum-sq" qtype="numeric" answer="30" tolerance="0"}
+(From the vectors & summation foundation.) For $x = (1, 2, 3, 4)$, what is
+$\sum_{i=1}^{4} x_i^2$? Enter a whole number.
+:::
+
+:::
+
+::::
