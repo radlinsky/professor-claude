@@ -350,7 +350,7 @@ and the panel comparison before continuing — the capstone reads all of this of
 
 The capstone puts every piece together: [reading a multiple regression](../04-capstone-reading-a-multiple-regression/lesson.qmd)
 decodes a full `summary(lm())` on a fresh panel line by line, and connects the
-marginal-vs-joint story to how a statistics text frames it. Beyond this course, the
-`swap-stepwise-selection` course tackles the natural next question: *which* subset
+marginal-vs-joint story to how a statistics text frames it. Beyond this course,
+**variable selection** tackles the natural next question: *which* subset
 of these tangled predictors should the model even keep? Ready for more reps first? Do the
 [practice problems](practice.qmd).

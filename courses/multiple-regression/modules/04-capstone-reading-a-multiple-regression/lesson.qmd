@@ -302,8 +302,8 @@ If any bullet feels shaky, revisit the module it points to before calling the co
 **What you still can't read (yet).** This course fit *all* the predictors and read what
 comes out. It did not decide *which* predictors to keep — with a dozen tangled
 indicators, "use them all" is rarely the right model. Choosing a subset (and doing it
-honestly, without lying to yourself with post-selection p-values) is its own subject:
-the **`swap-stepwise-selection`** course builds a likelihood-based search that adds,
-drops, and swaps predictors under a principled stopping rule — and even reconstructs the
-joint fit from published summary statistics alone. It picks up exactly where this
+honestly, without lying to yourself with post-selection p-values) is its own subject —
+**variable selection** — where likelihood-based searches add, drop, and swap predictors
+under a principled stopping rule, some even reconstructing the joint fit from published
+summary statistics alone. That picks up exactly where this
 capstone leaves off. Ready for a final workout? Do the cumulative [practice problems](practice.qmd).
