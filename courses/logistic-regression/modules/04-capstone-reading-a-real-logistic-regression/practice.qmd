@@ -185,3 +185,55 @@ Reading a fresh `glm` summary and pulling out the coefficient, the odds ratio, t
 significance, and the deviance improvement — that's the whole point of the course, and you
 just did it on data you'd never seen.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/logistic-regression/modules/04-capstone-reading-a-real-logistic-regression" pass="4"}
+
+::: {.quiz-q qid="cap-coef-logodds" qtype="mc" answer="a"}
+In the lesson's `mtcars` fit, the weight coefficient is $-4.024$. What does this
+value represent before any exponentiation?
+
+a) The change in log-odds of manual transmission per 1000 lb increase in weight
+b) The change in probability of manual transmission per 1000 lb increase in weight
+c) The odds ratio for weight — negative means the odds decrease by 4.024 per unit
+:::
+
+::: {.quiz-q qid="cap-odds-ratio" qtype="numeric" answer="0.018" tolerance="0.0005"}
+In the lesson's `mtcars` fit, $\hat\beta_{\text{wt}} = -4.024$. Compute the odds
+ratio for a one-unit (1000 lb) increase in weight. Round to three decimals.
+:::
+
+::: {.quiz-q qid="cap-z-value" qtype="numeric" answer="-2.80" tolerance="0.005"}
+In the lesson's `mtcars` fit, the weight estimate is $-4.024$ and its standard error
+is $1.436$. Compute the z value (estimate divided by standard error). Round to two
+decimals.
+:::
+
+::: {.quiz-q qid="cap-deviance" qtype="mc" answer="c"}
+In the lesson's `mtcars` fit, the null deviance is $43.230$ and the residual deviance
+is $19.176$. What does the drop from $43.230$ to $19.176$ tell you?
+
+a) The model worsened — residual deviance should exceed the null deviance for a good predictor
+b) 24 observations were correctly reclassified once weight was added to the model
+c) Adding weight improved the fit — deviance is $-2 \times$ log-likelihood, so lower is better
+:::
+
+::: {.quiz-q qid="cap-pred-prob" qtype="numeric" answer="0.879" tolerance="0.0005"}
+In the lesson's `mtcars` model ($\hat\beta_0 = 12.040$, $\hat\beta_{\text{wt}} =
+-4.024$), what is the predicted probability of manual transmission for a car weighing
+2.5 thousand pounds? Round to three decimals.
+:::
+
+:::
+
+::::
