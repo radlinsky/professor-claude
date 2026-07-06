@@ -149,3 +149,57 @@ becomes *barely* invertible: `solve()` returns coefficients, but huge and unstab
 that swing wildly with tiny data changes. That instability — real, near-collinear
 predictors — is exactly what Module 3 dissects.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/multiple-regression/modules/02-least-squares-and-the-normal-equations" pass="4"}
+
+::: {.quiz-q qid="lsn-normal-equations" qtype="mc" answer="b"}
+The normal equations that `lm()` solves for $\hat\beta$ are:
+
+a) $X\hat\beta = y$
+b) $X^\top X\,\hat\beta = X^\top y$
+c) $\hat\beta = X^\top y$
+:::
+
+::: {.quiz-q qid="lsn-solve-fails" qtype="mc" answer="c"}
+`solve(t(X) %*% X, t(X) %*% y)` errors with "system is singular." What causes it?
+
+a) The sample size is too small
+b) The response $y$ has negative values
+c) A predictor column is an exact linear combination of others, so $X^\top X$ is not invertible
+:::
+
+::: {.quiz-q qid="lsn-why-qr" qtype="mc" answer="a"}
+Why does `lm()` fit with a QR decomposition rather than forming $X^\top X$ directly?
+
+a) Forming $X^\top X$ squares the predictors' scale spread, losing precision on near-collinear data; QR is more stable for the same answer
+b) QR gives different, better coefficients
+c) QR is the only method that handles more than two predictors
+:::
+
+::: {.quiz-q qid="lsn-xtx-dotproduct" qtype="numeric" answer="7" tolerance="0"}
+$X^\top X$ is the grid of dot products between the predictor columns. For columns
+$x_1 = (1, 2, 3)$ and $x_2 = (1, 0, 2)$, what is their dot product (the $x_1, x_2$ entry)?
+:::
+
+::: {.quiz-q qid="lsn-coef-interpret" qtype="mc" answer="b"}
+(From module 1.) The solved coefficient is $\hat\beta_1 = 2$. How do you interpret it?
+
+a) $x_1$ is twice as important as the other predictors
+b) $y$ changes by $2$ per unit of $x_1$, holding the other predictors fixed
+c) The prediction is always $2$
+:::
+
+:::
+
+::::
