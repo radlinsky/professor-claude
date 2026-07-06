@@ -116,3 +116,62 @@ reports "no inverse here." In a variable-selection search, near-singular correla
 matrices make this denominator tiny and the update unstable — which is why the next course
 adds a ridge $\lambda$ to the diagonal to keep the matrix comfortably invertible.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/sherman-morrison-rank-one-updates" pass="4"}
+
+::: {.quiz-q qid="smru-exact" qtype="mc" answer="b"}
+Is the Sherman–Morrison update an approximation?
+
+a) Yes — small errors accumulate over many updates
+b) No — it is an exact algebraic identity; differences are only $\sim 10^{-15}$ floating-point rounding
+c) Yes — it is a first-order Taylor approximation
+:::
+
+::: {.quiz-q qid="smru-fails-when" qtype="mc" answer="a"}
+Sherman–Morrison fails in exactly one case. Which?
+
+a) When $1 + v^\top A^{-1} u = 0$ — precisely when $A + uv^\top$ is singular and has no inverse
+b) When the update vector $u$ is longer than $v$
+c) When $A$ is symmetric
+:::
+
+::: {.quiz-q qid="smru-cost" qtype="mc" answer="c"}
+Why use Sherman–Morrison instead of recomputing the inverse from scratch after a rank-1
+change?
+
+a) It is more accurate than a fresh solve
+b) A fresh inverse cannot handle rank-1 changes
+c) It costs $O(p^2)$ per update versus $O(p^3)$ for a fresh inverse — a big saving inside a loop
+:::
+
+::: {.quiz-q qid="smru-woodbury" qtype="mc" answer="a"}
+Sherman–Morrison generalizes to higher-rank updates under what name?
+
+a) The Woodbury identity
+b) The quadratic formula
+c) Gaussian elimination
+:::
+
+::: {.quiz-q qid="smru-singular" qtype="mc" answer="b"}
+(From matrices & linear transforms.) Sherman–Morrison fails exactly when the updated
+matrix is singular. What does "singular" mean?
+
+a) The matrix is symmetric
+b) The matrix has no inverse (redundant rows or columns)
+c) The matrix is very large
+:::
+
+:::
+
+::::
