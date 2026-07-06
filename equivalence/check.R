@@ -22,6 +22,8 @@ source(file.path(EQ, "reimplementations", "welford.R"))
 source(file.path(EQ, "reimplementations", "gradient_descent.R"))
 source(file.path(EQ, "reimplementations", "multiple-regression.R"))
 source(file.path(EQ, "reimplementations", "swap-stepwise.R"))
+source(file.path(EQ, "reimplementations", "wakefield-abf.R"))
+source(file.path(EQ, "reimplementations", "coloc-abf.R"))
 
 fixture <- function(name) file.path(EQ, "fixtures", name)
 
@@ -55,7 +57,15 @@ targets <- list(
   list(path = fixture("swap-stepwise-rank1-bordering.json"),
        fn = function(inp) list(inv_grown = as.numeric(sw_border(inp$Mi, inp$b_new, inp$d)))),
   list(path = fixture("swap-stepwise-ridge.json"),
-       fn = function(inp) list(beta_ridge = sw_ridge_joint(inp$R, inp$b, inp$lambda)))
+       fn = function(inp) list(beta_ridge = sw_ridge_joint(inp$R, inp$b, inp$lambda))),
+  list(path = fixture("wakefield-abf-full-coloc.json"),
+       fn = function(inp) list(labf = wakefield_abf(inp$beta, inp$se, inp$W))),
+  list(path = fixture("coloc-abf-shared.json"),
+       fn = function(inp) coloc_abf(inp$beta1, inp$se1, inp$beta2, inp$se2,
+                                    inp$W1, inp$W2, inp$p1, inp$p2, inp$p12)),
+  list(path = fixture("coloc-abf-distinct.json"),
+       fn = function(inp) coloc_abf(inp$beta1, inp$se1, inp$beta2, inp$se2,
+                                    inp$W1, inp$W2, inp$p1, inp$p2, inp$p12))
 )
 
 cat("== Professor Claude — equivalence checks ==\n\n")
