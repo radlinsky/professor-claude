@@ -1,6 +1,6 @@
 {
   "meta": {
-    "slug": "switchstep-rank1-bordering",
+    "slug": "swap-stepwise-rank1-bordering",
     "tier": "full",
     "source": "fresh solve() of the grown (k+1)x(k+1) matrix",
     "tolerance": {
@@ -9,7 +9,7 @@
     },
     "seed": 1,
     "generated": "2026-07-05T09:14:48-0600",
-    "generator": "equivalence/generate/switchstep_full_oracles.R"
+    "generator": "equivalence/generate/swap_stepwise_full_oracles.R"
   },
   "inputs": {
     "Mi": [

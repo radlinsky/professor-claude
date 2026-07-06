@@ -219,7 +219,7 @@ cell below rebuilds them from summaries and checks against the frozen numbers:
 ```{webr}
 #| autorun: true
 # Regenerate the exact seed-2 panel, reconstruct the joint fit from summaries, and compare
-# to the frozen reference from equivalence/fixtures/switchstep-joint-from-summaries.json.
+# to the frozen reference from equivalence/fixtures/swap-stepwise-joint-from-summaries.json.
 sim_panel <- function(n = 200, seed = 2) {
   set.seed(seed); p <- 12; R <- diag(p)
   R[1,2]<-R[2,1]<-0.90; R[3,4]<-R[4,3]<-0.95; R[8,10]<-R[10,8]<-0.70; R[11,12]<-R[12,11]<-0.65
