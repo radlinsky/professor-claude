@@ -1,0 +1,324 @@
+---
+title: "How it corrupts coloc"
+subtitle: "The fine-mapping bias flows straight into coloc — turning a truly shared signal into a confident, wrong 'distinct' call"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any of them
+and re-run. The first run downloads a small R engine, so give it a few seconds. Cells without a
+Run button are ordinary listings whose output was computed when the page was built.
+:::
+
+## Where we're going
+
+Module 1 showed fine-mapping breaking for a single trait: unequal information across SNPs biases
+the "which SNP is causal?" posterior. This module is the second half of the paper's diagnosis —
+the bad news that makes the whole paper necessary. **`coloc` is built on fine-mapping.** It
+fine-maps each trait, then compares the two traits' per-SNP posteriors to decide whether they
+share a causal variant (H4) or have distinct ones (H3). So the fine-mapping bias flows straight
+in — and it can flip a truly *shared* signal into a **confident but wrong** *distinct* call
+(PP3 near 1). By the end you'll make `coloc` (the one you built) do exactly that, on purpose.
+
+**Builds on:** [Module 1 (when fine-mapping breaks)](../01-when-fine-mapping-breaks/lesson.qmd)
+and the [Bayesian Colocalisation course](../../../bayesian-colocalisation/syllabus.md) (which
+built `coloc_abf(...)` and the PP3-vs-PP4 split).
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each from memory, then check.
+
+**1.** *(Module 1)* Two SNPs in perfect LD tag the same signal, but SNP 2 has information loss.
+Which way does SNP 2's fine-mapping posterior move from 0.5, and does it get better or worse with
+sample size?
+
+::: {.callout-note collapse="true" title="Answer"}
+SNP 2's posterior drifts **below** 0.5 (toward the better-measured SNP), and it gets **worse** as
+$N$ grows because the Bayes factor scales with $z^2 \propto N$. See
+[Module 1](../01-when-fine-mapping-breaks/lesson.qmd).
+:::
+
+**2.** *(coloc course)* In `coloc`, which posterior probability means "**shared** causal variant"
+and which means "**distinct** causal variants"?
+
+::: {.callout-note collapse="true" title="Answer"}
+**PP4 = shared** (colocalisation); **PP3 = distinct** (two separate causal variants). See the
+[Bayesian Colocalisation course](../../../bayesian-colocalisation/syllabus.md).
+:::
+
+**3.** *(coloc course)* In one line, what is coloc's H4 support built from — i.e. what makes PP4
+large?
+
+::: {.callout-note collapse="true" title="Answer"}
+H4 support is large when the *same SNP* carries strong evidence in **both** traits — the diagonal
+of the "which SNP for trait 1 × which SNP for trait 2" grid, where the two traits' Bayes factors
+line up on one variant. See the
+[Bayesian Colocalisation course](../../../bayesian-colocalisation/syllabus.md).
+:::
+
+## A tiny example first
+
+Two SNPs in perfect LD, and a signal that is **genuinely shared** — both traits are driven by the
+same underlying causal variant. Because the two SNPs are perfectly correlated, each trait's
+signal shows up equally on both, so with clean data each trait fine-maps to a 50/50 split and
+`coloc` correctly declares **PP4 ≈ 0.999** (shared). Truth: shared. Verdict: shared.
+
+Now impose the paper's mischief. Trait 1 suffers information loss on **SNP 2** (e.g. 95%
+genotype missingness there), so trait 1's evidence now piles onto **SNP 1**: its fine-mapping
+posterior becomes $(1.0,\ 0.0)$. Independently, trait 2 suffers information loss on **SNP 1**, so
+trait 2's evidence piles onto **SNP 2**: posterior $(0.0,\ 1.0)$. Each trait, fine-mapped alone,
+now confidently names a *different* SNP.
+
+`coloc` compares those two fine-maps. Trait 1 says "SNP 1," trait 2 says "SNP 2" — different
+SNPs! — so coloc concludes the causal variants are **distinct** and reports **PP3 = 1.0**,
+supremely confident. But the truth is unchanged: the signal is *shared*. The missingness didn't
+change the biology; it changed which SNP each trait *looked* strongest at, and coloc — trusting
+the fine-maps — was fooled completely.
+
+```{r toy-example}
+# The coloc_abf you built (base R), condensed.
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(b1, se1, b2, se2, W1, W2, p1 = 1e-4, p2 = 1e-4, p12 = 1e-5) {
+  l1 <- wakefield_abf(b1, se1, W1); l2 <- wakefield_abf(b2, se2, W2)
+  s1 <- .logsum(l1); s2 <- .logsum(l2); s12 <- .logsum(l1 + l2)
+  all <- c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2, s12), log(p12)+s12)
+  exp(all - .logsum(all))
+}
+z <- 8                                    # a strong, big-study signal
+# CLEAN data: two SNPs in perfect LD, signal genuinely shared -> both traits split 0.5/0.5
+b1 <- c(z*0.03, z*0.03);   se1 <- c(0.03, 0.03)
+b2 <- c(z*0.035, z*0.035); se2 <- c(0.035, 0.035)
+clean <- coloc_abf(b1, se1, b2, se2, 0.04, 0.04)
+round(clean[4:5], 4)                       # PP3, PP4 -> 0.001, 0.999  (correctly SHARED)
+
+# INFO LOSS: trait 1 loses SNP 2, trait 2 loses SNP 1 (95% missingness each)
+b1b <- c(z*0.03,  z*0.03*sqrt(0.05));  se1b <- c(0.03,  0.03/sqrt(0.05))
+b2b <- c(z*0.035*sqrt(0.05), z*0.035); se2b <- c(0.035/sqrt(0.05), 0.035)
+lossy <- coloc_abf(b1b, se1b, b2b, se2b, 0.04, 0.04)
+round(lossy[4:5], 4)                       # PP3, PP4 -> 1, 0  (confidently, wrongly DISTINCT)
+```
+
+## Getting a feel for it
+
+**Analogy — two witnesses pointing at a line-up.** A crime had one culprit (the shared causal
+variant). Two witnesses each point at the line-up. With good lighting, both point at the same
+person — case closed, "same culprit" (PP4). Now dim the lights *differently* for each witness:
+witness 1 can't see the left half of the line-up, witness 2 can't see the right half. Witness 1
+points right, witness 2 points left — at *different* people — and the detective (coloc) concludes
+"two different culprits" (PP3), with total confidence. The witnesses didn't disagree because
+there were two culprits; they disagreed because each was handicapped differently. coloc trusts
+the pointing, so it inherits the handicap.
+
+Where the analogy breaks: coloc doesn't just take the single most-likely SNP — it weighs the
+whole posterior across SNPs. But when information loss makes each trait's posterior *confident*
+(a single-variant credible set), the effect is exactly as stark as two witnesses each pointing
+decisively at the wrong person.
+
+**Why does the bias flip H4 into H3 specifically?** Because H4 (shared) support comes from the
+two traits' evidence *lining up on the same SNP*. Information loss that pushes trait 1's peak to
+SNP 1 and trait 2's peak to SNP 2 *destroys* that alignment — the traits' evidence now sits on
+different SNPs, which is the literal definition of H3. The loss doesn't just add noise; it
+manufactures a fake disagreement in the exact place coloc looks for agreement.
+
+**What do these numbers feel like?** Look at the jump: clean PP4 = 0.999, lossy PP3 = 1.0. This
+is not a mild wobble — it's the *maximum possible* error, delivered with the *maximum possible*
+confidence. That is the paper's alarm: coloc doesn't fail loudly (a shrug, a 50/50); it fails
+*silently and confidently*, which is far more dangerous for someone about to design a follow-up
+experiment on the "distinct" call.
+
+## What the notation is going to say
+
+There's no new formula here — it's the exact `coloc_abf` you already built. The new content is
+the *causal chain*: biased per-SNP posteriors (Module 1) → misaligned peaks across the two traits
+→ coloc's diagonal (shared) support collapses while its off-diagonal (distinct) support wins → PP3
+near 1. The lesson traces that chain through numbers you can run.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\text{PP}_i$ | "P-P sub eye" | posterior probability SNP $i$ is causal, for one trait | $(1, 0)$ or $(0, 1)$ after loss |
+| PP3 | "P-P three" | coloc posterior of **distinct** causal variants (H3) | $1.0$ (lossy) |
+| PP4 | "P-P four" | coloc posterior of a **shared** causal variant (H4) | $0.999$ (clean) |
+| $z$ | "zed" / "zee" | a SNP's z-score, $\hat\beta/\text{se}$; here the same big signal on both SNPs | $8$ |
+| $r^2$ | "r squared" | data completeness / imputation accuracy (here $0.05$ = 95% missing) | $0.05$ on the lossy SNP |
+| $W$ | "double-you" | coloc's prior weight | $0.04$ |
+
+## The formal version
+
+The mechanism, stated plainly (no new equation — the equation is `coloc_abf`):
+
+$$
+\underbrace{\text{unequal info across SNPs}}_{\text{Module 1}}
+\;\Rightarrow\;
+\underbrace{\text{biased per-SNP } \text{PP}_i \text{ (peaks move)}}_{\text{each trait alone}}
+\;\Rightarrow\;
+\underbrace{\text{traits' peaks misalign}}_{\text{H4 support collapses}}
+\;\Rightarrow\;
+\underbrace{\text{PP3} \to 1}_{\text{confident, wrong}} .
+$$
+
+Reading it aloud: "unequal information across SNPs leads to biased per-SNP posteriors whose peaks
+move, which makes the two traits' peaks misalign, which collapses coloc's shared-variant support
+and drives the distinct-variant posterior PP3 toward 1." Everyday words: "break each trait's
+fine-map differently, and coloc reads the resulting disagreement as two separate causes."
+
+**Mapping it onto the toy example.** Let's expose the middle of the chain — the per-SNP
+posteriors — to see the peaks move:
+
+```{r formal-check}
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+pp <- function(l) { b <- exp(l - max(l)); round(b/sum(b), 3) }
+z <- 8
+
+# CLEAN: each trait splits 0.5/0.5 across the two perfect-LD SNPs
+l1c <- wakefield_abf(c(z*0.03, z*0.03), c(0.03, 0.03), 0.04)
+l2c <- wakefield_abf(c(z*0.035, z*0.035), c(0.035, 0.035), 0.04)
+rbind(trait1 = pp(l1c), trait2 = pp(l2c))     # (0.5, 0.5) and (0.5, 0.5) -> aligned -> H4
+
+# LOSSY: trait1 peaks on SNP1, trait2 peaks on SNP2 -> misaligned -> H3
+l1l <- wakefield_abf(c(z*0.03, z*0.03*sqrt(0.05)), c(0.03, 0.03/sqrt(0.05)), 0.04)
+l2l <- wakefield_abf(c(z*0.035*sqrt(0.05), z*0.035), c(0.035/sqrt(0.05), 0.035), 0.04)
+rbind(trait1 = pp(l1l), trait2 = pp(l2l))     # (1, 0) and (0, 1) -> misaligned -> H3
+```
+
+The clean per-SNP posteriors are aligned (both 0.5/0.5) → coloc's diagonal support wins → PP4.
+The lossy ones are misaligned ($(1,0)$ vs $(0,1)$) → the diagonal is empty, the off-diagonal wins
+→ PP3. That misalignment is the entire bug.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# TRY IT: dial the missingness. imp = 1 is clean; smaller imp = more info loss. PREDICT: at what
+# imp does coloc flip from PP4 (shared) to PP3 (distinct)?
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(b1, se1, b2, se2, W1, W2, p1=1e-4, p2=1e-4, p12=1e-5) {
+  l1<-wakefield_abf(b1,se1,W1); l2<-wakefield_abf(b2,se2,W2)
+  s1<-.logsum(l1); s2<-.logsum(l2); s12<-.logsum(l1+l2)
+  all<-c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2,s12), log(p12)+s12)
+  exp(all-.logsum(all))
+}
+z <- 8; imp <- 0.05                       # <- change me: 1 = clean, 0.05 = severe loss
+b1 <- c(z*0.03,  z*0.03*sqrt(imp));  se1 <- c(0.03,  0.03/sqrt(imp))
+b2 <- c(z*0.035*sqrt(imp), z*0.035); se2 <- c(0.035/sqrt(imp), 0.035)
+pp <- coloc_abf(b1, se1, b2, se2, 0.04, 0.04)
+cat("imp =", imp, " -> PP3(distinct) =", round(pp[4], 4),
+    " PP4(shared) =", round(pp[5], 4), "\n")
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two curves against the data-completeness level: PP4 (shared) starts near 1 at full completeness and falls to 0 as completeness drops, while PP3 (distinct) rises from 0 to 1 — the confident wrong call taking over as information is lost."
+# TRY IT: watch the crossover. As data completeness falls, PP4 (correct) collapses and PP3
+# (wrong) takes over -- both confidently. PREDICT: do the two curves cross near the middle?
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(b1, se1, b2, se2, W1, W2, p1=1e-4, p2=1e-4, p12=1e-5) {
+  l1<-wakefield_abf(b1,se1,W1); l2<-wakefield_abf(b2,se2,W2)
+  s1<-.logsum(l1); s2<-.logsum(l2); s12<-.logsum(l1+l2)
+  all<-c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2,s12), log(p12)+s12)
+  exp(all-.logsum(all))
+}
+z <- 8; imps <- seq(1, 0.02, length.out = 60)
+res <- sapply(imps, function(imp) {
+  b1 <- c(z*0.03, z*0.03*sqrt(imp)); se1 <- c(0.03, 0.03/sqrt(imp))
+  b2 <- c(z*0.035*sqrt(imp), z*0.035); se2 <- c(0.035/sqrt(imp), 0.035)
+  coloc_abf(b1, se1, b2, se2, 0.04, 0.04)[4:5]
+})
+plot(imps, res[2, ], type = "l", lwd = 2, col = "steelblue", ylim = c(0, 1),
+     xlim = c(1, 0.02), xlab = "data completeness (1 = clean)", ylab = "posterior",
+     main = "A shared signal, called distinct as information is lost")
+lines(imps, res[1, ], lwd = 2, col = "tomato")
+legend("right", legend = c("PP4 shared (correct)", "PP3 distinct (WRONG)"),
+       col = c("steelblue", "tomato"), lwd = 2, bty = "n")
+```
+
+## Common traps
+
+**Trap: "a confident coloc result (PP3 or PP4 near 1) must be correct."** Tempting — confidence
+usually tracks reliability. But our lossy case reports **PP3 = 1.0**, maximally confident, and is
+completely wrong (the truth is shared). Information-driven bias produces *confident* errors, not
+hesitant ones, precisely because it sharpens each trait's fine-map onto a single (wrong-for-the-
+comparison) SNP. A posterior near 1 is not a safety guarantee.
+
+**Trap: "the problem is just noise, so more data fixes it."** No — as Module 1 showed, the bias
+*grows* with sample size. Our toy uses a strong signal ($z = 8$, a big study) *because* that's
+when the misalignment is sharpest. Adding data makes each trait's biased fine-map more confident,
+which makes coloc's wrong PP3 more confident, not less. This is a *systematic* error from unequal
+information, not random noise.
+
+## Check yourself
+
+**1.** In the lossy toy, trait 1's per-SNP posterior is $(1, 0)$ and trait 2's is $(0, 1)$. In
+one line, why does that combination drive PP3 (distinct) rather than PP4 (shared)?
+
+::: {.callout-note collapse="true" title="Answer"}
+Because H4 (shared) needs both traits' evidence on the **same** SNP; here trait 1 points at SNP 1
+and trait 2 at SNP 2 — different SNPs — which is exactly the H3 (distinct) configuration, so
+coloc's off-diagonal support wins and PP3 → 1.
+:::
+
+**2.** True or false: the information loss in the lossy toy changed the underlying biology (there
+really are two distinct causal variants now). Explain.
+
+::: {.callout-note collapse="true" title="Answer"}
+**False.** The two SNPs are in perfect LD and the signal is genuinely shared throughout — the
+biology never changed. Only the *measurement* changed (differential missingness), which moved
+where each trait *appeared* strongest. coloc's PP3 = 1 is an artifact of the measurement, not a
+real second causal variant.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, how a fine-mapping bias in a
+single trait ends up producing a confident, wrong `coloc` call.
+
+::: {.callout-note collapse="true" title="A model answer"}
+coloc decides "shared vs distinct" by checking whether the two traits' fine-mapped evidence lands
+on the same SNP, so if unequal information pushes each trait's peak onto a *different* SNP, coloc
+sees a disagreement and calls the variants distinct (PP3). Because the biased fine-maps are
+themselves confident (single-variant credible sets), coloc inherits that confidence and reports a
+near-certain but wrong answer.
+:::
+
+## What you can now do
+
+- **Explain why coloc inherits the fine-mapping bias** — it fine-maps each trait and compares the
+  results, so biased per-SNP posteriors flow straight into the H3-vs-H4 decision.
+- **Trace the causal chain** from unequal information → moved peaks → misaligned traits → PP3
+  near 1.
+- **Reproduce the failure** in base R: a genuinely shared signal that your `coloc_abf` calls
+  confidently distinct once you impose differential information loss.
+- **State the danger** — the error is *confident* (posterior near 1) and *worsens with sample
+  size*, which is why a new, fine-mapping-free test is needed.
+
+If any of these feels shaky, revisit the toy example and the misalignment picture before
+continuing — the next module introduces the fix.
+
+## Where this goes next
+
+You've now seen the full disease: fine-mapping bias (Module 1) corrupting coloc into confident,
+wrong calls (this module). The cure is to test colocalisation **without fine-mapping at all**.
+The next module,
+[Proportionality is colocalisation](../03-proportionality-is-colocalisation/lesson.qmd), reframes
+"do these traits share a signal?" as "are their effect estimates *proportional*?" — a question
+you can answer straight from the summary statistics, with no per-SNP posterior to bias.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

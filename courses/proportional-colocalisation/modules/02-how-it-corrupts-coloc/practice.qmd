@@ -1,0 +1,212 @@
+---
+title: "Practice: How it corrupts coloc"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then open the
+answer. Several problems reuse the condensed `coloc_abf` you built; the starters include it.
+
+## Problem 1 — the toy example, new numbers
+
+Repeat the clean-vs-lossy comparison with a signal of $z = 6$ (a smaller study). Compute the
+clean PP3/PP4 and the lossy PP3/PP4 (trait 1 loses SNP 2, trait 2 loses SNP 1, imputation
+$r^2 = 0.05$).
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(b1, se1, b2, se2, W1, W2, p1=1e-4, p2=1e-4, p12=1e-5) {
+  l1<-wakefield_abf(b1,se1,W1); l2<-wakefield_abf(b2,se2,W2)
+  s1<-.logsum(l1); s2<-.logsum(l2); s12<-.logsum(l1+l2)
+  all<-c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2,s12), log(p12)+s12)
+  exp(all-.logsum(all))
+}
+z <- 6; imp <- 0.05
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p1-ans}
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(b1, se1, b2, se2, W1, W2, p1=1e-4, p2=1e-4, p12=1e-5) {
+  l1<-wakefield_abf(b1,se1,W1); l2<-wakefield_abf(b2,se2,W2)
+  s1<-.logsum(l1); s2<-.logsum(l2); s12<-.logsum(l1+l2)
+  all<-c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2,s12), log(p12)+s12)
+  exp(all-.logsum(all))
+}
+z <- 6; imp <- 0.05
+clean <- coloc_abf(c(z*0.03,z*0.03), c(0.03,0.03), c(z*0.035,z*0.035), c(0.035,0.035), 0.04, 0.04)
+lossy <- coloc_abf(c(z*0.03, z*0.03*sqrt(imp)), c(0.03, 0.03/sqrt(imp)),
+                   c(z*0.035*sqrt(imp), z*0.035), c(0.035/sqrt(imp), 0.035), 0.04, 0.04)
+rbind(clean = round(clean[4:5], 4), lossy = round(lossy[4:5], 4))  # cols: PP3, PP4
+```
+Clean → PP4 near 1 (correctly shared); lossy → PP3 near 1 (confidently, wrongly distinct). Even
+at $z = 6$ the flip is decisive.
+:::
+
+## Problem 2 — fill in the missing step
+
+The causal chain that flips H4 to H3:
+
+- Step 1: unequal information across SNPs biases each trait's per-SNP posterior (Module 1).
+- Step 2: **your step here** — what does that do to *where each trait's peak sits*, and how does
+  that affect coloc's shared (H4) support?
+- Step 3: with the diagonal (shared) support gone, the off-diagonal wins → PP3 → 1.
+
+Fill in step 2.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: the biased posteriors move each trait's **peak onto a different SNP** (trait 1 → SNP 1,
+trait 2 → SNP 2). H4 (shared) support comes from both traits' evidence lining up on the *same*
+SNP — the diagonal of the SNP × SNP grid — so moving the peaks apart **empties the diagonal** and
+collapses H4 support. That's the move that hands the win to H3.
+:::
+
+## Problem 3 — expose the per-SNP peaks
+
+For the lossy toy at $z = 8$, $\text{imp} = 0.05$, compute each trait's per-SNP posterior (not
+coloc's PP3/PP4 — the individual fine-maps) and confirm they are misaligned.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: compute pp() for each trait's log Bayes factors
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+pp <- function(l) { b <- exp(l - max(l)); round(b/sum(b), 3) }
+z <- 8; imp <- 0.05
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-ans}
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+pp <- function(l) { b <- exp(l - max(l)); round(b/sum(b), 3) }
+z <- 8; imp <- 0.05
+l1 <- wakefield_abf(c(z*0.03, z*0.03*sqrt(imp)), c(0.03, 0.03/sqrt(imp)), 0.04)
+l2 <- wakefield_abf(c(z*0.035*sqrt(imp), z*0.035), c(0.035/sqrt(imp), 0.035), 0.04)
+rbind(trait1 = pp(l1), trait2 = pp(l2))
+```
+Trait 1 → $(1, 0)$, trait 2 → $(0, 1)$: each confidently names a *different* SNP. That
+misalignment is what coloc reads as "distinct causal variants."
+:::
+
+## Problem 4 — spot the error
+
+A colleague reports a colocalisation analysis — it contains **exactly one mistake** in the
+reasoning. Find it.
+
+> "coloc gave PP3 = 0.98, so we're 98% sure the two traits have distinct causal variants. The
+> posterior is so high, and our sample is large, so there's no way this is an artifact of data
+> quality."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is treating the high posterior + large sample as *proof against* an artifact — it's
+the opposite. Information-driven bias produces **confident** wrong calls, and it **worsens with
+sample size**, so a PP3 of 0.98 in a large study is *more* susceptible to being a differential-
+information artifact, not less. The high posterior is not evidence the call is real; you'd want to
+check data quality (imputation, missingness, rounding) and, ideally, a fine-mapping-free test.
+:::
+
+## Problem 5 — mixing it with Module 1 *(uses Module 1's posterior drift)*
+
+Explain, using Module 1's result, *why* imposing information loss on trait 2's SNP 1 makes trait
+2's fine-mapping peak move to SNP 2 — and connect that to this module's PP3 flip.
+
+::: {.callout-note collapse="true" title="Answer"}
+Module 1 showed that information loss on a SNP shrinks its Bayes factor, dragging its
+fine-mapping posterior below its fair share — so information loss on trait 2's SNP 1 shrinks SNP
+1's Bayes factor for trait 2, and the normalisation shifts trait 2's posterior mass onto SNP 2
+(its now-better-measured neighbour in perfect LD). This module then adds the coloc step: with
+trait 1's peak still on SNP 1 and trait 2's peak now on SNP 2, the two traits' peaks are
+misaligned, coloc's shared support empties, and PP3 → 1.
+:::
+
+## Problem 6 — transfer: the paper's headline number
+
+The paper reports that when the causal variant is truly *shared* but genotype missingness and LD
+are severe, coloc can falsely call H3 (distinct) up to **100%** of the time. In one or two
+sentences, interpret what "100% false H3" means and why it is more alarming than, say, "coloc is
+noisy."
+
+::: {.callout-note collapse="true" title="Answer"}
+"100% false H3" means that across repeated simulations of a genuinely shared signal, coloc called
+it *distinct* every single time — a systematic, reproducible error, not occasional bad luck. It's
+more alarming than noise because noise averages out and looks uncertain (posteriors near 0.5),
+whereas this failure is *confident and consistent* (PP3 near 1 every time), so it would reliably
+send an investigator to design the wrong follow-up experiment.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Results are saved in this browser only.
+
+::: {.module-check module="courses/proportional-colocalisation/modules/02-how-it-corrupts-coloc" pass="4"}
+
+::: {.quiz-q qid="hicc-why-inherits" qtype="mc" answer="b"}
+Why does coloc inherit the fine-mapping bias?
+
+a) coloc uses a different prior than fine-mapping
+b) coloc fine-maps each trait and compares the results, so biased per-SNP posteriors flow straight into the H3-vs-H4 decision
+c) coloc ignores standard errors entirely
+d) coloc only works on one trait at a time
+:::
+
+::: {.quiz-q qid="hicc-flip-direction" qtype="mc" answer="c"}
+In the lossy toy, a truly **shared** signal is called:
+
+a) H0 (no association)
+b) H4 (shared), correctly
+c) H3 (distinct), with high confidence
+d) undetermined, with all posteriors near 0.2
+:::
+
+::: {.quiz-q qid="hicc-misalign" qtype="mc" answer="a"}
+Trait 1's per-SNP posterior is $(1, 0)$ and trait 2's is $(0, 1)$. This drives PP3 (distinct)
+because:
+
+a) H4 needs both traits' evidence on the same SNP, and here they sit on different SNPs
+b) the posteriors don't sum to 1
+c) coloc always prefers PP3 when posteriors are extreme
+d) the prior weight $W$ was set too low
+:::
+
+::: {.quiz-q qid="hicc-confidence" qtype="mc" answer="c"}
+A coloc posterior near 1 (e.g. PP3 = 0.99) from a large study:
+
+a) is guaranteed correct because of the large sample
+b) is guaranteed correct because the posterior is so high
+c) can still be a confident artifact of differential information, which worsens with sample size
+d) means the two traits have no association
+:::
+
+::: {.quiz-q qid="hicc-drift-interleave" qtype="mc" answer="b"}
+*(uses Module 1)* Imposing information loss on trait 2's SNP 1 moves trait 2's fine-mapping peak
+to SNP 2 because:
+
+a) SNP 2 has a larger prior weight
+b) the loss shrinks SNP 1's Bayes factor, so normalisation shifts posterior mass to SNP 2
+c) SNP 1 is removed from the region
+d) the two SNPs are no longer in LD
+:::
+
+:::
+
+::::

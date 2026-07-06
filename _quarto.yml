@@ -22,6 +22,9 @@ project:
     - foundations/exponentials-and-logs/lesson.qmd
     - foundations/exponentials-and-logs/practice.qmd
     - foundations/exponentials-and-logs/resources.md
+    - foundations/false-discovery-rate/lesson.qmd
+    - foundations/false-discovery-rate/practice.qmd
+    - foundations/false-discovery-rate/resources.md
     - foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd
     - foundations/hypothesis-tests-p-values-and-confidence-intervals/practice.qmd
     - foundations/hypothesis-tests-p-values-and-confidence-intervals/resources.md
@@ -61,6 +64,12 @@ project:
     - foundations/probability-and-odds/lesson.qmd
     - foundations/probability-and-odds/practice.qmd
     - foundations/probability-and-odds/resources.md
+    - foundations/profile-likelihood/lesson.qmd
+    - foundations/profile-likelihood/practice.qmd
+    - foundations/profile-likelihood/resources.md
+    - foundations/quadratic-forms-and-the-chi-square-statistic/lesson.qmd
+    - foundations/quadratic-forms-and-the-chi-square-statistic/practice.qmd
+    - foundations/quadratic-forms-and-the-chi-square-statistic/resources.md
     - foundations/randomness-samples-and-sampling-distributions/lesson.qmd
     - foundations/randomness-samples-and-sampling-distributions/practice.qmd
     - foundations/randomness-samples-and-sampling-distributions/resources.md
@@ -164,6 +173,21 @@ project:
     - courses/bayesian-colocalisation/modules/04-capstone-reading-coloc-abf/lesson.qmd
     - courses/bayesian-colocalisation/modules/04-capstone-reading-coloc-abf/practice.qmd
     - courses/bayesian-colocalisation/resources.md
+    - courses/proportional-colocalisation/syllabus.md
+    - courses/proportional-colocalisation/00-roadmap.qmd
+    - courses/proportional-colocalisation/modules/01-when-fine-mapping-breaks/lesson.qmd
+    - courses/proportional-colocalisation/modules/01-when-fine-mapping-breaks/practice.qmd
+    - courses/proportional-colocalisation/modules/02-how-it-corrupts-coloc/lesson.qmd
+    - courses/proportional-colocalisation/modules/02-how-it-corrupts-coloc/practice.qmd
+    - courses/proportional-colocalisation/modules/03-proportionality-is-colocalisation/lesson.qmd
+    - courses/proportional-colocalisation/modules/03-proportionality-is-colocalisation/practice.qmd
+    - courses/proportional-colocalisation/modules/04-the-proportional-test-statistic/lesson.qmd
+    - courses/proportional-colocalisation/modules/04-the-proportional-test-statistic/practice.qmd
+    - courses/proportional-colocalisation/modules/05-the-pairwise-fdr-adaptation/lesson.qmd
+    - courses/proportional-colocalisation/modules/05-the-pairwise-fdr-adaptation/practice.qmd
+    - courses/proportional-colocalisation/modules/06-capstone-reading-colocproptest/lesson.qmd
+    - courses/proportional-colocalisation/modules/06-capstone-reading-colocproptest/practice.qmd
+    - courses/proportional-colocalisation/resources.md
 
 website:
   title: "Professor Claude"
@@ -225,6 +249,14 @@ website:
                 href: foundations/exponentials-and-logs/practice.qmd
               - text: "Resources"
                 href: foundations/exponentials-and-logs/resources.md
+          - section: "The false discovery rate"
+            contents:
+              - text: "Lesson"
+                href: foundations/false-discovery-rate/lesson.qmd
+              - text: "Practice"
+                href: foundations/false-discovery-rate/practice.qmd
+              - text: "Resources"
+                href: foundations/false-discovery-rate/resources.md
           - section: "Hypothesis tests, p-values & CIs"
             contents:
               - text: "Lesson"
@@ -329,6 +361,22 @@ website:
                 href: foundations/probability-and-odds/practice.qmd
               - text: "Resources"
                 href: foundations/probability-and-odds/resources.md
+          - section: "Profile likelihood"
+            contents:
+              - text: "Lesson"
+                href: foundations/profile-likelihood/lesson.qmd
+              - text: "Practice"
+                href: foundations/profile-likelihood/practice.qmd
+              - text: "Resources"
+                href: foundations/profile-likelihood/resources.md
+          - section: "Quadratic forms & the chi-square statistic"
+            contents:
+              - text: "Lesson"
+                href: foundations/quadratic-forms-and-the-chi-square-statistic/lesson.qmd
+              - text: "Practice"
+                href: foundations/quadratic-forms-and-the-chi-square-statistic/practice.qmd
+              - text: "Resources"
+                href: foundations/quadratic-forms-and-the-chi-square-statistic/resources.md
           - section: "Randomness & sampling distributions"
             contents:
               - text: "Lesson"
@@ -608,6 +656,48 @@ website:
                 href: courses/bayesian-colocalisation/modules/04-capstone-reading-coloc-abf/practice.qmd
           - text: "Resources"
             href: courses/bayesian-colocalisation/resources.md
+      - section: "Proportional Colocalisation"
+        contents:
+          - courses/proportional-colocalisation/syllabus.md
+          - courses/proportional-colocalisation/00-roadmap.qmd
+          - section: "1 · When fine-mapping breaks"
+            contents:
+              - text: "Lesson"
+                href: courses/proportional-colocalisation/modules/01-when-fine-mapping-breaks/lesson.qmd
+              - text: "Practice"
+                href: courses/proportional-colocalisation/modules/01-when-fine-mapping-breaks/practice.qmd
+          - section: "2 · How it corrupts coloc"
+            contents:
+              - text: "Lesson"
+                href: courses/proportional-colocalisation/modules/02-how-it-corrupts-coloc/lesson.qmd
+              - text: "Practice"
+                href: courses/proportional-colocalisation/modules/02-how-it-corrupts-coloc/practice.qmd
+          - section: "3 · Proportionality is colocalisation"
+            contents:
+              - text: "Lesson"
+                href: courses/proportional-colocalisation/modules/03-proportionality-is-colocalisation/lesson.qmd
+              - text: "Practice"
+                href: courses/proportional-colocalisation/modules/03-proportionality-is-colocalisation/practice.qmd
+          - section: "4 · The proportional test statistic"
+            contents:
+              - text: "Lesson"
+                href: courses/proportional-colocalisation/modules/04-the-proportional-test-statistic/lesson.qmd
+              - text: "Practice"
+                href: courses/proportional-colocalisation/modules/04-the-proportional-test-statistic/practice.qmd
+          - section: "5 · The pairwise correction"
+            contents:
+              - text: "Lesson"
+                href: courses/proportional-colocalisation/modules/05-the-pairwise-fdr-adaptation/lesson.qmd
+              - text: "Practice"
+                href: courses/proportional-colocalisation/modules/05-the-pairwise-fdr-adaptation/practice.qmd
+          - section: "6 · Capstone: reading colocPropTest"
+            contents:
+              - text: "Lesson"
+                href: courses/proportional-colocalisation/modules/06-capstone-reading-colocproptest/lesson.qmd
+              - text: "Practice"
+                href: courses/proportional-colocalisation/modules/06-capstone-reading-colocproptest/practice.qmd
+          - text: "Resources"
+            href: courses/proportional-colocalisation/resources.md
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that
 # lessons can host runnable in-browser WebR chunks with a single, uniform theme.

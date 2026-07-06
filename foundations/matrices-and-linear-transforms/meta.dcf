@@ -1,4 +1,4 @@
 ShortName: Matrices & linear transforms
 Concepts: A matrix as a grid/stack of rows (`matrix()`, `dim()`, `A[i,j]`), matrix × vector as one dot product per row (`%*%`), matrix × matrix and conformability, the transpose (`t()`) and why $X^\top X$ appears, the identity, and the inverse as "undo" (`solve()`) and when it fails (singular)
 BuildsOn: [vectors-and-summation](vectors-and-summation/lesson.qmd), [reading-math-notation](reading-math-notation/lesson.qmd) (soft — for the symbols)
-UsedBy: [multiple-regression](../courses/multiple-regression/syllabus.md)
+UsedBy: [multiple-regression](../courses/multiple-regression/syllabus.md), [proportional-colocalisation](../courses/proportional-colocalisation/syllabus.md)

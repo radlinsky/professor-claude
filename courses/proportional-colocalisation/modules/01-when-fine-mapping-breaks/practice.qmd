@@ -1,0 +1,210 @@
+---
+title: "Practice: When fine-mapping breaks"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then open the
+answer.
+
+## Problem 1 — the toy example, new numbers
+
+Two perfectly-LD SNPs; SNP 1 has full-data z $= 2.5$, SNP 2 loses information (imputation
+$r^2 = 0.8$, so its z is $2.5\sqrt{0.8}$), both with se $= 0.03$. Compute SNP 2's posterior of
+being causal.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+labf_z <- function(z, se, W = 0.04) { V <- se^2; r <- W/(W + V); 0.5*(log(1 - r) + r*z^2) }
+se <- 0.03
+z1 <- 2.5
+z2 <- 2.5 * sqrt(0.8)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p1-ans}
+labf_z <- function(z, se, W = 0.04) { V <- se^2; r <- W/(W + V); 0.5*(log(1 - r) + r*z^2) }
+se <- 0.03; z1 <- 2.5; z2 <- 2.5*sqrt(0.8)
+l <- c(labf_z(z1, se), labf_z(z2, se)); BF <- exp(l - max(l))
+round(BF/sum(BF), 4)          # posterior of SNP 1, SNP 2
+```
+SNP 2's posterior is about **0.35** — below the deserved 0.5. Even at this modest z, an
+imputation $r^2$ of 0.8 opens a clear gap; bigger z's would push it lower still.
+:::
+
+## Problem 2 — fill in the missing step
+
+SNP with z $= 3$, se $= 0.03$, $W = 0.04$. Compute its log Bayes factor:
+
+- Step 1: $r = W/(W + \text{se}^2) = 0.04/(0.04 + 0.0009) \approx 0.978$.
+- Step 2: **your step here** — plug into $\ell = \tfrac12(\log(1 - r) + r z^2)$.
+- Step 3: exponentiate: $\text{BF} = e^{\ell}$.
+
+Fill in step 2.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+r <- 0.04/(0.04 + 0.03^2)
+z <- 3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: $\ell = \tfrac12(\log(1 - 0.978) + 0.978\times 9) = \tfrac12(\log(0.022) + 8.802) =
+\tfrac12(-3.816 + 8.802) = \tfrac12(4.986) \approx 2.493$.
+
+```{r p2-ans}
+r <- 0.04/(0.04 + 0.03^2); z <- 3
+l <- 0.5*(log(1 - r) + r*z^2); l          # ~2.493
+exp(l)                                     # BF ~ 12.09
+```
+:::
+
+## Problem 3 — the sample-size drift
+
+Fixed true effect $0.05$; imputation $r^2 = 0.9$ on SNP 2. Compute SNP 2's posterior at
+$N = 5{,}000$, $50{,}000$, and $500{,}000$ (se shrinks with $\sqrt N$, so z grows with
+$\sqrt N$), and say which is worst.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: loop over N, compute SNP 2's posterior each time
+labf_z <- function(z, se, W = 0.04) { V <- se^2; r <- W/(W + V); 0.5*(log(1 - r) + r*z^2) }
+effect <- 0.05; imp_r2 <- 0.9
+Ns <- c(5000, 50000, 500000)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-ans}
+labf_z <- function(z, se, W = 0.04) { V <- se^2; r <- W/(W + V); 0.5*(log(1 - r) + r*z^2) }
+effect <- 0.05; imp_r2 <- 0.9
+post2 <- sapply(c(5000, 50000, 500000), function(N) {
+  se1 <- 0.03 * sqrt(5000/N); z1 <- effect/se1; z2 <- z1*sqrt(imp_r2)
+  l <- c(labf_z(z1, se1), labf_z(z2, se1)); BF <- exp(l - max(l)); (BF/sum(BF))[2]
+})
+data.frame(N = c(5000, 50000, 500000), posterior_snp2 = round(post2, 4))
+```
+The **largest** study ($N = 500{,}000$) is worst — SNP 2's posterior collapses toward 0. More
+data sharpens the biased answer; it does not fix it.
+:::
+
+## Problem 4 — spot the error
+
+A colleague concludes their fine-mapping is trustworthy because they have a huge sample. They
+wrote — it contains **exactly one mistake** in the reasoning. Find it.
+
+> "We ran on 500,000 individuals, so any single-variant credible set is reliable — the huge
+> sample size guarantees the fine-mapping bias from unequal imputation is negligible."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is "the huge sample size guarantees the bias is negligible." It's **backwards**: the
+fine-mapping bias from unequal information *grows* with sample size, because the Bayes factor
+scales with $z^2$ and $z \propto \sqrt N$. A 500,000-person study makes an imputation-driven
+credible set *less* trustworthy, not more — it can confidently name the wrong SNP. The correct
+statement: with variable information across SNPs, a large $N$ demands *more* caution about
+single-variant credible sets, not less.
+:::
+
+## Problem 5 — mixing it with coloc *(uses the Bayesian Colocalisation course's normalisation)*
+
+You have three SNPs in a region with log Bayes factors $\ell = (2.0, 2.0, 1.0)$ for one trait.
+Using the coloc-course normalisation ($\text{PP}_i = e^{\ell_i}/\sum_j e^{\ell_j}$), compute each
+SNP's posterior. Then say what would happen to SNP 3's posterior if information loss dropped its
+$\ell$ to $0.5$.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+l <- c(2.0, 2.0, 1.0)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p5-ans}
+l <- c(2.0, 2.0, 1.0); BF <- exp(l - max(l))
+round(BF/sum(BF), 4)                        # 0.4223 0.4223 0.1554
+l2 <- c(2.0, 2.0, 0.5); BF2 <- exp(l2 - max(l2))
+round(BF2/sum(BF2), 4)                       # SNP 3 drops further
+```
+Original: about $(0.42, 0.42, 0.16)$. Dropping SNP 3's $\ell$ to $0.5$ shrinks its posterior to
+about $0.10$ and nudges the other two up — the same normalise-across-SNPs step from the coloc
+course, now visibly biased by SNP 3's information loss.
+:::
+
+## Problem 6 — transfer: rounding as information loss
+
+The paper notes that even **rounding summary statistics** to few decimal places causes variable
+information across SNPs. Without computing, explain in one or two sentences why rounding acts like
+information loss and why it varies across SNPs.
+
+::: {.callout-note collapse="true" title="Answer"}
+Rounding throws away precision — the reported number is the true value plus a small rounding
+error — which is exactly a small dose of added noise, i.e. information loss. It varies across SNPs
+because the *size* of the rounding error relative to each SNP's true statistic differs (rounding
+0.123 to 0.1 loses proportionally more than rounding 0.789 to 0.8), so different SNPs end up with
+different effective precision — and their Bayes factors become non-comparable, just like unequal
+imputation.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Results are saved in this browser only.
+
+::: {.module-check module="courses/proportional-colocalisation/modules/01-when-fine-mapping-breaks" pass="4"}
+
+::: {.quiz-q qid="wfmb-perfect-ld-baseline" qtype="numeric" answer="0.5" tolerance="0"}
+Two SNPs in perfect LD tag the identical true signal and are measured with equal information.
+What posterior probability of being causal should each receive?
+:::
+
+::: {.quiz-q qid="wfmb-samplesize-direction" qtype="mc" answer="b"}
+As sample size grows, the fine-mapping bias from unequal information across SNPs:
+
+a) shrinks toward zero
+b) gets worse, because the Bayes factor scales with $z^2$ and $z$ grows with $\sqrt{N}$
+c) stays exactly the same
+d) reverses sign
+:::
+
+::: {.quiz-q qid="wfmb-cause-of-variable-info" qtype="mc" answer="c"}
+Which of these does the paper cite as a cause of variable statistical information across SNPs?
+
+a) using a Bayesian instead of a frequentist test
+b) choosing the prior weight $W$
+c) variable imputation accuracy ($r^2$) across variants
+d) the number of hypotheses in coloc
+:::
+
+::: {.quiz-q qid="wfmb-why-biased" qtype="mc" answer="a"}
+Why does normalising Bayes factors across SNPs give a biased posterior when information varies?
+
+a) It assumes every SNP's Bayes factor is measured on the same footing, but info-lossy SNPs get unfairly small ones
+b) It divides by the wrong total
+c) It uses the log scale instead of the raw scale
+d) It forgets to include the prior weight $W$
+:::
+
+::: {.quiz-q qid="wfmb-normalise-interleave" qtype="numeric" answer="0.4223" tolerance="0.001"}
+*(uses the Bayesian Colocalisation course's normalisation)* For three SNPs with log Bayes factors
+$\ell = (2.0, 2.0, 1.0)$, what is SNP 1's posterior $e^{\ell_1}/\sum_j e^{\ell_j}$? (Enter to 4
+decimals.)
+:::
+
+:::
+
+::::

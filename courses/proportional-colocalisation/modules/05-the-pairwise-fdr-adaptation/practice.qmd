@@ -1,0 +1,233 @@
+---
+title: "Practice: The pairwise correction"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then open the
+answer.
+
+## Problem 1 — the toy example, new numbers
+
+A region has $n = 5$ SNPs. How many possible pairs? If the 10 raw pairwise p-values are all
+$\geq 0.4$, what is the minimum Holm-adjusted p-value (over `ntests` = all possible pairs), and is
+the region colocalised?
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+n <- 5
+raw_p <- c(0.9, 0.5, 0.8, 0.7, 0.6, 0.4, 0.9, 0.8, 0.7, 0.5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Possible pairs: $\binom{5}{2} = \frac{5\cdot 4}{2} = 10$.
+
+```{r p1-ans}
+n <- 5; n*(n-1)/2                # 10 possible pairs
+raw_p <- c(0.9, 0.5, 0.8, 0.7, 0.6, 0.4, 0.9, 0.8, 0.7, 0.5)
+min(p.adjust(raw_p, method = "holm", n = 10))   # 1
+```
+The minimum adjusted p is $1$ — no pair breaks proportionality, so **colocalised** (fail to
+reject).
+:::
+
+## Problem 2 — fill in the missing step
+
+The decision rule, step by step:
+
+- Step 1: run `prop_test_pair()` on every pair → raw p-values $p_1, \dots, p_M$.
+- Step 2: **your step here** — how do you turn those into a single reject/keep decision?
+- Step 3: report "not colocalised" if that decision number is below $\alpha$.
+
+Fill in step 2.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: apply `p.adjust(p, n = M)` with $M$ = the total number of possible pairs to get adjusted
+p-values, then take the **minimum** across pairs. The minimum is the decision number: reject
+colocalisation if *any* single pair survives correction (the weakest-link rule).
+:::
+
+## Problem 3 — run it on a distinct region
+
+Use the frozen distinct fixture (6 SNPs, 15 pairs, LD 0.7, ntests 15). Run `prop_run()` and report
+`min_adjusted`. Colocalised or not?
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: run prop_run on these frozen distinct inputs
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(chisquare = o$objective, p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_run <- function(beta1, vbeta1, beta2, vbeta2, LD, pairs, ntests = NULL, method = "holm") {
+  n <- length(beta1); if (is.null(ntests)) ntests <- n*(n-1)/2
+  chi <- numeric(ncol(pairs)); p <- numeric(ncol(pairs))
+  for (m in seq_len(ncol(pairs))) { i <- pairs[1,m]; j <- pairs[2,m]
+    r <- prop_test_pair(beta1[c(i,j)], vbeta1[c(i,j)], beta2[c(i,j)], vbeta2[c(i,j)], LD[i,j])
+    chi[m] <- r$chisquare; p[m] <- r$p }
+  list(min_adjusted = min(p.adjust(p, method = method, n = ntests)))
+}
+beta1 <- c(0.2773643146945664, -0.02213648545494297, -0.0228141260938878,
+           -0.03025834543924165, -0.02386502276581572, -0.03947348135824345)
+beta2 <- c(-0.01553201036207071, -0.03848563446746702, -0.01816800749239067,
+           0.2847805230112141, -0.02141569115469859, -0.005980808079645841)
+LD <- matrix(0.7, 6, 6); diag(LD) <- 1
+pairs <- combn(6, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-ans}
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(chisquare = o$objective, p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_run <- function(beta1, vbeta1, beta2, vbeta2, LD, pairs, ntests = NULL, method = "holm") {
+  n <- length(beta1); if (is.null(ntests)) ntests <- n*(n-1)/2
+  chi <- numeric(ncol(pairs)); p <- numeric(ncol(pairs))
+  for (m in seq_len(ncol(pairs))) { i <- pairs[1,m]; j <- pairs[2,m]
+    r <- prop_test_pair(beta1[c(i,j)], vbeta1[c(i,j)], beta2[c(i,j)], vbeta2[c(i,j)], LD[i,j])
+    chi[m] <- r$chisquare; p[m] <- r$p }
+  list(min_adjusted = min(p.adjust(p, method = method, n = ntests)))
+}
+beta1 <- c(0.2773643146945664, -0.02213648545494297, -0.0228141260938878,
+           -0.03025834543924165, -0.02386502276581572, -0.03947348135824345)
+beta2 <- c(-0.01553201036207071, -0.03848563446746702, -0.01816800749239067,
+           0.2847805230112141, -0.02141569115469859, -0.005980808079645841)
+LD <- matrix(0.7, 6, 6); diag(LD) <- 1; pairs <- combn(6, 2)
+prop_run(beta1, rep(0.0009,6), beta2, rep(0.001225,6), LD, pairs, ntests = 15)$min_adjusted
+```
+`min_adjusted` $\approx 2\times 10^{-8}$ — far below 0.05, so **reject colocalisation** → the
+signals are distinct. One pair (trait 1 peaks on SNP 1, trait 2 on SNP 4) breaks proportionality
+decisively.
+:::
+
+## Problem 4 — spot the error
+
+A colleague summarises a `prop_run()` result — it contains **exactly one mistake** in the
+reasoning. Find it.
+
+> "Of the 15 pairwise tests, 14 had adjusted p-values near 1 and only 1 was tiny. Since the
+> *average* adjusted p is about 0.93 — well above 0.05 — the region colocalises."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is using the **average**. The decision is the **minimum** adjusted p-value: reject
+colocalisation if *any* single pair is significant. Colocalisation requires *every* pair to be
+proportional, so one tiny adjusted p (the 15th test) disproves it — the region is **not**
+colocalised, even though 14 pairs look fine and the average is high. Averaging hides the one real
+departure (the weakest-link rule).
+:::
+
+## Problem 5 — mixing it with the FDR foundation *(uses false-discovery-rate's Holm vs BH)*
+
+For raw pairwise p-values $(0.001, 0.02, 0.30, 0.50)$ from a region where $\text{ntests} = 6$
+possible pairs, compute both the Holm-adjusted (what `colocPropTest` actually uses) and the
+Benjamini–Hochberg-adjusted values, and say whether the two methods reach the same reject/keep
+verdict at 0.05.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+raw_p <- c(0.001, 0.02, 0.30, 0.50)
+ntests <- 6
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p5-ans}
+raw_p <- c(0.001, 0.02, 0.30, 0.50); ntests <- 6
+rbind(holm = p.adjust(raw_p, "holm", n = ntests),
+      BH   = p.adjust(raw_p, "BH",   n = ntests))
+```
+Holm gives a smallest adjusted p of $0.006$; BH gives a smallest of $0.006$ too — both below 0.05,
+so **both reject colocalisation** here. They agree on the verdict in this case, but the *values*
+differ (Holm is the family-wise, stricter one that `colocPropTest` applies despite naming the
+column `fdr`; BH is the true false-discovery-rate method). On borderline p-values they can
+disagree.
+:::
+
+## Problem 6 — transfer: the min-marginal-p shortcut
+
+The paper proves a pair's proportional p-value can never be smaller than the smallest single-SNP
+GWAS p-value among that pair's variants. Explain in one or two sentences how this lets you test
+fewer pairs, and what you must *not* change in the correction.
+
+::: {.callout-note collapse="true" title="Answer"}
+Because a pair containing a null (non-associated) SNP is bounded away from a tiny p-value, only
+pairs of strongly-associated SNPs can ever reject colocalisation — so you can safely skip the pairs
+involving weak SNPs and test just the handful of strong ones. What you must **not** change is the
+correction denominator: `ntests` still has to be the *total* number of possible pairs
+($n(n-1)/2$), not the number you actually ran, or you'd understate the multiplicity and inflate
+false rejections.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Results are saved in this browser only.
+
+::: {.module-check module="courses/proportional-colocalisation/modules/05-the-pairwise-fdr-adaptation" pass="4"}
+
+::: {.quiz-q qid="pfa-npairs" qtype="numeric" answer="15" tolerance="0"}
+A region has $n = 6$ SNPs. How many possible pairs are there, $n(n-1)/2$?
+:::
+
+::: {.quiz-q qid="pfa-reject-rule" qtype="mc" answer="b"}
+The pairwise procedure rejects colocalisation when:
+
+a) the average adjusted p-value is below $\alpha$
+b) the minimum adjusted p-value (any single pair) is below $\alpha$
+c) all adjusted p-values are below $\alpha$
+d) the largest adjusted p-value is below $\alpha$
+:::
+
+::: {.quiz-q qid="pfa-why-not-nvariant" qtype="mc" answer="c"}
+Why does the paper prefer all pairwise tests over one big $n$-variant test?
+
+a) the $n$-variant test needs individual-level data
+b) pairwise tests don't need a covariance matrix
+c) the $n$-variant test has $n-1$ df and dilutes the evidence from one non-proportional pair, so it's weak
+d) pairwise tests never need multiplicity correction
+:::
+
+::: {.quiz-q qid="pfa-holm-not-bh" qtype="mc" answer="a"}
+The `colocPropTest` package names its column `fdr`, but the correction it actually applies via
+`p.adjust`'s default is:
+
+a) Holm (a family-wise / Bonferroni-type correction)
+b) Benjamini–Hochberg (a true FDR correction)
+c) no correction at all
+d) Bonferroni with a custom denominator of 1
+:::
+
+::: {.quiz-q qid="pfa-fwer-interleave" qtype="numeric" answer="0.54" tolerance="0.01"}
+*(uses false-discovery-rate)* Running 15 independent tests each at 0.05 with nothing real, what is
+the chance of at least one false alarm, $1 - 0.95^{15}$? (Enter to 2 decimals.)
+:::
+
+:::
+
+::::

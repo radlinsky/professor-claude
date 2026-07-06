@@ -1,0 +1,410 @@
+---
+title: "Capstone: reading colocPropTest"
+subtitle: "Return to the source — decode the paper's equations and the real colocPropTest interface, then assemble and validate the whole pipeline"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The R cells below with a **Run** button are live (WebR) — you assemble and validate the whole
+method right here. The real `colocPropTest` package can't run in the browser (WebR has no
+`colocPropTest`), so its interface is shown for *reading* under a note, with the reference numbers
+embedded inline.
+:::
+
+## Where we're going
+
+No new ideas here — this capstone proves you reached the goal. When you started, Wallace, Robins &
+Johnson (2025) was a wall of Greek: a null $\beta_1 = \eta\gamma_2$, a Fieller statistic, a
+$\theta = \tan^{-1}\eta$ reparametrisation, a $\chi^2_{n-1}$, and an "FDR over all pairs." Now
+you've **built** every piece: the LD covariance $V$, the profiled Fieller statistic
+`prop_test_pair()`, and the pairwise-with-correction `prop_run()`. So we return to the source —
+decode the paper's own equations and the real `colocPropTest` interface
+(`run_proptests`, `estprop`, `tester_marg`, `marg_with_V`, and the `p.adjust(p, n = ntests)`
+step), tracing each term to the module that built it. Then we assemble the full pipeline on a
+simulated two-trait region for shared and distinct scenarios, validate against the frozen
+references, state the validation tier, and finish with the paper's practical guidance.
+
+**Builds on:** every module — [fine-mapping bias (1)](../01-when-fine-mapping-breaks/lesson.qmd),
+[coloc corruption (2)](../02-how-it-corrupts-coloc/lesson.qmd),
+[proportionality (3)](../03-proportionality-is-colocalisation/lesson.qmd),
+[the statistic (4)](../04-the-proportional-test-statistic/lesson.qmd), and
+[the pairwise correction (5)](../05-the-pairwise-fdr-adaptation/lesson.qmd) — plus the
+[Bayesian Colocalisation course](../../../bayesian-colocalisation/syllabus.md) that built
+`coloc_abf`.
+
+## Warm-up: do you remember?
+
+Five recalls spanning the course. Produce each before opening it.
+
+**1.** *(Module 1)* Why does variable information across SNPs bias fine-mapping, and does it get
+better or worse with sample size?
+
+::: {.callout-note collapse="true" title="Answer"}
+Normalising Bayes factors across SNPs assumes they're all measured on the same footing; when
+information varies, info-lossy SNPs get unfairly small Bayes factors, biasing the posterior. It
+**worsens** with sample size ($z^2 \propto N$). See
+[Module 1](../01-when-fine-mapping-breaks/lesson.qmd).
+:::
+
+**2.** *(Module 2)* How does that bias flip a shared signal into a wrong coloc call?
+
+::: {.callout-note collapse="true" title="Answer"}
+It moves each trait's fine-map peak onto a *different* SNP, so coloc sees misaligned peaks and
+reports PP3 (distinct) near 1 — confidently wrong. See
+[Module 2](../02-how-it-corrupts-coloc/lesson.qmd).
+:::
+
+**3.** *(Module 3)* State the null hypothesis of the proportional test and what a **small p-value**
+means.
+
+::: {.callout-note collapse="true" title="Answer"}
+Null: $b_1 = \eta b_2$ (proportional = colocalisation). Small p → reject the null → **not**
+colocalised. See [Module 3](../03-proportionality-is-colocalisation/lesson.qmd).
+:::
+
+**4.** *(Module 4)* Why is the profiled statistic $\chi^2_{n-1}$ rather than $\chi^2_n$?
+
+::: {.callout-note collapse="true" title="Answer"}
+Profiling out the angle $\theta$ (estimating the best slope from the data) costs one degree of
+freedom. See [Module 4](../04-the-proportional-test-statistic/lesson.qmd).
+:::
+
+**5.** *(Module 5)* What correction does `colocPropTest` actually apply, and what does the paper
+call it?
+
+::: {.callout-note collapse="true" title="Answer"}
+The paper calls it an "FDR," but the package calls `p.adjust`'s default — **Holm** (family-wise) —
+while naming the column `fdr`. See [Module 5](../05-the-pairwise-fdr-adaptation/lesson.qmd).
+:::
+
+## The artifact, part 1 — the paper's equations
+
+Here is how Wallace, Robins & Johnson (2025) frame the test. Read it aloud, then we decode it.
+
+> If the two traits give effect estimates $\boldsymbol{\beta}_1 = (\beta_{11}, \dots, \beta_{1n})$
+> and $\boldsymbol{\gamma}_2 = (\gamma_{21}, \dots, \gamma_{2n})$ across the same $n$ variants, the
+> null hypothesis is
+> $$ H_0:\ \boldsymbol{\beta}_1 = \eta\,\boldsymbol{\gamma}_2 \quad\text{for some } \eta, $$
+> equivalent to a straight line through the origin through the $n$ points. The test uses Fieller's
+> statistic; as $\eta$ may be 0 or $\infty$, change variables to $\theta = \tan^{-1}\eta$ and use
+> $$ X^2 = \big(\sin\theta\,\hat{\boldsymbol{\beta}} - \cos\theta\,\hat{\boldsymbol{\gamma}}\big)^{\!\top}
+>     V^{-1}\big(\sin\theta\,\hat{\boldsymbol{\beta}} - \cos\theta\,\hat{\boldsymbol{\gamma}}\big), $$
+> where $V = \sin^2\theta\,\mathrm{Var}(\hat{\boldsymbol{\beta}}) + \cos^2\theta\,\mathrm{Var}(\hat{\boldsymbol{\gamma}})$.
+> Replacing $\theta$ by its estimate $\hat\theta$ (a profile-likelihood approach) gives a
+> $\chi^2_{n-1}$ statistic. When there is no genotype missingness,
+> $\mathrm{Var}(\hat{\boldsymbol{\beta}}) = (\sigma\sigma^\top)\odot\Sigma$ with $\Sigma$ the LD
+> matrix and $\sigma$ the standard errors.
+
+### The decode, term by term
+
+Read each piece and trace it home.
+
+**"$\boldsymbol{\beta}_1$ and $\boldsymbol{\gamma}_2$ across $n$ variants."** The two traits'
+per-SNP effect vectors — `beta1` and `beta2` in your code. From
+[Module 3](../03-proportionality-is-colocalisation/lesson.qmd).
+
+**"$H_0: \boldsymbol{\beta}_1 = \eta\,\boldsymbol{\gamma}_2$."** The proportionality null — the
+points on a line through the origin, colocalisation itself. **The null is colocalisation**, so
+small p = not colocalised ([Module 3](../03-proportionality-is-colocalisation/lesson.qmd)).
+
+**"Fieller's statistic … change variables to $\theta = \tan^{-1}\eta$."** The arctan
+reparametrisation that turns the infinite slope range into a finite angle
+([Module 4](../04-the-proportional-test-statistic/lesson.qmd)). In your code: `atan`, and the
+gap `sin(theta)*beta1 - cos(theta)*beta2`.
+
+**"$X^2 = (\dots)^\top V^{-1}(\dots)$."** The quadratic form — a standardised squared distance of
+the gap vector, exactly the shape from the
+[quadratic-forms foundation](../../../../foundations/quadratic-forms-and-the-chi-square-statistic/lesson.qmd).
+Your `t(d) %*% solve(Vstar, d)` ([Module 4](../04-the-proportional-test-statistic/lesson.qmd)).
+
+**"$V = \sin^2\theta\,\mathrm{Var}(\hat{\boldsymbol{\beta}}) + \cos^2\theta\,\mathrm{Var}(\hat{\boldsymbol{\gamma}})$."**
+The gap's covariance, `Vstar` — the two traits' covariances mixed by $\sin^2\theta$ and
+$\cos^2\theta$ ([Module 4](../04-the-proportional-test-statistic/lesson.qmd)).
+
+**"Replacing $\theta$ by $\hat\theta$ (a profile-likelihood approach) → $\chi^2_{n-1}$."**
+Profiling out the angle costs one degree of freedom
+([profile-likelihood foundation](../../../../foundations/profile-likelihood/lesson.qmd),
+[Module 4](../04-the-proportional-test-statistic/lesson.qmd)). Your `optimize` + `df = n - 1`.
+
+**"$\mathrm{Var}(\hat{\boldsymbol{\beta}}) = (\sigma\sigma^\top)\odot\Sigma$."** The LD covariance,
+your `prop_V(vbeta, rho)` — standard errors on the diagonal, LD-scaled covariances off it
+([Module 3](../03-proportionality-is-colocalisation/lesson.qmd)).
+
+So the paper's compact block unfolds, term by term, into the exact `prop_test_pair()` you built.
+
+## The artifact, part 2 — the `colocPropTest` interface
+
+Now the software. `colocPropTest` takes each trait's summary statistics plus a reference LD matrix
+and returns pairwise proportional tests with a multiplicity-corrected column. Here is the shape,
+shown for reading (it can't run in the browser).
+
+::: {.callout-note title="Runs on your machine, not here"}
+This uses the **`colocPropTest`** package (GPL, on CRAN), which isn't in the browser's WebR build.
+The code is shown for decoding, not running; copy it into your own R session with `colocPropTest`
+installed. The reference numbers your self-checks use (below) were produced by exactly this
+machinery (`colocPropTest` 0.9.3) and frozen into `equivalence/fixtures/`.
+:::
+
+```r
+# --- colocPropTest: two traits' summary stats + LD -> pairwise proportional tests, for reference ---
+# S1, S2 : data frames of per-SNP summary stats for the two traits (same SNPs, same order):
+#          beta = effect estimate (hat-beta), varbeta = VARIANCE of the estimate (se^2)
+# LD      : the reference SNP x SNP correlation (LD) matrix, Sigma
+res <- run_proptests(S1, S2, LD, tests = my_pairs)   # loops the pairwise test over the pairs
+
+# Inside run_proptests, each pair is tested by:
+#   tester_marg(...)  : the per-pair driver -- builds V for each trait and calls estprop
+#   marg_with_V(beta, vbeta, rho)  : V = (sigma sigma^T) elementwise Sigma  == your prop_V()
+#   estprop(b1, b2, V1, V2)        : the fast 2-SNP profiled Fieller       == your prop_test()
+# Then, over all the pairwise p-values:
+#   p.adjust(p, n = ntests)        : DEFAULT method = Holm, over the TOTAL possible pairs
+#                                    -- the output column is named `fdr` (see the honest note)
+
+res$fdr          # the (Holm-)adjusted p-values, one per tested pair
+min(res$fdr)     # reject colocalisation if this is below your threshold (e.g. 0.05)
+```
+
+### The decode, function by function
+
+- **`run_proptests(S1, S2, LD, ...)`** — the top-level pipeline: enumerate pairs, test each,
+  correct. This is your `prop_run()` ([Module 5](../05-the-pairwise-fdr-adaptation/lesson.qmd)).
+- **`marg_with_V(beta, vbeta, rho)`** — builds $V = (\sigma\sigma^\top)\odot\Sigma$ from a trait's
+  variances and the LD. Identical to your `prop_V(vbeta, rho)`
+  ([Module 3](../03-proportionality-is-colocalisation/lesson.qmd)).
+- **`estprop(b1, b2, V1, V2)`** — the fast 2-SNP profiled Fieller: forms the gap, the gap
+  covariance, the quadratic form, and minimises over $\theta$. This is your `prop_test()` (the
+  engine inside `prop_test_pair`, [Module 4](../04-the-proportional-test-statistic/lesson.qmd)).
+- **`tester_marg(...)`** — the per-pair glue that calls `marg_with_V` for each trait and hands the
+  covariances to `estprop`. Your `prop_test_pair()` does exactly this
+  ([Module 4](../04-the-proportional-test-statistic/lesson.qmd)).
+- **`p.adjust(p, n = ntests)`** — the correction over the *total* possible pairs. `colocPropTest`
+  uses `p.adjust`'s **default (Holm)** but labels the column `fdr`
+  ([Module 5](../05-the-pairwise-fdr-adaptation/lesson.qmd)).
+- **`varbeta` = $\text{se}^2$** — like coloc, the package takes the *variance* of the estimate, not
+  the standard error; your `vbeta` is the same.
+
+Everything `colocPropTest` does with two traits' summary statistics and an LD matrix, you can now
+reproduce.
+
+## Assemble the whole pipeline and validate it
+
+Put the pieces together — `prop_V`, `prop_test_pair`, `prop_run` — and run on the frozen
+6-SNP two-trait regions in two scenarios: **shared** (no pair breaks proportionality → not
+rejected → colocalised) and **distinct** (one pair breaks it → rejected → not colocalised).
+
+```{webr}
+#| autorun: true
+# LIVE: the complete from-scratch method (base R), assembled.
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(chisquare = o$objective, p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_run <- function(beta1, vbeta1, beta2, vbeta2, LD, pairs, ntests = NULL, method = "holm") {
+  n <- length(beta1); if (is.null(ntests)) ntests <- n*(n-1)/2
+  chi <- numeric(ncol(pairs)); p <- numeric(ncol(pairs))
+  for (m in seq_len(ncol(pairs))) { i <- pairs[1,m]; j <- pairs[2,m]
+    r <- prop_test_pair(beta1[c(i,j)], vbeta1[c(i,j)], beta2[c(i,j)], vbeta2[c(i,j)], LD[i,j])
+    chi[m] <- r$chisquare; p[m] <- r$p }
+  adjusted <- p.adjust(p, method = method, n = ntests)
+  list(chisquare = chi, p = p, adjusted = adjusted, min_adjusted = min(adjusted))
+}
+cat("assembled: prop_V, prop_test_pair, prop_run ready\n")
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two panels of the 15 adjusted pairwise p-values. Left (shared): all bars sit at 1, none below the 0.05 line, so colocalisation is not rejected. Right (distinct): one bar plunges near zero below the line, rejecting colocalisation."
+# LIVE: SEE the two verdicts. Shared -> all adjusted p near 1 (colocalised); distinct -> one dips.
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(p = pchisq((if (oL$objective < oR$objective) oL else oR)$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_run <- function(beta1, vbeta1, beta2, vbeta2, LD, pairs, ntests) {
+  p <- numeric(ncol(pairs))
+  for (m in seq_len(ncol(pairs))) { i <- pairs[1,m]; j <- pairs[2,m]
+    p[m] <- prop_test_pair(beta1[c(i,j)], vbeta1[c(i,j)], beta2[c(i,j)], vbeta2[c(i,j)], LD[i,j])$p }
+  p.adjust(p, method = "holm", n = ntests)
+}
+LD <- matrix(0.7, 6, 6); diag(LD) <- 1; pairs <- combn(6, 2)
+sh1 <- c(0.2934792701896923, 0.003326222732736133, -0.01010033789150867, -0.001208909373011913, 0.000494075258618496, 0.0114138766483409)
+sh2 <- c(0.3123757971125193, 0.007052889898247461, 0.0199359295932678, 0.008701789835589922, 0.0172386493197919, 0.002554704130661046)
+di1 <- c(0.2773643146945664, -0.02213648545494297, -0.0228141260938878, -0.03025834543924165, -0.02386502276581572, -0.03947348135824345)
+di2 <- c(-0.01553201036207071, -0.03848563446746702, -0.01816800749239067, 0.2847805230112141, -0.02141569115469859, -0.005980808079645841)
+shared   <- prop_run(sh1, rep(0.0009,6), sh2, rep(0.001225,6), LD, pairs, 15)
+distinct <- prop_run(di1, rep(0.0009,6), di2, rep(0.001225,6), LD, pairs, 15)
+par(mfrow = c(1, 2))
+barplot(shared,   ylim = c(0,1.1), main = "SHARED (not rejected)", ylab = "adjusted p", col = "steelblue"); abline(h = 0.05, lty = 2)
+barplot(pmax(distinct, 1e-9), ylim = c(0,1.1), main = "DISTINCT (one pair rejects)", ylab = "adjusted p", col = "tomato"); abline(h = 0.05, lty = 2)
+par(mfrow = c(1, 1))
+```
+
+### Self-check 1 — the shared region {#self-check-shared}
+
+Prove the assembled pipeline matches the real thing on the **shared** fixture
+(`equivalence/fixtures/propcoloc-run-shared.json`): the exact inputs and the `min_adjusted`
+`colocPropTest::run_proptests` 0.9.3 produced.
+
+```{webr}
+#| autorun: true
+# LIVE SELF-CHECK (shared): prop_run() vs FROZEN colocPropTest reference. min_adjusted should be 1.
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_run_min <- function(b1, v1, b2, v2, LD, pairs, ntests) {
+  p <- numeric(ncol(pairs))
+  for (m in seq_len(ncol(pairs))) { i <- pairs[1,m]; j <- pairs[2,m]
+    p[m] <- prop_test_pair(b1[c(i,j)], v1[c(i,j)], b2[c(i,j)], v2[c(i,j)], LD[i,j])$p }
+  min(p.adjust(p, method = "holm", n = ntests))
+}
+LD <- matrix(0.7, 6, 6); diag(LD) <- 1; pairs <- combn(6, 2)
+b1 <- c(0.2934792701896923, 0.003326222732736133, -0.01010033789150867, -0.001208909373011913, 0.000494075258618496, 0.0114138766483409)
+b2 <- c(0.3123757971125193, 0.007052889898247461, 0.0199359295932678, 0.008701789835589922, 0.0172386493197919, 0.002554704130661046)
+ref_min <- 1
+mine_min <- prop_run_min(b1, rep(0.0009,6), b2, rep(0.001225,6), LD, pairs, 15)
+cat("min adjusted p:", round(mine_min, 6), " -> reject colocalisation?", mine_min < 0.05, "\n")
+cat("matches reference (", ref_min, ") within 1e-6?", abs(mine_min - ref_min) < 1e-6, "\n")  # TRUE
+```
+
+### Self-check 2 — the distinct region {#self-check-distinct}
+
+The mirror: the **distinct** fixture (`equivalence/fixtures/propcoloc-run-distinct.json`), where
+one pair breaks proportionality and `min_adjusted` $\approx 2.04\times 10^{-8}$.
+
+```{webr}
+#| autorun: true
+# LIVE SELF-CHECK (distinct): prop_run() vs FROZEN reference. min_adjusted should be ~2e-8.
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_run_min <- function(b1, v1, b2, v2, LD, pairs, ntests) {
+  p <- numeric(ncol(pairs))
+  for (m in seq_len(ncol(pairs))) { i <- pairs[1,m]; j <- pairs[2,m]
+    p[m] <- prop_test_pair(b1[c(i,j)], v1[c(i,j)], b2[c(i,j)], v2[c(i,j)], LD[i,j])$p }
+  min(p.adjust(p, method = "holm", n = ntests))
+}
+LD <- matrix(0.7, 6, 6); diag(LD) <- 1; pairs <- combn(6, 2)
+b1 <- c(0.2773643146945664, -0.02213648545494297, -0.0228141260938878, -0.03025834543924165, -0.02386502276581572, -0.03947348135824345)
+b2 <- c(-0.01553201036207071, -0.03848563446746702, -0.01816800749239067, 0.2847805230112141, -0.02141569115469859, -0.005980808079645841)
+ref_min <- 2.044213129215881e-08
+mine_min <- prop_run_min(b1, rep(0.0009,6), b2, rep(0.001225,6), LD, pairs, 15)
+cat("min adjusted p:", format(mine_min, scientific = TRUE), " -> reject colocalisation?", mine_min < 0.05, "\n")
+cat("matches reference within 1e-6?", abs(mine_min - ref_min) < 1e-6, "\n")   # TRUE
+```
+
+**Validation tier: FULL.** Both matches are against `colocPropTest::run_proptests` 0.9.3's actual
+output on these inputs — the real reference package's numbers, not a reported figure or a
+re-derived formula — verified to about $10^{-6}$. This repo's `equivalence/check.R` re-verifies
+both in CI. Your `prop_run()` *is* colocPropTest's proportional colocalisation test.
+
+## The paper's practical guidance
+
+Three honest points the paper stresses about *when* to use this test — none change what you built,
+but all shape how to use it.
+
+- **Proportional testing requires equal LD between studies; coloc does not.** Because the test
+  uses a single reference LD matrix for both traits' covariances, the two studies must share the
+  same LD structure. coloc, by contrast, fine-maps each trait separately and doesn't assume equal
+  LD. So if your two GWAS come from populations with different LD, the proportional test can *false
+  reject* — apply strong, independent quality control to each dataset first.
+- **But it does NOT require the causal variant to be typed; coloc does.** coloc's single-causal-
+  variant assumption needs the true causal SNP (or a very tight proxy) in the data. The
+  proportional test only needs *some* variants in LD with the causal one, so sparse variant
+  coverage hurts it less. (If the causal variant is neither typed nor in LD with anything typed,
+  *neither* method has information.)
+- **Use it as an accompaniment to coloc, not a replacement.** The two methods are sensitive to
+  *different* assumptions (coloc to fine-mapping bias, the proportional test to unequal LD and
+  allele-matching errors). When both agree, you have real confidence; when coloc says "distinct"
+  with high posterior but the proportional test *fails to reject* colocalisation, that discrepancy
+  is a flag that coloc's call may be a differential-information artifact (exactly Modules 1–2).
+
+## Common traps
+
+**Trap: "a small proportional p-value confirms colocalisation."** The course's central flip, one
+last time. The null *is* colocalisation, so a **small p-value rejects it** → **not** colocalised.
+Our distinct fixture gives `min_adjusted` $\approx 2\times 10^{-8}$ — tiny → *distinct*. A *large*
+p (the shared fixture's `min_adjusted = 1`) is the colocalisation-friendly outcome. This is
+opposite to coloc's PP4, where large = shared.
+
+**Trap: "the `colocPropTest` `fdr` column is a Benjamini–Hochberg false discovery rate."** No —
+the package calls `p.adjust`'s default, **Holm** (a family-wise / Bonferroni-type correction), and
+merely *names* the column `fdr`. Teach the FDR concept, but if you report what the software
+guarantees, say Holm. On the same p-values the two give different numbers, so the label is not the
+method.
+
+## What you can now do
+
+- **Decode the paper's equations** — the null $\boldsymbol{\beta}_1 = \eta\boldsymbol{\gamma}_2$,
+  the $\theta = \tan^{-1}\eta$ reparametrisation, the Fieller quadratic form, the
+  $(\sigma\sigma^\top)\odot\Sigma$ covariance, and the profile-to-$\chi^2_{n-1}$ step — mapping
+  each to the module that built it.
+- **Read the `colocPropTest` interface** — `run_proptests`, `tester_marg`, `estprop`,
+  `marg_with_V`, and the `p.adjust(p, n = ntests)` step — tracing each to your `prop_run` /
+  `prop_test_pair` / `prop_V`.
+- **Assemble the full pipeline** in base R and run it on shared and distinct regions, correctly
+  reading a large `min_adjusted` as colocalised and a small one as not.
+- **Validate the from-scratch method** against the frozen `colocPropTest` 0.9.3 references on both
+  scenarios, and state the validation tier (full).
+- **State the practical guidance and the FDR-vs-Holm nuance** honestly when reporting a result.
+
+If any field still reads as jargon, revisit the module it points to above — reading the propcoloc
+paper and the `colocPropTest` interface cold is the entire goal of this course, and you just did
+it.
+
+## What you still can't read (yet)
+
+This course took you from two traits' summary statistics to a proportional colocalisation verdict.
+A few honest edges, each a natural next step:
+
+- **The shared-samples covariance scaling.** The paper's supplement scales $V$ by a function of
+  the number of *shared* samples across pairs of variants when genotype missingness overlaps —
+  we used the no-missingness form $(\sigma\sigma^\top)\odot\Sigma$. Reading that supplement is the
+  natural extension.
+- **The selection-adjusted alternative (Patel et al. 2024).** A different fix that *selects*
+  variants (e.g. by minimum p-value) and then adjusts for the selection — an alternative to the
+  all-pairs approach you built.
+- **DENTIST-style quality control.** The paper recommends screening each dataset for
+  summary-statistic errors before testing; that machinery is its own topic.
+
+None of these change what you built; they extend it. You can read the core of the propcoloc paper
+and the `colocPropTest` interface now — the rest is more of the same shape.
+
+## Where this goes next
+
+You've built and decoded proportional colocalisation end to end, on top of the Bayesian
+colocalisation you built before it. Together the two courses give you *both* colocalisation tests
+the paper compares — and the judgment to use them as accompaniments, cross-checking each other.
+Ready for the final cumulative set? Do the [practice problems](practice.qmd).

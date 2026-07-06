@@ -1,0 +1,346 @@
+---
+title: "Proportionality is colocalisation"
+subtitle: "The key reframing: a shared causal signal means the two traits' effects fall on a straight line through the origin — no fine-mapping required"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any of them
+and re-run. The first run downloads a small R engine, so give it a few seconds. Cells without a
+Run button are ordinary listings whose output was computed when the page was built.
+:::
+
+## Where we're going
+
+Modules 1–2 were the disease; here begins the cure. The whole trouble came from fine-mapping —
+turning per-SNP evidence into "which SNP is causal" posteriors that unequal information can bias.
+So the fix is radical: **don't fine-map at all.** This module reframes the colocalisation
+question geometrically. If two traits share a single causal variant, then across the SNPs in the
+region their effect *estimates* must be **proportional** — one trait's effects are just a scaled
+copy of the other's, so the points $(b_2, b_1)$ fall on a straight line **through the origin**.
+Testing "are these points on a line through the origin?" needs no per-SNP posterior, so no
+fine-mapping bias can enter. You'll also meet the flip that trips everyone up: here the **null
+hypothesis is colocalisation**, so a *small p-value means NOT colocalised* — the opposite of
+coloc's PP4. And you'll build the covariance matrix the test needs, $V = (\sigma\sigma^\top)
+\odot\Sigma$, inline.
+
+**Builds on:** [Module 2 (how it corrupts coloc)](../02-how-it-corrupts-coloc/lesson.qmd), and
+the foundations
+[variance structure & standardization](../../../../foundations/variance-structure-and-standardization/lesson.qmd)
+(the covariance matrix) and
+[hypothesis tests, p-values & CIs](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+(the null, p-values).
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each from memory, then check.
+
+**1.** *(Module 2)* In one line, what was the *root* reason coloc gave a confident wrong answer?
+
+::: {.callout-note collapse="true" title="Answer"}
+coloc relies on fine-mapping, and unequal information across SNPs biases each trait's fine-map,
+misaligning their peaks so coloc reads a shared signal as distinct. See
+[Module 2](../02-how-it-corrupts-coloc/lesson.qmd).
+:::
+
+**2.** *(foundation)* A **standard error** and a **correlation** ($\rho$, "rho," pronounced
+"ROW") — what does each measure, in one line?
+
+::: {.callout-note collapse="true" title="Answer"}
+A standard error is the typical wobble of an estimate; a correlation $\rho$ measures how strongly
+two quantities move together, on a $-1$ to $1$ scale. See
+[variance structure & standardization](../../../../foundations/variance-structure-and-standardization/lesson.qmd).
+:::
+
+**3.** *(foundation)* If a hypothesis test's **null hypothesis** is "the coin is fair," what does
+a **small p-value** let you conclude?
+
+::: {.callout-note collapse="true" title="Answer"}
+A small p-value is evidence **against** the null — here, evidence the coin is **not** fair. A
+p-value always argues against whatever the null says. See
+[hypothesis tests, p-values & CIs](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd).
+Hold onto this — the twist below is *what the null is*.
+:::
+
+## A tiny example first
+
+Three SNPs in a region. Trait 2's effect estimates are $b_2 = (0.1,\ 0.2,\ 0.3)$. Ask: do the
+two traits **share** a causal signal?
+
+**If they share it**, then whatever the causal variant does to trait 1, it does a *scaled*
+version to trait 2 — the two traits respond to the same underlying variant, just with different
+overall strengths. So trait 1's effects should be a constant multiple of trait 2's:
+$b_1 = \eta\, b_2$ for a single scaling number $\eta$ (say $\eta = 1.5$). Then
+$b_1 = (0.15,\ 0.30,\ 0.45)$, and the ratios $b_1/b_2 = (1.5,\ 1.5,\ 1.5)$ are *all the same*.
+Plot the points $(b_2, b_1) = (0.1, 0.15), (0.2, 0.30), (0.3, 0.45)$ and they lie exactly on the
+straight line through the origin with slope $1.5$.
+
+**If they don't share it** — distinct causal variants — the effects won't be a clean scaled copy.
+Say $b_1 = (0.15,\ 0.28,\ 0.50)$: the ratios are $(1.50,\ 1.40,\ 1.67)$ — *not* constant, so the
+points scatter *off* any single line through the origin.
+
+That's the whole idea: **colocalisation ⟺ the points fall on a line through the origin.**
+
+```{r toy-example}
+b2 <- c(0.1, 0.2, 0.3)
+
+# SHARED: b1 is a clean scaled copy of b2 (eta = 1.5) -> ratios all equal -> on a line
+b1_shared <- 1.5 * b2
+b1_shared / b2                 # 1.5 1.5 1.5  (constant slope)
+
+# DISTINCT: b1 is not proportional -> ratios vary -> off the line
+b1_distinct <- c(0.15, 0.28, 0.50)
+round(b1_distinct / b2, 3)     # 1.50 1.40 1.67  (varies)
+```
+
+## Getting a feel for it
+
+**Analogy — two thermometers reading the same room.** Put a Celsius thermometer and (an
+un-offset) proportional gauge in the same room. As the true temperature rises and falls, both
+readings rise and fall *together, in fixed proportion* — plot one against the other and you get a
+straight line through the origin, whatever the room does. That's colocalisation: one hidden cause
+(the temperature / the causal variant) driving both readings, so they're locked in proportion.
+Now put the two thermometers in *different* rooms (distinct causal variants): their readings no
+longer track each other proportionally, and the plot scatters off the line.
+
+Where the analogy breaks: real effect *estimates* are noisy, so even truly-shared effects won't
+land *exactly* on the line — they'll hug it within their error bars. Deciding "close enough to a
+line, given the noise?" is what the test statistic (next module) does. The line is the *idea*;
+the statistic is the *measurement*.
+
+**Why a line through the origin, not just any line?** Because "shared causal variant" means trait
+1's effect is $\eta$ times trait 2's effect *at every SNP simultaneously* — a pure scaling, no
+constant offset. A pure scaling passes through $(0,0)$: a SNP with no effect on trait 2 must have
+no effect on trait 1 too (same cause, both zero). An offset (a line not through the origin) would
+mean "trait 1 responds even where trait 2 doesn't," which is a *second* cause — not
+colocalisation. Forcing the line through the origin is what encodes "one shared cause."
+
+**What does this buy us over coloc?** Everything from Modules 1–2. Proportionality is a statement
+about the *effect estimates and their errors* — no "which SNP is causal" posterior is ever
+computed, so the unequal-information bias that wrecked fine-mapping has no foothold at all. The
+noisier a SNP is, the fatter its error bar, and the test automatically trusts it less; it never
+has to declare a single causal SNP.
+
+## What the notation is going to say
+
+The null hypothesis will say, in symbols, exactly "the two traits' effect vectors are
+proportional": $b_1 = \eta\, b_2$ for some single number $\eta$. Read that as "trait-1 effects
+equal eta times trait-2 effects, at every SNP." And here is the flip to burn in: **that null
+statement *is* colocalisation**. So the test asks "is the null (proportionality =
+colocalisation) plausible?" — and a small p-value rejects the null, i.e. rejects
+*colocalisation*. Small p ⟹ NOT colocalised. This is upside-down from coloc, where a big PP4
+*supports* colocalisation.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $b_1$ | "b one" | trait 1's vector of per-SNP effect estimates | $(0.15, 0.30, 0.45)$ shared |
+| $b_2$ | "b two" | trait 2's vector of per-SNP effect estimates | $(0.1, 0.2, 0.3)$ |
+| $\eta$ | "eta" (rhymes with "beta"; the Greek letter *eta*) | the proportionality constant — the line's slope | $1.5$ (shared) |
+| $H_0$ | "H-naught" / "H-zero" | the null hypothesis — here, **colocalisation** ($b_1 = \eta b_2$) | assumed true when shared |
+| $\sigma$ | "sigma (lowercase)" | a vector of standard errors of the effect estimates | $\sqrt{\text{vbeta}}$ |
+| $\rho$ | "rho" (say "ROW") | correlation between two SNPs — the LD between them | $0.6$ below |
+| $\Sigma$ | "Sigma (capital)" | the LD matrix: SNP-by-SNP correlations, 1's on the diagonal | $\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}$ |
+| $\odot$ | "elementwise times" (Hadamard product) | multiply two matrices **cell by cell**, not matrix-multiply | — |
+| $V$ | "the matrix V" | the covariance matrix of the effect estimates | built below |
+
+## The formal version
+
+**The null (colocalisation).** For $n$ SNPs, with trait-1 effects $b_1$ and trait-2 effects
+$b_2$:
+
+$$
+H_0:\quad b_1 = \eta\, b_2 \quad\text{for some scalar } \eta.
+$$
+
+Reading it aloud: "H-naught: b-one equals eta times b-two, for some single number eta." Everyday
+words: "the two traits' effects are proportional — one is a scaled copy of the other — which
+happens exactly when they share a causal signal." **This null is colocalisation**, so rejecting
+it (small p-value) means **not colocalised**.
+
+**The covariance matrix $V$.** The test compares noisy effect estimates, so it needs to know how
+they wobble *and* how they co-wobble (nearby SNPs in LD share information). For one trait's
+estimates over the tested SNPs:
+
+$$
+V = (\sigma\,\sigma^\top)\odot\Sigma,
+$$
+
+read aloud "V equals sigma sigma-transpose, elementwise-times Sigma." Everyday words: "take the
+outer product of the standard-error vector with itself — a grid whose $(i,j)$ cell is
+$\sigma_i\sigma_j$ — then multiply cell by cell by the LD matrix." For a **pair** of SNPs with
+standard errors $\sigma_1, \sigma_2$ and LD $\rho$ between them:
+
+$$
+V = \begin{bmatrix} \sigma_1^2 & \sigma_1\sigma_2\,\rho \\ \sigma_1\sigma_2\,\rho & \sigma_2^2 \end{bmatrix}.
+$$
+
+The diagonal is each estimate's variance ($\sigma^2 = \text{se}^2$); the off-diagonal is the
+*covariance* between the two estimates, which is present exactly because the SNPs are in LD
+(correlated). This is the same "covariance matrix from standard deviations and a correlation"
+construction from
+[variance structure & standardization](../../../../foundations/variance-structure-and-standardization/lesson.qmd).
+
+**Mapping it onto the toy example.** With variances $\text{vbeta} = (0.0009, 0.0009)$ (so
+$\sigma = 0.03$ each) and LD $\rho = 0.6$:
+
+- the diagonal is $(0.0009,\ 0.0009)$ — each estimate's variance;
+- the off-diagonal is $\sigma_1\sigma_2\rho = \sqrt{0.0009\times 0.0009}\times 0.6 = 0.0009\times
+  0.6 = 0.00054$ — the covariance from LD.
+
+```{r formal-check}
+# Build V = (sigma sigma^T) elementwise Sigma for a PAIR of SNPs
+prop_V <- function(vbeta, rho) {
+  V <- diag(vbeta)                              # sigma_i^2 on the diagonal (vbeta = se^2)
+  V[1, 2] <- V[2, 1] <- sqrt(vbeta[1] * vbeta[2]) * rho   # sigma_1 sigma_2 rho off-diagonal
+  V
+}
+vbeta <- c(0.0009, 0.0009); rho <- 0.6
+prop_V(vbeta, rho)
+# diagonal 0.0009, 0.0009; off-diagonal 0.00054 -- exactly the by-hand values
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two scatter plots of trait-1 effect against trait-2 effect. Left (shared): three points fall exactly on a straight line through the origin. Right (distinct): three points scatter off any single line through the origin."
+# TRY IT: change b1_shared's slope or b1_distinct's values. PREDICT: which panel keeps its points
+# on a single straight line through (0,0)?
+b2 <- c(0.1, 0.2, 0.3)
+b1_shared   <- 1.5 * b2                    # proportional -> on a line
+b1_distinct <- c(0.15, 0.28, 0.50)         # not proportional -> off the line
+
+par(mfrow = c(1, 2))
+plot(b2, b1_shared, pch = 19, xlim = c(0, 0.35), ylim = c(0, 0.55),
+     xlab = "trait-2 effect (b2)", ylab = "trait-1 effect (b1)", main = "SHARED (H0 true)")
+abline(0, 1.5, col = "steelblue", lwd = 2)          # line through origin, slope eta = 1.5
+plot(b2, b1_distinct, pch = 19, xlim = c(0, 0.35), ylim = c(0, 0.55),
+     xlab = "trait-2 effect (b2)", ylab = "trait-1 effect (b1)", main = "DISTINCT (H0 false)")
+abline(0, 1.5, col = "tomato", lwd = 2, lty = 2)    # no single origin-line fits
+par(mfrow = c(1, 1))
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: the "is it proportional?" check via ratios. PREDICT: for the shared case, are all three
+# ratios equal? For distinct, do they vary?
+b2 <- c(0.1, 0.2, 0.3)
+b1_shared   <- 1.5 * b2
+b1_distinct <- c(0.15, 0.28, 0.50)
+rbind(shared   = round(b1_shared   / b2, 3),
+      distinct = round(b1_distinct / b2, 3))
+# shared: 1.5 1.5 1.5 (one slope fits all); distinct: 1.50 1.40 1.67 (no single slope)
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: build the LD covariance V for a pair. Change rho (the LD) and watch the off-diagonal.
+# PREDICT: at rho = 0, what are the off-diagonal entries?
+prop_V <- function(vbeta, rho) {
+  V <- diag(vbeta)
+  V[1, 2] <- V[2, 1] <- sqrt(vbeta[1] * vbeta[2]) * rho
+  V
+}
+prop_V(c(0.0009, 0.0016), rho = 0.7)      # off-diagonal = 0.03*0.04*0.7 = 0.00084
+```
+
+## Common traps
+
+**Trap: "a small p-value means the traits colocalise."** This is THE trap of the whole course,
+and it's the reverse of coloc. Here the **null hypothesis is colocalisation** ($b_1 = \eta b_2$),
+so a small p-value is evidence *against* the null — evidence they do **NOT** colocalise. With
+coloc, a large PP4 *supports* colocalisation; with the proportional test, a *large* p-value
+(failure to reject) is the friendly-to-colocalisation outcome. Say it out loud: "small p → not
+colocalised." (We'll refute this numerically in the next module, once we have p-values.)
+
+**Trap: "any straight line means colocalisation — including a tilted one that misses the
+origin."** No — it must pass **through the origin**. A line with an intercept would say trait 1
+has an effect where trait 2 has none, which is a *second, independent* cause, not a shared one.
+Our shared points satisfy $b_1 = 1.5\, b_2$ with no constant added; a fitted line like
+$b_1 = 1.5\, b_2 + 0.1$ would *not* represent colocalisation even though it's straight.
+
+## Check yourself
+
+**1.** Trait 2 effects $b_2 = (0.2, 0.4, 0.6)$. If the traits colocalise with $\eta = 0.5$, what
+is $b_1$, and what are the three ratios $b_1/b_2$?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check
+b2 <- c(0.2, 0.4, 0.6)
+eta <- 0.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$b_1 = 0.5\, b_2 = (0.1, 0.2, 0.3)$, and every ratio $b_1/b_2 = 0.5$ — constant, so the points
+lie on the origin-line of slope $0.5$. In R: `0.5 * b2` and `(0.5*b2)/b2`.
+:::
+
+**2.** For a pair of SNPs with standard errors $0.03$ and $0.04$ and LD $\rho = 0.5$, write the
+covariance matrix $V$.
+
+```{webr}
+#| autorun: false
+# check2-starter — edit and Run to check
+se <- c(0.03, 0.04)
+rho <- 0.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Diagonal: $0.03^2 = 0.0009$ and $0.04^2 = 0.0016$. Off-diagonal:
+$0.03\times 0.04\times 0.5 = 0.0006$. So
+$V = \begin{bmatrix} 0.0009 & 0.0006 \\ 0.0006 & 0.0016 \end{bmatrix}$. In R:
+`prop_V(c(0.0009, 0.0016), 0.5)`.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why colocalisation is the same
+thing as the effect estimates being proportional, and why the line must go through the origin.
+
+::: {.callout-note collapse="true" title="A model answer"}
+If a single causal variant drives both traits, then that variant's effect on trait 1 is just a
+fixed multiple of its effect on trait 2 at every SNP, so plotting one trait's effects against the
+other's gives a straight line — that proportionality *is* colocalisation. The line must pass
+through the origin because a shared cause means "no effect on one trait exactly where there's no
+effect on the other," and any intercept would imply a second, independent cause rather than a
+shared one.
+:::
+
+## What you can now do
+
+- **State the reframing:** colocalisation ⟺ the two traits' effect estimates are proportional,
+  $b_1 = \eta\, b_2$, i.e. the points $(b_2, b_1)$ lie on a line through the origin.
+- **Explain why this dodges the fine-mapping bias** — it never computes a per-SNP "which is
+  causal" posterior.
+- **Get the null-hypothesis flip right:** the null *is* colocalisation, so a **small p-value means
+  NOT colocalised** (opposite of coloc's PP4).
+- **Build the LD covariance** $V = (\sigma\sigma^\top)\odot\Sigma$ for a pair of SNPs by hand and
+  with `prop_V`.
+
+If any of these feels shaky — especially the p-value flip — revisit the "what the notation says"
+section before continuing; the next module turns this geometry into an actual test statistic.
+
+## Where this goes next
+
+You have the idea (proportional = colocalised) and the covariance matrix the test needs. The next
+module,
+[The proportional test statistic](../04-the-proportional-test-statistic/lesson.qmd), turns "are
+these points on a line through the origin, within their error bars?" into a single number —
+Fieller's statistic — and its p-value, so you can finally *measure* proportionality instead of
+eyeballing it.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

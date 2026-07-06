@@ -1,0 +1,252 @@
+---
+title: "Practice: Capstone — reading colocPropTest"
+subtitle: "The cumulative set — every module, mixed order, no labels. Recalling which tool applies is the point."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+These draw on the **whole course**, in mixed order, with no labels telling you which module each
+uses — figuring that out is part of the test. Try each honestly before opening the answer.
+
+## Problem 1 — a fresh pairwise test
+
+Two SNPs, $b_1 = (0.18, 0.09)$, $b_2 = (0.20, 0.10)$, all variances $0.0009$, LD $\rho = 0.6$.
+Eyeball proportionality, then run the pairwise test. Colocalised?
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(chisquare = o$objective, p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Ratios $b_1/b_2 = (0.9, 0.9)$ — equal, so proportional → expect a **large** p (colocalised).
+
+```{r p1-ans}
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(chisquare = o$objective, p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_test_pair(c(0.18, 0.09), c(0.0009, 0.0009), c(0.20, 0.10), c(0.0009, 0.0009), 0.6)
+```
+Chi-square $\approx 0$, p $\approx 1$ → **fail to reject** proportionality → colocalised. (Recall
+the flip: large p is the friendly outcome.)
+:::
+
+## Problem 2 — interpretation, two methods
+
+A region gives coloc PP4 = 0.05, PP3 = 0.94, and the proportional test `min_adjusted` = 0.80.
+Do the two methods agree? What should you suspect?
+
+::: {.callout-note collapse="true" title="Answer"}
+They **disagree**. coloc says *distinct* (PP3 = 0.94). The proportional test's *large*
+`min_adjusted` (0.80) means *fail to reject* colocalisation — i.e. it *supports* colocalisation.
+When coloc confidently calls "distinct" but the proportional test says "consistent with shared,"
+you should suspect coloc's call is a **differential-information artifact**: unequal statistical
+information across SNPs biased coloc's fine-maps (the whole point of the course). Investigate data
+quality (imputation, missingness, rounding) before trusting the "distinct" call.
+:::
+
+## Problem 3 — spot the error
+
+A colleague reports — it contains **exactly one mistake**. Find it.
+
+> "The proportional test gave `min_adjusted` = 0.001. That's a small p-value, so we conclude the
+> two traits colocalise. We used `p.adjust`'s default, which gives a proper Benjamini–Hochberg
+> false discovery rate."
+
+::: {.callout-note collapse="true" title="Answer"}
+There are actually two things off, but the load-bearing mistake is the **direction**: the null is
+colocalisation, so `min_adjusted` = 0.001 (small) *rejects* it → the traits are **NOT** colocalised
+(distinct). (Secondary: `p.adjust`'s default is **Holm**, a family-wise correction, not
+Benjamini–Hochberg — the package names the column `fdr` but applies Holm.) The corrected
+conclusion: "small adjusted p → reject colocalisation → distinct signals," and "the correction is
+Holm, not BH."
+:::
+
+## Problem 4 — why coloc broke
+
+Two SNPs in perfect LD carry a genuinely shared signal, but coloc returns PP3 = 0.99 (distinct).
+In two sentences, explain the chain of reasoning that produced this wrong, confident answer.
+
+::: {.callout-note collapse="true" title="Answer"}
+Unequal statistical information across the two SNPs (e.g. differential imputation or missingness)
+biased each trait's per-SNP Bayes factors, pushing trait 1's fine-mapping peak onto one SNP and
+trait 2's onto the other. coloc decides shared-vs-distinct by checking whether the traits' peaks
+align, so the misaligned peaks made it report distinct (PP3) — confidently, because each biased
+fine-map was itself a confident single-variant credible set.
+:::
+
+## Problem 5 — build the covariance and the statistic
+
+For a pair with $\text{se} = (0.03, 0.04)$, LD $\rho = 0.5$: build $V$ for one trait, then, at
+angle $\theta = \pi/3$ with gap $d = (0.02, -0.01)$, compute the quadratic form $d^\top V^{-1} d$.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+se <- c(0.03, 0.04); rho <- 0.5
+d <- c(0.02, -0.01)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$V$ diagonal $0.0009, 0.0016$; off-diagonal $0.03\times 0.04\times 0.5 = 0.0006$.
+
+```{r p5-ans}
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+V <- prop_V(c(0.03^2, 0.04^2), 0.5); V
+d <- c(0.02, -0.01)
+as.numeric(t(d) %*% solve(V, d))          # the quadratic form d' V^{-1} d
+```
+The quadratic form is about $0.9$ — a small standardised squared distance (the gaps are modest
+relative to their standard errors, and the two gaps partly offset through the covariance). This is
+the same "sandwich the inverse covariance" computation the test statistic uses at each angle; a
+value near 1 is unremarkable for pure noise.
+:::
+
+## Problem 6 — decode a fresh interface line
+
+You've never seen this exact line, but you built its meaning. Decode it in plain words, naming
+which of your functions it corresponds to:
+
+```r
+V1 <- marg_with_V(beta = S1$beta, vbeta = S1$varbeta, rho = LD[i, j])
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+It builds trait 1's covariance matrix for the pair of SNPs $(i, j)$ from that trait's effect
+estimates' *variances* (`varbeta` = $\text{se}^2$) and the LD between the two SNPs (`LD[i, j]`),
+using $V = (\sigma\sigma^\top)\odot\Sigma$. It is exactly your **`prop_V(vbeta, rho)`** — diagonal
+$\text{se}^2$, off-diagonal $\text{se}_1\text{se}_2\rho$. `marg_with_V` is `colocPropTest`'s name
+for it.
+:::
+
+## Problem 7 — the full pipeline, fresh region
+
+Run `prop_run` on this 4-SNP region and decide colocalised or not. Trait 1 peaks on SNP 1, trait 2
+peaks on SNP 3 (distinct).
+
+```{webr}
+#| autorun: false
+# p7-starter — edit and Run to solve, right here
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_run <- function(b1, v1, b2, v2, LD, pairs, ntests) {
+  p <- numeric(ncol(pairs))
+  for (m in seq_len(ncol(pairs))) { i <- pairs[1,m]; j <- pairs[2,m]
+    p[m] <- prop_test_pair(b1[c(i,j)], v1[c(i,j)], b2[c(i,j)], v2[c(i,j)], LD[i,j])$p }
+  list(adjusted = p.adjust(p, "holm", n = ntests), min_adjusted = min(p.adjust(p, "holm", n = ntests)))
+}
+b1 <- c(0.30, 0.02, 0.01, 0.00); b2 <- c(0.01, 0.02, 0.32, 0.01)
+LD <- matrix(0.7, 4, 4); diag(LD) <- 1; pairs <- combn(4, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p7-ans}
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_run <- function(b1, v1, b2, v2, LD, pairs, ntests) {
+  p <- numeric(ncol(pairs))
+  for (m in seq_len(ncol(pairs))) { i <- pairs[1,m]; j <- pairs[2,m]
+    p[m] <- prop_test_pair(b1[c(i,j)], v1[c(i,j)], b2[c(i,j)], v2[c(i,j)], LD[i,j])$p }
+  min(p.adjust(p, "holm", n = ntests))
+}
+b1 <- c(0.30, 0.02, 0.01, 0.00); b2 <- c(0.01, 0.02, 0.32, 0.01)
+LD <- matrix(0.7, 4, 4); diag(LD) <- 1; pairs <- combn(4, 2)
+prop_run(b1, rep(0.0009,4), b2, rep(0.0009,4), LD, pairs, ntests = 6)
+```
+`min_adjusted` is tiny (far below 0.05) → **reject colocalisation** → distinct. The pair (SNP 1,
+SNP 3) breaks proportionality hard (trait 1 huge on SNP 1, trait 2 huge on SNP 3).
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means the whole course is solid. Results are saved in this browser only.
+
+::: {.module-check module="courses/proportional-colocalisation/modules/06-capstone-reading-colocproptest" pass="4"}
+
+::: {.quiz-q qid="cap-null-flip" qtype="mc" answer="c"}
+`colocPropTest` returns `min_adjusted` = 0.002 for a region. The correct conclusion is:
+
+a) the traits colocalise, with strong evidence
+b) the test failed
+c) the traits do NOT colocalise — the small adjusted p rejects the null of proportionality
+d) the traits colocalise only at SNP 1
+:::
+
+::: {.quiz-q qid="cap-marg-with-V" qtype="mc" answer="b"}
+`marg_with_V(beta, vbeta, rho)` in `colocPropTest` computes:
+
+a) the five coloc posteriors
+b) the LD covariance $V = (\sigma\sigma^\top)\odot\Sigma$ for a pair
+c) the profiled chi-square statistic
+d) the Holm-adjusted p-values
+:::
+
+::: {.quiz-q qid="cap-df" qtype="numeric" answer="1" tolerance="0"}
+The profiled Fieller statistic for a **pair** of SNPs follows a chi-square with how many degrees of
+freedom?
+:::
+
+::: {.quiz-q qid="cap-when-to-use" qtype="mc" answer="a"}
+Which is true about the proportional test versus coloc?
+
+a) the proportional test requires equal LD between studies but does not require the causal variant to be typed
+b) the proportional test requires the causal variant to be typed but not equal LD
+c) both methods require the causal variant to be typed
+d) neither method makes any assumption about LD
+:::
+
+::: {.quiz-q qid="cap-corruption-cause" qtype="mc" answer="c"}
+The paper's whole motivation is that coloc can give confident wrong calls because:
+
+a) coloc uses the wrong prior
+b) coloc runs too few tests
+c) variable statistical information across SNPs biases the fine-mapping coloc is built on
+d) coloc ignores linkage disequilibrium
+:::
+
+:::
+
+::::

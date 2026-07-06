@@ -1,0 +1,331 @@
+---
+title: "When fine-mapping breaks"
+subtitle: "Why unequal statistical information across SNPs quietly biases fine-mapping — and gets worse as your study grows"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any of them
+and re-run. The first run downloads a small R engine, so give it a few seconds. Cells without a
+Run button are ordinary listings whose output was computed when the page was built.
+:::
+
+## Where we're going
+
+Before we build a new colocalisation test, we need to understand the *disease* it cures. This
+module is the first half of the paper's diagnosis. Fine-mapping — deciding which SNP in a region
+is the causal one — works by giving each SNP a Bayes factor and normalising those across SNPs
+into "probability this SNP is the causal one." That normalisation quietly assumes every SNP's
+Bayes factor is measured on the same footing. When SNPs carry **different amounts of statistical
+information** (different sample size, imputation quality, call rate, or even just rounding), that
+assumption fails — and the failure gets *worse*, not better, as your study grows. By the end
+you'll reproduce the paper's Figure 1 intuition with a few lines of base R.
+
+**Builds on:** the [Approximate Bayes Factors course](../../../approximate-bayes-factors/syllabus.md)
+(which built `wakefield_abf(beta, se, W)` — one SNP's summary stats → a log Bayes factor) and the
+[Bayesian Colocalisation course](../../../bayesian-colocalisation/syllabus.md) (which normalised
+per-SNP Bayes factors into posteriors); plus the foundation
+[distributions & densities](../../../../foundations/distributions-and-densities/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each from memory, then check.
+
+**1.** *(ABF course)* A Wakefield Bayes factor for one SNP is built from that SNP's effect
+estimate $\hat\beta$ and standard error. In one line, what does a **larger** Bayes factor mean?
+
+::: {.callout-note collapse="true" title="Answer"}
+A larger Bayes factor means **stronger evidence that this SNP is associated** with the trait
+(more support for "there's a real effect here" over "no effect"). See the
+[ABF course](../../../approximate-bayes-factors/syllabus.md).
+:::
+
+**2.** *(coloc course)* If SNP $i$ has Bayes factor $\text{BF}_i$, how do you turn a region's
+Bayes factors into the **posterior probability** that SNP $i$ is the causal one?
+
+::: {.callout-note collapse="true" title="Answer"}
+Normalise: $\text{PP}_i = \text{BF}_i / \sum_j \text{BF}_j$ — each SNP's Bayes factor divided by
+the total across all SNPs (so they sum to 1). See the
+[Bayesian Colocalisation course](../../../bayesian-colocalisation/syllabus.md).
+:::
+
+**3.** *(foundation)* Two SNPs are in **perfect linkage disequilibrium (LD)** — perfectly
+correlated. If they truly tag the same signal equally, what posterior probability of "being
+causal" should each get?
+
+::: {.callout-note collapse="true" title="Answer"}
+**0.5 each** — with identical information they're indistinguishable, so the probability splits
+evenly. This is the baseline the rest of the lesson watches break. LD (correlation between SNPs)
+is the same correlation idea from
+[distributions & densities](../../../../foundations/distributions-and-densities/lesson.qmd).
+:::
+
+## A tiny example first
+
+Two SNPs, **perfectly correlated** (perfect LD), truly tagging the exact same causal signal. If
+both were measured equally well, each would get a full-data z-score of $3$ and — being
+identical — split the causal probability 50/50.
+
+Now impose a little **information loss** on SNP 2 only: its genotype was imputed at $r^2 = 0.9$
+(90% accurate) instead of perfectly. Imputation at $r^2 = 0.9$ shrinks SNP 2's *observed*
+z-score by a factor $\sqrt{0.9} \approx 0.949$, so SNP 2's z drops from $3$ to
+$3 \times 0.949 \approx 2.846$. SNP 1 is untouched.
+
+Watch what that does. A Wakefield log Bayes factor from a z-score (with prior weight
+$W = 0.04$ and standard error $0.03$, so the shrink factor $r = W/(W+\text{se}^2) = 0.04/0.0409
+\approx 0.978$) is $\tfrac12(\log(1 - r) + r\,z^2)$:
+
+- SNP 1: $\tfrac12(\log(0.022) + 0.978 \times 3^2) \approx 2.493$, so $\text{BF}_1 = e^{2.493}
+  \approx 12.09$.
+- SNP 2: $\tfrac12(\log(0.022) + 0.978 \times 2.846^2) \approx 2.053$, so $\text{BF}_2 =
+  e^{2.053} \approx 7.79$.
+
+Normalise: SNP 2's posterior is $7.79 / (12.09 + 7.79) \approx 0.392$. A *tiny* 10% imputation
+shortfall pushed SNP 2 from the deserved **0.5** down to **0.39** — and SNP 1 up to 0.61, purely
+because SNP 2's Bayes factor is now measured on weaker footing. The two SNPs are *identical in
+truth*; only their information differs.
+
+The same thing in R:
+
+```{r toy-example}
+# Wakefield log Bayes factor straight from a z-score (W = prior weight, se = standard error)
+labf_z <- function(z, se, W = 0.04) {
+  V <- se^2                # the estimate's variance
+  r <- W / (W + V)         # shrinkage factor (how much the prior tempers the evidence)
+  0.5 * (log(1 - r) + r * z^2)
+}
+
+se <- 0.03
+z1 <- 3                    # SNP 1: full information
+z2 <- 3 * sqrt(0.9)        # SNP 2: imputation r^2 = 0.9 shrinks the observed z
+
+l1 <- labf_z(z1, se); l2 <- labf_z(z2, se)
+BF1 <- exp(l1); BF2 <- exp(l2)
+c(BF1 = BF1, BF2 = BF2)                 # 12.09 and 7.79
+
+posterior_snp2 <- BF2 / (BF1 + BF2)
+posterior_snp2                          # 0.392, not the deserved 0.5
+```
+
+## Getting a feel for it
+
+**Analogy — grading two identical essays with two different graders.** Two students hand in
+word-for-word identical essays (the two SNPs tag the same signal). A fair result gives them the
+same grade — 50/50 of "best in class." But essay 2 is graded by a stricter, noisier grader (the
+information-lossy SNP): same essay, systematically lower marks. The Bayes-factor normalisation
+then declares essay 1 "more likely the best," not because it *is* better, but because it was
+measured more generously. Fine-mapping compares Bayes factors *as if* every SNP were graded by
+the same grader — and when they aren't, the comparison is rigged.
+
+Where the analogy breaks: a grader's bias is a fixed offset, but here the distortion **grows
+with the size of the numbers** — which is the twist that makes this dangerous in big studies
+(next section).
+
+**Why does information loss lower the Bayes factor?** Because a Bayes factor rewards a *large,
+precise* signal. Information loss does both bad things: it can shrink the observed effect (a
+noisily-imputed genotype attenuates the signal, like $\sqrt{r^2}$ above) *and* inflate the
+standard error (fewer effective samples). A Wakefield Bayes factor climbs steeply with $z^2$, so
+even a modest z-shrink from $3$ to $2.85$ costs real evidence. The normalisation step then
+converts that unfair evidence gap into an unfair probability gap.
+
+**What does the 0.39 feel like, and what makes it worse?** At a z of $3$, the drift is mild
+(0.5 → 0.39). But the Bayes factor grows with $z^2$, so at a z of $10$ the *same* 10% shrink
+opens a far larger BF gap — and the posterior of the lossy SNP collapses toward 0. Bigger
+studies mean bigger z-scores mean bigger drift. That is the whole alarm of the paper: the error
+**worsens as sample size grows**, exactly when you'd hope for more reliable answers.
+
+## What the notation is going to say
+
+The formula will say what you already did by hand: turn each SNP's z into a log Bayes factor
+with $\tfrac12(\log(1-r) + r z^2)$, exponentiate, and normalise by the region's total. The one
+new idea is that the *inputs* to that formula — each SNP's z and standard error — carry
+different amounts of information, so the Bayes factors that come out are not comparable, and
+normalising incomparable numbers gives a biased posterior.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $z$ | "zed" / "zee" | a SNP's z-score: effect estimate divided by its standard error, $\hat\beta/\text{se}$ | $3$ (SNP 1), $2.846$ (SNP 2) |
+| $\text{se}$ | "ess-ee" | the standard error of the effect estimate — the estimate's typical wobble | $0.03$ |
+| $W$ | "double-you" | the prior weight (prior variance of the effect); coloc's case-control default is $0.04$ | $0.04$ |
+| $r$ | "little r" (here a **shrinkage factor**, not a correlation) | $W/(W + \text{se}^2)$ — how much of the raw evidence survives the prior | $\approx 0.978$ |
+| $\text{BF}_i$ | "B-F sub eye" | SNP $i$'s Bayes factor: evidence it's associated | $12.09$, $7.79$ |
+| $\ell_i$ | "ell sub eye" | the **log** Bayes factor, $\log \text{BF}_i$ (what `wakefield_abf` returns) | $2.493$, $2.053$ |
+| $\text{PP}_i$ | "P-P sub eye" | posterior probability SNP $i$ is causal: $\text{BF}_i / \sum_j \text{BF}_j$ | $0.608$, $0.392$ |
+| $r^2$ | "r squared" | imputation accuracy: how well a SNP's genotype is known (1 = perfect) | $0.9$ on SNP 2 |
+| $N$ | "en" | study sample size | varies |
+
+## The formal version
+
+A SNP's posterior probability of being causal, built from its Wakefield log Bayes factor:
+
+$$
+\ell_i = \tfrac{1}{2}\big(\log(1 - r) + r\,z_i^2\big), \qquad r = \frac{W}{W + \text{se}_i^2},
+\qquad \text{PP}_i = \frac{e^{\ell_i}}{\sum_j e^{\ell_j}} .
+$$
+
+Reading it aloud: "ell-sub-i equals one half times, log of one minus r, plus r times z-sub-i
+squared; where r is W over W plus se-sub-i squared; and the posterior of SNP i is e-to-the-ell-i
+divided by the sum over j of e-to-the-ell-j." Everyday words: "score each SNP by how big and
+precise its signal is, then share out the causal probability in proportion to those scores."
+
+**Mapping it onto the toy example.** With $W = 0.04$, $\text{se} = 0.03$ so $r \approx 0.978$:
+
+- the "$r z_i^2$" term is the "big precise signal earns evidence" step → SNP 1: $0.978\times 9$;
+  SNP 2: $0.978\times 8.10$;
+- exponentiating gives $\text{BF}_1 = 12.09$, $\text{BF}_2 = 7.79$;
+- the "$/\sum_j$" is the normalise-to-a-probability step → $\text{PP}_2 = 7.79/19.88 = 0.392$.
+
+Every number matches the by-hand computation above. The bias lives entirely in the fact that
+$z_2$ (and, in a fuller model, $\text{se}_2$) carries less information than $z_1$, even though
+the two SNPs are truth-identical.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# TRY IT: change the imputation r^2 on SNP 2. PREDICT: at r^2 = 1 (no loss), what posterior
+# should SNP 2 get? (0.5 — identical information.) Then try r^2 = 0.8.
+labf_z <- function(z, se, W = 0.04) { V <- se^2; r <- W/(W + V); 0.5*(log(1 - r) + r*z^2) }
+se <- 0.03
+z_full <- 3
+imp_r2 <- 0.9                          # <- change me
+
+z2 <- z_full * sqrt(imp_r2)            # information loss shrinks SNP 2's observed z
+l <- c(labf_z(z_full, se), labf_z(z2, se))
+BF <- exp(l - max(l))                  # subtract max for numerical stability
+post <- BF / sum(BF)
+cat("posterior of the info-lossy SNP 2:", round(post[2], 4),
+    " (deserved: 0.5)\n")
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A curve of the information-lossy SNP's posterior probability against the full-data z-score, starting near 0.5 at small z and sliding down toward 0 as z grows, with a dashed horizontal line at the deserved 0.5."
+# TRY IT: this reproduces the paper's Figure-1 idea. Bigger studies -> bigger z-scores. Watch
+# the info-lossy SNP's posterior slide AWAY from 0.5 as z grows. PREDICT: up or down?
+labf_z <- function(z, se, W = 0.04) { V <- se^2; r <- W/(W + V); 0.5*(log(1 - r) + r*z^2) }
+se <- 0.03; imp_r2 <- 0.95
+z_grid <- seq(1, 25, length.out = 200)
+post2 <- sapply(z_grid, function(zf) {
+  l <- c(labf_z(zf, se), labf_z(zf*sqrt(imp_r2), se))
+  BF <- exp(l - max(l)); (BF/sum(BF))[2]
+})
+plot(z_grid, post2, type = "l", lwd = 2, ylim = c(0, 0.6),
+     xlab = "full-data z-score (grows with sample size)",
+     ylab = "posterior of the info-lossy SNP",
+     main = "Fine-mapping bias worsens as the study grows")
+abline(h = 0.5, lty = 2, col = "tomato")
+legend("bottomleft", legend = "deserved 0.5", lty = 2, col = "tomato", bty = "n")
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: the sample-size story as a table. Fixed true effect; se shrinks with sqrt(N), so z
+# grows with sqrt(N). PREDICT: which N gives the WORST (closest to 0) posterior for SNP 2?
+labf_z <- function(z, se, W = 0.04) { V <- se^2; r <- W/(W + V); 0.5*(log(1 - r) + r*z^2) }
+effect <- 0.06; imp_r2 <- 0.95
+drift <- sapply(c(5000, 50000, 500000), function(N) {
+  se1 <- 0.03 * sqrt(5000 / N)         # standard error shrinks with sqrt(N)
+  z1  <- effect / se1                   # full-data z grows with sqrt(N)
+  z2  <- z1 * sqrt(imp_r2)              # info-lossy SNP 2
+  l <- c(labf_z(z1, se1), labf_z(z2, se1)); BF <- exp(l - max(l)); (BF/sum(BF))[2]
+})
+data.frame(N = c(5000, 50000, 500000), posterior_snp2 = round(drift, 4))
+# ~0.48 at N=5,000 but ~0 at N=500,000 -- matching the paper's Figure 1
+```
+
+## Common traps
+
+**Trap: "bigger sample size means more reliable fine-mapping."** Intuitive — more data is
+usually better. But here it's the opposite: because the Bayes factor grows with $z^2$ and $z$
+grows with $\sqrt{N}$, a fixed information gap between SNPs blows up as $N$ grows. Our table shows
+the info-lossy SNP's posterior at $0.48$ for $N = 5{,}000$ but essentially $0$ for
+$N = 500{,}000$ — the *same* 5% imputation shortfall, far more damage in the big study. More data
+sharpens a *biased* answer, not a correct one.
+
+**Trap: "the two SNPs really are different, since they got different posteriors."** No — in our
+setup the two SNPs are in perfect LD and tag the *identical* true signal; they *deserve* 0.5
+each. The only difference is measurement quality. The posterior gap is an **artifact of unequal
+information**, not a real difference in causal status. That's exactly why a single-variant
+credible set here would name the wrong SNP half the time.
+
+## Check yourself
+
+**1.** Two perfectly-correlated SNPs; SNP 2 loses information so its z drops from $4$ to $3.6$
+while SNP 1 stays at $4$ (same se $= 0.03$). Is SNP 2's posterior above or below 0.5, and
+roughly where?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check
+labf_z <- function(z, se, W = 0.04) { V <- se^2; r <- W/(W + V); 0.5*(log(1 - r) + r*z^2) }
+se <- 0.03
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Below 0.5. $\ell_1 = \tfrac12(\log(1-r) + r\cdot 16)$, $\ell_2 = \tfrac12(\log(1-r) + r\cdot
+12.96)$ with $r \approx 0.978$; exponentiate and normalise to get SNP 2's posterior $\approx
+0.18$. In R: `l <- c(labf_z(4, se), labf_z(3.6, se)); BF <- exp(l - max(l)); (BF/sum(BF))[2]`.
+The larger z makes the gap much wider than the toy's 0.39.
+:::
+
+**2.** Name three real-world causes of "variable information across SNPs" the paper lists.
+
+::: {.callout-note collapse="true" title="Answer"}
+Any three of: **unequal sample size** across variants (common in meta-analyses), **variable
+imputation accuracy** ($r^2$), **variable call rate / genotype missingness**, and even
+**rounding summary statistics** to few significant figures (the rounding error varies across
+SNPs). All change how much information a SNP carries, so its Bayes factor is no longer comparable
+to its neighbours'.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why unequal information
+across SNPs biases fine-mapping, and why it gets worse with sample size.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Fine-mapping normalises each SNP's Bayes factor into a probability, which silently assumes every
+SNP's Bayes factor is measured on the same footing — so when some SNPs carry less information
+(smaller z, larger se), their Bayes factors are unfairly small and the posterior is biased toward
+the better-measured SNPs. It worsens with sample size because the Bayes factor grows with the
+square of the z-score, which itself grows with $\sqrt{N}$, so a fixed information gap between SNPs
+opens into an ever-larger evidence gap as the study grows.
+:::
+
+## What you can now do
+
+- **Compute a SNP's posterior of being causal** from its z and standard error via the Wakefield
+  log Bayes factor and the normalise-across-SNPs step.
+- **Explain why unequal statistical information** (sample size, imputation $r^2$, call rate,
+  rounding) makes Bayes factors non-comparable and biases fine-mapping.
+- **Reproduce the Figure-1 intuition** in base R: two perfectly-LD SNPs, information loss on one,
+  its posterior drifting from the deserved 0.5.
+- **State the sample-size twist:** the bias *worsens* as $N$ grows, because evidence scales with
+  $z^2 \propto N$.
+
+If any of these feels shaky, revisit the toy example and the two Common traps before continuing —
+the next module shows this bias flowing straight into `coloc`.
+
+## Where this goes next
+
+You've seen fine-mapping break at the level of a single trait. The next module,
+[How it corrupts coloc](../02-how-it-corrupts-coloc/lesson.qmd), shows this same bias propagating
+into the `coloc` you built — turning a truly *shared* signal (H4) into a confident but wrong
+*distinct* call (H3). That's what motivates a colocalisation test that avoids fine-mapping
+entirely.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

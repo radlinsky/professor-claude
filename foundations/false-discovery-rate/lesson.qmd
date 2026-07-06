@@ -1,0 +1,323 @@
+---
+title: "The false discovery rate"
+subtitle: "When you run many tests at once, plain p-values lie — how Bonferroni, Holm, and Benjamini–Hochberg keep you honest"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any of them
+and re-run. The first run downloads a small R engine, so give it a few seconds. Cells without a
+Run button are ordinary listings whose output was computed when the page was built.
+:::
+
+## Where we're going
+
+A single hypothesis test comes with a clean promise: if nothing is really going on, you'll only
+be fooled into shouting "found something!" 5% of the time. But the moment you run *many* tests
+at once — one per gene, one per variant, one per pair — that 5% promise quietly breaks. Run 100
+dead-boring tests and you'll get about 5 "significant" results *purely by chance*. This lesson
+shows why that happens, and the two families of fixes: control the chance of **even one** false
+alarm (family-wise: Bonferroni, Holm), or control the **fraction** of your alarms that are
+false (false discovery rate: Benjamini–Hochberg). You'll do all of it with R's one-line
+`p.adjust`.
+
+**Builds on:**
+[hypothesis tests, p-values & confidence intervals](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+— what a p-value is, the 0.05 convention, and the idea of a false positive (Type I error).
+
+## Warm-up: do you remember?
+
+Two quick reps first — produce each from memory, then check.
+
+**1.** In one sentence: what does a p-value of $0.03$ mean, and would you "reject the null" at
+the usual 0.05 threshold?
+
+::: {.callout-note collapse="true" title="Answer"}
+It's the chance of seeing a result at least this extreme *if the null (nothing going on) were
+true*. Since $0.03 < 0.05$, you **reject** the null at the 0.05 threshold. See
+[hypothesis tests, p-values & confidence intervals](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd).
+:::
+
+**2.** What is a **Type I error** (false positive), and what is the chance of one on a single
+test run at the 0.05 threshold when the null is true?
+
+::: {.callout-note collapse="true" title="Answer"}
+A Type I error is a **false alarm** — rejecting the null when it's actually true. On one test at
+the 0.05 threshold, that chance is exactly $0.05$. See
+[hypothesis tests, p-values & confidence intervals](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd).
+:::
+
+## A tiny example first
+
+Imagine you test **4** completely inert things — four sugar pills, none of which does anything.
+Each test independently has a 5% chance of a false alarm. What's the chance that *at least one*
+of the four falsely lights up?
+
+Work it in prose. The chance a single test does **not** false-alarm is $0.95$. For all four to
+stay quiet, that must happen four times over: $0.95 \times 0.95 \times 0.95 \times 0.95 =
+0.95^4 \approx 0.8145$. So the chance that **at least one** shouts "found it!" is
+$1 - 0.8145 = 0.1855$ — about **19%**, not 5%. With just four tests your false-alarm rate has
+nearly quadrupled.
+
+The same thing in R:
+
+```{r toy-example}
+# 4 inert tests, each with a 5% false-alarm chance
+m <- 4
+per_test_ok <- 0.95          # chance one test stays quiet
+
+# All four stay quiet
+all_quiet <- per_test_ok^m
+all_quiet                    # ~0.8145
+
+# At least one false alarm = 1 - (all quiet)
+at_least_one <- 1 - all_quiet
+at_least_one                 # ~0.1855, i.e. ~19%
+```
+
+Push $m$ to 100 and the chance of at least one false alarm is $1 - 0.95^{100} \approx 0.994$ —
+virtually certain. That is the multiple-testing problem in one number.
+
+## Getting a feel for it
+
+**Analogy — a metal detector at the beach.** One sweep of a cheap detector beeps by mistake
+now and then; annoying but rare. Now sweep the *whole beach*, thousands of sweeps: you're
+guaranteed a pile of false beeps even if there's no treasure anywhere. You have two honest ways
+to respond. (1) Make the detector far less twitchy so that across the *entire day* you'd expect
+essentially zero false beeps — you'll miss some real treasure, but every beep is trustworthy.
+That's **family-wise error control** (Bonferroni/Holm). (2) Accept that some beeps will be
+false, but insist that *among the spots you actually dig*, only a small fraction are duds —
+you'll dig more holes and find more treasure, tolerating a controlled share of wasted digs.
+That's the **false discovery rate** (Benjamini–Hochberg).
+
+Where the analogy breaks: real tests aren't always independent (nearby variants are
+correlated), and the exact guarantees of each method depend on that — but the *spirit* (few
+false beeps ever, vs. few false beeps among your digs) is exactly right.
+
+**Why multiply p-values (or divide the threshold)?** Because "at least one false alarm among
+$m$ tries" grows roughly like $m$ times the per-test rate when that rate is small
+($1 - 0.95^m \approx 0.05\,m$ for small $m$: $0.05\times 4 = 0.20$, close to our $0.19$). So to
+pull the *whole-family* false-alarm rate back down to 0.05, the crudest fix is to demand each
+individual test clear a threshold $m$ times stricter — $0.05/m$. That's Bonferroni. Everything
+else is a cleverer version of the same instinct.
+
+**What does 19% feel like?** It's the difference between "I'm probably fine" and "I'll likely be
+wrong at least once." Drop to $m = 2$ tests and it's only $1 - 0.95^2 \approx 9.75\%$; climb to
+$m = 20$ and it's $1 - 0.95^{20} \approx 64\%$. The number races toward certainty as tests pile
+up.
+
+## What the notation is going to say
+
+The corrections all *transform your raw p-values into adjusted ones you can still compare to
+0.05*. Bonferroni's adjusted p-value will say: "multiply each raw p by the number of tests
+$m$ (capped at 1)" — so our smallest inert p of, say, $0.03$ becomes $0.03 \times 4 = 0.12$,
+no longer significant. Benjamini–Hochberg's will say: "rank the p-values, and scale each by
+$m$ divided by its rank, so the smallest p is judged most strictly and later ones more
+leniently." In R, every one of these is a `method=` inside `p.adjust`.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $m$ | "em" | the number of tests you ran | $4$ |
+| $p_i$ | "p sub eye" | the raw p-value of the $i$-th test | one per test |
+| $p_{(i)}$ | "p paren eye" | the $i$-th **smallest** p-value (p-values sorted low to high) | — |
+| $\alpha$ | "alpha" | the false-alarm threshold you're willing to accept | $0.05$ |
+| FWER | "eff-double-you-ee-arr" | family-wise error rate: chance of **at least one** false alarm across all tests | ~$0.19$ uncorrected |
+| FDR | "eff-dee-arr" | false discovery rate: expected **fraction** of your rejections that are false | — |
+| $\tilde{p}_i$ | "p sub eye tilde" | the *adjusted* p-value, comparable to $\alpha$ after correction (in R: `p.adjust(p, ...)`) | — |
+
+## The formal version
+
+Two questions, two families of answers. Start from $m$ raw p-values $p_1, \dots, p_m$.
+
+**Family-wise error control (few false alarms EVER).**
+
+*Bonferroni* multiplies each raw p-value by $m$ (and caps at 1):
+
+$$
+\tilde{p}_i = \min(1,\ m \cdot p_i).
+$$
+
+Read aloud: "adjusted-p equals the smaller of 1 and m-times-raw-p." Everyday words: "make every
+test $m$ times harder to call significant." Equivalently, reject only when $p_i < \alpha/m$.
+
+*Holm* is a uniformly better version: sort the p-values, and multiply the smallest by $m$, the
+next by $m-1$, the next by $m-2$, … (with a running-maximum so adjusted values never decrease).
+It controls the same family-wise error but rejects at least as much as Bonferroni — strictly
+more powerful, never worse. **This is R's `p.adjust` default.**
+
+**False discovery rate control (few false alarms among your DIGS).**
+
+*Benjamini–Hochberg* sorts the p-values smallest to largest and compares the $i$-th smallest,
+$p_{(i)}$, to a *sloped* threshold $\frac{i}{m}\alpha$:
+
+$$
+\text{reject the } i\text{-th if } \quad p_{(i)} \le \frac{i}{m}\,\alpha .
+$$
+
+Read aloud: "reject the i-th smallest p-value if it's at most i-over-m times alpha." Everyday
+words: "the very smallest p-value must clear the strictest bar ($\alpha/m$, same as
+Bonferroni), but each successive one gets a proportionally easier bar." Its adjusted p-value is
+$\tilde{p}_{(i)} = \min(1,\ \frac{m}{i}\,p_{(i)})$ (with a running-minimum so they stay
+sorted). Because most bars are looser than Bonferroni's single strict bar, BH rejects *more* —
+it finds more real effects, at the cost of a controlled fraction of false ones.
+
+**Mapping it onto the toy example.** Suppose the four inert tests returned raw p-values
+$(0.03, 0.20, 0.51, 0.78)$ — the $0.03$ is a chance false alarm.
+
+- Bonferroni: $0.03 \times 4 = 0.12 > 0.05$ → **not** significant. The false alarm is caught.
+- Holm: smallest is $0.03 \times 4 = 0.12 > 0.05$ → stop; nothing significant. Also caught.
+- BH: smallest bar is $\frac{1}{4}(0.05) = 0.0125$; since $0.03 > 0.0125$, the $0.03$ doesn't
+  clear even its own bar → nothing significant. Caught too.
+
+All three refuse to be fooled by the lone $0.03$. Let's confirm with `p.adjust`:
+
+```{r formal-check}
+p <- c(0.03, 0.20, 0.51, 0.78)   # four inert tests; the 0.03 is a chance false alarm
+
+# Bonferroni: multiply by m = 4, cap at 1
+p.adjust(p, method = "bonferroni")   # 0.12 0.80 1.00 1.00
+
+# Holm (p.adjust's DEFAULT): stepwise family-wise control
+p.adjust(p)                          # same verdict here: smallest is 0.12
+
+# Benjamini-Hochberg: false discovery rate
+p.adjust(p, method = "BH")           # smallest adjusted is 0.12 as well
+
+# None drop below 0.05 -> none declared significant. Good.
+any(p.adjust(p) < 0.05)              # FALSE
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# TRY IT: change m and re-run. PREDICT: at m = 50, is the chance of >=1 false alarm closer to
+# 0.5 or to 0.9?
+m <- c(1, 2, 4, 10, 20, 50, 100)
+fwer <- 1 - 0.95^m                        # chance of at least one false alarm among m inert tests
+data.frame(m = m, chance_of_a_false_alarm = round(fwer, 3))
+# Watch it climb from 0.05 toward near-certainty as m grows
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A line rising from about 0.05 at one test toward nearly 1.0 by 100 tests, showing the family-wise false-alarm rate climbing as the number of inert tests grows; a dashed horizontal line marks the intended 0.05."
+# TRY IT: change the 0.05 per-test rate to 0.01 and re-run — the whole curve drops.
+m <- 1:100
+plot(m, 1 - 0.95^m, type = "l", lwd = 2, ylim = c(0, 1),
+     xlab = "number of inert tests (m)",
+     ylab = "chance of at least one false alarm",
+     main = "Why plain p-values fail with many tests")
+abline(h = 0.05, lty = 2, col = "tomato")
+legend("bottomright", legend = "intended 0.05", lty = 2, col = "tomato", bty = "n")
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: a mix of real effects (tiny p's) and noise. PREDICT: which method flags MORE tests,
+# Holm or BH? (BH is more lenient, so it flags more.)
+set.seed(7)
+# 5 real effects (small p) buried among 45 nulls (uniform p)
+p <- c(runif(5, 0, 0.001), runif(45, 0, 1))
+cat("Uncorrected significant (p<0.05):", sum(p < 0.05), "\n")
+cat("Holm significant:                ", sum(p.adjust(p, "holm") < 0.05), "\n")
+cat("BH significant:                  ", sum(p.adjust(p, "BH")   < 0.05), "\n")
+# Uncorrected over-calls; Holm is strictest; BH sits in between, recovering more real effects
+```
+
+## Common traps
+
+**Trap: "each test is at 0.05, so I'm safe."** Tempting, because 0.05 *is* safe for one test.
+But with $m = 4$ inert tests the chance of at least one false alarm is $1 - 0.95^4 \approx 0.19$,
+not 0.05 — the per-test guarantee says nothing about the *family*. The whole point of the
+correction is that "0.05 each" and "0.05 overall" are different promises.
+
+**Trap: "FDR and family-wise control are the same thing."** No — they control different
+quantities. Family-wise (Bonferroni/Holm) caps the chance of **even one** false alarm across
+all tests; FDR (BH) caps the **fraction** of your *rejections* that are false. Suppose you make
+20 rejections and 2 are false: your false *discovery* fraction is $2/20 = 10\%$ (BH would allow
+this at $\alpha = 0.10$), but you *did* make false alarms, so the family-wise error occurred.
+BH deliberately tolerates some false alarms to find more true effects; Holm refuses almost all
+false alarms at the cost of missing weaker true ones. Pick the one that matches your cost of
+being wrong.
+
+## Check yourself
+
+**1.** You run $10$ inert tests, each at the 0.05 threshold. Roughly what's the chance of at
+least one false alarm?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check
+m <- 10
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$1 - 0.95^{10} \approx 0.40$ — about a **40%** chance of at least one false alarm. In R:
+`1 - 0.95^10`. Ten independent shots at a 5% mistake add up fast.
+:::
+
+**2.** Raw p-values $(0.001, 0.30, 0.60)$ from $m = 3$ tests. What are the Bonferroni-adjusted
+values, and which are significant at 0.05?
+
+```{webr}
+#| autorun: false
+# check2-starter — edit and Run to check
+p <- c(0.001, 0.30, 0.60)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Multiply each by $3$ (cap at 1): $(0.003, 0.90, 1.00)$. Only the first, $0.003$, is below 0.05,
+so **one** test survives correction. In R: `p.adjust(c(0.001, 0.30, 0.60), "bonferroni")`.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, the difference between
+controlling the family-wise error rate and controlling the false discovery rate.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Family-wise control (Bonferroni, Holm) keeps the chance of making *even a single* false alarm
+across all your tests small — great when any false positive is costly. False-discovery-rate
+control (Benjamini–Hochberg) instead keeps the *fraction* of your flagged results that are false
+small, which lets you flag more real effects when you can tolerate a known share of duds among
+them.
+:::
+
+## What you can now do
+
+- **Explain why plain 0.05 p-values fail** under many tests, and compute the family-wise
+  false-alarm chance $1 - (1-\alpha)^m$.
+- **Apply Bonferroni and Holm** (multiply/step-down the p-values) to control the chance of any
+  false alarm, and know Holm is `p.adjust`'s default.
+- **Apply Benjamini–Hochberg** to control the *fraction* of false rejections, and say when you'd
+  prefer it over family-wise control.
+- **Use `p.adjust(p, method = ...)`** in R and read its output back against a 0.05 threshold.
+
+If any of these feels shaky, revisit the toy example and the "what the notation says" section —
+methods that run many tests and correct over the total (like the proportional colocalisation
+test) assume all of them.
+
+## Where this goes next
+
+Any method that runs a *pile* of tests and then asks "is any of them real?" has to correct for
+multiplicity, or it drowns in false alarms. In the proportional colocalisation course, the
+power fix runs *all pairwise* variant tests and corrects over the total number of possible
+pairs with exactly this `p.adjust` machinery — and you'll see there that the released package
+names its column "fdr" but actually calls `p.adjust`'s Holm default, which is why knowing both
+families matters.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

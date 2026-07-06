@@ -1,0 +1,234 @@
+---
+title: "Practice: The proportional test statistic"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. The starters include the from-scratch `prop_V` and
+`prop_test_pair`; do the by-hand reasoning first, then run to check.
+
+## Problem 1 — the toy example, new numbers
+
+Two SNPs, $b_1 = (0.24, 0.10)$, $b_2 = (0.20, 0.09)$, all variances $0.0009$, LD $\rho = 0.5$.
+Eyeball the ratios first, then run `prop_test_pair`. Colocalised or not?
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(chisquare = o$objective, p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Ratios $b_1/b_2 = (1.20, 1.11)$ — close, so this looks roughly proportional → expect a **large**
+p (colocalised).
+
+```{r p1-ans}
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(chisquare = o$objective, p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+prop_test_pair(c(0.24, 0.10), c(0.0009, 0.0009), c(0.20, 0.09), c(0.0009, 0.0009), 0.5)
+```
+The p-value is large (well above 0.05), so we **fail to reject** proportionality → colocalised, as
+the near-equal ratios suggested.
+:::
+
+## Problem 2 — fill in the missing step
+
+Building the statistic at a fixed angle $\theta$:
+
+- Step 1: the gap vector $d(\theta) = \sin\theta\, b_1 - \cos\theta\, b_2$.
+- Step 2: **your step here** — write the gap's covariance $V^*(\theta)$ in terms of $V_1, V_2$.
+- Step 3: the statistic $X^2(\theta) = d(\theta)^\top V^*(\theta)^{-1} d(\theta)$.
+
+Fill in step 2.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: $V^*(\theta) = \sin^2\theta\, V_1 + \cos^2\theta\, V_2$. The gap is
+$\sin\theta\, b_1 - \cos\theta\, b_2$, and scaling a random vector by a constant scales its
+covariance by the constant *squared* — so $b_1$'s covariance $V_1$ enters weighted by
+$\sin^2\theta$ and $b_2$'s $V_2$ by $\cos^2\theta$. (The two traits are independent studies, so
+there's no cross term.)
+:::
+
+## Problem 3 — the self-check pair
+
+Reproduce the middle pair of the frozen fixture: $b_1 = (0.22, 0.02)$, $\text{vbeta}_1 = (0.0009,
+0.0009)$; $b_2 = (0.03, 0.19)$, $\text{vbeta}_2 = (0.000961, 0.001089)$; $\rho = 0.5$. The
+reference chi-square is $32.506$. Run `prop_test_pair` and confirm.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: run prop_test_pair on the middle fixture pair
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(eta = tan(o$minimum), chisquare = o$objective, p = pchisq(o$objective, df = 1, lower.tail = FALSE))
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-ans}
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(eta = tan(o$minimum), chisquare = o$objective, p = pchisq(o$objective, df = 1, lower.tail = FALSE))
+}
+prop_test_pair(c(0.22, 0.02), c(0.0009, 0.0009), c(0.03, 0.19), c(0.000961, 0.001089), 0.5)
+```
+Chi-square $\approx 32.506$ (matching the reference) and a tiny p ($\approx 1.2\times 10^{-8}$) →
+**not colocalised**. These effects are wildly non-proportional (0.22 vs 0.03 on SNP 1, 0.02 vs
+0.19 on SNP 2).
+:::
+
+## Problem 4 — spot the error
+
+A colleague computed a pairwise proportional test — it contains **exactly one mistake**. Find it.
+
+```{webr}
+#| autorun: false
+# p4-starter — this contains exactly one mistake
+chi <- 14.93          # the minimised X^2 for a PAIR of SNPs
+p <- pchisq(chi, df = 2, lower.tail = FALSE)   # two SNPs, so df = 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is `df = 2`. For a **pair** ($n = 2$ SNPs), the statistic is $\chi^2_{n-1} = \chi^2_1$
+— we *profiled out* the angle, which costs one degree of freedom. The correct call uses `df = 1`.
+
+```{r p4-ans}
+pchisq(14.93, df = 1, lower.tail = FALSE)   # ~1.1e-4, the correct p (df=2 would give ~5.7e-4)
+```
+:::
+
+## Problem 5 — mixing it with quadratic forms *(uses quadratic-forms-and-the-chi-square's `t(d) %*% solve(V) %*% d`)*
+
+At the fixed angle $\theta = \pi/4$ (so $\sin\theta = \cos\theta = 1/\sqrt2$), for $b_1 = (0.20,
+0.22)$, $b_2 = (0.18, 0.03)$, all variances $0.0009$, $\rho = 0.6$: compute the gap $d$, the gap
+covariance $V^*$, and the quadratic form $X^2(\pi/4)$ directly (not the profiled minimum).
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+b1 <- c(0.20, 0.22); b2 <- c(0.18, 0.03)
+V1 <- prop_V(c(0.0009, 0.0009), 0.6); V2 <- prop_V(c(0.0009, 0.0009), 0.6)
+theta <- pi/4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p5-ans}
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+b1 <- c(0.20, 0.22); b2 <- c(0.18, 0.03)
+V1 <- prop_V(c(0.0009, 0.0009), 0.6); V2 <- prop_V(c(0.0009, 0.0009), 0.6)
+theta <- pi/4
+d  <- sin(theta)*b1 - cos(theta)*b2                    # the gap vector
+Vs <- sin(theta)^2*V1 + cos(theta)^2*V2                # the gap covariance
+Xsq <- as.numeric(t(d) %*% solve(Vs, d))               # the quadratic form (from the foundation)
+c(gap1 = d[1], gap2 = d[2], Xsq_at_pi4 = Xsq)
+```
+The gap is $(0.0141, 0.1344)$ and $X^2(\pi/4) \approx 27.73$ — this is the standardised squared
+distance $d^\top (V^*)^{-1} d$ from the quadratic-forms foundation, evaluated at one angle.
+Profiling would search for the angle giving the *smallest* such value (here $\approx 26.65$ at the
+best angle, slightly below this $\pi/4$ value).
+:::
+
+## Problem 6 — transfer: interpret a returned p-value
+
+`prop_test_pair` on a pair returns `chisquare = 0.15`, `p = 0.69`. In one or two sentences, state
+what this says about the two SNPs and whether it supports colocalisation.
+
+::: {.callout-note collapse="true" title="Answer"}
+A tiny chi-square (0.15) means the best line through the origin fits the two points well — they're
+close to proportional. The large p-value (0.69) means we *fail to reject* the null of
+proportionality, and since the null *is* colocalisation, this **supports colocalisation** for this
+pair. (Remember the flip: a large p is the colocalisation-friendly outcome.)
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Results are saved in this browser only.
+
+::: {.module-check module="courses/proportional-colocalisation/modules/04-the-proportional-test-statistic" pass="4"}
+
+::: {.quiz-q qid="ppts-df-pair" qtype="numeric" answer="1" tolerance="0"}
+For a proportional test on a **pair** of SNPs ($n = 2$), how many degrees of freedom does the
+profiled $\chi^2$ statistic have?
+:::
+
+::: {.quiz-q qid="ppts-why-angle" qtype="mc" answer="b"}
+Why reparametrise the slope $\eta$ as an angle $\theta = \arctan(\eta)$?
+
+a) angles are easier to type
+b) the infinite range of slopes (including $\eta = \infty$) maps to a finite angle range an optimiser can search
+c) it changes the null hypothesis
+d) it removes the need for the covariance matrix
+:::
+
+::: {.quiz-q qid="ppts-bigX2" qtype="mc" answer="c"}
+A **large** minimised $X^2$ statistic means:
+
+a) a good fit to the line, so colocalisation
+b) the degrees of freedom were wrong
+c) a poor fit — points far from any origin-line — so a small p-value and NOT colocalised
+d) the angle was exactly $\pi/2$
+:::
+
+::: {.quiz-q qid="ppts-gap-cov" qtype="mc" answer="a"}
+The gap's covariance is $V^*(\theta) = \sin^2\theta\, V_1 + \cos^2\theta\, V_2$. Why do $V_1$ and
+$V_2$ enter weighted by the *squares* of sine and cosine?
+
+a) scaling a random vector by a constant scales its covariance by the constant squared
+b) it makes the matrix symmetric
+c) sine and cosine are always positive
+d) to cancel the off-diagonal LD term
+:::
+
+::: {.quiz-q qid="ppts-quadform-interleave" qtype="mc" answer="b"}
+*(uses quadratic-forms-and-the-chi-square-statistic)* The expression $d^\top V^{*-1} d$ is:
+
+a) a matrix inverse
+b) a quadratic form — a standardised squared distance that is $\chi^2$-distributed
+c) the correlation between the two traits
+d) the slope of the line
+:::
+
+:::
+
+::::

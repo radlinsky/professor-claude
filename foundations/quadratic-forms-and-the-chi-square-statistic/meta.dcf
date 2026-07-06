@@ -1,0 +1,8 @@
+ShortName: Quadratic forms & the chi-square statistic
+Concepts: A quadratic form $\mathbf{x}^\top A\,\mathbf{x}$ as "sandwich a matrix between a
+ vector and itself to get one number"; the standardised squared distance
+ $\mathbf{x}^\top V^{-1}\mathbf{x}$ (Mahalanobis distance) that divides out spread and
+ co-movement; why a vector of normal noise gives a $\chi^2_k$ statistic; degrees of freedom as
+ the length of the sandwiched vector; turning the statistic into a p-value with `pchisq`
+BuildsOn: [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd), [variance-structure-and-standardization](variance-structure-and-standardization/lesson.qmd), [distributions-and-densities](distributions-and-densities/lesson.qmd)
+UsedBy: [proportional-colocalisation](../courses/proportional-colocalisation/syllabus.md)

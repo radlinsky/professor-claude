@@ -1,0 +1,319 @@
+---
+title: "Profile likelihood"
+subtitle: "When a formula has a parameter you don't care about, tune it away — and why doing so costs one degree of freedom"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any of them
+and re-run. The first run downloads a small R engine, so give it a few seconds. Cells without a
+Run button are ordinary listings whose output was computed when the page was built.
+:::
+
+## Where we're going
+
+Sometimes a formula depends on two knobs, but you only care about one of them. The other — a
+**nuisance parameter** — is just in the way: you don't want to report it, you only need it out
+of your hair so you can judge the knob you *do* care about. **Profiling** is the clean way to do
+that: for every setting of the knob you care about, quietly tune the nuisance knob to its best
+value, and keep only the resulting "best-case" score. This lesson builds that idea from a tiny
+example, shows it in both directions (maximising a likelihood, minimising a fit statistic), and
+explains the one accounting rule you must remember: **each nuisance parameter you profile out
+costs you one degree of freedom.**
+
+**Builds on:**
+[likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd) (the likelihood as
+"how plausible is this parameter given the data," and finding its peak), and
+[loss functions & optimization](../loss-functions-and-optimization/lesson.qmd) (a function with
+a knob, and letting a computer search for the knob that makes it smallest/largest with
+`optimize()`).
+
+## Warm-up: do you remember?
+
+Two quick reps first — produce each from memory, then check.
+
+**1.** In one sentence, what does a **likelihood** measure, and what does the *maximum*
+likelihood estimate pick out?
+
+::: {.callout-note collapse="true" title="Answer"}
+The likelihood measures how plausible a particular parameter value is given the data you saw
+(data fixed, parameter varies). The maximum likelihood estimate is the parameter value that
+makes the observed data most plausible — the peak of that curve. See
+[likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd).
+:::
+
+**2.** What does `optimize(f, interval = c(0, 10))` do in R, and what two things does it return?
+
+::: {.callout-note collapse="true" title="Answer"}
+It searches for the value of the input in $[0, 10]$ that **minimises** `f` (or maximises, with
+`maximum = TRUE`), and returns `$minimum` (the best input) and `$objective` (the value of `f`
+there). See [loss functions & optimization](../loss-functions-and-optimization/lesson.qmd).
+:::
+
+## A tiny example first
+
+Here's a score that depends on two knobs, $a$ (the one you care about) and $b$ (the nuisance):
+
+$$
+S(a, b) = (a - 3)^2 + (a + b - 5)^2 .
+$$
+
+Smaller is better (think of it as "total miss," like a fit error). You want to know: **for a
+given $a$, how good can the score possibly be?** — but you don't care what $b$ ends up being.
+
+Take $a = 2$. The score is $(2-3)^2 + (2 + b - 5)^2 = 1 + (b - 3)^2$. You get to choose $b$ to
+make this as small as possible. Setting $b = 3$ kills the second term, leaving $1 + 0 = 1$. So
+the **best-case score at $a = 2$ is 1** — and we reached it by tuning the nuisance $b$ to 3.
+
+Now take $a = 4$: score is $(4-3)^2 + (4 + b - 5)^2 = 1 + (b - 1)^2$. Best $b$ is $1$, giving
+best-case score $1$ again. And at $a = 3$: score is $0 + (3 + b - 5)^2 = (b-2)^2$, best $b = 2$
+gives best-case score **0**. So the *profiled* score — the best-case score as a function of $a$
+alone — is $0$ at $a = 3$ and rises as $a$ moves away. We've collapsed a two-knob problem to a
+one-knob curve by tuning the nuisance out at every point.
+
+The same thing in R:
+
+```{r toy-example}
+# The two-knob score: a is the parameter of interest, b is the nuisance
+S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
+
+# "Profile out b": for a fixed a, find the b that minimises S, keep only the best score
+profile_at <- function(a) optimize(function(b) S(a, b), interval = c(-10, 10))$objective
+
+# Best-case score at a few values of a
+sapply(c(2, 3, 4), profile_at)   # 1, 0, 1 — matches the hand computation
+```
+
+## Getting a feel for it
+
+**Analogy — a hiker photographing a mountain ridge from the valley floor.** The full landscape
+$S(a, b)$ is a 2-D surface (two knobs, two map directions). You only care about the east–west
+direction $a$; the north–south direction $b$ is a nuisance. Profiling is standing at each
+east–west position and recording only the **highest point of the ridge** you can see looking
+north–south (for a likelihood you keep the peak; for a fit statistic you keep the valley floor).
+You throw away the north–south coordinate and keep a single ridge-line curve over $a$. That
+skyline is the *profile* — it tells you everything about $a$ once $b$ has been optimally chosen
+at every step.
+
+Where the analogy breaks: the "best $b$" isn't fixed — it *slides* as you move along $a$ (in our
+toy, best $b$ was 3 at $a=2$ but 1 at $a=4$). Profiling re-optimises the nuisance at every value
+of the parameter of interest; it's not a single fixed setting.
+
+**Why re-optimise the nuisance at every $a$ instead of fixing it once?** Because fixing $b$ at
+one value would unfairly penalise every $a$ that would have preferred a different $b$. By giving
+each $a$ its *best possible* $b$, the profile curve is a fair "this is the best $a$ can do"
+comparison — you're judging $a$ on its merits, not blaming it for a bad nuisance setting.
+
+**What does the profiled curve feel like?** It's always at least as good (as low, for a fit
+statistic) as the full surface at that $a$, because you optimised the other knob. Its bottom
+(here, $0$ at $a = 3$) is the overall best of the whole 2-D surface — profiling never loses the
+global optimum, it just hides the nuisance coordinate.
+
+## What the notation is going to say
+
+The profile of a two-knob function will say: "for each value of the parameter you care about,
+plug in the *best* value of the nuisance parameter and record the result." For a **likelihood**
+you keep the *maximum* over the nuisance (most plausible); for a **fit statistic** like our
+$S$ you keep the *minimum* (smallest miss). In our toy example the profiled statistic was
+"$\min_b S(a,b)$," which we found by hand to be $0$ at $a = 3$ — the same value the full
+two-knob minimisation gives.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $a$ | "a" | the parameter of **interest** — the knob you want to judge | ranges over values; best is $3$ |
+| $b$ | "b" | the **nuisance** parameter — needed for the formula but not reported | slides with $a$ (3 at $a=2$, 1 at $a=4$) |
+| $S(a, b)$ | "S of a, b" | the two-knob score (here a fit statistic; smaller = better) | $(a-3)^2 + (a+b-5)^2$ |
+| $\min_b$ | "the minimum over b" | tune $b$ to make what follows as small as possible | the profiling step |
+| $\max_b$ | "the maximum over b" | tune $b$ to make what follows as large as possible (used for likelihoods) | — |
+| $\hat b(a)$ | "b-hat of a" | the best nuisance value *at a given $a$* (it depends on $a$) | $3$ at $a=2$, $1$ at $a=4$ |
+| $S_{\text{prof}}(a)$ | "S profile of a" | the profiled score: $S$ with $b$ optimally tuned away, a function of $a$ only | $\min_b S(a,b)$ |
+| $\chi^2_k$ | "chi-square with k degrees of freedom" | the distribution a profiled statistic follows; each profiled nuisance drops $k$ by 1 | — |
+
+## The formal version
+
+The **profiled** version of a two-knob score, keeping only the parameter of interest, is
+
+$$
+S_{\text{prof}}(a) \;=\; \min_{b}\, S(a, b),
+$$
+
+read aloud "S-profile of a equals the minimum over b of S of a, b" — everyday words: "the best
+score $a$ can achieve, once you've tuned the nuisance $b$ to help it as much as possible." (For a
+likelihood you'd write $\max_b$ instead — same idea, keep the *most plausible* nuisance.)
+
+**Mapping it onto the toy example.** At each $a$:
+
+- pick $\hat b(a)$, the $b$ that minimises $S(a, b)$ — the "tune the nuisance" step;
+- record $S(a, \hat b(a))$ — the "keep only the best score" step.
+
+We did this by hand: $\hat b(2) = 3 \Rightarrow S_{\text{prof}}(2) = 1$;
+$\hat b(3) = 2 \Rightarrow S_{\text{prof}}(3) = 0$; $\hat b(4) = 1 \Rightarrow S_{\text{prof}}(4) = 1$.
+
+Sanity-check that profiling then minimising over $a$ gives the same global minimum as minimising
+the full two-knob surface directly:
+
+```{r formal-check}
+S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
+
+# Path 1: profile out b, then minimise the profile over a
+prof <- function(a) optimize(function(b) S(a, b), interval = c(-20, 20))$objective
+best_a <- optimize(prof, interval = c(-20, 20))
+c(a_hat = best_a$minimum, profiled_min = best_a$objective)   # a ~ 3, min ~ 0
+
+# Path 2: minimise the full 2-knob surface directly (grid, for a cross-check)
+grid <- expand.grid(a = seq(0, 6, 0.01), b = seq(-4, 8, 0.01))
+grid$S <- with(grid, S(a, b))
+grid[which.min(grid$S), ]     # also a ~ 3, b ~ 2, S ~ 0 — same global optimum
+```
+
+### Why the profiled statistic keeps the right distribution — and loses one degree of freedom
+
+Here is the accounting rule. Suppose $S(a, b)$ is a fit statistic that, at the *true*
+parameter values, would follow a chi-square distribution. When you **profile out** a nuisance
+parameter — replacing $b$ by its best-fit value $\hat b(a)$ — you've *spent* the data on
+estimating that nuisance. The profiled statistic still follows a chi-square, but with **one fewer
+degree of freedom** for each parameter you profiled out.
+
+The intuition: degrees of freedom count "how many independent pieces of surprise are left after
+you've used the data to set the knobs." Every knob you tune to *best-fit* the data soaks up one
+piece of that surprise (it can always make the fit look a little better), so it no longer counts
+toward the leftover. Start with a statistic that would be $\chi^2_n$ if you knew all the knobs;
+profile out one nuisance parameter, and the leftover is $\chi^2_{n-1}$. This is the same
+bookkeeping that turns $n$ into $n-1$ when you estimate a mean before computing a variance — you
+"used up" one number.
+
+```{webr}
+#| autorun: true
+# TRY IT: SIMULATE the degrees-of-freedom rule. We build a fit statistic over n=3 noisy numbers
+# that would be chi-square_3 if the shared level were known, then PROFILE OUT that level (its
+# best-fit is the mean). PREDICT: after profiling one parameter, is the average statistic 3 or 2?
+set.seed(1)
+n <- 3
+n_sim <- 30000
+stats <- replicate(n_sim, {
+  y <- rnorm(n)                       # 3 standard-normal draws (true shared level is 0)
+  lvl <- mean(y)                      # PROFILE OUT the nuisance "level": its best-fit is the mean
+  sum((y - lvl)^2)                    # leftover squared miss after tuning the level away
+})
+cat("mean of profiled statistic:", round(mean(stats), 3),
+    " (chi-square df should be n-1 = 2)\n")
+# A chi-square with k df has mean k; we get ~2, NOT 3 -> profiling one parameter cost one df
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A U-shaped curve of the profiled score against the parameter of interest a, bottoming out at zero near a = 3 and rising symmetrically on both sides."
+# TRY IT: change the '5' in (a+b-5) to another number and re-run — the bottom of the profile
+# stays at score 0 but the best a shifts. PREDICT: does the CURVE'S BOTTOM value change? (No —
+# profiling always reaches the surface's global minimum, which is 0 here.)
+S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
+prof <- function(a) optimize(function(b) S(a, b), interval = c(-20, 20))$objective
+a_grid <- seq(0, 6, length.out = 200)
+plot(a_grid, sapply(a_grid, prof), type = "l", lwd = 2,
+     xlab = "a (parameter of interest)", ylab = "profiled score  min_b S(a, b)",
+     main = "The profile curve: nuisance b tuned away at every a")
+abline(v = 3, lty = 2, col = "tomato")
+legend("top", legend = "best a = 3", lty = 2, col = "tomato", bty = "n")
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: watch the nuisance SLIDE. For several a values, report the best-fit b-hat(a). PREDICT:
+# does b-hat stay fixed or move as a changes? (It moves — that's why we re-optimise every time.)
+S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
+bhat <- function(a) optimize(function(b) S(a, b), interval = c(-20, 20))$minimum
+a_vals <- c(1, 2, 3, 4, 5)
+data.frame(a = a_vals, best_b = round(sapply(a_vals, bhat), 3))
+# b-hat(a) = 5 - a here: 4, 3, 2, 1, 0 — it slides, it is not one fixed value
+```
+
+## Common traps
+
+**Trap: "fix the nuisance at one value and be done."** Tempting, because re-optimising every
+time is more work. But a single fixed $b$ mis-scores every $a$ that would have preferred another
+$b$. In our toy, fixing $b = 3$ (the best value *at $a=2$*) gives score $(a-3)^2 + (a-2)^2$,
+whose minimum over $a$ is $0.5$ at $a = 2.5$ — **not** the true global minimum of $0$ at $a=3$.
+Profiling (re-optimising $b$ at every $a$) recovers the real optimum; fixing $b$ does not.
+
+**Trap: "profiling out a parameter doesn't change the degrees of freedom."** No — each nuisance
+you profile out costs **one** degree of freedom. Our simulation showed a statistic that would be
+$\chi^2_3$ becomes $\chi^2_2$ after profiling one parameter (average dropped from 3 to 2). Using
+the un-reduced $df$ would give the wrong p-value: `pchisq(4, df = 3, lower.tail = FALSE)` ≈
+$0.26$ versus the correct `pchisq(4, df = 2, ...)` ≈ $0.14$.
+
+## Check yourself
+
+**1.** For the score $S(a, b) = (a - 1)^2 + (a + b - 4)^2$, what is the best-fit $\hat b$ at
+$a = 1$, and what is the profiled score there?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check
+S <- function(a, b) (a - 1)^2 + (a + b - 4)^2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+At $a = 1$: $S = 0 + (1 + b - 4)^2 = (b - 3)^2$, minimised at $\hat b = 3$, giving profiled
+score **0**. In R: `optimize(function(b) S(1, b), c(-10, 10))` returns `$minimum` near 3 and
+`$objective` near 0.
+:::
+
+**2.** You start with a fit statistic that would follow $\chi^2_5$ if all knobs were known, then
+profile out **two** nuisance parameters. What distribution does the profiled statistic follow?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\chi^2_3$ — each profiled nuisance costs one degree of freedom, so $5 - 2 = 3$. You'd get the
+p-value with `pchisq(stat, df = 3, lower.tail = FALSE)`.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what profiling out a nuisance
+parameter does and why it costs a degree of freedom.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Profiling replaces a parameter you don't care about with its best-fit value at every setting of
+the parameter you do care about, collapsing a multi-knob score into a fair curve over just the
+knob of interest. It costs one degree of freedom because tuning that nuisance to best-fit the
+data soaks up one independent piece of the data's surprise, leaving one fewer for the leftover
+statistic to carry.
+:::
+
+## What you can now do
+
+- **Identify a nuisance parameter** and profile it out by optimising over it at each value of the
+  parameter of interest, in R with `optimize` inside a function of the parameter you keep.
+- **Explain why the nuisance is re-optimised at every point** (a single fixed value mis-scores
+  the rest) and that the profile reaches the same global optimum as the full surface.
+- **Apply the degrees-of-freedom rule:** each parameter profiled out drops the chi-square degrees
+  of freedom by one.
+- **Get the right p-value** by using the *reduced* degrees of freedom in `pchisq`.
+
+If any of these feels shaky, revisit the toy example and the degrees-of-freedom section — a test
+statistic that profiles out a parameter (like the proportional colocalisation test) assumes all
+of them.
+
+## Where this goes next
+
+Any test statistic with a nuisance parameter needs profiling to get both a clean curve and the
+right distribution. In the proportional colocalisation course, the statistic $X^2(\theta)$
+depends on an angle $\theta$ (a reparametrised slope) you don't care about reporting — you
+profile $\theta$ out by minimising $X^2$ over it, and the "$n - 1$" degrees of freedom you'll
+see there is exactly this "started at $n$, profiled out one parameter" rule.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

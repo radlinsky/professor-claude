@@ -1,0 +1,410 @@
+---
+title: "The proportional test statistic"
+subtitle: "Fieller's statistic, the arctan reparametrisation, and profiling out the slope — turning 'on a line through the origin?' into one chi-square number"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any of them
+and re-run. The first run downloads a small R engine, so give it a few seconds. Cells without a
+Run button are ordinary listings whose output was computed when the page was built.
+:::
+
+## Where we're going
+
+Module 3 gave us the idea — colocalisation means the points $(b_2, b_1)$ lie on a line through
+the origin — and the covariance matrix $V$ the test needs. Now we make it a *measurement*. The
+trouble with "does a line of slope $\eta$ fit?" is that $\eta$ can be anything from $0$
+(horizontal) to $\infty$ (vertical), which is awkward to optimise over. The fix is a beautiful
+change of variables: replace the slope $\eta$ by an **angle** $\theta = \arctan(\eta)$, so the
+whole range of slopes maps to a finite angle in $(0, \pi)$. For any angle, we measure how far the
+data sit from that line using a **quadratic form** (a standardised squared distance — the
+foundation you built), then **profile out** the angle (minimise over it — the other foundation
+you built). The minimum is a $\chi^2_{n-1}$ statistic, and its p-value is the test. You'll build
+`prop_test_pair()` in base R and **self-check it live in your browser** against the frozen
+reference numbers.
+
+**Builds on:** [Module 3 (proportionality is colocalisation)](../03-proportionality-is-colocalisation/lesson.qmd),
+and the foundations
+[quadratic forms & the chi-square statistic](../../../../foundations/quadratic-forms-and-the-chi-square-statistic/lesson.qmd)
+and [profile likelihood](../../../../foundations/profile-likelihood/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each from memory, then check.
+
+**1.** *(Module 3)* State the null hypothesis of the proportional test, and what a **small
+p-value** means.
+
+::: {.callout-note collapse="true" title="Answer"}
+Null: $b_1 = \eta\, b_2$ (the effects are proportional = colocalisation). A **small p-value**
+rejects the null → the traits do **NOT** colocalise. See
+[Module 3](../03-proportionality-is-colocalisation/lesson.qmd).
+:::
+
+**2.** *(foundation)* What does the quadratic form $\mathbf{x}^\top V^{-1}\mathbf{x}$ measure, and
+what distribution does it follow when $\mathbf{x}$ is a length-$k$ bundle of normal noise?
+
+::: {.callout-note collapse="true" title="Answer"}
+It's the **standardised squared distance** of $\mathbf{x}$ from zero (dividing out spread and
+co-movement via $V^{-1}$); under normal noise it follows $\chi^2_k$ with $k$ = the length of
+$\mathbf{x}$. See
+[quadratic forms & the chi-square statistic](../../../../foundations/quadratic-forms-and-the-chi-square-statistic/lesson.qmd).
+:::
+
+**3.** *(foundation)* When you **profile out** a nuisance parameter (optimise over it at every
+value of the parameter of interest), what happens to the chi-square degrees of freedom?
+
+::: {.callout-note collapse="true" title="Answer"}
+Each profiled-out parameter costs **one** degree of freedom (the estimated parameter soaks up one
+independent piece of the data's surprise). See
+[profile likelihood](../../../../foundations/profile-likelihood/lesson.qmd).
+:::
+
+## A tiny example first
+
+Two SNPs (so $n = 2$). Trait 1 effects $b_1 = (0.20, 0.22)$; trait 2 effects $b_2 = (0.18,
+0.03)$; both with variance $0.0009$ (se $= 0.03$), and LD $\rho = 0.6$ between the SNPs. Do these
+colocalise?
+
+Eyeball the ratios: $b_1/b_2 = (1.11,\ 7.33)$ — wildly different, so the points are *not*
+proportional; this should look **distinct** (a small p-value). Let's measure it.
+
+For a candidate slope, use the angle form. For an angle $\theta$, the "gap from the line" at each
+SNP is $d(\theta) = \sin\theta\, b_1 - \cos\theta\, b_2$ (this is zero exactly when
+$b_1/b_2 = \cos\theta/\sin\theta$, i.e. the point is on the line). Bundle those two gaps into a
+vector, and measure their standardised squared distance using the gap's own covariance
+$V^*(\theta) = \sin^2\theta\, V_1 + \cos^2\theta\, V_2$:
+
+$$
+X^2(\theta) = d(\theta)^\top\, V^*(\theta)^{-1}\, d(\theta).
+$$
+
+Then **profile out** $\theta$: try every angle, keep the smallest $X^2$ (the best-fitting line).
+For $n = 2$ SNPs, that minimum is a $\chi^2_1$ statistic (started at $n = 2$, profiled out one
+angle → $2 - 1 = 1$ degree of freedom). Its p-value is the test. For these non-proportional
+numbers the best line still can't fit both points, so $X^2$ stays large and the p-value is tiny —
+"not colocalised."
+
+```{r toy-example}
+# Build the pair's covariance V = (sigma sigma^T) elementwise Sigma (from Module 3)
+prop_V <- function(vbeta, rho) {
+  V <- diag(vbeta); V[1, 2] <- V[2, 1] <- sqrt(vbeta[1] * vbeta[2]) * rho; V
+}
+
+b1 <- c(0.20, 0.22); v1 <- c(0.0009, 0.0009)
+b2 <- c(0.18, 0.03); v2 <- c(0.0009, 0.0009)
+rho <- 0.6
+V1 <- prop_V(v1, rho); V2 <- prop_V(v2, rho)
+
+# X^2 at a given angle theta: the standardised squared distance of the gap vector
+chisq_at <- function(theta) {
+  d     <- sin(theta) * b1 - cos(theta) * b2               # per-SNP gap from the line
+  Vstar <- sin(theta)^2 * V1 + cos(theta)^2 * V2           # the gap's covariance
+  as.numeric(t(d) %*% solve(Vstar, d))                     # d' Vstar^{-1} d (quadratic form)
+}
+
+# Profile out theta: minimise over the angle (split at pi/2 where eta -> infinity)
+o_left  <- optimize(chisq_at, c(0, pi/2))
+o_right <- optimize(chisq_at, c(pi/2, pi))
+o <- if (o_left$objective < o_right$objective) o_left else o_right
+chi <- o$objective
+c(chisquare = chi, eta_hat = tan(o$minimum),
+  p = pchisq(chi, df = 1, lower.tail = FALSE))   # df = n - 1 = 1; tiny p -> NOT colocalised
+```
+
+## Getting a feel for it
+
+**Analogy — rotating a ruler pinned at the origin.** Picture the two data points plotted, and a
+ruler pinned at $(0,0)$ that you can spin to any angle $\theta$. At each angle, measure how far
+the points miss the ruler — but in "error-bar units," so a point with a fat error bar that misses
+by a lot counts less than a precise point that misses a little (that's the $V^*(\theta)^{-1}$
+weighting, the standardised squared distance from the quadratic-forms foundation). Spin the ruler
+to the angle that fits best (that's profiling out $\theta$), and read off the leftover miss. If
+the leftover miss is small, a line through the origin fits — colocalisation. If even the best
+angle leaves a big miss, the points aren't on any origin-line — distinct.
+
+Where the analogy breaks: the ruler isn't quite a physical line — the "miss" is measured in the
+tilted, error-bar-weighted geometry, not with a real ruler, and the two SNPs' error bars can
+themselves be correlated (LD), which the covariance $V^*$ handles.
+
+**Why the angle instead of the slope?** Because the slope $\eta$ runs from $0$ to $\infty$ (and a
+vertical line is $\eta = \infty$, which no optimiser can reach). The substitution
+$\theta = \arctan(\eta)$ maps that whole infinite range into the finite interval $(0, \pi)$:
+$\eta = 0$ is $\theta = 0$, $\eta = \infty$ is $\theta = \pi/2$, negative slopes fill
+$(\pi/2, \pi)$. Now "try every slope" becomes "sweep an angle over a finite range" — a problem
+`optimize` can actually solve. The formulas also get symmetric: $\sin\theta$ multiplies $b_1$,
+$\cos\theta$ multiplies $b_2$, so neither trait is privileged.
+
+**Why does profiling cost exactly one degree of freedom?** We started with a gap vector of length
+$n$ (one gap per SNP), which would be $\chi^2_n$ if we knew the true line. But we don't — we
+*estimated* the best angle from the data by minimising. Per the profile-likelihood foundation,
+each estimated nuisance parameter soaks up one piece of the data's surprise, so the leftover is
+$\chi^2_{n-1}$. For a pair ($n = 2$) that's $\chi^2_1$.
+
+## What the notation is going to say
+
+The formula will say: for a candidate angle, form the per-SNP gaps $\sin\theta\, b_1 -
+\cos\theta\, b_2$ (zero when the point is on the line), bundle them into a vector, and take their
+standardised squared distance using the gap's covariance — a quadratic form. Then minimise that
+over the angle and read the minimum as a chi-square with $n-1$ degrees of freedom. Every piece is
+something you built: the covariance $V$ (Module 3), the quadratic form and its $\chi^2$ (a
+foundation), the profiling-out (a foundation).
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\eta$ | "eta" | the line's slope, $b_1 = \eta\, b_2$ | large & non-constant here |
+| $\theta$ | "theta" | the angle, $\theta = \arctan(\eta)$, living in $(0, \pi)$ | swept over |
+| $\arctan$ | "arc-tangent" (inverse tan) | the angle whose tangent is a given slope (in R: `atan`) | $\theta = \arctan(\eta)$ |
+| $\sin\theta, \cos\theta$ | "sine theta, cosine theta" | the angle's vertical/horizontal parts (in R: `sin`, `cos`) | — |
+| $d(\theta)$ | "d of theta" | the per-SNP **gap** vector $\sin\theta\, b_1 - \cos\theta\, b_2$; zero on the line | length-2 vector |
+| $V_1, V_2$ | "V one, V two" | each trait's covariance matrix over the SNPs, $=(\sigma\sigma^\top)\odot\Sigma$ | $2\times 2$ each |
+| $V^*(\theta)$ | "V-star of theta" | the gap's covariance, $\sin^2\theta\, V_1 + \cos^2\theta\, V_2$ | $2\times 2$ |
+| $X^2(\theta)$ | "X-squared of theta" | the quadratic form $d(\theta)^\top V^*(\theta)^{-1} d(\theta)$ | evaluated per angle |
+| $\hat\theta$ | "theta hat" | the profiled-out best angle (minimises $X^2$) | found by `optimize` |
+| $\chi^2_{n-1}$ | "chi-square with n minus 1 df" | the statistic's distribution under the null | $\chi^2_1$ for a pair |
+
+## The formal version
+
+Assemble it one piece at a time.
+
+**The gap.** For a candidate angle $\theta$,
+$$
+d(\theta) = \sin\theta\, b_1 - \cos\theta\, b_2 .
+$$
+Everyday words: "how far each SNP's point sits off the line at angle $\theta$." It is exactly
+zero at SNP $j$ when $b_{1,j}/b_{2,j} = \cos\theta/\sin\theta = 1/\eta$ — i.e. when the point is
+on the line. (Multiplying by $\sin\theta$ and $\cos\theta$ instead of by $\eta$ and $1$ is the
+angle trick; it keeps the two traits symmetric and finite.)
+
+**The gap's covariance.** The gap is a combination of two noisy estimates, so its covariance
+combines theirs:
+$$
+V^*(\theta) = \sin^2\theta\, V_1 + \cos^2\theta\, V_2 .
+$$
+Everyday words: "the wobble of the gap, mixing the two traits' covariances by how much each
+contributes at this angle." (This is why we need $V_1, V_2$ from Module 3.)
+
+**The statistic.** Standardise the gap's squared distance — the quadratic form:
+$$
+X^2(\theta) = d(\theta)^\top\, V^*(\theta)^{-1}\, d(\theta),
+$$
+then **profile out** the angle and read the minimum as a chi-square:
+$$
+X^2 = \min_{\theta\in(0,\pi)} X^2(\theta) \;\sim\; \chi^2_{n-1}\ \text{under } H_0 .
+$$
+Reading it aloud: "X-squared of theta equals d-of-theta transpose, V-star-of-theta inverse,
+d-of-theta; minimise over theta in zero to pi; the minimum is chi-square with n-minus-one degrees
+of freedom under the null." Everyday words: "measure the error-bar-weighted miss from the
+best-fitting origin-line; that miss is a chi-square, and its p-value tests colocalisation."
+
+**Mapping it onto the toy example.** We minimised $X^2(\theta)$ over the angle and got a large
+minimum (the points aren't proportional), so $\chi^2_1$'s tail p-value is tiny — the test says
+**not colocalised**, matching the eyeballed ratios $1.11$ vs $7.33$. Let's package it as
+`prop_test_pair()` and sanity-check on a *proportional* pair (which should give a large,
+colocalisation-friendly p-value):
+
+```{r formal-check}
+prop_V <- function(vbeta, rho) {
+  V <- diag(vbeta); V[1, 2] <- V[2, 1] <- sqrt(vbeta[1] * vbeta[2]) * rho; V
+}
+# The profiled Fieller test for one pair, from scratch
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) {
+    d     <- sin(theta) * beta1 - cos(theta) * beta2
+    Vstar <- sin(theta)^2 * V1 + cos(theta)^2 * V2
+    as.numeric(t(d) %*% solve(Vstar, d))
+  }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(eta_hat = tan(o$minimum), chisquare = o$objective, df = length(beta1) - 1L,
+       p = pchisq(o$objective, df = length(beta1) - 1L, lower.tail = FALSE))
+}
+
+# Sanity check: a PROPORTIONAL pair (b1 = 1.2 * b2) should NOT be rejected (large p)
+prop_test_pair(beta1 = c(0.24, 0.12), vbeta1 = c(0.0009, 0.0009),
+               beta2 = c(0.20, 0.10), vbeta2 = c(0.0009, 0.0009), rho1 = 0.6)$p  # large -> colocalised
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A U-shaped curve of the X-squared statistic against the angle theta from 0 to pi, dipping to its minimum at the best-fitting angle, with a vertical line marking that minimum."
+# TRY IT: change b1 or b2 and re-run. PREDICT: for a proportional pair, is the minimum of the
+# curve near 0 (a good fit) or large?
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+b1 <- c(0.20, 0.22); b2 <- c(0.18, 0.03); rho <- 0.6
+V1 <- prop_V(c(0.0009, 0.0009), rho); V2 <- prop_V(c(0.0009, 0.0009), rho)
+chisq_at <- function(theta) {
+  d <- sin(theta)*b1 - cos(theta)*b2; Vs <- sin(theta)^2*V1 + cos(theta)^2*V2
+  as.numeric(t(d) %*% solve(Vs, d))
+}
+th <- seq(0.001, pi - 0.001, length.out = 400)
+plot(th, sapply(th, chisq_at), type = "l", lwd = 2,
+     xlab = "angle theta (0 to pi)", ylab = "X^2(theta)",
+     main = "Profiling out the angle: the minimum is the statistic")
+best <- optimize(chisq_at, c(0.001, pi - 0.001)); abline(v = best$minimum, lty = 2, col = "tomato")
+legend("top", legend = paste("min X^2 =", round(best$objective, 2)), bty = "n")
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: the full pairwise test. PREDICT before running: these two points have ratios 1.11 and
+# 7.33 -- very non-proportional. Small p (not colocalised) or large p (colocalised)?
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(eta_hat = tan(o$minimum), chisquare = o$objective, df = length(beta1) - 1L,
+       p = pchisq(o$objective, df = length(beta1) - 1L, lower.tail = FALSE))
+}
+prop_test_pair(c(0.20, 0.22), c(0.0009, 0.0009), c(0.18, 0.03), c(0.0009, 0.0009), 0.6)
+```
+
+### Self-check — against the frozen reference {#self-check}
+
+Prove your `prop_test_pair()` matches the real thing. The three pairs below are the exact inputs
+frozen in `equivalence/fixtures/propcoloc-pairwise.json`, and the reference `chisquare`, `eta`,
+and `p` are what `colocPropTest::estprop` 0.9.3 produced on them. Your from-scratch function
+should reproduce them to about $10^{-6}$.
+
+```{webr}
+#| autorun: true
+# LIVE SELF-CHECK: prop_test_pair() vs the FROZEN colocPropTest::estprop reference (3 pairs).
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(eta_hat = tan(o$minimum), chisquare = o$objective,
+       p = pchisq(o$objective, df = length(beta1) - 1L, lower.tail = FALSE))
+}
+# frozen inputs (rows = the 3 pairs), copied from equivalence/fixtures/propcoloc-pairwise.json
+beta1  <- rbind(c(0.20, 0.05), c(0.22, 0.02), c(0.15, 0.14))
+vbeta1 <- rbind(c(0.0009, 0.001225), c(0.0009, 0.0009), c(0.000784, 0.0009))
+beta2  <- rbind(c(0.18, 0.06), c(0.03, 0.19), c(0.16, 0.02))
+vbeta2 <- rbind(c(0.001024, 0.000961), c(0.000961, 0.001089), c(0.001089, 0.000961))
+rho    <- c(0.6, 0.5, 0.7)
+# frozen reference from colocPropTest::estprop 0.9.3
+ref_chi <- c(0.1545297251349316, 32.506189167673888, 14.927113597627429)
+ref_p   <- c(0.694243637143353, 1.18813544878196e-08, 0.0001117453795285217)
+
+mine_chi <- numeric(3); mine_p <- numeric(3)
+for (k in 1:3) {
+  r <- prop_test_pair(beta1[k, ], vbeta1[k, ], beta2[k, ], vbeta2[k, ], rho[k])
+  mine_chi[k] <- r$chisquare; mine_p[k] <- r$p
+}
+cat("max |chisq - reference| =", format(max(abs(mine_chi - ref_chi)), scientific = TRUE), "\n")
+cat("max |p - reference|     =", format(max(abs(mine_p   - ref_p)),   scientific = TRUE), "\n")
+cat("all match within 1e-6? ", max(abs(mine_chi - ref_chi)) < 1e-6 &&
+                               max(abs(mine_p   - ref_p))   < 1e-6, "\n")   # TRUE
+```
+
+**Validation tier: FULL.** Each match is against `colocPropTest::estprop` 0.9.3's actual output on
+these inputs — the real reference package's numbers, verified to about $10^{-6}$. This repo's
+`equivalence/check.R` re-verifies it in CI. Your `prop_test_pair()` *is* colocPropTest's pairwise
+Fieller test.
+
+## Common traps
+
+**Trap: "a big $X^2$ means a good fit."** Backwards. $X^2$ is a *distance* (a miss from the
+line), so **small** $X^2$ means a good fit (points near the line → colocalisation), and big $X^2$
+means a poor fit → small p-value → not colocalised. Our toy's minimum $X^2$ was large, giving a
+tiny p — distinct. (And recall the null flip: small p = not colocalised.)
+
+**Trap: "profiling doesn't change the degrees of freedom, so use $\chi^2_n$."** No — you estimated
+the angle from the data, so you lose one degree of freedom: use $\chi^2_{n-1}$. For a pair, that's
+$\chi^2_1$, not $\chi^2_2$. Using the wrong df gives the wrong p-value: for a statistic of $14.93$,
+`pchisq(14.93, df = 1, lower.tail = FALSE)` ≈ $1.1\times 10^{-4}$ (correct) versus
+`pchisq(14.93, df = 2, ...)` ≈ $5.7\times 10^{-4}$ — a different number.
+
+## Check yourself
+
+**1.** For a pair, why is the profiled statistic $\chi^2_1$ and not $\chi^2_2$?
+
+::: {.callout-note collapse="true" title="Answer"}
+The gap vector has $n = 2$ entries (one per SNP), which would be $\chi^2_2$ if the line were
+known; but we *estimate* the best angle by minimising, profiling out one parameter, which costs
+one degree of freedom → $\chi^2_{2-1} = \chi^2_1$.
+:::
+
+**2.** Run `prop_test_pair` on an exactly proportional pair: $b_1 = (0.30, 0.15)$, $b_2 = (0.20,
+0.10)$ (so $b_1 = 1.5\, b_2$), all variances $0.0009$, $\rho = 0.5$. Predict then check: small p
+or large p?
+
+```{webr}
+#| autorun: false
+# check2-starter — edit and Run to check
+prop_V <- function(vbeta, rho) { V <- diag(vbeta); V[1,2] <- V[2,1] <- sqrt(vbeta[1]*vbeta[2])*rho; V }
+prop_test_pair <- function(beta1, vbeta1, beta2, vbeta2, rho1, rho2 = rho1) {
+  V1 <- prop_V(vbeta1, rho1); V2 <- prop_V(vbeta2, rho2)
+  chisq <- function(theta) { d <- sin(theta)*beta1 - cos(theta)*beta2
+    Vs <- sin(theta)^2*V1 + cos(theta)^2*V2; as.numeric(t(d) %*% solve(Vs, d)) }
+  oL <- optimize(chisq, c(0, pi/2)); oR <- optimize(chisq, c(pi/2, pi))
+  o <- if (oL$objective < oR$objective) oL else oR
+  list(chisquare = o$objective, p = pchisq(o$objective, df = length(beta1)-1L, lower.tail = FALSE))
+}
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**Large p** (near 1). The points are exactly proportional, so the best line fits perfectly, $X^2
+\approx 0$, and `pchisq(~0, df = 1, ...)` ≈ 1 — a large p-value means "fail to reject
+proportionality" = colocalised. Run:
+`prop_test_pair(c(0.30,0.15), c(0.0009,0.0009), c(0.20,0.10), c(0.0009,0.0009), 0.5)`.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the proportional test
+statistic measures and why we reparametrise the slope as an angle.
+
+::: {.callout-note collapse="true" title="A model answer"}
+It measures the error-bar-weighted distance of the effect-estimate points from the best-fitting
+line through the origin — a standardised squared distance that's a chi-square, small when the
+points are proportional (colocalised) and large when they aren't. We swap the slope for an angle
+$\theta = \arctan(\eta)$ so the infinite range of slopes (including a vertical $\eta = \infty$)
+becomes a finite angle range that an optimiser can actually search over.
+:::
+
+## What you can now do
+
+- **Build the gap and its covariance:** $d(\theta) = \sin\theta\, b_1 - \cos\theta\, b_2$ and
+  $V^*(\theta) = \sin^2\theta\, V_1 + \cos^2\theta\, V_2$.
+- **Form the Fieller statistic** $X^2(\theta) = d(\theta)^\top V^*(\theta)^{-1} d(\theta)$ as a
+  quadratic form, and **profile out** the angle to get $\chi^2_{n-1}$.
+- **Explain the arctan reparametrisation** and why profiling costs one degree of freedom.
+- **Compute a pairwise p-value** with `prop_test_pair()` and read it with the null flip (small p =
+  not colocalised), matching the frozen `colocPropTest` reference to $10^{-6}$.
+
+If any of these feels shaky, revisit the toy example and the self-check before continuing — the
+next module runs this pairwise test *many* times.
+
+## Where this goes next
+
+One pairwise test with $n - 1 = 1$ degree of freedom is a weak instrument, and a single test over
+all $n$ SNPs is weak too. The next module,
+[The pairwise correction](../05-the-pairwise-fdr-adaptation/lesson.qmd), is the paper's power fix:
+run the pairwise test on *all* pairs of variants and correct for multiplicity, rejecting
+colocalisation if any pair is significant. You'll wrap `prop_test_pair()` in `prop_run()`.
+
+Ready for more reps? Do the [practice problems](practice.qmd).
