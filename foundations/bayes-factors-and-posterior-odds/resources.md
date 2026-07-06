@@ -8,8 +8,7 @@ another voice.
   (video) — Josh Starmer derives Bayes' theorem step by step from a concrete example and
   explains why it is the foundation of Bayesian reasoning. The lesson rewrites that same
   theorem on the odds scale; watch this first if the probability-form version feels shaky,
-  then return to see it become a plain multiplication. (Title confirmed; StatQuest's plain,
-  small-example style suits this learner well.)
+  then return to see it become a plain multiplication.
 - 📖 [Bayes factor (Wikipedia)](https://en.wikipedia.org/wiki/Bayes_factor)
   (reference article) — defines the Bayes factor as the ratio of two models' evidences and,
   usefully, gives the strength-interpretation scales (Jeffreys, and Kass & Raftery) — the

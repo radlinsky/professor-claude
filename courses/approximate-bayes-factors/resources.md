@@ -8,8 +8,7 @@ example, not before — the lesson builds the intuition these expand on.
 - 📺 [StatQuest: p-values, What they are and how to interpret them](https://www.youtube.com/watch?v=vemZtEM63GY)
   (video) — Josh Starmer builds the p-value from scratch with small examples. This module
   treats the p-value as a transform of $Z$; watch this to solidify what that p-value *means*
-  before you learn the ABF re-weighs the same evidence. (Title confirmed; StatQuest's
-  small-example style suits this learner.)
+  before you learn the ABF re-weighs the same evidence.
 - 📖 [Hypothesis tests, p-values & CIs (foundation)](../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
   (this repo) — the prerequisite that builds the z-statistic estimate ÷ SE and the p-value.
   Skim its pronunciation table if $Z = \hat\beta/\text{se}$ isn't yet automatic.

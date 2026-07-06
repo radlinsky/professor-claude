@@ -7,8 +7,8 @@ lesson's toy example, to see the same "average over the prior" idea in another v
   (written post, ~2,000–2,500 words) — opens with "ask a frequentist / ask a Bayesian,"
   defines the marginal likelihood as "a prior-weighted average of the likelihood," and
   works a full R simulation of two competing Normal-mean models showing the evidence peak
-  then fall as the prior gets vaguer (the built-in Occam's razor). Matches this learner:
-  plain language, worked R, and the same averaging-not-maximizing point the lesson makes.
+  then fall as the prior gets vaguer (the built-in Occam's razor) — plain language, worked
+  R, and the same averaging-not-maximizing point the lesson makes.
   Read after the "Getting a feel for it" section.
 - 📖 [Marginal likelihood (Wikipedia)](https://en.wikipedia.org/wiki/Marginal_likelihood)
   (reference article) — states the definition as "a likelihood function integrated over
