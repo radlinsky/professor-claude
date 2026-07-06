@@ -230,3 +230,59 @@ round(c(at_0.5 = slope(0.5), at_0.7 = slope(0.7), at_0.9 = slope(0.9)), 4)
 [derivative as slope](../derivative-as-slope/lesson.qmd) module gives you that tool, and
 the optimization module shows how to *climb* to the top when no clean formula exists.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/likelihood-and-log-likelihood" pass="4"}
+
+::: {.quiz-q qid="lll-log-likelihood-value" qtype="numeric" answer="-2.079" tolerance="0.001"}
+Three independent flips at $p = 0.5$ give a likelihood of $0.125$. Its log-likelihood is
+$\ln(0.125)$. Compute it, rounded to three decimals.
+:::
+
+::: {.quiz-q qid="lll-combine-multiply" qtype="mc" answer="b"}
+For $p = 0.6$, how do you combine three independent flips (heads, heads, tails) into one
+likelihood?
+
+a) Add them: $0.6 + 0.6 + 0.4 = 1.6$
+b) Multiply them: $0.6 \times 0.6 \times 0.4 = 0.144$
+c) Average them: $(0.6 + 0.6 + 0.4)/3$
+:::
+
+::: {.quiz-q qid="lll-not-prob-of-p" qtype="mc" answer="a"}
+Why is the likelihood $L(p)$ *not* a probability distribution over $p$?
+
+a) $L(p)$ gives the probability of the *data* as $p$ varies, and these values do not sum to $1$ across $p$
+b) Because likelihood values are always negative
+c) Because $p$ is known rather than random
+:::
+
+::: {.quiz-q qid="lll-mle-idea" qtype="mc" answer="c"}
+What is the maximum-likelihood estimate $\hat{p}$?
+
+a) The average of all the likelihood values
+b) The probability that the parameter is correct
+c) The parameter value that maximizes the likelihood — the top of the curve
+:::
+
+::: {.quiz-q qid="lll-log-preserves-peak" qtype="mc" answer="a"}
+(From exponentials & logs.) Taking the log turns the likelihood's product into a sum.
+Does it move where the peak sits?
+
+a) No — the log is increasing, so it preserves the peak's location while taming the numbers
+b) Yes — the log shifts the maximizing $p$
+c) Yes — the peak moves to $p = 0.5$
+:::
+
+:::
+
+::::
