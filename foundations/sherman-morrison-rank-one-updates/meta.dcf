@@ -1,4 +1,4 @@
 ShortName: Sherman–Morrison rank-1 updates
 Concepts: A rank-1 change to a matrix ($A + uv^\top$), the Sherman–Morrison identity giving $(A+uv^\top)^{-1}$ from $A^{-1}$ without re-inverting, that it is exact (not an approximation — verified to machine precision), why it is fast ($O(p^2)$ update vs $O(p^3)$ fresh inverse), and the Woodbury / bordering family that grows or shrinks a matrix by one row+column
 BuildsOn: [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd)
-UsedBy: [switchstep-variable-selection](../courses/switchstep-variable-selection/syllabus.md)
+UsedBy: [swap-stepwise-selection](../courses/swap-stepwise-selection/syllabus.md)

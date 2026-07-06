@@ -208,3 +208,57 @@ optim(par = c(0, 0), fn = obj, method = "BFGS")[c("par", "value", "counts", "con
 Reading those four fields off any optimizer's output — that's the whole point of the
 course, and you just did it on something new.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only. Like the capstone itself, these questions draw on the whole course.
+
+::: {.module-check module="courses/gradient-descent/modules/04-capstone-decode-the-optimizer" pass="4"}
+
+::: {.quiz-q qid="cdo-par-field" qtype="mc" answer="a"}
+**In `optim()`'s output, what is `$par`?**
+
+a) The fitted parameters — the position of the bowl's bottom
+b) The leftover error the best fit could not remove
+c) The number of downhill steps the optimizer took
+:::
+
+::: {.quiz-q qid="cdo-convergence-flag" qtype="mc" answer="b"}
+**`convergence = 0` in R (or `success = True` in scipy) tells you that:**
+
+a) The optimizer found the best possible answer for any surface shape
+b) The optimizer reached a spot where the gradient is near zero and stopped cleanly
+c) The optimizer ran out of iterations before settling
+:::
+
+::: {.quiz-q qid="cdo-lbfgs-adds" qtype="mc" answer="c"}
+**What does a method like L-BFGS-B add on top of the plain gradient descent you built?**
+
+a) A fundamentally different search that does not use gradients
+b) A guarantee of finding the deepest valley on any surface
+c) A smarter step-size rule that reads the bowl's curvature, so no hand-set learning rate
+:::
+
+::: {.quiz-q qid="cdo-predict-at-answer" qtype="numeric" answer="-1.04" tolerance="0.01"}
+**The capstone's fitted line is $\hat{y} = 1.969 + (-3.009)x$. What does it predict at
+$x = 1$?** (Round to two decimals.)
+:::
+
+::: {.quiz-q qid="cdo-objective-field" qtype="mc" answer="a"}
+**In the call `optim(par = c(0, 0), fn = mse, method = "BFGS")`, what is `fn`?**
+
+a) The objective — the function being minimized, the bowl whose height is the error
+b) The formula for the fitted line's predictions
+c) The function that computes the gradient
+:::
+
+:::
+
+::::

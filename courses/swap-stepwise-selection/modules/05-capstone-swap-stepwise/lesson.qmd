@@ -1,5 +1,5 @@
 ---
-title: "Capstone — assembling SwitchStep"
+title: "Capstone — assembling Swap-Stepwise"
 subtitle: "Return to the source: decode the method, build it, run it end-to-end"
 engine: knitr
 ---
@@ -30,7 +30,7 @@ sim_study <- function(n, seed) {
 
 No new concepts — this is the proof you reached the goal. We return to the method's own
 description, decode every claim in it and point each to the module that built it, then
-assemble the five pieces into one small base-R function, `switchstep()`, and run it
+assemble the five pieces into one small base-R function, `swap_stepwise()`, and run it
 end-to-end on a simulated multi-study meta-analysis — comparing its answer to a full-data
 oracle. If you can read the method spec and rebuild it, you've reached the course goal.
 
@@ -69,9 +69,8 @@ coefficients stable. See [M3](../03-rank-one-speedups/lesson.qmd),
 
 ## Return to the source
 
-Here is the method, quoted from the course's own specification (the course-request brief
-`docs/fable-switchstep-prompt.md`, lines 17–36). We decode it claim by claim, linking each
-to the module that rebuilt it.
+Here is the method, quoted from the course's own specification. We decode it claim by claim,
+linking each to the module that rebuilt it.
 
 > **THE METHOD:** A frequentist, likelihood-based procedure for variable selection in linear
 > regression. Two settings matter: the ordinary setting where you have the full data table,
@@ -122,11 +121,11 @@ Every claim maps to a piece you built. Now assemble them.
 
 ## The assembled procedure
 
-The whole method is a short base-R suite. Each function is one module's idea; `switchstep()`
+The whole method is a short base-R suite. Each function is one module's idea; `swap_stepwise()`
 wires them together.
 
 ```{r suite}
-# --- SwitchStep: likelihood-based variable selection from summaries (R, b, n, lambda) ---
+# --- Swap-Stepwise: likelihood-based variable selection from summaries (R, b, n, lambda) ---
 
 # M1 + M4: subset BIC from summaries, with a ridge lambda on the correlation sub-matrix.
 ss_bic <- function(R, b, n, cols, lambda = 0) {
@@ -153,7 +152,7 @@ ss_search <- function(R, b, n, lambda = 0) {
 }
 
 # The whole method: select a subset, then reconstruct its ridge-stabilised joint coefficients.
-switchstep <- function(b, R, n, lambda = 0) {
+swap_stepwise <- function(b, R, n, lambda = 0) {
   S <- ss_search(R, b, n, lambda)
   beta <- setNames(numeric(length(b)), names(b))
   if (length(S)) beta[S] <- solve(R[S, S, drop = FALSE] + lambda * diag(length(S)), b[S])  # M1 + M4
@@ -169,7 +168,7 @@ $p = 12$ the plain solves are already instant; they matter when $p$ is large.)
 
 Five "published studies" each report marginal coefficients for the same twelve indicators
 (different sample sizes, no shared raw data). We inverse-variance-average them into one $b$,
-take $R$ from a reference panel, and run `switchstep()` — then compare to a **full-data
+take $R$ from a reference panel, and run `swap_stepwise()` — then compare to a **full-data
 oracle** that pools every study's raw rows and does exhaustive best-subset selection.
 
 ```{r meta-end-to-end}
@@ -186,7 +185,7 @@ b_combined <- setNames(colSums(w * B) / colSums(w), colnames(allX))   # meta: pr
 R_ref <- cor(sim_study(1000, 999)$X)                                  # reference-panel correlations
 N <- sum(ns)
 
-fit <- switchstep(b_combined, R_ref, N, lambda = 0.05)   # <- summaries only, never allX/allY
+fit <- swap_stepwise(b_combined, R_ref, N, lambda = 0.05)   # <- summaries only, never allX/allY
 names(fit$beta)[fit$selected]                            # selected indicators
 round(fit$beta[fit$selected], 3)                         # their joint coefficients
 ```
@@ -206,7 +205,7 @@ list(meta_selected   = colnames(allX)[fit$selected],
      sets_match      = identical(fit$selected, oracle_set))
 ```
 
-`switchstep()`, working only from per-study summaries and a reference correlation matrix,
+`swap_stepwise()`, working only from per-study summaries and a reference correlation matrix,
 selects the same indicators the pooled full-data oracle does — the true
 `{rate_10y, cpi_infl, unemp}`. The joint coefficients are close (not identical): the small gap
 is the price of combining summaries instead of raw rows, plus the $\lambda$ shrinkage — an
@@ -214,7 +213,7 @@ honest reconstruction, not magic.
 
 ```{webr}
 #| autorun: true
-# TRY IT: change lambda (0, 0.05, 0.5) or the studies' seeds and re-run switchstep.
+# TRY IT: change lambda (0, 0.05, 0.5) or the studies' seeds and re-run swap-stepwise.
 # PREDICT: does the selected set stay {rate_10y, cpi_infl, unemp} as lambda changes?
 ss_bic <- function(R,b,n,cols,lambda=0){ if(!length(cols)) return(0)
   RS <- R[cols,cols,drop=FALSE]+lambda*diag(length(cols))
@@ -243,7 +242,7 @@ published marginals (with a reference-panel $R$) and adding a stabilizing $\lamb
 approximation to having every raw row. It recovers the right model and approximately the right
 effects — honest, and often all the raw data would let you conclude anyway.
 
-**Trap: "SwitchStep found a set, so those indicators are *the* true causal drivers."** It found
+**Trap: "Swap-Stepwise found a set, so those indicators are *the* true causal drivers."** It found
 the subset that best trades fit against complexity under BIC, given correlated indicators. Under
 heavy collinearity (Module 4's twins), a different seed can select the *other* twin — as the
 equivalence harness's collinear fixture shows, matching the oracle both times. Selection tells
@@ -254,8 +253,8 @@ you which indicators best *predict* jointly, not which are causal.
 - **Decode the method spec** claim by claim and name the module (and formula) behind each.
 - **Reconstruct a joint fit from summaries** ($R^{-1}b$), **search** subsets by switching under
   BIC, **speed** it with rank-1 updates, and **stabilize** it with a ridge $\lambda$ — the five
-  pieces of SwitchStep.
-- **Assemble `switchstep(b, R, n, lambda)`** and run it end-to-end on a multi-study
+  pieces of Swap-Stepwise.
+- **Assemble `swap_stepwise(b, R, n, lambda)`** and run it end-to-end on a multi-study
   meta-analysis, validating the selected set against a full-data oracle.
 - **State the honest limits**: it's a greedy (heuristic) search, coefficients from summaries are
   approximate, and selection under collinearity is about prediction, not causation.
@@ -264,7 +263,7 @@ If any bullet feels shaky, revisit the module it points to — these can-dos *ar
 
 ## Where this goes next
 
-**What you still can't do (yet).** SwitchStep selects and reconstructs, but it doesn't give you
+**What you still can't do (yet).** Swap-Stepwise selects and reconstructs, but it doesn't give you
 *honest* post-selection confidence intervals for the chosen coefficients — that needs
 post-selection inference methods this course only named. Other natural next steps: the **lasso**
 (selection by an $\ell_1$ penalty, from the [ridge foundation](../../../../foundations/ridge-regularization/lesson.qmd)),

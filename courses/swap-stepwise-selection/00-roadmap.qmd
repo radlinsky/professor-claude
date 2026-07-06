@@ -32,7 +32,7 @@ flowchart TD
     M2["02 · The switching search<br/>(add / remove / swap under BIC)"]
     M3["03 · Rank-one speed-ups<br/>(bordering updates of R_S⁻¹)"]
     M4["04 · Lambda for stability<br/>(R + λI at ρ→1)"]
-    M5["05 · Capstone: assemble SwitchStep"]
+    M5["05 · Capstone: assemble Swap-Stepwise"]
 
     C1 --> C2
     C2 --> M1
@@ -65,8 +65,8 @@ flowchart TD
    (+ [practice](modules/03-rank-one-speedups/practice.qmd))
 8. [04 · Lambda for stability](modules/04-lambda-stability/lesson.qmd)
    (+ [practice](modules/04-lambda-stability/practice.qmd))
-9. [05 · Capstone — assembling SwitchStep](modules/05-capstone-switchstep/lesson.qmd)
-   (+ [practice](modules/05-capstone-switchstep/practice.qmd))
+9. [05 · Capstone — assembling Swap-Stepwise](modules/05-capstone-swap-stepwise/lesson.qmd)
+   (+ [practice](modules/05-capstone-swap-stepwise/practice.qmd))
 
 After each lesson, do its practice page before moving on. External videos/readings for
 each module: [resources](resources.md).

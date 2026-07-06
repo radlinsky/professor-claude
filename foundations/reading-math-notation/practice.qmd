@@ -141,3 +141,59 @@ You've just read a covariance formula cold — that's the payoff. The next modul
 [vectors, subscripts & summation](../vectors-and-summation/lesson.qmd), teaches the sum
 machinery to actually evaluate it.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh in your head. A pass *then* is real evidence you've
+retained it, and the effort of recalling it cold is itself what makes it stick. Five
+questions, graded on the page; 4/5 or better means this module is solid. Results are
+saved in this browser only.
+
+::: {.module-check module="foundations/reading-math-notation" pass="4"}
+
+::: {.quiz-q qid="rmn-hat-meaning" qtype="mc" answer="b"}
+**In $\hat{\beta}$, what does the hat mean?**
+
+a) The true parameter value we can never observe
+b) An estimate computed from a sample
+c) The largest value $\beta$ can take
+d) A vector rather than a single number
+:::
+
+::: {.quiz-q qid="rmn-sub-vs-super" qtype="mc" answer="a"}
+**For `x <- c(2, 4, 6)`, what is $x_2$?**
+
+a) 4
+b) 16
+c) 36
+d) 2
+:::
+
+::: {.quiz-q qid="rmn-sum-toy" qtype="numeric" answer="14" tolerance="0"}
+**For $x = (3, 5, 6)$, what is $\sum_{i=1}^{n} x_i$?**
+:::
+
+::: {.quiz-q qid="rmn-argmin" qtype="mc" answer="b"}
+**What is $\arg\min_{\beta} f(\beta)$?**
+
+a) The smallest value $f$ reaches
+b) The value of $\beta$ that makes $f$ smallest
+c) The average of $f$
+d) The number of minima
+:::
+
+::: {.quiz-q qid="rmn-propto" qtype="mc" answer="c"}
+**What does $\propto$ mean?**
+
+a) Approximately equal
+b) Defined as
+c) Equal up to a constant multiplier
+d) An element of
+:::
+
+:::
+
+::::

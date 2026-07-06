@@ -236,10 +236,15 @@ Per `.claude/course-authoring/interactive-webr.md`, each **starter** is a live
 worked **answer** chunk inside the callout stays baked `{r}`. The capstone's
 cumulative set follows `course-structure.md` §Capstone.
 
+After the practice ramp, author each module's **Module check** per
+`.claude/course-authoring/quiz-authoring.md` — the 5-item closed-answer quiz that ends
+`practice.qmd`.
+
 **GATE 5:** ☐ Every new module has `practice.qmd`. ☐ The ramp is complete per
 `problem-authoring.md`. ☐ Every answer is inside a
 `collapse="true"` callout with worked steps. ☐ Every problem with specific data
 opens with a copy-able starter chunk (built-in datasets / scalar-only prompts exempt).
+☐ Every new module's `practice.qmd` ends in a Module check meeting `quiz-authoring.md`.
 
 ---
 

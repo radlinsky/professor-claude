@@ -121,19 +121,19 @@ project:
     - courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/lesson.qmd
     - courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/practice.qmd
     - courses/multiple-regression/resources.md
-    - courses/switchstep-variable-selection/syllabus.md
-    - courses/switchstep-variable-selection/00-roadmap.qmd
-    - courses/switchstep-variable-selection/modules/01-joint-fit-from-summaries/lesson.qmd
-    - courses/switchstep-variable-selection/modules/01-joint-fit-from-summaries/practice.qmd
-    - courses/switchstep-variable-selection/modules/02-the-switching-search/lesson.qmd
-    - courses/switchstep-variable-selection/modules/02-the-switching-search/practice.qmd
-    - courses/switchstep-variable-selection/modules/03-rank-one-speedups/lesson.qmd
-    - courses/switchstep-variable-selection/modules/03-rank-one-speedups/practice.qmd
-    - courses/switchstep-variable-selection/modules/04-lambda-stability/lesson.qmd
-    - courses/switchstep-variable-selection/modules/04-lambda-stability/practice.qmd
-    - courses/switchstep-variable-selection/modules/05-capstone-switchstep/lesson.qmd
-    - courses/switchstep-variable-selection/modules/05-capstone-switchstep/practice.qmd
-    - courses/switchstep-variable-selection/resources.md
+    - courses/swap-stepwise-selection/syllabus.md
+    - courses/swap-stepwise-selection/00-roadmap.qmd
+    - courses/swap-stepwise-selection/modules/01-joint-fit-from-summaries/lesson.qmd
+    - courses/swap-stepwise-selection/modules/01-joint-fit-from-summaries/practice.qmd
+    - courses/swap-stepwise-selection/modules/02-the-switching-search/lesson.qmd
+    - courses/swap-stepwise-selection/modules/02-the-switching-search/practice.qmd
+    - courses/swap-stepwise-selection/modules/03-rank-one-speedups/lesson.qmd
+    - courses/swap-stepwise-selection/modules/03-rank-one-speedups/practice.qmd
+    - courses/swap-stepwise-selection/modules/04-lambda-stability/lesson.qmd
+    - courses/swap-stepwise-selection/modules/04-lambda-stability/practice.qmd
+    - courses/swap-stepwise-selection/modules/05-capstone-swap-stepwise/lesson.qmd
+    - courses/swap-stepwise-selection/modules/05-capstone-swap-stepwise/practice.qmd
+    - courses/swap-stepwise-selection/resources.md
 
 website:
   title: "Professor Claude"
@@ -460,42 +460,42 @@ website:
                 href: courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/practice.qmd
           - text: "Resources"
             href: courses/multiple-regression/resources.md
-      - section: "SwitchStep Variable Selection"
+      - section: "Swap-Stepwise Variable Selection"
         contents:
-          - courses/switchstep-variable-selection/syllabus.md
-          - courses/switchstep-variable-selection/00-roadmap.qmd
+          - courses/swap-stepwise-selection/syllabus.md
+          - courses/swap-stepwise-selection/00-roadmap.qmd
           - section: "1 · Joint fit from summaries"
             contents:
               - text: "Lesson"
-                href: courses/switchstep-variable-selection/modules/01-joint-fit-from-summaries/lesson.qmd
+                href: courses/swap-stepwise-selection/modules/01-joint-fit-from-summaries/lesson.qmd
               - text: "Practice"
-                href: courses/switchstep-variable-selection/modules/01-joint-fit-from-summaries/practice.qmd
+                href: courses/swap-stepwise-selection/modules/01-joint-fit-from-summaries/practice.qmd
           - section: "2 · The switching search"
             contents:
               - text: "Lesson"
-                href: courses/switchstep-variable-selection/modules/02-the-switching-search/lesson.qmd
+                href: courses/swap-stepwise-selection/modules/02-the-switching-search/lesson.qmd
               - text: "Practice"
-                href: courses/switchstep-variable-selection/modules/02-the-switching-search/practice.qmd
+                href: courses/swap-stepwise-selection/modules/02-the-switching-search/practice.qmd
           - section: "3 · Rank-one speed-ups"
             contents:
               - text: "Lesson"
-                href: courses/switchstep-variable-selection/modules/03-rank-one-speedups/lesson.qmd
+                href: courses/swap-stepwise-selection/modules/03-rank-one-speedups/lesson.qmd
               - text: "Practice"
-                href: courses/switchstep-variable-selection/modules/03-rank-one-speedups/practice.qmd
+                href: courses/swap-stepwise-selection/modules/03-rank-one-speedups/practice.qmd
           - section: "4 · Lambda for stability"
             contents:
               - text: "Lesson"
-                href: courses/switchstep-variable-selection/modules/04-lambda-stability/lesson.qmd
+                href: courses/swap-stepwise-selection/modules/04-lambda-stability/lesson.qmd
               - text: "Practice"
-                href: courses/switchstep-variable-selection/modules/04-lambda-stability/practice.qmd
-          - section: "5 · Capstone: assemble SwitchStep"
+                href: courses/swap-stepwise-selection/modules/04-lambda-stability/practice.qmd
+          - section: "5 · Capstone: assemble Swap-Stepwise"
             contents:
               - text: "Lesson"
-                href: courses/switchstep-variable-selection/modules/05-capstone-switchstep/lesson.qmd
+                href: courses/swap-stepwise-selection/modules/05-capstone-swap-stepwise/lesson.qmd
               - text: "Practice"
-                href: courses/switchstep-variable-selection/modules/05-capstone-switchstep/practice.qmd
+                href: courses/swap-stepwise-selection/modules/05-capstone-swap-stepwise/practice.qmd
           - text: "Resources"
-            href: courses/switchstep-variable-selection/resources.md
+            href: courses/swap-stepwise-selection/resources.md
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that
 # lessons can host runnable in-browser WebR chunks with a single, uniform theme.
@@ -512,6 +512,7 @@ format:
     toc: true
     code-fold: false
     code-tools: true
+    include-after-body: includes/quiz.html
 
 execute:
   warning: false

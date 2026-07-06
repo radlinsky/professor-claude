@@ -176,3 +176,53 @@ summary(fit)$r.squared       # 0.991
 3.450 / 0.091                # ~37.9, the reconstructed t
 ```
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/simple-linear-regression/modules/04-capstone-reading-a-real-regression" pass="4"}
+
+::: {.quiz-q qid="cap-prediction" qtype="numeric" answer="41.4" tolerance="0.05"}
+The `cars` regression line is $\hat{y} = -17.5791 + 3.9324\,x$. At $x = 15$ mph,
+what stopping distance does it predict? Round to one decimal.
+:::
+
+::: {.quiz-q qid="cap-r2-interpret" qtype="mc" answer="c"}
+The `cars` regression has $R^2 = 0.65$ and $p \approx 10^{-12}$ for speed. What do
+these two numbers together tell you?
+
+a) Speed's effect is rock-solid and explains nearly all of the variation in stopping distance
+b) The p-value and R² contradict each other; only one can be meaningful at once
+c) Speed's effect is reliable, but about 35% of stopping variation remains unexplained
+:::
+
+::: {.quiz-q qid="cap-slope" qtype="numeric" answer="1.4" tolerance="0"}
+For the tomato data, $s_{xy} = 7/3$ and $s_x^2 = 5/3$. What is the OLS slope
+$\hat{\beta}_1 = s_{xy}/s_x^2$? Enter one decimal.
+:::
+
+::: {.quiz-q qid="cap-t-recon" qtype="numeric" answer="9.5" tolerance="0.05"}
+From the `cars` regression: slope $= 3.9324$ and $\mathrm{SE} = 0.4155$. Compute
+the t value (estimate ÷ SE). Round to one decimal.
+:::
+
+::: {.quiz-q qid="cap-intercept" qtype="mc" answer="b"}
+The `cars` intercept is $-17.58$. A car at 0 mph is "predicted" to stop in
+$-17.58$ feet. What is the right conclusion?
+
+a) The model is wrong — a negative prediction proves the linear form breaks down in this data
+b) The intercept is just the line's height at $x=0$, far outside the `cars` data range
+c) Stopping distance at 0 mph must be estimated separately from different data
+:::
+
+:::
+
+::::

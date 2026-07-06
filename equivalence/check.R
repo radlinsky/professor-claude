@@ -21,7 +21,7 @@ source(file.path(EQ, "reimplementations", "ols.R"))
 source(file.path(EQ, "reimplementations", "welford.R"))
 source(file.path(EQ, "reimplementations", "gradient_descent.R"))
 source(file.path(EQ, "reimplementations", "multiple-regression.R"))
-source(file.path(EQ, "reimplementations", "switchstep.R"))
+source(file.path(EQ, "reimplementations", "swap-stepwise.R"))
 
 fixture <- function(name) file.path(EQ, "fixtures", name)
 
@@ -42,19 +42,19 @@ targets <- list(
        fn = function(inp) multiple_regression_reimpl(inp$X, inp$y)),
   list(path = fixture("multiple-regression-collinear-lm.json"),
        fn = function(inp) multiple_regression_reimpl(inp$X, inp$y)),
-  list(path = fixture("switchstep-joint-from-summaries.json"),
+  list(path = fixture("swap-stepwise-joint-from-summaries.json"),
        fn = function(inp) {
          j <- sw_joint(inp$R, inp$b)
          bicc <- vapply(inp$subsets, function(c) sw_bic(inp$R, inp$b, inp$n, c), numeric(1))
          list(beta = j$beta, r2 = j$r2, bic_centered = bicc - bicc[1])
        }),
-  list(path = fixture("switchstep-selection-clean.json"),
+  list(path = fixture("swap-stepwise-selection-clean.json"),
        fn = function(inp) list(selected = as.integer(seq_along(inp$b) %in% sw_search(inp$R, inp$b, inp$n)))),
-  list(path = fixture("switchstep-selection-collinear.json"),
+  list(path = fixture("swap-stepwise-selection-collinear.json"),
        fn = function(inp) list(selected = as.integer(seq_along(inp$b) %in% sw_search(inp$R, inp$b, inp$n)))),
-  list(path = fixture("switchstep-rank1-bordering.json"),
+  list(path = fixture("swap-stepwise-rank1-bordering.json"),
        fn = function(inp) list(inv_grown = as.numeric(sw_border(inp$Mi, inp$b_new, inp$d)))),
-  list(path = fixture("switchstep-ridge.json"),
+  list(path = fixture("swap-stepwise-ridge.json"),
        fn = function(inp) list(beta_ridge = sw_ridge_joint(inp$R, inp$b, inp$lambda)))
 )
 

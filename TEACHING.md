@@ -153,6 +153,31 @@ Practice sets ramp from imitation to transfer:
 Full mechanics (starter chunks, answer format, chunk labels) live in
 `.claude/course-authoring/problem-authoring.md`.
 
+## Module check
+
+Each module's `practice.qmd` ends with a **Module check**: five closed-answer
+(multiple-choice / numeric) questions, graded on the page and recorded in the
+learner's browser. It is *summative-lite* — it sits after the free-response practice
+set, presented as a **collapsed callout that tells the learner to wait at least a day**
+because the spacing is the point (taking it while the lesson is fresh only measures
+short-term fluency). It gives
+the mastery rule the one thing self-report can't: an objective signal. **≥4/5 = the module is solid**,
+and that pass is the learner's evidence for flipping their Status column to `done`.
+A miss is a prescription, not a verdict: revisit what the wrong items point at, then
+retake in a **later session** — passing after another gap is the durable evidence.
+
+- **Cumulative:** 3–4 items test this module; 1–2 are interleaved from earlier modules
+  of the course (or a foundation's `Builds on` modules), each labeled in its question
+  text. **Entry modules** (nothing earlier) are exempt — all five items module-local.
+  **Capstone modules** are the mirror image: all five items are cumulative and left
+  unlabeled, matching the capstone practice set's unlabeled retrieval.
+- **This is NOT a final exam.** The capstone is already the cumulative, unlabeled final
+  (see `course-structure.md` §Capstone) and is unchanged; do not add a separate exam.
+  The capstone module gets a Module check like any other (all-cumulative, unlabeled).
+
+Syntax, the stable-qid rule, and the item-design rules live in
+`.claude/course-authoring/quiz-authoring.md`.
+
 ## Misconceptions (Common traps)
 
 - Each lesson names 1–2 predictable wrong beliefs **explicitly**, states why each
@@ -216,6 +241,8 @@ Full mechanics (starter chunks, answer format, chunk labels) live in
 - [ ] Recap can-dos present, with the mastery rule?
 - [ ] Practice ramp complete (confidence rep → faded → full/spot-the-error →
       interleaved → transfer)?
+- [ ] Module check present: 5 closed-answer items, ≥1 interleaved (unless entry
+      module), stable qids, answers verified?
 - [ ] Everything beyond the applied need marked **Optional**?
 - [ ] Quoted numbers re-verified against the code they came from?
 

@@ -282,5 +282,5 @@ before continuing — methods that select variables lean on all of it.
 
 Information criteria are the *stopping rule* for any variable-selection search. A
 switching search that adds, drops, and swaps predictors uses BIC to decide when to stop —
-built in the `switchstep-variable-selection` course. Ready for reps? Do the
+built in the `swap-stepwise-selection` course. Ready for reps? Do the
 [practice problems](practice.qmd). External videos/readings: [resources](resources.md).

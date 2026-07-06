@@ -168,3 +168,55 @@ different sample gives different values.
 The standard error is the estimated standard deviation of that bouncing. Making
 this precise (and turning it into t values and p-values) is the next module.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/simple-linear-regression/modules/02-deriving-the-ols-formulas" pass="4"}
+
+::: {.quiz-q qid="ols-slope" qtype="numeric" answer="1.4" tolerance="0"}
+For the tomato data ($x = (1,2,3,4)$, $y = (2,3,5,6)$), the derivation gives
+$s_{xy} = 7/3$ and $s_x^2 = 5/3$. Compute $\hat{\beta}_1 = s_{xy}/s_x^2$.
+Enter one decimal.
+:::
+
+::: {.quiz-q qid="ols-intercept" qtype="numeric" answer="0.5" tolerance="0"}
+With $\hat{\beta}_1 = 1.4$, $\bar{y} = 4$, and $\bar{x} = 2.5$, compute
+$\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$. Enter one decimal.
+:::
+
+::: {.quiz-q qid="ols-through-means" qtype="mc" answer="c"}
+What does the Step-1 result $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$ imply
+geometrically?
+
+a) It tells you the slope must be positive for any real dataset
+b) It proves the best line has the smallest possible slope for the data
+c) The fitted line always passes through $(\bar{x},\bar{y})$
+:::
+
+::: {.quiz-q qid="ols-chain-rule" qtype="mc" answer="b"}
+When differentiating SSE with respect to $b_1$, which extra factor does the chain
+rule add compared with the $b_0$ step?
+
+a) $-b_0$, the intercept term that also enters through the chain rule for $b_0$
+b) $-x_i$, the predictor that multiplies $b_1$ inside each residual
+c) $-2$, the constant pulled out by the power rule
+:::
+
+::: {.quiz-q qid="ols-sse-from-fit" qtype="numeric" answer="0.20" tolerance="0"}
+(From Module 1.) Using $\hat{y}_i = 0.5 + 1.4\,x_i$ on $x = (1,2,3,4)$,
+$y = (2,3,5,6)$: the residuals are $(0.1,\,-0.3,\,0.3,\,-0.1)$. What is the SSE?
+Round to two decimals.
+:::
+
+:::
+
+::::
