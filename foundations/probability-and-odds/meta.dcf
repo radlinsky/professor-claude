@@ -1,4 +1,4 @@
 ShortName: Probability, odds & log-odds
 Concepts: Probability as a number in $[0,1]$, odds ($p/(1-p)$), log-odds (the logit), and converting between all three
 BuildsOn: [exponentials-and-logs](exponentials-and-logs/lesson.qmd)
-UsedBy: [logistic-regression](../courses/logistic-regression/syllabus.md)
+UsedBy: [logistic-regression](../courses/logistic-regression/syllabus.md), [approximate-bayes-factors](../courses/approximate-bayes-factors/syllabus.md)

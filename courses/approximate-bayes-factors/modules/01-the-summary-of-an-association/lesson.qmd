@@ -1,0 +1,350 @@
+---
+title: "The summary of an association"
+subtitle: "Everything Wakefield and coloc ever see: the pair (β̂, V)"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+A genome-wide association study fits a model at each of millions of genetic variants and
+asks, at each one, "does this variant's genotype associate with the trait?" The remarkable
+thing — the fact this whole course rests on — is that **you don't need the raw data to
+weigh that evidence.** Everything the Approximate Bayes Factor (and the `coloc` package)
+uses about a variant is a single pair of numbers: the fitted **effect estimate**
+$\hat\beta$ and the **variance** $V$ of that estimate. This module gets you comfortable
+with that pair — where it comes from, what $\hat\beta$ and $V$ mean, how they give the
+familiar z-statistic and p-value — so that the rest of the course can work entirely from
+summary statistics, exactly as the paper does.
+
+**Builds on:** the [Logistic Regression course](../../../logistic-regression/syllabus.md) —
+a genetic effect $\hat\beta$ is a **log odds ratio**, the coefficient on the log-odds scale
+you fitted there; and
+[hypothesis tests, p-values & confidence intervals](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+— the test statistic as estimate ÷ standard error, and the p-value.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** *(Logistic regression)* A fitted logistic-regression coefficient is $\hat\beta =
+0.6$. What is the **odds ratio** it corresponds to, and does this variant raise or lower
+the odds of the trait?
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+beta <- 0.6
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Odds ratio $= e^{\hat\beta} = e^{0.6} \approx 1.82$. Since it is above $1$, each copy of
+the allele *raises* the odds of the trait (multiplies them by about $1.82$). The
+coefficient itself lives on the **log-odds scale** — that's why it's a *log* odds ratio.
+Shaky? Revisit the
+[Logistic Regression course](../../../logistic-regression/modules/02-odds-log-odds-and-the-logit/lesson.qmd).
+:::
+
+**2.** *(Foundations)* A test statistic is formed as estimate ÷ standard error. If an
+estimate is $0.6$ and its standard error is $0.2$, what is the statistic, and what does its
+size tell you?
+
+::: {.callout-note collapse="true" title="Answer"}
+$0.6 / 0.2 = 3$ — the estimate sits **3 standard errors** from zero. Bigger magnitude means
+the estimate is far from zero relative to its noise, i.e. stronger evidence of a real
+effect. See
+[hypothesis tests, p-values & CIs](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd).
+:::
+
+**3.** In one line: what does a **standard error** measure about an estimate?
+
+::: {.callout-note collapse="true" title="Answer"}
+The standard error is how much the estimate would wobble if you refit the model on a fresh
+sample from the same process — the estimate's own standard deviation. Small SE = a
+precisely pinned-down estimate. See
+[hypothesis tests, p-values & CIs](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd).
+:::
+
+## A tiny example first
+
+You run an association test at one genetic variant. The software fits the model and hands
+back two numbers about the effect:
+
+- the **effect estimate** $\hat\beta = 0.6$ (a log odds ratio — the change in log-odds of
+  the trait per copy of the allele),
+- its **standard error** $\text{se} = 0.2$.
+
+From just these two, you can reconstruct everything the classical analysis reports. First,
+the **variance** of the estimate is the standard error *squared*:
+$$
+V = \text{se}^2 = 0.2^2 = 0.04.
+$$
+Next, the **z-statistic** — how many standard errors the estimate sits from zero:
+$$
+Z = \frac{\hat\beta}{\text{se}} = \frac{0.6}{0.2} = 3.
+$$
+And the **p-value** is just a transform of that $Z$: the two-sided p-value asks "if the
+true effect were zero, how often would $|Z|$ be at least $3$?" — which for the normal
+reference curve is $2 \times \texttt{pnorm}(-3) \approx 0.0027$.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+beta_hat <- 0.6      # the effect estimate (a log odds ratio)
+se       <- 0.2      # its standard error
+
+V <- se^2            # variance of the estimate = se squared
+V                     # 0.04
+
+Z <- beta_hat / se   # z-statistic: estimate in "standard-error units"
+Z                     # 3
+
+p <- 2 * pnorm(-abs(Z))   # two-sided p-value = a transform of Z
+p                          # 0.0027
+```
+
+Notice what just happened: from the pair $(\hat\beta, \text{se})$ alone — no genotypes, no
+subjects, no raw table — we produced $V$, $Z$, and the p-value. That is the entire premise
+of summary-statistic methods.
+
+## Getting a feel for it
+
+**The mental picture: a shipping label, not the shipment.** Imagine each variant's full
+dataset — thousands of people's genotypes and traits — as a heavy shipment. You don't need
+to open the crate to know what's inside if it comes with an honest **label**: "effect
+$\hat\beta = 0.6$, precision $\text{se} = 0.2$." For a well-behaved estimate (one that,
+with enough data, wobbles like a normal bell curve around the truth), that two-number label
+carries *all* the evidence about the effect that the classical test uses. Wakefield's
+insight is to read the label, not the crate. (Where the picture strains: the label is only
+*sufficient* under the approximation that the estimate is normally distributed — true for
+large studies, which GWAS always are, but not exactly true for tiny ones.)
+
+**Why these two numbers, and why square the SE to get $V$?** An estimate is only meaningful
+paired with its uncertainty — "$\hat\beta = 0.6$" means something completely different if
+the SE is $0.02$ (a sharp signal) versus $2.0$ (basically noise). So the label needs both
+the *location* ($\hat\beta$) and the *spread*. We square the standard error into a
+**variance** $V$ because variance is the quantity that combines cleanly with other
+variances later — when we add the prior's spread in the next module, it is *variances* that
+add, not standard errors. Carrying $V = \text{se}^2$ now saves a conversion later.
+
+**What the numbers feel like.** Our $Z = 3$ is a solidly significant signal — three
+standard errors out, a two-sided p-value of about $0.0027$, comfortably below the usual
+$0.05$. Halve the effect to $\hat\beta = 0.3$ (same SE) and $Z$ drops to $1.5$, p-value
+about $0.13$ — no longer significant. Or shrink the SE to $0.1$ (same effect) and $Z$
+jumps to $6$, an overwhelming signal. The z-statistic rises when the effect is bigger *or*
+the estimate is more precise — that's the tension the ABF will re-weigh in a Bayesian way.
+
+## What the notation is going to say
+
+The formulas just name the three steps you did by hand. The variance is the standard error
+squared. The z-statistic is the estimate divided by its standard error — "how many
+standard-error steps from zero." And the p-value is `pnorm` applied to $-|Z|$, doubled for
+two sides — literally "the area in the two tails of the standard normal beyond $\pm|Z|$."
+For our variant that's the $0.6 \div 0.2 = 3$ and the $2 \times \texttt{pnorm}(-3) =
+0.0027$ from above, nothing more.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\hat\beta$ | "beta hat" | the effect **estimate** — here a log odds ratio; the hat means "estimated from data" | $0.6$ |
+| $\text{se}$ | "ess-ee" / "standard error" | the standard error of $\hat\beta$: how much it would wobble on fresh data (in R: from the model's summary) | $0.2$ |
+| $V$ | "vee" | the **variance** of the estimate, $V = \text{se}^2$ (in R: `se^2`) | $0.04$ |
+| $Z$ | "zed" / "zee" | the z-statistic $\hat\beta/\text{se}$ — the estimate measured in standard-error units | $3$ |
+| $\sqrt{V}$ | "root vee" | the standard error again, recovered from the variance ($\text{se} = \sqrt{V}$) | $0.2$ |
+| $e^{\hat\beta}$ | "ee to the beta-hat" | the odds ratio the log-OR corresponds to (in R: `exp(beta_hat)`) | $\approx 1.82$ |
+| $\texttt{pnorm}$ | "pee-norm" | the normal cumulative area — area under the bell curve to the left of a point (in R: `pnorm`) | $\texttt{pnorm}(-3) \approx 0.0013$ |
+| $\Phi$ | "capital phi" | the standard-normal cumulative area function — the math name for R's `pnorm` | $\Phi(-3) \approx 0.0013$ |
+
+The hat on $\hat\beta$ flags "estimated from data, not the unknown truth" — see
+[reading math notation](../../../../foundations/reading-math-notation/lesson.qmd) for the
+accent conventions.
+
+## The formal version
+
+**The variance of the estimate.** The pair the classical analysis reports is
+$(\hat\beta, \text{se})$; the variance is just the standard error squared:
+
+$$
+V = \text{se}^2.
+$$
+
+Reading it aloud: "vee equals ess-ee squared." Everyday words: **"the variance is the
+standard error, squared."** For our variant, $V = 0.2^2 = 0.04$.
+
+**The z-statistic.** How far the estimate sits from zero, counted in standard errors:
+
+$$
+Z = \frac{\hat\beta}{\text{se}} = \frac{\hat\beta}{\sqrt{V}}.
+$$
+
+Reading it aloud: "zed equals beta-hat over ess-ee, which is beta-hat over root vee."
+Everyday words: **"how many standard errors the effect is away from zero."** For our
+variant, $Z = 0.6/0.2 = 3$ (and equivalently $0.6/\sqrt{0.04} = 0.6/0.2 = 3$).
+
+**The p-value.** A two-sided p-value is the area in both tails of the standard normal curve
+beyond $\pm|Z|$:
+
+$$
+p = 2\,\Phi(-|Z|),
+$$
+
+where $\Phi$ ("capital phi") is the normal cumulative area — R's `pnorm`. Reading it aloud:
+"pee equals two times capital-phi of minus the absolute value of zed." Everyday words:
+**"twice the area under the bell curve past your z-statistic — the chance of a result this
+extreme if the true effect were zero."** For our variant, $p = 2\,\texttt{pnorm}(-3)
+\approx 0.0027$.
+
+The key structural point: **the p-value is a deterministic transform of $Z$**, and $Z$
+comes entirely from $(\hat\beta, V)$. So the p-value adds no information beyond the pair —
+it is the pair, re-expressed. That is precisely why a method can work from $(\hat\beta, V)$
+alone and lose nothing the p-value had.
+
+Sanity-check the chain numerically in the Explore section below — $(\hat\beta, \text{se})
+\to V \to Z \to p$ reproduces exactly the hand numbers $0.04$, $3$, and $0.0027$.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the whole summary from the pair (beta_hat, se).
+# TRY IT: change beta_hat and se and watch Z and the p-value respond.
+# PREDICT: if you HALVE beta_hat to 0.3 (keep se = 0.2), will the p-value cross 0.05?
+# Commit, then run.
+beta_hat <- 0.6
+se       <- 0.2
+
+V <- se^2                       # variance = se squared
+Z <- beta_hat / se              # z-statistic
+p <- 2 * pnorm(-abs(Z))         # two-sided p-value (a transform of Z)
+c(V = V, Z = Z, p = round(p, 5))    # 0.04, 3, 0.0027
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the p-value carries NO information beyond Z.
+# Recover Z from the p-value alone, then rebuild the p-value from that Z -- round trip.
+# PREDICT: will recovered_Z equal the original Z (up to sign)? Guess, then run.
+Z <- 3
+p <- 2 * pnorm(-abs(Z))          # p from Z
+
+recovered_Z <- qnorm(p / 2)      # invert: qnorm is pnorm's undo (Module: distributions)
+c(original_Z = Z, p = round(p, 5),
+  recovered_absZ = round(abs(recovered_Z), 5))    # |recovered| == 3: the round trip closes
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The standard normal bell curve with the two tails beyond z = -3 and z = +3 shaded. The shaded tail area is tiny, illustrating that a two-sided p-value for Z = 3 is about 0.0027."
+# explore-3 — LIVE: SEE the p-value as tail area. The shaded tails past +/- Z are p.
+# TRY IT: change Z to 2 (weaker) and watch the shaded area grow toward 0.05.
+Z <- 3
+grid <- seq(-4, 4, length.out = 400)
+plot(grid, dnorm(grid), type = "l", lwd = 2,
+     xlab = "z", ylab = "density", main = "The p-value is the two-tail area past +/- Z")
+tail_lo <- grid[grid <= -abs(Z)]; tail_hi <- grid[grid >= abs(Z)]
+polygon(c(tail_lo, rev(tail_lo)), c(dnorm(tail_lo), rep(0, length(tail_lo))), col = "grey70")
+polygon(c(tail_hi, rev(tail_hi)), c(dnorm(tail_hi), rep(0, length(tail_hi))), col = "grey70")
+abline(v = c(-abs(Z), abs(Z)), lty = 2)
+```
+
+## Common traps
+
+**Trap 1 — "the effect estimate $\hat\beta = 0.6$ is the odds ratio."** No — $\hat\beta$ is
+a *log* odds ratio, on the log-odds scale. The odds ratio is $e^{\hat\beta} = e^{0.6}
+\approx 1.82$, not $0.6$. Reading $0.6$ as an odds ratio would say "the odds barely change"
+(a ratio near $1$ means no effect), when in fact the odds are multiplied by $1.82$ — a
+substantial rise. Always exponentiate a log-OR before reading it as a ratio.
+
+**Trap 2 — "you need the raw data (or at least the p-value AND the estimate) to weigh the
+evidence."** The p-value is a *transform* of $Z = \hat\beta/\text{se}$, so it carries
+nothing the pair $(\hat\beta, \text{se})$ doesn't already hold — Explore cell 2 recovers
+$|Z| = 3$ from the p-value and back again, a closed loop. The pair $(\hat\beta, V)$ is a
+complete summary of the association's evidence under the normal approximation; the whole
+rest of the course uses only that.
+
+## Check yourself
+
+**1.** An association reports $\hat\beta = 0.45$ and $\text{se} = 0.15$. Compute $V$, $Z$,
+and the two-sided p-value.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+beta_hat <- 0.45
+se       <- 0.15
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$V = 0.15^2 = 0.0225$. $Z = 0.45/0.15 = 3$. $p = 2\,\texttt{pnorm}(-3) \approx 0.0027$.
+(Same $Z$ as the toy example — a bigger effect with a proportionally bigger SE lands in the
+same place, which is exactly why $Z$, not $\hat\beta$ alone, measures the evidence.) In R,
+`c(V = 0.15^2, Z = 0.45/0.15, p = 2*pnorm(-3))`.
+:::
+
+**2.** Two variants have the same estimate $\hat\beta = 0.4$, but variant A has $\text{se}
+= 0.1$ and variant B has $\text{se} = 0.4$. Without computing the p-values, which variant
+has the stronger evidence of association, and why?
+
+::: {.callout-note collapse="true" title="Answer"}
+**Variant A.** Same effect, but A's smaller standard error means a larger $Z$
+($0.4/0.1 = 4$ vs $0.4/0.4 = 1$) — the estimate is pinned down more precisely, so it sits
+further from zero in standard-error units. Evidence depends on the effect *relative to its
+uncertainty*, not the effect alone.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why the pair
+$(\hat\beta, V)$ is all a method needs to weigh a single association, and what role the
+p-value plays.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Under the (large-sample) normal approximation, the estimate $\hat\beta$ and its variance
+$V$ together pin down the whole bell curve of the estimate around the truth, so they carry
+all the evidence the classical test uses. The p-value is just that pair re-expressed — it's
+a deterministic transform of $Z = \hat\beta/\sqrt V$ — so it adds nothing beyond the pair,
+which is why summary-statistic methods can work from $(\hat\beta, V)$ and lose no
+information.
+:::
+
+## What you can now do
+
+- **Turn a fitted association into its summary pair** — read off $\hat\beta$ and
+  $\text{se}$, and compute the variance $V = \text{se}^2$.
+- **Compute the z-statistic $Z = \hat\beta/\sqrt V$** and read its size as evidence
+  strength (effect relative to uncertainty).
+- **Get the two-sided p-value as a transform of $Z$** with `2 * pnorm(-abs(Z))`, and
+  explain why the p-value carries no information beyond the pair.
+- **Read $\hat\beta$ correctly as a log odds ratio** and convert it to an odds ratio with
+  $e^{\hat\beta}$.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) before
+continuing — the next module puts a prior on the true effect and needs $(\hat\beta, V)$ as
+its starting point.
+
+## Where this goes next
+
+You now have the pair $(\hat\beta, V)$ that every summary-statistic method starts from. The
+[next module](../02-a-prior-on-the-effect/lesson.qmd) adds the Bayesian ingredient: a
+normal prior $N(0, W)$ on the true effect, which turns the single estimate into *two*
+competing bell curves — one assuming no effect, one allowing an effect — whose ratio will
+become the Approximate Bayes Factor. Ready for more reps? Do the
+[practice problems](practice.qmd).

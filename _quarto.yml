@@ -7,6 +7,9 @@ project:
     - foundations/algebra-moves-for-derivations/lesson.qmd
     - foundations/algebra-moves-for-derivations/practice.qmd
     - foundations/algebra-moves-for-derivations/resources.md
+    - foundations/bayes-factors-and-posterior-odds/lesson.qmd
+    - foundations/bayes-factors-and-posterior-odds/practice.qmd
+    - foundations/bayes-factors-and-posterior-odds/resources.md
     - foundations/derivative-as-slope/lesson.qmd
     - foundations/derivative-as-slope/practice.qmd
     - foundations/derivative-as-slope/resources.md
@@ -31,6 +34,9 @@ project:
     - foundations/loss-functions-and-optimization/lesson.qmd
     - foundations/loss-functions-and-optimization/practice.qmd
     - foundations/loss-functions-and-optimization/resources.md
+    - foundations/marginal-likelihood-and-model-evidence/lesson.qmd
+    - foundations/marginal-likelihood-and-model-evidence/practice.qmd
+    - foundations/marginal-likelihood-and-model-evidence/resources.md
     - foundations/matrices-and-linear-transforms/lesson.qmd
     - foundations/matrices-and-linear-transforms/practice.qmd
     - foundations/matrices-and-linear-transforms/resources.md
@@ -134,6 +140,19 @@ project:
     - courses/swap-stepwise-selection/modules/05-capstone-swap-stepwise/lesson.qmd
     - courses/swap-stepwise-selection/modules/05-capstone-swap-stepwise/practice.qmd
     - courses/swap-stepwise-selection/resources.md
+    - courses/approximate-bayes-factors/syllabus.md
+    - courses/approximate-bayes-factors/00-roadmap.qmd
+    - courses/approximate-bayes-factors/modules/01-the-summary-of-an-association/lesson.qmd
+    - courses/approximate-bayes-factors/modules/01-the-summary-of-an-association/practice.qmd
+    - courses/approximate-bayes-factors/modules/02-a-prior-on-the-effect/lesson.qmd
+    - courses/approximate-bayes-factors/modules/02-a-prior-on-the-effect/practice.qmd
+    - courses/approximate-bayes-factors/modules/03-the-approximate-bayes-factor/lesson.qmd
+    - courses/approximate-bayes-factors/modules/03-the-approximate-bayes-factor/practice.qmd
+    - courses/approximate-bayes-factors/modules/04-posterior-probability-of-association/lesson.qmd
+    - courses/approximate-bayes-factors/modules/04-posterior-probability-of-association/practice.qmd
+    - courses/approximate-bayes-factors/modules/05-capstone-reading-wakefields-abf/lesson.qmd
+    - courses/approximate-bayes-factors/modules/05-capstone-reading-wakefields-abf/practice.qmd
+    - courses/approximate-bayes-factors/resources.md
 
 website:
   title: "Professor Claude"
@@ -155,6 +174,14 @@ website:
                 href: foundations/algebra-moves-for-derivations/practice.qmd
               - text: "Resources"
                 href: foundations/algebra-moves-for-derivations/resources.md
+          - section: "Bayes factors & posterior odds"
+            contents:
+              - text: "Lesson"
+                href: foundations/bayes-factors-and-posterior-odds/lesson.qmd
+              - text: "Practice"
+                href: foundations/bayes-factors-and-posterior-odds/practice.qmd
+              - text: "Resources"
+                href: foundations/bayes-factors-and-posterior-odds/resources.md
           - section: "The derivative as a slope"
             contents:
               - text: "Lesson"
@@ -219,6 +246,14 @@ website:
                 href: foundations/loss-functions-and-optimization/practice.qmd
               - text: "Resources"
                 href: foundations/loss-functions-and-optimization/resources.md
+          - section: "Marginal likelihood & model evidence"
+            contents:
+              - text: "Lesson"
+                href: foundations/marginal-likelihood-and-model-evidence/lesson.qmd
+              - text: "Practice"
+                href: foundations/marginal-likelihood-and-model-evidence/practice.qmd
+              - text: "Resources"
+                href: foundations/marginal-likelihood-and-model-evidence/resources.md
           - section: "Matrices & linear transforms"
             contents:
               - text: "Lesson"
@@ -496,6 +531,42 @@ website:
                 href: courses/swap-stepwise-selection/modules/05-capstone-swap-stepwise/practice.qmd
           - text: "Resources"
             href: courses/swap-stepwise-selection/resources.md
+      - section: "Approximate Bayes Factors"
+        contents:
+          - courses/approximate-bayes-factors/syllabus.md
+          - courses/approximate-bayes-factors/00-roadmap.qmd
+          - section: "1 · The summary of an association"
+            contents:
+              - text: "Lesson"
+                href: courses/approximate-bayes-factors/modules/01-the-summary-of-an-association/lesson.qmd
+              - text: "Practice"
+                href: courses/approximate-bayes-factors/modules/01-the-summary-of-an-association/practice.qmd
+          - section: "2 · A prior on the effect"
+            contents:
+              - text: "Lesson"
+                href: courses/approximate-bayes-factors/modules/02-a-prior-on-the-effect/lesson.qmd
+              - text: "Practice"
+                href: courses/approximate-bayes-factors/modules/02-a-prior-on-the-effect/practice.qmd
+          - section: "3 · The Approximate Bayes Factor"
+            contents:
+              - text: "Lesson"
+                href: courses/approximate-bayes-factors/modules/03-the-approximate-bayes-factor/lesson.qmd
+              - text: "Practice"
+                href: courses/approximate-bayes-factors/modules/03-the-approximate-bayes-factor/practice.qmd
+          - section: "4 · Posterior probability of association"
+            contents:
+              - text: "Lesson"
+                href: courses/approximate-bayes-factors/modules/04-posterior-probability-of-association/lesson.qmd
+              - text: "Practice"
+                href: courses/approximate-bayes-factors/modules/04-posterior-probability-of-association/practice.qmd
+          - section: "5 · Capstone: reading Wakefield's ABF"
+            contents:
+              - text: "Lesson"
+                href: courses/approximate-bayes-factors/modules/05-capstone-reading-wakefields-abf/lesson.qmd
+              - text: "Practice"
+                href: courses/approximate-bayes-factors/modules/05-capstone-reading-wakefields-abf/practice.qmd
+          - text: "Resources"
+            href: courses/approximate-bayes-factors/resources.md
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that
 # lessons can host runnable in-browser WebR chunks with a single, uniform theme.

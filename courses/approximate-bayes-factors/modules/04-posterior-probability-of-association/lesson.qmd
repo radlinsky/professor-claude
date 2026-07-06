@@ -1,0 +1,363 @@
+---
+title: "Posterior probability of association"
+subtitle: "Run the Bayes factor through prior odds to a probability — and see why a p-value threshold must shrink with n"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+You have a Bayes factor for association. But a Bayes factor is only *evidence* — it isn't yet
+a probability that a variant is associated. This module runs the ABF through the machine you
+built in the foundations: **posterior odds = prior odds × Bayes factor**, then convert to the
+**posterior probability of association (PPA)**. The prior odds come from $\pi$, the small
+prior probability that any given variant is truly associated (in a GWAS, maybe $1$ in
+$10{,}000$). Along the way we reach the paper's headline: because a p-value's meaning depends
+on sample size while an honest Bayesian threshold does not, **a fixed p-value becomes weaker
+and weaker evidence as $n$ grows** — so a sensible significance threshold must *shrink* with
+sample size. And we'll see the specific prior that makes ABF and p-value *rankings* line up.
+
+**Builds on:** the [previous module](../03-the-approximate-bayes-factor/lesson.qmd) — the
+lABF;
+[bayes factors & posterior odds](../../../../foundations/bayes-factors-and-posterior-odds/lesson.qmd)
+— posterior odds = prior odds × Bayes factor, and probability from odds;
+[probability & odds](../../../../foundations/probability-and-odds/lesson.qmd) — converting
+between $\pi$ and odds; and
+[hypothesis tests & p-values](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+— what a p-value is.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** *(Foundation)* Prior odds of $0.5$ and a Bayes factor of $10$. What are the posterior
+odds, and the posterior probability?
+
+::: {.callout-note collapse="true" title="Answer"}
+Posterior odds $= 0.5 \times 10 = 5$. Posterior probability $= 5/(1 + 5) = 0.833$. See
+[bayes factors & posterior odds](../../../../foundations/bayes-factors-and-posterior-odds/lesson.qmd).
+:::
+
+**2.** *(Module 3)* Our running variant has $Z = 4$, $V = 0.0025$, $W = 0.04$, giving lABF
+$= 6.11$. What is the Bayes factor $e^{\text{lABF}}$?
+
+```{webr}
+#| autorun: false
+# warmup2-starter — edit and Run to check
+lABF <- 6.11
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$e^{6.11} \approx 451.6$. See
+[the Approximate Bayes Factor](../03-the-approximate-bayes-factor/lesson.qmd).
+:::
+
+**3.** *(Foundation)* A prior probability is $\pi = 10^{-4}$. What are the prior *odds*
+$\pi/(1 - \pi)$, roughly?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\pi/(1 - \pi) = 10^{-4}/(1 - 10^{-4}) \approx 1.0001 \times 10^{-4}$ — for tiny $\pi$ the
+odds are almost exactly $\pi$ itself. See
+[probability & odds](../../../../foundations/probability-and-odds/lesson.qmd).
+:::
+
+## A tiny example first
+
+Our running variant has lABF $= 6.11$, so its Bayes factor for association is $e^{6.11}
+\approx 451.6$ — the data are about $452$ times more consistent with "associated" than "not."
+Is the variant *probably* associated? That depends on how rare true associations are.
+
+In a GWAS, most variants are *not* associated with the trait, so the prior probability that
+any one is takes a small value like $\pi = 10^{-4}$ (1 in 10,000). Turn that into **prior
+odds**:
+$$
+\text{prior odds} = \frac{\pi}{1 - \pi} = \frac{10^{-4}}{1 - 10^{-4}} \approx 10^{-4}.
+$$
+Now multiply by the Bayes factor to get **posterior odds** (the foundation's rule):
+$$
+\text{posterior odds} = \text{prior odds} \times \text{BF} = 10^{-4} \times 451.6 \approx
+0.0452.
+$$
+Finally convert odds back to a probability — the **posterior probability of association**:
+$$
+\text{PPA} = \frac{\text{posterior odds}}{1 + \text{posterior odds}} = \frac{0.0452}{1.0452}
+\approx 0.0432.
+$$
+
+So even with a Bayes factor of $452$, our variant is only about **$4.3\%$** likely to be a
+true association — because it started so implausible ($1$ in $10{,}000$). Strong evidence,
+applied to long odds, still leaves the posterior modest. The same thing in R:
+
+```{r toy-example}
+lABF  <- 6.11
+BF    <- exp(lABF)                       # 451.6
+
+pi_prior   <- 1e-4                        # prior prob any variant is associated
+prior_odds <- pi_prior / (1 - pi_prior)   # ~1e-4
+post_odds  <- prior_odds * BF             # ~0.0452
+PPA        <- post_odds / (1 + post_odds) # ~0.0432
+c(BF = round(BF, 1), prior_odds = signif(prior_odds, 3),
+  post_odds = round(post_odds, 4), PPA = round(PPA, 4))
+```
+
+## Getting a feel for it
+
+**The mental picture: the rare-disease test, again.** This is exactly the medical-test anchor
+from the [Bayes-factors
+foundation](../../../../foundations/bayes-factors-and-posterior-odds/lesson.qmd), now wearing
+GWAS clothes. A GWAS variant is like a patient screened for a rare disease: the prior
+probability of association ($\pi = 10^{-4}$) is the disease's rarity, and the ABF is the
+test's likelihood ratio. A strong "positive" (BF $= 452$) multiplies the tiny prior odds up —
+but $10^{-4} \times 452$ is still only about $1$ in $22$, so the variant is *probably not*
+associated despite impressive-looking evidence. This is why a genome-wide scan of a million
+variants needs *overwhelming* per-variant evidence before believing any single hit — the same
+reason a rare-disease screen needs confirmation. (Where the anchor holds perfectly: both are
+"multiply long prior odds by an evidence ratio"; the only difference is the ABF comes from a
+closed form rather than a test's sensitivity/specificity.)
+
+**Why a p-value can't do this job — and why its threshold must shrink with $n$.** A p-value
+answers "if there were no effect, how surprising is this data?" It never asks "how rare are
+real effects?" — so it can't produce a posterior probability. Worse, a p-value's *evidential
+meaning* depends on sample size, while the ABF's does not. Here's the mechanism: fix the
+p-value (fix $Z$) and grow the sample. Bigger $n$ shrinks the standard error, so $V \to 0$ and
+the shrinkage $r = W/(W + V) \to 1$. In the lABF $= \tfrac12(\log(1 - r) + rZ^2)$, the signal
+term $rZ^2$ stays bounded (it's about $Z^2$), but the width penalty $\log(1 - r) \to -\infty$.
+So the **same p-value gives less and less Bayesian evidence as $n$ grows — eventually
+favoring the null.** A p-value of $0.05$ that meant "mild evidence for an effect" in a small
+study means "evidence *against* an effect" in a huge one. To keep a fixed level of real
+evidence, the p-value threshold has to get *stricter* as $n$ rises — Wakefield's headline.
+
+**What the numbers feel like.** With $\pi = 10^{-4}$, our BF of $452$ gave PPA $\approx 0.043$
+— unconvincing. Bump the prior to $\pi = 10^{-3}$ and PPA jumps to $0.31$; to $\pi = 10^{-2}$
+and it's $0.82$. And on the shrinking-threshold point: a fixed $Z = 2$ ($p \approx 0.05$) has
+lABF $\approx 0.65$ (BF $\approx 1.9$) when $V = 0.04$, but lABF $\approx -3.3$ (BF $\approx
+0.04$) when $V = 10^{-6}$ — the *identical* p-value flipped from weak-for to strong-against as
+the study grew.
+
+## What the notation is going to say
+
+The formulas chain three steps you've already met. Prior odds is $\pi/(1 - \pi)$ — the rare
+prior probability turned into odds. Posterior odds is prior odds times the Bayes factor
+$e^{\text{lABF}}$ — Bayes' rule on odds. PPA is posterior odds over one-plus-posterior-odds —
+odds back to a probability. And the threshold argument is read straight off the lABF formula:
+as $V \to 0$, $r \to 1$, and $\log(1 - r) \to -\infty$ drags the lABF down for any fixed $Z$.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\pi$ | "pi" | the **prior probability** that a given variant is truly associated | $10^{-4}$ |
+| $\pi/(1-\pi)$ | "pi over one minus pi" | the prior **odds** of association | $\approx 10^{-4}$ |
+| $\text{BF}$ | "bee-eff" | the Bayes factor for association, $e^{\text{lABF}}$ | $451.6$ |
+| $\text{lABF}$ | "log-A-B-F" | the log Bayes factor (Module 3) | $6.11$ |
+| posterior odds | — | prior odds $\times$ BF | $0.0452$ |
+| $\text{PPA}$ | "pee-pee-ay" | the **posterior probability of association** | $0.0432$ |
+| $r$ | "little r" | shrinkage factor $W/(W+V)$ (Module 3) | $0.9412$ |
+| $Z$ | "zed" | z-statistic (Module 1) | $4$ |
+| $V$ | "vee" | variance of the estimate, $\text{se}^2$ (Module 1); shrinks as $n$ grows | $0.0025$ |
+| $W$ | "double-you" | prior variance on the true effect (Module 2) | $0.04$ |
+| $\log$ | "log" (natural, base $e$) | natural logarithm (in R: `log`) | $\log(1-r) = -2.833$ |
+| $\to$ | "goes to" / "tends to" | approaches, in a limit (e.g. as the sample grows) | $V \to 0$ as $n$ grows |
+
+## The formal version
+
+**From Bayes factor to posterior probability.** Three steps, all from the
+[foundation](../../../../foundations/bayes-factors-and-posterior-odds/lesson.qmd):
+
+$$
+\text{prior odds} = \frac{\pi}{1 - \pi}, \qquad
+\text{posterior odds} = \frac{\pi}{1 - \pi}\times \text{BF}, \qquad
+\text{PPA} = \frac{\text{posterior odds}}{1 + \text{posterior odds}}.
+$$
+
+Reading it aloud: "prior odds is pi over one-minus-pi; posterior odds is that times the Bayes
+factor; the posterior probability of association is the posterior odds over one-plus-posterior
+odds." Everyday words: **"turn the rarity of real hits into odds, scale by the evidence, turn
+back into a probability."**
+
+Mapping it onto the toy example ($\pi = 10^{-4}$, BF $= 451.6$): prior odds $\approx 10^{-4}$,
+posterior odds $\approx 0.0452$, PPA $\approx 0.0432$ — the hand numbers.
+
+**Why the p-value threshold must shrink with $n$.** Recall lABF $= \tfrac12(\log(1 - r) +
+rZ^2)$ with $r = W/(W + V)$. Hold the p-value fixed — equivalently, hold $Z$ fixed. As the
+sample grows, the standard error shrinks, so $V \to 0$ and therefore
+
+$$
+r = \frac{W}{W + V} \longrightarrow 1, \qquad
+\log(1 - r) = \log\!\frac{V}{V + W} \longrightarrow -\infty,
+$$
+
+while $rZ^2 \to Z^2$ stays finite. So $\text{lABF} \to -\infty$: **a fixed $Z$ (fixed
+p-value) delivers ever-weaker — eventually negative — Bayesian evidence as $n$ grows.** To
+report the *same* strength of real evidence, you must demand a larger $|Z|$ (a smaller
+p-value) in a bigger study. There is no single p-value threshold that means the same thing at
+every sample size — the honest threshold shrinks.
+
+Reading it aloud: "as vee goes to zero, r goes to one, log of one-minus-r goes to minus
+infinity, so the log ABF goes to minus infinity." Everyday words: **"the same p-value is worth
+less and less evidence the more data you have."**
+
+**The prior that makes ABF and p-value rankings identical (Optional).** Order matters in a
+GWAS: you rank variants and follow up the top. When does the ABF rank variants the *same* way
+the p-value does? A p-value ranks purely by $Z^2$ (bigger $Z^2$ = smaller p). The lABF ranks
+by $\tfrac12(\log(1 - r) + rZ^2)$. If you choose the prior so that **$W$ is proportional to
+$V$** — that is, $W = cV$ for a constant $c$, which makes $r = W/(W + V) = c/(1 + c)$ the
+*same* for every variant — then the lABF becomes $\tfrac12(\log(1 - r) + rZ^2)$ with $r$ fixed,
+a strictly increasing function of $Z^2$. Rank by that and you rank by $Z^2$ — **exactly the
+p-value's ranking.** So a prior whose variance tracks each variant's own variance links the
+two approaches: same order, even though the ABF still gives you a probability the p-value
+can't. (This is optional depth — it explains *why* the paper can say the methods sometimes
+agree on ranking while disagreeing on interpretation.)
+
+Sanity-check the PPA chain and the threshold claim numerically in the Explore cells below.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: Bayes factor to posterior probability of association.
+# This is the from-scratch wakefield_ppa the course validates (base R).
+# TRY IT: change pi_prior. PREDICT: raising pi from 1e-4 to 1e-3 (ten times more likely
+# a priori) -- will PPA roughly ten-fold? Commit, then run.
+wakefield_ppa <- function(labf, prior = 1e-4) {
+  prior_odds <- prior / (1 - prior)
+  po <- prior_odds * exp(labf)             # posterior odds = prior odds x BF
+  po / (1 + po)                             # PPA
+}
+lABF <- 6.11
+c(pi_1e4 = wakefield_ppa(lABF, 1e-4),
+  pi_1e3 = wakefield_ppa(lABF, 1e-3),
+  pi_1e2 = wakefield_ppa(lABF, 1e-2))       # 0.0432, 0.311, 0.820
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the headline. Fix the p-value (fix Z), grow the sample (shrink V),
+# and watch the SAME p-value lose all its Bayesian evidence.
+# PREDICT: for Z = 2 (p ~ 0.05), as V shrinks toward 1e-6, does lABF stay positive? Guess, run.
+labf <- function(z, V, W) { r <- W / (W + V); 0.5 * (log(1 - r) + r * z^2) }
+Z <- 2; W <- 0.04                            # fixed p-value ~ 0.0455
+V_seq <- c(0.04, 0.01, 0.0025, 1e-4, 1e-6)   # shrinking variance = growing sample
+
+data.frame(V = V_seq,
+           lABF = round(sapply(V_seq, function(V) labf(Z, V, W)), 3),
+           BF   = round(exp(sapply(V_seq, function(V) labf(Z, V, W))), 3))
+# lABF falls from +0.65 to -3.30: p = 0.05 goes from weak-FOR to strong-AGAINST an effect
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Posterior probability of association plotted against the log Bayes factor, one curve per prior probability pi (1e-4, 1e-3, 1e-2). All curves are S-shaped rising from 0 to 1, but the curve for a larger pi is shifted left, reaching high PPA at a smaller lABF. A dashed vertical line marks the running variant's lABF of 6.11."
+# explore-3 — LIVE: SEE how the prior pi sets how much evidence you need for a given PPA.
+# TRY IT: add pi = 0.5 to the list and watch its curve sit far to the left.
+labf_grid <- seq(-2, 14, length.out = 300)
+ppa <- function(labf, pi) { po <- pi / (1 - pi) * exp(labf); po / (1 + po) }
+
+plot(labf_grid, ppa(labf_grid, 1e-4), type = "l", lwd = 2, ylim = c(0, 1),
+     xlab = "log ABF", ylab = "posterior prob. of association",
+     main = "Rarer prior -> more evidence needed for the same PPA")
+lines(labf_grid, ppa(labf_grid, 1e-3), lwd = 2, lty = 2)
+lines(labf_grid, ppa(labf_grid, 1e-2), lwd = 2, lty = 3)
+abline(v = 6.11, col = "grey50")
+legend("bottomright", c("pi = 1e-4", "pi = 1e-3", "pi = 1e-2"), lwd = 2, lty = 1:3, bty = "n")
+```
+
+## Common traps
+
+**Trap 1 — "a big Bayes factor means the variant is probably associated."** Not on its own.
+Our BF of $452$ sounds decisive, but with $\pi = 10^{-4}$ the PPA is only $0.043$ — the
+variant is still *probably not* a true hit. Evidence multiplies the prior odds; it doesn't
+reset them. This is the same trap as the medical-test foundation, and it's why GWAS demands
+enormous per-variant evidence.
+
+**Trap 2 — "a p-value of $0.05$ always means the same strength of evidence."** No — its
+evidential meaning depends on sample size. For $Z = 2$ (i.e. $p \approx 0.05$) with $W =
+0.04$: at $V = 0.04$ the lABF is $+0.65$ (BF $\approx 1.9$, mild evidence *for*), but at $V =
+10^{-6}$ the lABF is $-3.3$ (BF $\approx 0.04$, strong evidence *against*). Same p-value,
+opposite conclusions — because a huge study reaching only $p = 0.05$ has found a *tiny* effect,
+which the ABF reads as unimpressive. That's precisely why the threshold must shrink with $n$.
+
+## Check yourself
+
+**1.** A variant has lABF $= 4$ (so BF $= e^4 \approx 54.6$). Using $\pi = 10^{-4}$, compute
+the prior odds, posterior odds, and PPA.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+lABF <- 4
+pi_prior <- 1e-4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+BF $= e^4 \approx 54.6$. Prior odds $= 10^{-4}/(1 - 10^{-4}) \approx 10^{-4}$. Posterior odds
+$= 10^{-4} \times 54.6 \approx 0.00546$. PPA $= 0.00546/(1.00546) \approx 0.00543$ — about
+half a percent. (A BF of $\sim$55 barely dents a $1$-in-$10{,}000$ prior.)
+:::
+
+**2.** True or false: increasing the sample size makes a fixed p-value of $0.01$ *stronger*
+evidence for an effect. Explain in one line.
+
+::: {.callout-note collapse="true" title="Answer"}
+**False** — it makes it *weaker*. A fixed p-value means a fixed $Z$; as $n$ grows, $V \to 0$,
+$r \to 1$, and the width penalty $\log(1 - r) \to -\infty$ drags the lABF down, so the same
+p-value carries less (eventually negative) Bayesian evidence — the reason the threshold must
+shrink with $n$.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why a variant with strong
+ABF evidence can still be unlikely to be truly associated, and why a p-value threshold should
+tighten as studies grow.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The posterior probability of association multiplies the prior odds of a hit — which are tiny
+in a genome-wide scan — by the Bayes factor, so even a large ABF applied to $1$-in-$10{,}000$
+odds can leave the variant probably-not-associated. A p-value threshold should tighten with
+sample size because a fixed p-value corresponds to a shrinking true effect as $n$ grows, and
+the ABF reads that shrinking effect as ever-weaker evidence — so holding the threshold fixed
+would let progressively flimsier findings through.
+:::
+
+## What you can now do
+
+- **Convert a Bayes factor into a posterior probability of association** via prior odds
+  $\pi/(1-\pi)$, posterior odds, and PPA — and build `wakefield_ppa()` in base R.
+- **Explain why a strong ABF can still give a small PPA** when the prior $\pi$ is tiny (the
+  rare-hit / rare-disease anchor).
+- **Explain why a fixed p-value loses evidence as $n$ grows** (as $V \to 0$, $r \to 1$, the
+  width penalty diverges), so the significance threshold must shrink.
+- **State the prior that makes ABF and p-value rankings identical** — $W$ proportional to $V$,
+  which fixes $r$ and makes the lABF increase with $Z^2$.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and the
+threshold argument in [The formal version](#the-formal-version) before the capstone — you'll
+decode Wakefield's own statement of these results next.
+
+## Where this goes next
+
+You've built the whole pipeline: $(\hat\beta, \text{se}) \to Z \to \text{lABF} \to \text{PPA}$.
+The [capstone](../05-capstone-reading-wakefields-abf/lesson.qmd) returns to the source — it
+decodes Wakefield's own equations (including his reciprocal sign convention) and the
+`coloc::approx.bf.estimates` / `coloc.abf` interface line by line, assembles the full
+`wakefield_abf()`, runs it on a simulated multi-SNP GWAS region, and validates it once more
+against the frozen `coloc` reference. Ready for more reps? Do the
+[practice problems](practice.qmd).

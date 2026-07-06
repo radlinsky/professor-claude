@@ -1,0 +1,249 @@
+---
+title: "Practice: Bayes factors and posterior odds"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Same coin data (heads, heads, tails), so a model at heads-probability $p$ has evidence
+$L(p) = p^2(1-p)$. Weigh **Model 2 (biased, $p = 0.7$)** against **Model 1 (fair, $p =
+0.5$)**, with **prior odds $1$** (equal belief). Compute the Bayes factor $\text{BF}_{21}$,
+the posterior odds, and the posterior probability of the biased model.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+lik <- function(p) p^2 * (1 - p)
+prior_odds <- 1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Evidences: $L(0.7) = 0.7^2 \times 0.3 = 0.147$ and $L(0.5) = 0.125$. Bayes factor:
+$\text{BF}_{21} = 0.147/0.125 = 1.176$. Posterior odds $= 1 \times 1.176 = 1.176$.
+Posterior probability $= 1.176/(1 + 1.176) = 0.540$.
+
+```{r p1-answer}
+lik <- function(p) p^2 * (1 - p)
+BF  <- lik(0.7) / lik(0.5)                    # 1.176
+po  <- 1 * BF                                  # posterior odds (prior odds 1)
+c(BF = round(BF, 3), post_odds = round(po, 3), PP = round(po / (1 + po), 3))
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+Two point models have evidences $P(D\mid M_2) = 0.20$ and $P(D\mid M_1) = 0.05$, and your
+prior odds are $1$. Here is the worked solution with the core step blanked — supply only
+that step.
+
+- Step 1 (shown): the two evidences are $0.20$ and $0.05$.
+- Step 2 (**your step here**): compute the Bayes factor $\text{BF}_{21}$ from the two
+  evidences. Write the exact arithmetic.
+- Step 3 (shown): with prior odds $1$, the posterior odds are $4$ and the posterior
+  probability of $M_2$ is $4/(1+4) = 0.8$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+evidence_2 <- 0.20
+evidence_1 <- 0.05
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing move is the **evidence ratio**: $\text{BF}_{21} = P(D\mid M_2)/P(D\mid M_1) =
+0.20/0.05 = 4$. The data fit $M_2$ four times better than $M_1$. Then posterior odds $= 1
+\times 4 = 4$, and the posterior probability is $4/5 = 0.8$.
+
+```{r p2-answer}
+BF <- 0.20 / 0.05                # 4 -- the evidence ratio
+po <- 1 * BF                      # 4
+c(BF = BF, post_odds = po, PP = po / (1 + po))    # 0.8
+```
+:::
+
+## Problem 3 — start from a prior probability
+
+You believe a hypothesis $M_2$ with **prior probability $0.2$** (so $M_1$ has $0.8$). New
+data give a Bayes factor $\text{BF}_{21} = 5$. Convert the prior probability to odds,
+update on the odds scale, and report the posterior probability of $M_2$.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: prior prob -> prior odds -> posterior odds -> posterior prob
+prior_prob <- 0.2
+BF <- 5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Prior odds $= 0.2/0.8 = 0.25$. Posterior odds $= 0.25 \times 5 = 1.25$. Posterior
+probability $= 1.25/(1 + 1.25) = 0.556$. So the data lifted belief in $M_2$ from $0.2$ to
+about $0.556$ — it crossed $0.5$, becoming the more likely of the two.
+
+```{r p3-answer}
+prior_prob <- 0.2
+prior_odds <- prior_prob / (1 - prior_prob)     # 0.25
+post_odds  <- prior_odds * 5                      # 1.25
+c(prior_odds = prior_odds, post_odds = post_odds,
+  PP = round(post_odds / (1 + post_odds), 3))     # 0.556
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague reports — it contains **exactly one mistake** — find it and give the correct
+reading.
+
+> "The Bayes factor for the treatment working versus not working is $\text{BF} = 8$, so
+> there is an $8\%$ chance the treatment works."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is treating the **Bayes factor as a probability**. A Bayes factor is an
+evidence *ratio*, not a probability — it isn't even between $0$ and $1$ here ($8 > 1$), and
+"an $8\%$ chance" mangles the value on top of that. A Bayes factor of $8$ means the data
+are $8$ times more consistent with "works" than "doesn't"; to get a probability you must
+combine it with prior odds and convert. For example, with even prior odds ($1$): posterior
+odds $= 1 \times 8 = 8$, posterior probability $= 8/9 \approx 0.889$ — an $89\%$ chance,
+nowhere near $8\%$.
+
+```{r p4-answer}
+BF <- 8
+po <- 1 * BF                      # even prior odds
+po / (1 + po)                      # 0.889 -- the actual probability, not 0.08
+```
+:::
+
+## Problem 5 — mixing it with marginal likelihoods *(uses marginal-likelihood-and-model-evidence's averaging)*
+
+The two models needn't be single points. Compare **Model B** (a point model, fair coin
+$p = 0.5$) against **Model A** (which spreads equal prior weight over $p = 0.5$ and
+$p = 0.7$) for the data heads, heads, tails. Compute each model's evidence by averaging its
+likelihood over its own prior, then the Bayes factor of A over B, and the posterior
+probability of A at prior odds $1$.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+lik <- function(p) p^2 * (1 - p)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Model A's evidence is the *average* likelihood over its prior:
+$\tfrac12\big(L(0.5) + L(0.7)\big) = \tfrac12(0.125 + 0.147) = 0.136$ (the marginal
+likelihood move). Model B's evidence is the point value $L(0.5) = 0.125$. So
+$\text{BF}_{AB} = 0.136/0.125 = 1.088$, posterior odds $= 1 \times 1.088$, and the
+posterior probability of A is $1.088/(1 + 1.088) = 0.521$.
+
+```{r p5-answer}
+lik <- function(p) p^2 * (1 - p)
+evidence_A <- mean(lik(c(0.5, 0.7)))          # average over A's prior -> 0.136
+evidence_B <- lik(0.5)                          # point model -> 0.125
+BF <- evidence_A / evidence_B                    # 1.088
+po <- 1 * BF
+c(BF = round(BF, 3), PP_A = round(po / (1 + po), 3))     # 0.521
+```
+The Bayes factor still works the same way — only how you *get* each model's evidence
+changes (averaging over a prior vs a single point).
+:::
+
+## Problem 6 — transfer (interpretation)
+
+A screening test for a rare condition has a Bayes factor of $8$ for a positive result. In
+Population X the condition's prior probability is $1/500$; in Population Y it is $1/5$. A
+patient from each population tests positive. Compute both posterior probabilities, and
+explain in one sentence why the *same* test result means very different things in the two
+populations.
+
+```{webr}
+#| autorun: false
+# p6-starter — edit and Run to solve, right here
+BF <- 8
+prior_X <- 1 / 500
+prior_Y <- 1 / 5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Population X: prior odds $= (1/500)/(499/500) \approx 0.002$; posterior odds $= 0.002
+\times 8 \approx 0.016$; posterior probability $\approx 0.0158$ (about $1.6\%$).
+Population Y: prior odds $= (1/5)/(4/5) = 0.25$; posterior odds $= 0.25 \times 8 = 2$;
+posterior probability $= 2/3 \approx 0.667$.
+
+```{r p6-answer}
+BF <- 8
+odds <- function(p) p / (1 - p)
+pp <- function(prior) { po <- odds(prior) * BF; po / (1 + po) }
+c(pop_X = round(pp(1/500), 4), pop_Y = round(pp(1/5), 4))    # 0.0158 vs 0.6667
+```
+The evidence multiplier is identical ($8\times$), but it acts on very different starting
+odds — a strong factor can't rescue a hypothesis that started nearly impossible (X), yet
+easily tips one that started plausible (Y). Where you begin matters as much as the
+evidence.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/bayes-factors-and-posterior-odds" pass="4"}
+
+::: {.quiz-q qid="bfpo-what-is-bf" qtype="mc" answer="b"}
+What is a Bayes factor $\text{BF}_{21}$?
+
+a) The posterior probability that model 2 is the true model
+b) The ratio of the two models' evidences, $P(D\mid M_2)/P(D\mid M_1)$
+c) The prior odds of model 2 over model 1, before any data
+d) The product of the prior odds and the posterior probability
+:::
+
+::: {.quiz-q qid="bfpo-odds-update" qtype="mc" answer="a"}
+On the odds scale, how does Bayes' rule combine what you knew before with the data?
+
+a) posterior odds = prior odds × Bayes factor
+b) posterior odds = prior odds + Bayes factor
+c) posterior odds = prior odds ÷ Bayes factor
+:::
+
+::: {.quiz-q qid="bfpo-bf-numeric" qtype="numeric" answer="4" tolerance="0"}
+Two point models have evidences $P(D\mid M_2) = 0.24$ and $P(D\mid M_1) = 0.06$. Compute
+the Bayes factor $\text{BF}_{21}$.
+:::
+
+::: {.quiz-q qid="bfpo-post-prob" qtype="numeric" answer="0.667" tolerance="0.005"}
+With a Bayes factor $\text{BF}_{21} = 4$ and prior odds of $0.5$, compute the posterior
+probability of $M_2$. Round to three decimals.
+:::
+
+::: {.quiz-q qid="bfpo-evidence-averaged" qtype="mc" answer="c"}
+*(Interleaved — uses marginal likelihood & model evidence.)* When one of the two models
+spreads its prior over several parameter values, what plays the role of that model's
+evidence in the Bayes factor?
+
+a) The single largest likelihood among its parameter values
+b) The sum of the likelihoods, left unnormalized
+c) The likelihood averaged over that model's own prior (its marginal likelihood)
+:::
+
+:::
+
+::::

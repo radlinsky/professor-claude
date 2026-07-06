@@ -1,0 +1,88 @@
+---
+title: "Roadmap"
+---
+
+How every module depends on the others. Blue nodes are reusable
+[foundations](../../foundations/README.md) modules shared across courses; the green node
+is a prerequisite *course*; arrows mean "needed for".
+
+Like every course, this one assumes the notation grammar in
+[reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) — take it
+first if the symbols aren't yet second nature.
+
+This course also **builds on** [Logistic Regression](../logistic-regression/syllabus.md)
+(a GWAS effect estimate $\hat\beta$ is a log odds ratio, exactly the log-odds-scale
+coefficient you fitted there) and reuses its anchors rather than re-teaching them; if
+rusty, skim its syllabus first.
+
+```{mermaid}
+flowchart TD
+    classDef foundation fill:#e8f0fe,stroke:#4285f4
+    classDef priorcourse fill:#e6f4ea,stroke:#34a853
+
+    F1["probability-and-odds<br/>(p, odds = p/(1−p))"]:::foundation
+    F2["distributions-and-densities<br/>(dnorm, N(mu, sigma^2))"]:::foundation
+    F3["likelihood-and-log-likelihood<br/>(likelihood as p varies)"]:::foundation
+    F4["priors-posteriors-and-updating<br/>(prior x likelihood)"]:::foundation
+    F5["hypothesis-tests-p-values-and-confidence-intervals<br/>(Z = est/SE, the p-value)"]:::foundation
+    F6["marginal-likelihood-and-model-evidence<br/>(average over the prior; N(0, V+W))"]:::foundation
+    F7["bayes-factors-and-posterior-odds<br/>(posterior odds = prior odds x BF)"]:::foundation
+
+    C1["course: logistic-regression<br/>(effect = log odds ratio)"]:::priorcourse
+
+    M1["01 · The summary of an association<br/>(beta-hat, V, Z, the p-value)"]
+    M2["02 · A prior on the effect<br/>(N(0,W); marginals N(0,V) vs N(0,V+W))"]
+    M3["03 · The Approximate Bayes Factor<br/>(lABF = 0.5(log(1−r) + r Z^2))"]
+    M4["04 · Posterior probability of association<br/>(PPA; the p-value comparison)"]
+    M5["05 · Capstone<br/>(decode Wakefield & coloc)"]
+
+    F3 --> F6
+    F4 --> F6
+    F2 --> F6
+    F6 --> F7
+    F1 --> F7
+    F4 --> F7
+
+    C1 --> M1
+    F5 --> M1
+    M1 --> M2
+    F2 --> M2
+    F6 --> M2
+    M2 --> M3
+    F3 --> M3
+    M3 --> M4
+    F7 --> M4
+    F1 --> M4
+    F5 --> M4
+    M4 --> M5
+```
+
+## Suggested order
+
+1. Foundation: [probability-and-odds](../../foundations/probability-and-odds/lesson.qmd) —
+   new? take it fully; done before? skim its pronunciation table.
+2. Foundation: [distributions-and-densities](../../foundations/distributions-and-densities/lesson.qmd) —
+   same rule.
+3. Foundation: [likelihood-and-log-likelihood](../../foundations/likelihood-and-log-likelihood/lesson.qmd) —
+   same rule.
+4. Foundation: [priors-posteriors-and-updating](../../foundations/priors-posteriors-and-updating/lesson.qmd) —
+   same rule.
+5. Foundation: [hypothesis-tests-p-values-and-confidence-intervals](../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd) —
+   same rule.
+6. Foundation: [marginal-likelihood-and-model-evidence](../../foundations/marginal-likelihood-and-model-evidence/lesson.qmd) —
+   new for this course; the engine of the ABF.
+7. Foundation: [bayes-factors-and-posterior-odds](../../foundations/bayes-factors-and-posterior-odds/lesson.qmd) —
+   new for this course; take it after marginal-likelihood.
+8. [01 · The summary of an association](modules/01-the-summary-of-an-association/lesson.qmd)
+   (+ [practice](modules/01-the-summary-of-an-association/practice.qmd))
+9. [02 · A prior on the effect](modules/02-a-prior-on-the-effect/lesson.qmd)
+   (+ [practice](modules/02-a-prior-on-the-effect/practice.qmd))
+10. [03 · The Approximate Bayes Factor](modules/03-the-approximate-bayes-factor/lesson.qmd)
+    (+ [practice](modules/03-the-approximate-bayes-factor/practice.qmd))
+11. [04 · Posterior probability of association](modules/04-posterior-probability-of-association/lesson.qmd)
+    (+ [practice](modules/04-posterior-probability-of-association/practice.qmd))
+12. [05 · Capstone — reading Wakefield's ABF](modules/05-capstone-reading-wakefields-abf/lesson.qmd)
+    (+ [practice](modules/05-capstone-reading-wakefields-abf/practice.qmd))
+
+After each lesson, do its practice page before moving on — the problems are the part that
+makes it stick. External videos/posts for each module: [resources](resources.md).

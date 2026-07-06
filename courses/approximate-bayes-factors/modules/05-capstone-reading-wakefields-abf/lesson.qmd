@@ -1,0 +1,322 @@
+---
+title: "Capstone: reading Wakefield's ABF"
+subtitle: "Return to the source — decode Wakefield's equations and the coloc interface, then assemble and validate the whole method"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The R cells below with a **Run** button are live (WebR) — you assemble and validate the whole
+method right here. The real `coloc` package can't run in the browser (WebR has no `coloc`), so
+its interface is shown for reading under a note, with the reference numbers embedded inline.
+:::
+
+## Where we're going
+
+No new ideas here — this capstone proves you reached the goal. When you started, the sentence
+"we computed an approximate Bayes factor for each SNP" and the closed form
+$\text{ABF} = \tfrac{1}{\sqrt{1 - r}}\exp(-\tfrac{Z^2}{2}r)$ were a wall. Now you've **built**
+every piece: the summary pair $(\hat\beta, V)$, the two normal curves, the shrinkage $r$, the
+closed-form log Bayes factor, and the posterior probability of association. So we'll return to
+the source — decode Wakefield's own equations (including his reciprocal sign convention) and
+the `coloc::approx.bf.estimates` / `coloc.abf` interface, line by line, tracing each term to
+the module that built it. Then we'll assemble the full `wakefield_abf()`, run it on a simulated
+multi-SNP GWAS region, and validate it one last time against the frozen `coloc` reference.
+
+**Builds on:** every module — [the summary pair (1)](../01-the-summary-of-an-association/lesson.qmd),
+[the prior and two curves (2)](../02-a-prior-on-the-effect/lesson.qmd),
+[the closed-form ABF (3)](../03-the-approximate-bayes-factor/lesson.qmd), and
+[the posterior probability (4)](../04-posterior-probability-of-association/lesson.qmd), plus
+the foundations they rest on.
+
+## Warm-up: do you remember?
+
+Four recalls spanning the course. Produce each before opening it.
+
+**1.** *(Module 1)* A variant reports $\hat\beta = 0.21$ and $\text{se} = 0.05$. What are $V$
+and $Z$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$V = 0.05^2 = 0.0025$; $Z = 0.21/0.05 = 4.2$. See
+[Module 1](../01-the-summary-of-an-association/lesson.qmd).
+:::
+
+**2.** *(Module 2)* With prior variance $W = 0.04$, what are the two competing curves for the
+estimate?
+
+::: {.callout-note collapse="true" title="Answer"}
+Null $N(0, V) = N(0, 0.0025)$ and alternative $N(0, V + W) = N(0, 0.0425)$. See
+[Module 2](../02-a-prior-on-the-effect/lesson.qmd).
+:::
+
+**3.** *(Module 3)* Write the coloc-convention log ABF in terms of $r$ and $Z$.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\text{lABF} = \tfrac12\big(\log(1 - r) + r Z^2\big)$ with $r = W/(W + V)$. See
+[Module 3](../03-the-approximate-bayes-factor/lesson.qmd).
+:::
+
+**4.** *(Module 4)* How do you turn an lABF into a posterior probability of association?
+
+::: {.callout-note collapse="true" title="Answer"}
+Posterior odds $= \tfrac{\pi}{1-\pi} \times e^{\text{lABF}}$, then PPA $=$ posterior odds
+$/(1 + \text{posterior odds})$. See
+[Module 4](../04-posterior-probability-of-association/lesson.qmd).
+:::
+
+## The artifact, part 1 — Wakefield's own equations
+
+Here is the ABF as Wakefield (2009) states it. Read it aloud, then we decode every symbol.
+
+> With $\hat\beta$ the estimated log odds ratio, $V$ its variance, $Z = \hat\beta/\sqrt{V}$
+> the usual z-statistic, and a prior $\theta \sim N(0, W)$ on the true log odds ratio, the
+> approximate Bayes factor is
+> $$
+> \text{ABF} = \frac{1}{\sqrt{1 - r}}\,\exp\!\left(-\frac{Z^2}{2}\,r\right),
+> \qquad r = \frac{W}{V + W}.
+> $$
+
+### The decode, term by term
+
+Read each piece and trace it home to the module that built it.
+
+**"$\hat\beta$ the estimated log odds ratio, $V$ its variance, $Z = \hat\beta/\sqrt{V}$."**
+This is exactly the summary pair from [Module 1](../01-the-summary-of-an-association/lesson.qmd):
+the effect estimate (a log odds ratio, from the
+[logistic-regression course](../../../logistic-regression/syllabus.md)), its variance
+$V = \text{se}^2$, and the z-statistic. The entire method starts from $(\hat\beta, V)$ — no
+raw data.
+
+**"a prior $\theta \sim N(0, W)$ on the true log odds ratio."** The normal prior from
+[Module 2](../02-a-prior-on-the-effect/lesson.qmd): centered at zero (no effect is the
+default), spread $W$ (how big a true effect could plausibly be). The case-control default is
+$\sqrt{W} = 0.2$, i.e. $W = 0.04$.
+
+**"$r = W/(V + W)$."** The shrinkage factor from
+[Module 3](../03-the-approximate-bayes-factor/lesson.qmd) — a variance ratio between 0 and 1,
+*not* a correlation. It measures how much of the total variance is prior versus noise.
+
+**"$\text{ABF} = \tfrac{1}{\sqrt{1 - r}}\exp(-\tfrac{Z^2}{2}r)$."** This is the same content
+as your Module-3 formula, but written in **Wakefield's own sign convention** — and this is the
+one subtlety worth pausing on. Wakefield defines his ABF as the **null over the alternative**
+(the *reciprocal* of the coloc convention). Watch the two line up. Take the log of Wakefield's
+ABF:
+$$
+\log(\text{ABF}_{\text{Wakefield}}) = -\tfrac12\log(1 - r) - \tfrac{Z^2}{2}r
+= -\underbrace{\tfrac12\big(\log(1 - r) + r Z^2\big)}_{\text{your Module-3 lABF}}
+= -\,\text{lABF}.
+$$
+So Wakefield's ABF is $e^{-\text{lABF}}$ — the reciprocal of the Bayes factor you built.
+The consequence for reading the literature: **in Wakefield's convention a *small* ABF means
+*strong* association** (the null is far less likely than the alternative), whereas in coloc's
+convention a *large* lABF means strong association. Same evidence, flipped sign. `coloc` uses
+the coloc convention (large = strong), and so does everything you built.
+
+```{webr}
+#| autorun: true
+# LIVE: confirm the two sign conventions are exact reciprocals on the log scale.
+# TRY IT: change Z and W -- Wakefield's log-ABF is always MINUS your coloc lABF.
+Z <- 4.2; V <- 0.0025; W <- 0.04; r <- W / (W + V)
+
+coloc_lABF     <- 0.5 * (log(1 - r) + r * Z^2)          # coloc: large = strong (Module 3)
+wakefield_ABF  <- (1 / sqrt(1 - r)) * exp(-Z^2 / 2 * r)  # Wakefield: small = strong
+c(coloc_lABF = coloc_lABF,
+  log_wakefield_ABF = log(wakefield_ABF),                # equals -coloc_lABF
+  reciprocal_check = exp(coloc_lABF) * wakefield_ABF)     # ~1: they are reciprocals
+```
+
+## The artifact, part 2 — the `coloc` interface
+
+Now the software. `coloc` computes the same lABF you built, then feeds it into a
+regional posterior. Here is the shape of the two functions, shown for reading (they can't run
+in the browser).
+
+::: {.callout-note title="Runs on your machine, not here"}
+These use the **`coloc` package** (GPL-3), which isn't in the browser's WebR build. The code is
+shown for decoding, not running; copy it into your own R session with `coloc` installed. The
+reference numbers your self-check uses (below) were produced by exactly this machinery
+(`coloc::coloc.abf` 5.2.3) and frozen into `equivalence/fixtures/`.
+:::
+
+```r
+# --- coloc's per-SNP ABF (the core you rebuilt), shown for reference only ---
+# z = beta / sqrt(V), V the variance; type "cc" = case-control; returns a data.frame
+# whose lABF column is EXACTLY your wakefield_abf() output (coloc sign convention).
+coloc:::approx.bf.estimates(z = beta / sqrt(V), V = V, type = "cc", sdY = 1, suffix = NULL)
+
+# --- coloc.abf: the whole regional pipeline, shown for reference only ---
+# Given two studies' per-SNP (beta, varbeta), coloc.abf():
+#   1. computes each SNP's lABF (your Module 3),
+#   2. turns lABFs into per-SNP posterior probabilities WITHIN the region, and
+#   3. combines the two studies into the five colocalisation hypotheses (H0..H4).
+coloc.abf(dataset1 = list(beta = b1, varbeta = v1, type = "cc", s = 0.5, N = n1, snp = ids),
+          dataset2 = list(beta = b2, varbeta = v2, type = "cc", s = 0.5, N = n2, snp = ids))
+```
+
+### The decode, argument by argument
+
+- **`z = beta / sqrt(V)`** — your z-statistic $Z = \hat\beta/\sqrt V$
+  ([Module 1](../01-the-summary-of-an-association/lesson.qmd)).
+- **`V`** — the variance of the estimate, $\text{se}^2$
+  ([Module 1](../01-the-summary-of-an-association/lesson.qmd)).
+- **`type = "cc"`, `sdY`** — bookkeeping that sets the *default prior*: for case-control
+  (`"cc"`) coloc uses `sd.prior = 0.2`, i.e. $W = 0.04$
+  ([Module 2](../02-a-prior-on-the-effect/lesson.qmd)); `sdY` (trait standard deviation)
+  matters only for quantitative traits.
+- **the returned `lABF` column** — your Module-3 closed form,
+  $\tfrac12(\log(1 - r) + rZ^2)$, per SNP.
+- **`beta`, `varbeta` in `coloc.abf`** — each study's summary pair per SNP; `varbeta` is the
+  variance $V$, not the standard error.
+- **the per-SNP posterior probability step** — within a region assumed to hold one causal
+  variant, coloc turns the lABFs into probabilities by $e^{\text{lABF}}/\sum_j
+  e^{\text{lABF}_j}$ (a normalized version of the posterior-odds step from
+  [Module 4](../04-posterior-probability-of-association/lesson.qmd), with a flat prior over
+  which SNP is causal).
+
+Everything `coloc.abf` does with a single SNP's evidence, you can now reproduce. (Combining
+*two* studies into the H0–H4 colocalisation hypotheses is the next course's job — see "what you
+still can't read.")
+
+## Assemble the whole method and validate it
+
+Put the pieces together into the three functions the course built — `wakefield_labf`,
+`wakefield_abf`, `wakefield_ppa` — and run them on a **simulated multi-SNP GWAS region**: six
+SNPs, one of them the true causal signal.
+
+```{webr}
+#| autorun: true
+# LIVE: the complete from-scratch method (base R), then a simulated GWAS region.
+wakefield_labf <- function(z, V, W) { r <- W / (W + V); 0.5 * (log(1 - r) + r * z^2) }
+wakefield_abf  <- function(beta, se, W) wakefield_labf(beta / se, se^2, W)
+wakefield_ppa  <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }
+
+# A simulated region: 6 SNPs, se = 0.05 each, W = 0.04. SNP 3 is the strong signal.
+snp  <- paste0("rs", 1:6)
+beta <- c(0.02, -0.05, 0.21, 0.08, -0.03, 0.06)
+se   <- rep(0.05, 6)
+W    <- 0.04
+
+lABF <- wakefield_abf(beta, se, W)
+region_pp <- exp(lABF) / sum(exp(lABF))          # posterior prob WITHIN the region (one causal)
+
+data.frame(snp, Z = beta / se, lABF = round(lABF, 3),
+           region_pp = round(region_pp, 4))
+# SNP 3 (Z = 4.2) carries lABF ~6.9 and ~99.8% of the regional posterior -- the causal hit
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A regional association plot: six SNPs on the horizontal axis, their posterior probability within the region on the vertical axis. Five SNPs sit near zero and SNP 3 towers near 1.0, marking it as the credible causal variant."
+# LIVE: SEE the regional fine-mapping picture -- one SNP dominates the posterior.
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+beta <- c(0.02, -0.05, 0.21, 0.08, -0.03, 0.06); se <- rep(0.05, 6); W <- 0.04
+region_pp <- { l <- wakefield_abf(beta, se, W); exp(l) / sum(exp(l)) }
+
+barplot(region_pp, names.arg = paste0("rs", 1:6), ylim = c(0, 1),
+        ylab = "posterior prob. within region",
+        main = "Which SNP is the signal? (one-causal fine-mapping)")
+```
+
+### The final self-check against `coloc` {#self-check}
+
+One last time, prove the assembled method matches the real thing. The cell below embeds the
+**frozen reference** from `equivalence/fixtures/wakefield-abf-full-coloc.json` — the exact
+inputs and the `lABF` vector that `coloc::coloc.abf` 5.2.3 produced — and compares your
+`wakefield_abf()` to them.
+
+```{webr}
+#| autorun: true
+# LIVE FINAL SELF-CHECK: assembled method vs FROZEN coloc reference (tier: full).
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+
+# frozen inputs + reference, copied verbatim from equivalence/fixtures/wakefield-abf-full-coloc.json
+beta <- c(-0.02554337913844796, 0.008215202917039434, -0.005366809239341077, 0.16,
+          0.03986549597916812, -0.05543162960131377, 0.005742157693248766,
+          0.01323645801439164, -0.0438060912100528, -0.02261565535665145)
+se   <- rep(0.03, 10)
+W    <- 0.04
+reference_labf <- c(-1.553741503528518, -1.871576145659659, -1.892595932433175,
+                    12.001018497661109, -1.044752885297292, -0.238772015646558,
+                    -1.890330388525183, -1.813051689371357, -0.8656081651460308,
+                    -1.630349137649496)
+
+mine <- wakefield_abf(beta, se, W)
+max_abs_diff <- max(abs(mine - reference_labf))
+cat("max |mine - coloc reference| =", format(max_abs_diff, scientific = TRUE), "\n")
+cat("match within 1e-8?", max_abs_diff < 1e-8, "\n")    # TRUE
+```
+
+**Validation tier: FULL.** The match is against `coloc::coloc.abf` 5.2.3's actual output on
+these inputs — the real reference library's numbers, not a reported figure or a re-derived
+closed form — verified to about $10^{-8}$. This repo's `equivalence/check.R` re-verifies it in
+CI. Your `wakefield_abf()` *is* coloc's ABF.
+
+## Common traps
+
+**Trap: "Wakefield's ABF and coloc's lABF should give the same big number for a strong hit."**
+No — they use **opposite** sign conventions. For our causal SNP ($Z = 4.2$), coloc's lABF is
+about $+6.9$ (large = strong), but Wakefield's own ABF is $e^{-6.9} \approx 0.001$ (small =
+strong). Both say "strong association"; they just point in opposite directions. Reading a
+Wakefield ABF of $0.001$ as "weak" would be exactly backwards — in his convention that tiny
+number is overwhelming evidence.
+
+**Trap: "the per-SNP regional posterior probability is the same as the genome-wide PPA."** No.
+The regional $e^{\text{lABF}}/\sum_j e^{\text{lABF}_j}$ assumes *exactly one* causal SNP in the
+region and a flat prior over which one — so it sums to 1 across the region ($0.998$ for our
+SNP 3). The genome-wide PPA from [Module 4](../04-posterior-probability-of-association/lesson.qmd)
+uses the tiny prior $\pi = 10^{-4}$ and does *not* sum to 1 — SNP 3's genome-wide PPA is only
+about $0.089$. Different priors, different questions: "which SNP here?" vs "is this SNP real at
+all?".
+
+## What you can now do
+
+- **Decode Wakefield's ABF equation** term by term, and translate between his reciprocal sign
+  convention (small = strong) and coloc's (large = strong).
+- **Read the `coloc::approx.bf.estimates` / `coloc.abf` interface** — its `z`, `V`, `type`,
+  `sd.prior`, and the per-SNP regional posterior step — tracing each to the module that built
+  it.
+- **Assemble the full method** (`wakefield_labf`, `wakefield_abf`, `wakefield_ppa`) from
+  scratch in base R and run it on a multi-SNP region to fine-map the likely causal variant.
+- **Validate the from-scratch method** against the frozen `coloc::coloc.abf` 5.2.3 reference
+  and state the validation tier (full).
+
+If any field still reads as jargon, revisit the module it points to above — reading Wakefield's
+ABF and the `coloc` interface cold is the entire goal of this course, and you just did it.
+
+## What you still can't read (yet)
+
+This course took you from a single association's summary statistics to its Bayes factor,
+posterior probability, and a one-region fine-map. A few honest edges, each a natural next step:
+
+- **Colocalisation of two traits (the H0–H4 hypotheses).** `coloc.abf` combines *two* studies'
+  per-SNP ABFs to ask "do trait A and trait B share the same causal variant in this region?" —
+  the five hypotheses H0 (no signal) through H4 (shared signal). That combination is built
+  directly on the per-SNP ABF you now own; it is the subject of a **Bayesian Colocalisation**
+  course.
+- **SuSiE and multiple causal variants.** The one-causal assumption behind the regional
+  posterior breaks when a region has several signals; newer methods (SuSiE-coloc) relax it.
+- **How the summary statistics themselves were fitted.** The $(\hat\beta, \text{se})$ pair
+  comes from a per-variant regression — the
+  [logistic-regression course](../../../logistic-regression/syllabus.md) covers the
+  single-variant case.
+
+None of these change what you built; they extend it. You can read the core of Wakefield's ABF
+and `coloc`'s per-SNP machinery now — the rest is more of the same shape.
+
+## Where this goes next
+
+You've built and decoded the Approximate Bayes Factor end to end. The natural continuation is
+**Bayesian colocalisation** — using these per-SNP ABFs to test whether two traits share a
+causal variant (the H0–H4 hypotheses of `coloc.abf`) — which reuses exactly what you now own.
+Ready for the final cumulative set? Do the [practice problems](practice.qmd).

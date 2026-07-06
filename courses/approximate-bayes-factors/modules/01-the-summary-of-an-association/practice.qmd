@@ -1,0 +1,232 @@
+---
+title: "Practice: The summary of an association"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+An association reports $\hat\beta = 0.8$ and $\text{se} = 0.2$. Compute the variance $V$,
+the z-statistic $Z$, and the two-sided p-value.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+beta_hat <- 0.8
+se       <- 0.2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$V = 0.2^2 = 0.04$. $Z = 0.8/0.2 = 4$. $p = 2\,\texttt{pnorm}(-4) \approx 6.3 \times
+10^{-5}$ — an even stronger signal than the lesson's $Z = 3$.
+
+```{r p1-answer}
+beta_hat <- 0.8; se <- 0.2
+c(V = se^2, Z = beta_hat / se, p = 2 * pnorm(-abs(beta_hat / se)))   # 0.04, 4, 6.3e-05
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+An association has $\hat\beta = 0.5$ and $\text{se} = 0.25$. Here is the worked solution
+with the core step blanked — supply only that step.
+
+- Step 1 (shown): the variance is $V = 0.25^2 = 0.0625$.
+- Step 2 (**your step here**): compute the z-statistic $Z$ from $\hat\beta$ and
+  $\text{se}$. Write the exact arithmetic.
+- Step 3 (shown): the two-sided p-value is $2\,\texttt{pnorm}(-Z) \approx 0.0455$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+beta_hat <- 0.5
+se       <- 0.25
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing move is the **z-statistic**: $Z = \hat\beta/\text{se} = 0.5/0.25 = 2$. That's
+"the estimate is 2 standard errors from zero," which the p-value then reads off the normal
+curve as $2\,\texttt{pnorm}(-2) \approx 0.0455$ — right at the edge of significance.
+
+```{r p2-answer}
+beta_hat <- 0.5; se <- 0.25
+Z <- beta_hat / se               # 2
+c(Z = Z, p = 2 * pnorm(-abs(Z)))  # 2, 0.0455
+```
+:::
+
+## Problem 3 — a protective allele
+
+A variant reports $\hat\beta = -0.30$ (a log odds ratio) with $\text{se} = 0.10$. (a)
+Compute $Z$ and the two-sided p-value. (b) Convert $\hat\beta$ to an odds ratio and say
+whether the allele raises or lowers the odds of the trait.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: compute Z, the p-value, and the odds ratio
+beta_hat <- -0.30
+se       <- 0.10
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $Z = -0.30/0.10 = -3$; the p-value uses $|Z|$, so $p = 2\,\texttt{pnorm}(-3) \approx
+0.0027$ — significant. (b) Odds ratio $= e^{-0.30} \approx 0.741$, which is **below 1**, so
+the allele *lowers* the odds of the trait (a protective effect): each copy multiplies the
+odds by about $0.74$.
+
+```{r p3-answer}
+beta_hat <- -0.30; se <- 0.10
+Z <- beta_hat / se
+c(Z = Z, p = 2 * pnorm(-abs(Z)), odds_ratio = exp(beta_hat))    # -3, 0.0027, 0.741
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague summarizes a variant — it contains **exactly one mistake** — find it and fix
+it.
+
+> "The fitted effect is $\hat\beta = 0.6$, so the odds ratio is $0.6$ — the allele barely
+> changes the odds. Its standard error is $0.2$, giving $Z = 0.6/0.2 = 3$ and $p \approx
+> 0.0027$, so it *is* statistically significant."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is **reading the log odds ratio as the odds ratio**. $\hat\beta = 0.6$ is on
+the log-odds scale; the odds ratio is $e^{0.6} \approx 1.82$, not $0.6$. So the allele
+raises the odds by about $82\%$ — the opposite of "barely changes the odds" (an odds ratio
+near $0.6$ would actually mean a *drop*). The $Z$, p-value, and significance conclusion are
+all correct; only the odds-ratio reading is wrong.
+
+```{r p4-answer}
+beta_hat <- 0.6
+c(wrong_OR = beta_hat, correct_OR = exp(beta_hat))    # 0.6 vs 1.822
+```
+:::
+
+## Problem 5 — mixing it with logistic regression *(uses logistic regression's odds ratio)*
+
+A paper reports a variant's association as an **odds ratio of $1.5$** with a $95\%$
+confidence interval on the odds-ratio scale of $[1.13, 1.99]$. To feed this into a
+summary-statistic method you need $(\hat\beta, \text{se})$ on the log-odds scale. (a) What
+is $\hat\beta$? (b) Recover the standard error from the CI, using that a $95\%$ CI for
+$\hat\beta$ is $\hat\beta \pm 1.96\,\text{se}$ (so the log-OR CI is $[\log 1.13, \log
+1.99]$).
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+OR    <- 1.5
+CI_OR <- c(1.13, 1.99)      # 95% CI on the odds-ratio scale
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $\hat\beta = \log(\text{OR}) = \log(1.5) \approx 0.405$ (converting an odds ratio back
+to the log-odds scale — the inverse of $e^{\hat\beta}$ from
+[logistic regression](../../../logistic-regression/modules/02-odds-log-odds-and-the-logit/lesson.qmd)).
+(b) On the log scale the CI is $[\log 1.13, \log 1.99] \approx [0.122, 0.688]$; its width is
+$0.688 - 0.122 = 0.566$, which equals $2 \times 1.96\,\text{se} = 3.92\,\text{se}$, so
+$\text{se} = 0.566/3.92 \approx 0.144$.
+
+```{r p5-answer}
+OR <- 1.5; CI_OR <- c(1.13, 1.99)
+beta_hat <- log(OR)                                # 0.405 -- log odds ratio
+CI_log   <- log(CI_OR)                              # CI on the log-odds scale
+se       <- (CI_log[2] - CI_log[1]) / (2 * 1.96)    # recover se from the CI width
+c(beta_hat = round(beta_hat, 3), se = round(se, 3)) # 0.405, 0.144
+```
+This is the everyday move for reading a published GWAS/epidemiology result into a
+summary-statistic pipeline: log the odds ratio, and back out the SE from its confidence
+interval.
+:::
+
+## Problem 6 — transfer (interpretation)
+
+A GWAS scans a million variants. Variant P has $Z = 5$; variant Q has $Z = 5$ as well, but
+Q came from a study with **ten times** as many people. Do the two variants have the same
+two-sided p-value? And — a cliffhanger the next modules will sharpen — should you be
+*equally* impressed by both? Answer the p-value question fully; give your best guess on the
+"equally impressed" question.
+
+::: {.callout-note collapse="true" title="Answer"}
+**The p-values are identical.** The two-sided p-value is a transform of $Z$ alone
+($2\,\texttt{pnorm}(-5) \approx 5.7\times10^{-7}$), and both have $Z = 5$, so sample size
+does not enter the p-value at all once $Z$ is fixed.
+
+On "equally impressed": your instinct that something differs is right, and it's the
+headline of this course. With ten times the data, Q's standard error is smaller, so the
+*same* $Z = 5$ corresponds to a *smaller* estimated effect $\hat\beta$ (since $Z =
+\hat\beta/\text{se}$). A tiny true effect detected only because $n$ is huge is arguably
+weaker evidence of an *interesting* association than a solid effect in a smaller study —
+yet the p-value can't see the difference. The Approximate Bayes Factor (Module 3) and its
+posterior probability (Module 4) *can*, and that is exactly why Wakefield argued the
+p-value threshold should shrink as $n$ grows. You can't fully resolve this yet — the tools
+are three modules away.
+
+```{r p6-answer}
+c(p_at_Z5 = 2 * pnorm(-5))          # ~5.7e-07 -- same for both, sample size irrelevant here
+```
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/approximate-bayes-factors/modules/01-the-summary-of-an-association" pass="4"}
+
+::: {.quiz-q qid="soa-variance-numeric" qtype="numeric" answer="0.0025" tolerance="0.0001"}
+An association reports a standard error $\text{se} = 0.05$. What is the variance $V$ of the
+estimate?
+:::
+
+::: {.quiz-q qid="soa-zstat-numeric" qtype="numeric" answer="3" tolerance="0"}
+An association reports $\hat\beta = 0.36$ and $\text{se} = 0.12$. Compute the z-statistic
+$Z$.
+:::
+
+::: {.quiz-q qid="soa-pvalue-transform" qtype="mc" answer="b"}
+Why can a method use the pair $(\hat\beta, V)$ alone and lose nothing the p-value carried?
+
+a) The p-value is always larger than $Z$, so $Z$ is the more informative number
+b) The two-sided p-value is a deterministic transform of $Z = \hat\beta/\sqrt{V}$, so it adds no information beyond the pair
+c) The p-value depends on the sample size, which the pair also records
+:::
+
+::: {.quiz-q qid="soa-logor-reading" qtype="numeric" answer="1.822" tolerance="0.005"}
+A variant's effect estimate is $\hat\beta = 0.6$ on the log-odds scale. What odds ratio
+does it correspond to? Round to three decimals.
+:::
+
+::: {.quiz-q qid="soa-evidence-strength" qtype="mc" answer="c"}
+*(Interleaved — uses hypothesis tests & standard errors.)* Two variants have the same
+effect estimate $\hat\beta = 0.4$. Variant A has $\text{se} = 0.1$; variant B has
+$\text{se} = 0.4$. Which has the stronger evidence of association?
+
+a) Variant B, because a larger standard error means a more thorough study
+b) Neither — they have the same $\hat\beta$, so the evidence is identical
+c) Variant A, because its smaller standard error gives a larger $Z$ ($4$ vs $1$)
+:::
+
+:::
+
+::::

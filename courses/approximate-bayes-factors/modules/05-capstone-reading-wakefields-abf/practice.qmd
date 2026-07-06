@@ -1,0 +1,247 @@
+---
+title: "Practice: Capstone — the whole method, mixed"
+subtitle: "No hints about which idea each problem needs — recalling that is the test."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+These draw on every module, in mixed order — figuring out *which* idea each one needs is part
+of the test, so there are no "uses Module N" labels. Helpers to paste as needed:
+`wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }`
+and `wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }`.
+
+## Problem 1
+
+A variant reports $\hat\beta = 0.25$ and $\text{se} = 0.05$. Using prior variance $W = 0.04$,
+compute the variance $V$, the z-statistic $Z$, and the log ABF (coloc convention).
+
+```{webr}
+#| autorun: false
+# p1-starter
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+beta_hat <- 0.25; se <- 0.05; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$V = 0.05^2 = 0.0025$; $Z = 0.25/0.05 = 5$; $r = 0.9412$; lABF $= \tfrac12(\log(0.0588) +
+0.9412 \times 25) = 10.35$ — overwhelming per-variant evidence.
+
+```{r p1-answer}
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+c(V = 0.05^2, Z = 0.25/0.05, lABF = wakefield_abf(0.25, 0.05, 0.04))    # 0.0025, 5, 10.35
+```
+:::
+
+## Problem 2
+
+A published result gives a variant's odds ratio as $0.80$. What is $\hat\beta$ on the scale the
+ABF uses, and does this allele raise or lower the odds of the trait?
+
+```{webr}
+#| autorun: false
+# p2-starter
+OR <- 0.80
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat\beta = \log(\text{OR}) = \log(0.80) \approx -0.223$ (the ABF works on the log-odds
+scale). Since the odds ratio is below $1$, the allele **lowers** the odds of the trait — a
+protective effect.
+
+```{r p2-answer}
+c(beta_hat = log(0.80))     # -0.223, a log odds ratio below 0
+```
+:::
+
+## Problem 3
+
+A variant has log ABF $= 6$. In a genome-wide scan with prior probability $\pi = 10^{-4}$ that
+any variant is truly associated, what is its posterior probability of association?
+
+```{webr}
+#| autorun: false
+# p3-starter
+wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }
+lABF <- 6
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+BF $= e^6 \approx 403$. Posterior odds $= 10^{-4} \times 403 \approx 0.0403$; PPA $\approx
+0.0388$ — under $4\%$, because the prior is so tiny.
+
+```{r p3-answer}
+wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }
+wakefield_ppa(6, 1e-4)      # 0.0388
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague reports — it contains **exactly one mistake** — find it and give the correct
+reading.
+
+> "This variant has a Wakefield ABF of $0.0022$. Since $0.0022$ is close to zero, there's
+> essentially no evidence of association here."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is reading Wakefield's ABF the wrong way round. In **Wakefield's own sign
+convention** the ABF is the *null over the alternative*, so a **small** ABF means **strong**
+association. An ABF of $0.0022$ is $e^{-\text{lABF}}$ with lABF $\approx 6.1$ (BF $\approx
+452$ in coloc's convention) — overwhelming evidence *for* an effect, not against it. Reading
+it as "no evidence" is exactly backwards.
+
+```{r p4-answer}
+wakefield_ABF <- 0.0022
+c(coloc_lABF = -log(wakefield_ABF), coloc_BF = 1 / wakefield_ABF)   # ~6.1, ~452: strong!
+```
+:::
+
+## Problem 5
+
+A variant has $\hat\beta = 0.12$ and $\text{se} = 0.04$, with prior $W = 0.04$. Compute the
+heights of the null curve $N(0, V)$ and the alternative curve $N(0, V+W)$ at $\hat\beta$, take
+their log-ratio to get the lABF, and confirm it matches the closed form.
+
+```{webr}
+#| autorun: false
+# p5-starter
+beta_hat <- 0.12; se <- 0.04; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$V = 0.0016$, $Z = 3$. Null height `dnorm(0.12, 0, 0.04)` $\approx 0.111$; alternative height
+`dnorm(0.12, 0, sqrt(0.0416))` $\approx 1.645$. lABF $= \log(1.645/0.111) \approx 2.698$,
+matching the closed form.
+
+```{r p5-answer}
+beta_hat <- 0.12; se <- 0.04; W <- 0.04; V <- se^2; Z <- beta_hat/se; r <- W/(W+V)
+curve  <- log(dnorm(beta_hat, 0, sqrt(V + W)) / dnorm(beta_hat, 0, sqrt(V)))
+closed <- 0.5 * (log(1 - r) + r * Z^2)
+c(null = dnorm(beta_hat, 0, sqrt(V)), alt = dnorm(beta_hat, 0, sqrt(V+W)),
+  curve_lABF = curve, closed_lABF = closed)      # 0.111, 1.645, 2.698, 2.698
+```
+:::
+
+## Problem 6 — interpretation
+
+A GWAS region has four SNPs with the same $\text{se} = 0.04$ and effect estimates
+$\hat\beta = (0.03, 0.18, -0.02, 0.05)$, prior $W = 0.04$. Compute each SNP's lABF and its
+posterior probability *within the region* (assuming exactly one causal SNP). Which SNP is the
+credible signal, and how confident is the fine-map? Answer in two or three sentences.
+
+```{webr}
+#| autorun: false
+# p6-starter
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+beta <- c(0.03, 0.18, -0.02, 0.05); se <- rep(0.04, 4); W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+SNP 2 ($\hat\beta = 0.18$, $Z = 4.5$) has by far the largest lABF ($\approx 8.1$); the others
+are negative. Normalizing $e^{\text{lABF}}$ within the region gives SNP 2 about $99.97\%$ of the
+posterior — a very confident fine-map pointing at SNP 2 as the single credible causal variant.
+
+```{r p6-answer}
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+beta <- c(0.03, 0.18, -0.02, 0.05); se <- rep(0.04, 4); W <- 0.04
+l <- wakefield_abf(beta, se, W)
+data.frame(snp = 1:4, lABF = round(l, 3), region_pp = round(exp(l)/sum(exp(l)), 4))
+```
+:::
+
+## Problem 7 — decode a fresh artifact
+
+A methods section you haven't seen states:
+
+> "For each SNP we computed Wakefield's approximate Bayes factor with a case-control prior
+> (`sd.prior = 0.2`). The lead SNP had $\hat\beta = 0.10$ ($\text{se} = 0.10$)."
+
+(a) What prior variance $W$ does `sd.prior = 0.2` set? (b) Compute the lead SNP's $Z$ and its
+coloc-convention lABF. (c) Is the lead SNP strong evidence of association — and what does the
+sign of the lABF tell you?
+
+```{webr}
+#| autorun: false
+# p7-starter
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+sd_prior <- 0.2; beta_hat <- 0.10; se <- 0.10
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $W = \text{sd.prior}^2 = 0.2^2 = 0.04$. (b) $Z = 0.10/0.10 = 1$; lABF $\approx -0.405$.
+(c) **Not** strong — in fact the lABF is *negative*, so the Bayes factor is below $1$ ($e^{-0.405}
+\approx 0.67$): the data very slightly favor the *null*. A "lead SNP" with $Z = 1$ is unremarkable;
+its effect is only one standard error out, so the alternative's width penalty isn't repaid by the
+weak signal.
+
+```{r p7-answer}
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+c(W = 0.2^2, Z = 0.10/0.10, lABF = wakefield_abf(0.10, 0.10, 0.04),
+  BF = exp(wakefield_abf(0.10, 0.10, 0.04)))     # 0.04, 1, -0.405, 0.667
+```
+Reading a fresh methods sentence, pulling out the prior, computing the ABF, and correctly
+reading its sign — that's the whole point of the course, and you just did it on a passage you'd
+never seen.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/approximate-bayes-factors/modules/05-capstone-reading-wakefields-abf" pass="4"}
+
+::: {.quiz-q qid="cap-labf-numeric" qtype="numeric" answer="10.35" tolerance="0.03"}
+A variant has $Z = 5$, $V = 0.0025$, and $W = 0.04$ (so $r = 0.9412$). Compute the
+coloc-convention log ABF $= \tfrac12(\log(1-r) + rZ^2)$. Round to two decimals.
+:::
+
+::: {.quiz-q qid="cap-wakefield-sign" qtype="mc" answer="c"}
+In Wakefield's own sign convention, $\text{ABF} = \tfrac{1}{\sqrt{1-r}}\exp(-\tfrac{Z^2}{2}r)$.
+What does a *small* Wakefield ABF (near zero) mean?
+
+a) Weak evidence — the variant is probably not associated
+b) The prior variance $W$ was set too small
+c) Strong evidence of association — his ABF is null-over-alternative, the reciprocal of coloc's lABF
+:::
+
+::: {.quiz-q qid="cap-ppa-numeric" qtype="numeric" answer="0.00543" tolerance="0.0005"}
+A variant has log ABF $= 4$. With prior probability $\pi = 10^{-4}$, compute its posterior
+probability of association. Round to five decimals.
+:::
+
+::: {.quiz-q qid="cap-summary-pair" qtype="mc" answer="a"}
+What is the complete summary a variant must supply for the ABF, before choosing a prior?
+
+a) The effect estimate $\hat\beta$ and its variance $V$ (equivalently, its standard error)
+b) The full genotype and phenotype table for every subject
+c) Only the p-value, since it already contains all the evidence
+:::
+
+::: {.quiz-q qid="cap-threshold" qtype="mc" answer="b"}
+Wakefield argued a p-value significance threshold should shrink as sample size grows. Why?
+
+a) Larger studies make more measurement errors, so the threshold must compensate
+b) A fixed p-value corresponds to a shrinking true effect as $n$ grows, which the ABF reads as ever-weaker evidence
+c) The prior probability of association increases with sample size
+:::
+
+:::
+
+::::

@@ -1,0 +1,236 @@
+---
+title: "Practice: Posterior probability of association"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer. Helpers to paste as needed:
+`wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }`
+and `wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }`.
+
+## Problem 1 — the toy example, new numbers
+
+A variant has lABF $= 5$ (so BF $= e^5 \approx 148.4$). Using $\pi = 10^{-4}$, compute the
+prior odds, posterior odds, and the posterior probability of association (PPA).
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }
+lABF <- 5
+pi_prior <- 1e-4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+BF $= e^5 \approx 148.4$. Prior odds $= 10^{-4}/(1 - 10^{-4}) \approx 10^{-4}$. Posterior odds
+$= 10^{-4} \times 148.4 \approx 0.01484$. PPA $= 0.01484/1.01484 \approx 0.0146$ — about
+$1.5\%$.
+
+```{r p1-answer}
+wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }
+c(BF = exp(5), PPA = wakefield_ppa(5, 1e-4))     # 148.4, 0.0146
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+A variant has lABF $= 3$ (BF $= e^3 \approx 20.09$), and you use $\pi = 10^{-3}$. Here is the
+worked solution with the core step blanked — supply only that step.
+
+- Step 1 (shown): prior odds $= 10^{-3}/(1 - 10^{-3}) \approx 1.001 \times 10^{-3}$.
+- Step 2 (**your step here**): compute the posterior odds from the prior odds and the BF.
+  Write the exact arithmetic.
+- Step 3 (shown): the PPA is $\approx 0.0197$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+lABF <- 3
+pi_prior <- 1e-3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing move is **posterior odds = prior odds × BF**: $1.001 \times 10^{-3} \times 20.09
+\approx 0.0201$. Then PPA $= 0.0201/1.0201 \approx 0.0197$.
+
+```{r p2-answer}
+prior_odds <- 1e-3 / (1 - 1e-3)
+post_odds  <- prior_odds * exp(3)                 # 0.0201
+c(post_odds = post_odds, PPA = post_odds / (1 + post_odds))    # 0.0201, 0.0197
+```
+:::
+
+## Problem 3 — the full pipeline
+
+Start from raw summary statistics: $\hat\beta = 0.20$, $\text{se} = 0.05$, prior $W = 0.04$,
+and $\pi = 10^{-4}$. Run the whole chain $\hat\beta \to Z \to \text{lABF} \to \text{PPA}$ and
+report the PPA.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: the whole pipeline from (beta, se) to PPA
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }
+beta_hat <- 0.20; se <- 0.05; W <- 0.04; pi_prior <- 1e-4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$Z = 0.20/0.05 = 4$; lABF $= 6.11$ (BF $\approx 452$); PPA with $\pi = 10^{-4}$ is $\approx
+0.0432$ — our running variant, about $4.3\%$ likely to be a true association.
+
+```{r p3-answer}
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }
+lABF <- wakefield_abf(0.20, 0.05, 0.04)
+c(lABF = round(lABF, 4), PPA = round(wakefield_ppa(lABF, 1e-4), 4))    # 6.1128, 0.0432
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague reports — it contains **exactly one mistake** — find it and give the correct
+reading.
+
+> "This variant has a Bayes factor of $452$, which is way above $1$, so its posterior
+> probability of association is essentially certain — call it $99\%$."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is treating a **large Bayes factor as a near-certain posterior** — it ignores the
+tiny prior. With $\pi = 10^{-4}$, posterior odds $= 10^{-4} \times 452 \approx 0.0452$, so PPA
+$\approx 0.043$ — about $4.3\%$, nowhere near $99\%$. A Bayes factor *multiplies* the prior
+odds; applied to $1$-in-$10{,}000$ odds, even a factor of $452$ leaves the variant probably
+not associated.
+
+```{r p4-answer}
+po <- 1e-4 / (1 - 1e-4) * 452
+c(wrong = 0.99, correct_PPA = po / (1 + po))      # ~0.043, not 0.99
+```
+:::
+
+## Problem 5 — mixing it with Module 3 *(uses Module 3's wakefield_abf)*
+
+A variant has $\hat\beta = 0.30$, $\text{se} = 0.10$, prior $W = 0.04$. (a) Compute the lABF
+(Module 3). (b) With $\pi = 10^{-4}$, compute the PPA. (c) Compare its PPA to the running
+variant's $0.043$ — is this variant more or less convincing, and why?
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }
+beta_hat <- 0.30; se <- 0.10; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $Z = 3$, lABF $\approx 2.795$ (BF $\approx 16.4$). (b) PPA $= 10^{-4} \cdot 16.4 /
+(1 + \ldots) \approx 0.00163$ — about $0.16\%$. (c) *Less* convincing than the running variant
+($0.043$): its $Z = 3$ is smaller than the running variant's $Z = 4$, so its Bayes factor
+($16$ vs $452$) is much smaller, and against the same tiny prior that yields a smaller PPA.
+
+```{r p5-answer}
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+wakefield_ppa <- function(labf, prior = 1e-4) { po <- prior/(1-prior) * exp(labf); po/(1+po) }
+lABF <- wakefield_abf(0.30, 0.10, 0.04)
+c(lABF = round(lABF, 3), PPA = round(wakefield_ppa(lABF, 1e-4), 5))    # 2.795, 0.00163
+```
+:::
+
+## Problem 6 — transfer (interpretation)
+
+Two variants both reach exactly $Z = 3$ ($p \approx 0.0027$), with prior $W = 0.04$. Variant
+S comes from a small study ($V = 0.0025$); variant L from a huge one ($V = 10^{-6}$). Compute
+each variant's lABF. Do the *same* p-value carry the *same* Bayesian evidence? Explain what
+this says about setting a genome-wide p-value threshold.
+
+```{webr}
+#| autorun: false
+# p6-starter — edit and Run to solve, right here
+labf <- function(z, V, W) { r <- W / (W + V); 0.5 * (log(1 - r) + r * z^2) }
+Z <- 3; W <- 0.04
+V_small <- 0.0025; V_large <- 1e-6
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Variant S: lABF $\approx 2.82$ (BF $\approx 16.8$, evidence *for* an effect). Variant L: lABF
+$\approx -0.80$ (BF $\approx 0.45$, evidence *against*!). The **same** p-value carries opposite
+evidence.
+
+```{r p6-answer}
+labf <- function(z, V, W) { r <- W / (W + V); 0.5 * (log(1 - r) + r * z^2) }
+c(small_study = round(labf(3, 0.0025, 0.04), 3),
+  large_study = round(labf(3, 1e-6, 0.04), 3))     # 2.819 vs -0.798
+```
+A $p = 0.0027$ in a small study is a genuine signal, but in a huge study it means the true
+effect is tiny — which the ABF reads as unimpressive, even null-favoring. So no single
+p-value threshold means the same thing across sample sizes: the honest threshold must
+*shrink* as studies grow, exactly Wakefield's point.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/approximate-bayes-factors/modules/04-posterior-probability-of-association" pass="4"}
+
+::: {.quiz-q qid="ppa-chain" qtype="mc" answer="b"}
+How do you turn a Bayes factor into a posterior probability of association?
+
+a) PPA equals the Bayes factor divided by 100
+b) posterior odds = (prior odds $\pi/(1-\pi)$) × BF, then PPA = posterior odds / (1 + posterior odds)
+c) PPA = prior probability $\pi$ + Bayes factor, capped at 1
+:::
+
+::: {.quiz-q qid="ppa-running-numeric" qtype="numeric" answer="0.0432" tolerance="0.002"}
+The running variant has lABF $= 6.11$. With prior probability $\pi = 10^{-4}$, compute the
+posterior probability of association. Round to four decimals.
+:::
+
+::: {.quiz-q qid="ppa-threshold-shrinks" qtype="mc" answer="c"}
+As sample size grows (so the variance $V \to 0$), what happens to the Bayesian evidence
+carried by a *fixed* p-value?
+
+a) It stays the same — a p-value is a fixed, sample-size-independent measure of evidence
+b) It grows without bound, so a fixed threshold becomes ever more conservative
+c) It weakens toward $-\infty$, because $r \to 1$ makes the width penalty $\log(1-r) \to -\infty$
+:::
+
+::: {.quiz-q qid="ppa-strong-bf-small-ppa" qtype="mc" answer="a"}
+Why can a variant with a Bayes factor of $452$ still have a posterior probability of
+association of only about $4\%$?
+
+a) The prior probability of a hit is tiny ($10^{-4}$), and the BF only multiplies those long prior odds
+b) A Bayes factor of $452$ is actually weak evidence
+c) The posterior probability caps at $4\%$ for any single variant in a GWAS
+:::
+
+::: {.quiz-q qid="ppa-ranking-prior" qtype="mc" answer="b"}
+*(Interleaved — uses Module 3's lABF formula.)* Which choice of prior makes the ABF rank
+variants in the *same order* as the p-value?
+
+a) A fixed prior variance $W$ shared by all variants
+b) A prior variance $W$ proportional to each variant's own $V$, which fixes $r$ and makes lABF increase with $Z^2$
+c) A prior probability $\pi$ equal to the p-value
+:::
+
+:::
+
+::::

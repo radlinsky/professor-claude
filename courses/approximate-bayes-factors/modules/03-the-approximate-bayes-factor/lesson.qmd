@@ -1,0 +1,446 @@
+---
+title: "The Approximate Bayes Factor"
+subtitle: "Divide the two curves and it collapses to lABF = ½(log(1−r) + rZ²)"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+This is the method. Last module gave you two competing curves for the estimate — a narrow
+null $N(0, V)$ and a wide alternative $N(0, V + W)$. The **Bayes factor for association** is
+just the ratio of those two curves' heights at the observed $\hat\beta$ (the "which net
+predicted the data better" comparison you already did numerically). The beautiful part:
+because both curves are normal, that ratio **collapses into a closed form** you can compute
+from the z-statistic alone —
+
+$$
+\text{lABF} = \tfrac12\big(\log(1 - r) + r Z^2\big), \qquad r = \frac{W}{W + V}.
+$$
+
+We'll derive it step by step, build the base-R function `wakefield_abf(beta, se, W)` that
+computes it, and then — the payoff of a *ported* course — run your function against the
+**frozen reference numbers** that were proven to match `coloc::coloc.abf` 5.2.3, right here
+in your browser.
+
+**Builds on:** the [previous module](../02-a-prior-on-the-effect/lesson.qmd) — the two
+curves $N(0, V)$ and $N(0, V + W)$;
+[likelihood & log-likelihood](../../../../foundations/likelihood-and-log-likelihood/lesson.qmd)
+— a Bayes factor is a ratio of (here, marginal) likelihoods; and the
+[log rules](../../../../foundations/exponentials-and-logs/lesson.qmd) via
+[reading math notation](../../../../foundations/reading-math-notation/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** *(Module 2)* Our running variant has $V = 0.0025$ and we use $W = 0.04$. What are the
+two curves for the estimate, the null and the alternative (give each as $N(0, \text{?})$)?
+
+::: {.callout-note collapse="true" title="Answer"}
+Null: $N(0, V) = N(0, 0.0025)$. Alternative: $N(0, V + W) = N(0, 0.0425)$. The alternative
+is wider because the variances add. Shaky? Revisit
+[a prior on the effect](../02-a-prior-on-the-effect/lesson.qmd).
+:::
+
+**2.** *(Module 1)* For that variant, $\hat\beta = 0.20$ and $\text{se} = 0.05$. What is the
+z-statistic $Z$?
+
+```{webr}
+#| autorun: false
+# warmup2-starter — edit and Run to check
+beta_hat <- 0.20; se <- 0.05
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$Z = \hat\beta/\text{se} = 0.20/0.05 = 4$. See
+[the summary of an association](../01-the-summary-of-an-association/lesson.qmd).
+:::
+
+**3.** *(Foundation)* State the log rule that turns a *ratio* inside a log into a
+*difference* of logs.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\log(a/b) = \log a - \log b$ — "the log of a quotient is the difference of the logs." We'll
+use it to turn the ratio of two densities into a difference. See
+[exponentials & logs](../../../../foundations/exponentials-and-logs/lesson.qmd).
+:::
+
+## A tiny example first
+
+Our running variant: $\hat\beta = 0.20$, $V = 0.0025$, prior $W = 0.04$. From Module 2 the
+two curve heights at $\hat\beta = 0.20$ were:
+
+- null $N(0, V)$ height: $0.00268$,
+- alternative $N(0, V + W)$ height: $1.209$.
+
+The **Bayes factor for association** is the alternative over the null — "how many times
+better the alternative predicted this estimate":
+
+$$
+\text{BF} = \frac{1.209}{0.00268} \approx 451.6.
+$$
+
+A Bayes factor of about $452$ is strong evidence for an effect: the data are $452$ times
+more consistent with "there is an effect (of prior-plausible size)" than with "there is no
+effect." Its natural log — the **log ABF** we'll work with — is $\log(451.6) \approx 6.11$.
+
+Now the claim we'll prove: you never actually need the two `dnorm` heights. Define $r =
+W/(W + V) = 0.04/0.0425 = 0.9412$ and use the z-statistic $Z = 4$ from Module 1. Then
+
+$$
+\text{lABF} = \tfrac12\big(\log(1 - r) + r Z^2\big)
+            = \tfrac12\big(\log(0.05882) + 0.9412 \times 16\big) = 6.11.
+$$
+
+Same $6.11$ — from $Z$ and $r$ alone, no densities. The same thing in R, both ways:
+
+```{r toy-example}
+beta_hat <- 0.20; V <- 0.0025; W <- 0.04
+Z <- beta_hat / sqrt(V)                          # 4 (Module 1)
+
+# Way 1: the ratio of the two dnorm curve heights (Module 2)
+bf_from_curves <- dnorm(beta_hat, 0, sqrt(V + W)) / dnorm(beta_hat, 0, sqrt(V))
+log(bf_from_curves)                               # 6.1128
+
+# Way 2: the closed form, from Z and r alone
+r    <- W / (W + V)                               # 0.9412
+lABF <- 0.5 * (log(1 - r) + r * Z^2)              # 6.1128 -- identical
+lABF
+```
+
+## Getting a feel for it
+
+**The mental picture: a scoreboard for two forecasters.** Picture two weather forecasters.
+The null forecaster always predicts "no effect — the estimate will land right near zero"; the
+alternative forecaster hedges — "there could be an effect, so it might land further out." The
+Bayes factor is the *scoreboard ratio*: how much probability each forecaster assigned to the
+outcome that actually happened (the observed $\hat\beta$), one divided by the other. When the
+estimate lands far from zero, the hedging alternative wins big (BF $\gg 1$); when it lands
+near zero, the confident null wins (BF $< 1$). The log ABF is just that scoreboard on a log
+scale, so "twice as much evidence" becomes "add a constant" — the additive currency of the
+next module. (Where the picture strains: real forecasters compete on many days; here there is
+a single observation, the one estimate, and the "score" is a density height rather than a
+tallied count.)
+
+**Why does the ratio collapse so cleanly?** Both curves are the *same shape* — normal,
+centered at zero — differing only in width ($V$ vs $V + W$). When you divide two normal
+densities and take the log, the fixed $2\pi$ and the "minus a half times something squared"
+structure line up so neatly that everything condenses into two pieces: a width term
+$\log(1 - r)$ (a penalty for the alternative's wider, therefore lower, curve) and a
+signal term $r Z^2$ (a reward that grows with how far out the estimate landed). The shrinkage
+factor $r = W/(W + V)$ — a number between 0 and 1 — is the dial that trades those two off:
+near 1 (a strong, precise signal relative to the prior) the reward dominates; near 0 (a vague
+prior or a noisy estimate) the penalty wins and the alternative can't get ahead.
+
+**What the number feels like.** Our lABF is $6.11$, so the BF is $e^{6.11} \approx 452$ —
+strong. The two ingredients: $r = 0.941$ is close to $1$ (the estimate is precise relative to
+the prior), and $Z^2 = 16$ is large (the effect is $4$ SEs out), so the signal term
+$rZ^2 = 15.06$ dwarfs the small width penalty $\log(1 - r) = \log(0.0588) = -2.83$; half
+their sum, $6.11$, is comfortably positive. Shrink the effect so $Z = 1$ and the signal term
+becomes $0.941$, barely beating the $-2.83$ penalty — the lABF goes negative, i.e. the data
+now favor the *null*. The lABF crosses zero right where the signal stops paying for the
+width penalty.
+
+## What the notation is going to say
+
+The formula will say: the log Bayes factor is one half of two added pieces. The first,
+$\log(1 - r)$, is always **negative** (since $1 - r$ is between 0 and 1) — it's the price the
+alternative pays for spreading its curve wider and thus lower everywhere. The second, $r
+Z^2$, is always **positive** — it's the credit the alternative earns for the estimate landing
+$Z$ standard errors out, scaled by the shrinkage $r$. When the positive credit outweighs the
+negative price, the lABF is positive (evidence *for* an effect). Everything is built from the
+two curves you already have, and reduces to the $Z = 4$, $r = 0.941$ arithmetic above.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\hat\beta$ | "beta hat" | the effect estimate (Module 1); appears in the density-ratio derivation | $0.20$ |
+| $V$ | "vee" | variance of the estimate, $\text{se}^2$ | $0.0025$ |
+| $W$ | "double-you" | prior variance on the true effect | $0.04$ |
+| $Z$ | "zed" | z-statistic $\hat\beta/\sqrt V$ (Module 1) | $4$ |
+| $\sigma^2$ | "sigma squared" | a stand-in for a normal curve's variance in the density formula — here either $V$ or $V+W$ | $V$ or $V+W$ |
+| $N(x;0,\sigma^2)$ | "the normal density at x, mean zero, variance sigma-squared" | the height of the $N(0,\sigma^2)$ curve at the point $x$ (in R: `dnorm(x, 0, sqrt(sigma2))`) | the two curves' heights at $\hat\beta$ |
+| $r$ | "little r" | the **shrinkage factor** $W/(W + V)$, between 0 and 1 (NOT a correlation) | $0.9412$ |
+| $1 - r$ | "one minus r" | equals $V/(V + W)$ — the null-to-total variance ratio | $0.0588$ |
+| $\text{BF}$ | "bee-eff" | the Bayes factor for association (alternative over null) | $451.6$ |
+| $\text{lABF}$ | "log-A-B-F" | the natural log of the Bayes factor, $\log(\text{BF})$ | $6.11$ |
+| $\log$ | "log" (natural, base $e$) | natural logarithm (in R: `log`) | $\log(451.6) = 6.11$ |
+| $\exp$ | "ee to the" / "exp" | the exponential, undoing log (in R: `exp`) | $\exp(6.11) = 451.6$ |
+
+This lesson's $r$ is Wakefield's **shrinkage factor**, *not* a correlation coefficient —
+whenever you see $r$ here, read "double-you over double-you-plus-vee." See
+[reading math notation](../../../../foundations/reading-math-notation/lesson.qmd) for how
+papers overload single letters.
+
+## The formal version
+
+**The Bayes factor as a ratio of the two curves.** The Bayes factor for association is the
+alternative marginal density over the null marginal density, at the observed estimate — a
+ratio of (marginal) likelihoods, exactly as a Bayes factor should be
+([foundation](../../../../foundations/bayes-factors-and-posterior-odds/lesson.qmd)):
+
+$$
+\text{BF} = \frac{N(\hat\beta \,;\, 0,\, V + W)}{N(\hat\beta \,;\, 0,\, V)}.
+$$
+
+Reading it aloud: "the Bayes factor equals the alternative curve's height at beta-hat over
+the null curve's height at beta-hat." Everyday words: **"how many times better the
+wider (effect) curve predicted the estimate than the narrow (no-effect) curve did."**
+
+**Deriving the closed form.** Write out the normal density
+$N(x; 0, \sigma^2) = \tfrac{1}{\sqrt{2\pi\sigma^2}}\exp\!\big(-\tfrac{x^2}{2\sigma^2}\big)$
+for each curve and take the log of the ratio, one algebra step per line (the alternative has
+$\sigma^2 = V + W$, the null has $\sigma^2 = V$):
+
+$$
+\begin{aligned}
+\text{lABF}
+&= \log N(\hat\beta; 0, V{+}W) - \log N(\hat\beta; 0, V) \\
+&= \Big[-\tfrac12\log\big(2\pi (V{+}W)\big) - \tfrac{\hat\beta^2}{2(V{+}W)}\Big]
+ - \Big[-\tfrac12\log\big(2\pi V\big) - \tfrac{\hat\beta^2}{2V}\Big] \\
+&= -\tfrac12\log\!\frac{V{+}W}{V}
+ \;+\; \tfrac{\hat\beta^2}{2}\Big(\tfrac{1}{V} - \tfrac{1}{V{+}W}\Big) \\
+&= -\tfrac12\log\!\frac{V{+}W}{V}
+ \;+\; \tfrac{\hat\beta^2}{2}\cdot\frac{W}{V(V{+}W)} \\
+&= \tfrac12\Big[\log\!\frac{V}{V{+}W} \;+\; \frac{\hat\beta^2}{V}\cdot\frac{W}{V{+}W}\Big] \\
+&= \tfrac12\Big[\log(1 - r) \;+\; r\,Z^2\Big].
+\end{aligned}
+$$
+
+- Line 1: **log of a quotient is a difference of logs** (from
+  [exponentials & logs](../../../../foundations/exponentials-and-logs/lesson.qmd)).
+- Line 2: **substitute the normal density formula** for each curve and apply "log of a
+  product is a sum of logs" so the $2\pi\sigma^2$ term splits off.
+- Line 3: **collect like terms** — the two $-\tfrac12\log(2\pi)$ pieces cancel, the two
+  $\log\sigma^2$ pieces combine into one log of a ratio, and the two $\hat\beta^2$ terms
+  gather (from [algebra moves for derivations](../../../../foundations/algebra-moves-for-derivations/lesson.qmd)).
+- Line 4: **common-denominator subtraction** — $\tfrac1V - \tfrac1{V+W} =
+  \tfrac{(V+W)-V}{V(V+W)} = \tfrac{W}{V(V+W)}$.
+- Line 5: **factor out $\tfrac12$ and flip the log's sign** using $-\log\frac{V+W}{V} =
+  \log\frac{V}{V+W}$ (log of a reciprocal).
+- Line 6: **recognize the two ratios** — $\frac{V}{V+W} = 1 - r$ (since $r = \frac{W}{V+W}$)
+  and $\frac{\hat\beta^2}{V}\cdot\frac{W}{V+W} = Z^2 \cdot r$ (since $Z^2 = \hat\beta^2/V$).
+
+So the finished closed form is
+
+$$
+\boxed{\;\text{lABF} = \tfrac12\big(\log(1 - r) + r Z^2\big), \qquad r = \frac{W}{W + V}.\;}
+$$
+
+Reading it aloud: "the log ABF equals one half of, log of one-minus-r, plus r times z
+squared." Everyday words: **"half the sum of a width penalty (always negative) and a signal
+reward (always positive) — evidence for an effect when the reward wins."**
+
+Sanity-check against the hand numbers ($V = 0.0025$, $W = 0.04$, $Z = 4$): $r = 0.9412$,
+$\log(1 - r) = \log(0.0588) = -2.833$, $rZ^2 = 0.9412 \times 16 = 15.06$, half their sum is
+$\tfrac12(-2.833 + 15.06) = 6.11$ — matching the density-ratio value exactly.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the closed form and the raw density ratio must agree, always.
+# TRY IT: change beta_hat, se, or W. PREDICT: at beta_hat = 0 (no observed effect) will the
+# lABF be positive or negative? Commit, then run.
+beta_hat <- 0.20; se <- 0.05; W <- 0.04
+V <- se^2; Z <- beta_hat / se; r <- W / (W + V)
+
+closed <- 0.5 * (log(1 - r) + r * Z^2)                    # the derived formula
+ratio  <- log(dnorm(beta_hat, 0, sqrt(V + W)) /
+              dnorm(beta_hat, 0, sqrt(V)))                # log of the raw density ratio
+c(closed_form = closed, density_ratio = ratio)            # identical -> 6.1128
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: build the from-scratch function you'll validate. This IS the course's
+# reimplementation: wakefield_labf and its wrapper wakefield_abf, base R only.
+# TRY IT: call wakefield_abf with different beta/se and read the lABF (coloc's sign: bigger
+# = more evidence for association).
+wakefield_labf <- function(z, V, W) {
+  r <- W / (W + V)
+  0.5 * (log(1 - r) + r * z^2)          # the closed form we just derived
+}
+wakefield_abf <- function(beta, se, W) {
+  z <- beta / se
+  V <- se^2
+  wakefield_labf(z, V, W)               # start from raw summary stats (beta, se)
+}
+
+wakefield_abf(beta = 0.20, se = 0.05, W = 0.04)    # 6.1128 -- our running variant
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The log ABF plotted against the z-statistic for a fixed prior, a U-shaped curve symmetric about zero: it dips to a negative minimum near z = 0 (evidence for the null) and rises steeply on both sides, crossing zero near z = +/- 1.7 and becoming strongly positive for large |z|. A dashed horizontal line at lABF = 0 marks the break-even point."
+# explore-3 — LIVE: SEE the width-penalty vs signal-reward trade-off across z.
+# The lABF is negative near z = 0 (the null wins) and positive for large |z|.
+# TRY IT: raise W to 0.2 and watch the whole curve shift -- a vaguer prior pays a bigger
+# width penalty, so it needs a larger |z| to break even.
+V <- 0.0025; W <- 0.04; r <- W / (W + V)
+z_grid <- seq(-6, 6, length.out = 400)
+lABF   <- 0.5 * (log(1 - r) + r * z_grid^2)
+
+plot(z_grid, lABF, type = "l", lwd = 2,
+     xlab = "z-statistic", ylab = "log ABF",
+     main = "Width penalty vs signal reward")
+abline(h = 0, lty = 2)
+```
+
+## The from-scratch method, matched to the real thing {#self-check}
+
+You just wrote `wakefield_abf()`. Now prove it is right — not against a spot check, but
+against **frozen reference numbers that were verified to match `coloc::coloc.abf` 5.2.3**.
+This repo's equivalence harness fed a fixed set of 10 associations (beta, se, and prior
+$W = 0.04$) through the real `coloc` machinery and recorded its `lABF` output. The cell below
+embeds those exact inputs and reference outputs inline (a browser has no access to the
+repo's files), runs *your* function on the same inputs, and compares — the numbers must agree
+to about $10^{-8}$.
+
+```{webr}
+#| autorun: true
+# LIVE SELF-CHECK: your from-scratch function vs the FROZEN coloc reference.
+# PREDICT: do you expect your function to match coloc's numbers to ~1e-8 (a true rebuild)
+# or only roughly (a different formula)? Commit, then run.
+# These 10 (beta, se) pairs and the reference lABF vector are copied verbatim from
+# equivalence/fixtures/wakefield-abf-full-coloc.json (tier: full, source: coloc::coloc.abf 5.2.3).
+wakefield_labf <- function(z, V, W) { r <- W / (W + V); 0.5 * (log(1 - r) + r * z^2) }
+wakefield_abf  <- function(beta, se, W) wakefield_labf(beta / se, se^2, W)
+
+# --- frozen fixture inputs ---
+beta <- c(-0.02554337913844796, 0.008215202917039434, -0.005366809239341077, 0.16,
+          0.03986549597916812, -0.05543162960131377, 0.005742157693248766,
+          0.01323645801439164, -0.0438060912100528, -0.02261565535665145)
+se   <- rep(0.03, 10)
+W    <- 0.04
+
+# --- frozen coloc reference lABF (what coloc::coloc.abf 5.2.3 produced) ---
+reference_labf <- c(-1.553741503528518, -1.871576145659659, -1.892595932433175,
+                    12.001018497661109, -1.044752885297292, -0.238772015646558,
+                    -1.890330388525183, -1.813051689371357, -0.8656081651460308,
+                    -1.630349137649496)
+
+mine <- wakefield_abf(beta, se, W)          # YOUR from-scratch output
+max_abs_diff <- max(abs(mine - reference_labf))
+
+cat("max |mine - coloc reference| =", format(max_abs_diff, scientific = TRUE), "\n")
+cat("match within 1e-8?", max_abs_diff < 1e-8, "\n")   # TRUE -- you rebuilt coloc's ABF
+```
+
+::: {.callout-note title="Runs on your machine, not here"}
+The reference numbers above came from the **real `coloc` package** (`coloc::coloc.abf`
+5.2.3), which cannot run in the browser (WebR has no `coloc`). On your own machine the same
+check is what `equivalence/check.R` re-verifies against `equivalence/fixtures/`. The call
+looks like this — shown for reading, not running here:
+
+```r
+# On your machine (not in the browser): coloc's own routine, GPL-3, shown for reference only
+library(coloc)
+coloc:::approx.bf.estimates(z = beta / se, V = se^2, type = "cc", sdY = 1,
+                            suffix = NULL)   # returns a data.frame with an lABF column
+```
+:::
+
+**Validation tier: FULL.** The match is against `coloc::coloc.abf` 5.2.3's actual output on
+these inputs (not merely a reported number or a closed form re-derived by us), and
+`equivalence/check.R` re-verifies it in CI. Your `wakefield_abf()` *is* coloc's ABF.
+
+## Common traps
+
+**Trap 1 — "$r$ is a correlation."** In most statistics, $r$ means a correlation between $-1$
+and $1$. Here $r = W/(W + V)$ is Wakefield's **shrinkage factor**, always between $0$ and $1$
+— it never goes negative and isn't about two variables moving together. For our variant $r =
+0.04/0.0425 = 0.941$. Reading it as a correlation would be nonsense; it's a variance ratio.
+
+**Trap 2 — "a bigger prior variance $W$ always means more evidence."** Tempting — a wider net
+"allows" bigger effects. But $W$ enters the lABF two ways with *opposite* signs: it raises the
+signal reward $rZ^2$ *and* deepens the width penalty $\log(1 - r)$. Push $W$ too high and the
+penalty wins. With our variant ($Z = 4$): $W = 0.04$ gives lABF $6.11$, but $W = 100$ gives
+lABF $\approx 2.70$ — *lower*, because the enormous width penalty overwhelms the barely-larger
+signal. There is a sweet spot; more prior spread is not free.
+
+## Check yourself
+
+**1.** A variant has $\hat\beta = 0.15$, $\text{se} = 0.05$ (so $V = 0.0025$), with prior
+$W = 0.04$. Compute $Z$, $r$, and the lABF from the closed form. Confirm with
+`wakefield_abf`.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+wakefield_abf <- function(beta, se, W) { z <- beta / se; V <- se^2; r <- W / (W + V); 0.5 * (log(1 - r) + r * z^2) }
+beta_hat <- 0.15; se <- 0.05; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$Z = 0.15/0.05 = 3$; $V = 0.0025$; $r = 0.04/0.0425 = 0.9412$. lABF $= \tfrac12(\log(0.0588)
++ 0.9412 \times 9) = \tfrac12(-2.833 + 8.471) = 2.819$. So BF $= e^{2.819} \approx 16.8$ —
+solid evidence for an effect. `wakefield_abf(0.15, 0.05, 0.04)` returns `2.819`.
+:::
+
+**2.** True or false: if $Z = 0$ (the estimate is exactly zero), the lABF is negative.
+Explain in one line.
+
+::: {.callout-note collapse="true" title="Answer"}
+**True.** With $Z = 0$ the signal reward $rZ^2$ vanishes, leaving lABF $= \tfrac12\log(1 - r)$
+— and $\log$ of a number below $1$ is negative. So an estimate of exactly zero is evidence
+*for* the null (the alternative paid the width penalty and got no signal in return).
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the Approximate
+Bayes Factor is and why it can be computed from the z-statistic alone.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The ABF is the ratio of two normal predictions of the observed estimate — how much better a
+"there's an effect" curve fits it than a "no effect" curve — expressed on the log scale as
+lABF. It reduces to the z-statistic alone because both curves are normal and centered at
+zero, so dividing them and taking the log cancels everything except a width penalty
+$\log(1-r)$ and a signal term $rZ^2$, where the shrinkage $r = W/(W+V)$ and $Z^2$ are all you
+need.
+:::
+
+## What you can now do
+
+- **Derive the closed-form log ABF** from the ratio of the two normal curves, naming the
+  algebra move on each line.
+- **Read the lABF as a penalty–reward trade-off** — a negative width penalty $\log(1-r)$ plus
+  a positive signal reward $rZ^2$, with $r$ the shrinkage factor.
+- **Build `wakefield_abf(beta, se, W)` from scratch** in base R and compute the lABF for any
+  association.
+- **Validate the from-scratch function** against the frozen `coloc::coloc.abf` 5.2.3
+  reference and state the validation tier (full).
+
+If any of these feels shaky, revisit [The formal version](#the-formal-version) and the
+[self-check](#self-check) before continuing — the next module turns this Bayes factor into a
+posterior probability of association.
+
+## Where this goes next
+
+You can turn any $(\hat\beta, \text{se})$ into a Bayes factor for association. But a Bayes
+factor isn't yet a probability. The
+[next module](../04-posterior-probability-of-association/lesson.qmd) runs your lABF through the
+"posterior odds = prior odds × Bayes factor" machine to get the **posterior probability of
+association**, and uses it to explain the paper's headline result: why an honest significance
+threshold must shrink as sample size grows. Ready for more reps? Do the
+[practice problems](practice.qmd).

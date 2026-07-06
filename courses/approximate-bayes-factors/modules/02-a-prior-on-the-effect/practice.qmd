@@ -1,0 +1,241 @@
+---
+title: "Practice: A prior on the effect"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+A variant has $\hat\beta = 0.10$ with variance $V = 0.0025$, and you use prior variance
+$W = 0.04$. Compute the height of the null curve $N(0, V)$ and the alternative curve
+$N(0, V + W)$ at $\hat\beta = 0.10$. Which is taller?
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+beta_hat <- 0.10
+V <- 0.0025
+W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Null variance $= V = 0.0025$ (sd $0.05$); alternative variance $= V + W = 0.0425$ (sd
+$\approx 0.206$). Heights at $0.10$: null `dnorm(0.10, 0, 0.05)` $\approx 1.080$;
+alternative `dnorm(0.10, 0, sqrt(0.0425))` $\approx 1.720$. The **alternative** is taller —
+$0.10$ is two standard errors out, still better explained by the wider curve.
+
+```{r p1-answer}
+beta_hat <- 0.10; V <- 0.0025; W <- 0.04
+c(null = dnorm(beta_hat, 0, sqrt(V)),
+  alt  = dnorm(beta_hat, 0, sqrt(V + W)))      # 1.080 vs 1.720 -- alternative taller
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+A variant has $V = 0.0025$ and you use a prior variance $W = 0.09$. Here is the worked
+solution for the alternative curve's spread, with the core step blanked — supply only that
+step.
+
+- Step 1 (shown): the null curve is $N(0, V) = N(0, 0.0025)$.
+- Step 2 (**your step here**): find the *variance* of the alternative curve $N(0, ?)$ from
+  $V$ and $W$. Write the exact arithmetic.
+- Step 3 (shown): so the alternative curve is $N(0, 0.0925)$, standard deviation $\approx
+  0.304$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+V <- 0.0025
+W <- 0.09
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing move is **adding the variances**: the alternative variance is $V + W = 0.0025 +
+0.09 = 0.0925$. (Adding the *standard deviations* — $0.05 + 0.3 = 0.35$ — would be wrong;
+that squares to $0.1225$, not $0.0925$.)
+
+```{r p2-answer}
+V <- 0.0025; W <- 0.09
+c(alt_variance = V + W, alt_sd = sqrt(V + W))     # 0.0925, 0.304
+```
+:::
+
+## Problem 3 — choosing the prior
+
+You decide a plausible true log-odds-ratio ranges roughly over $\pm 0.6$ (about two prior
+standard deviations), so you set `sd.prior = 0.3`. (a) What prior variance $W$ does this
+give? (b) Translate that $\pm 0.6$ log-OR range into an odds-ratio range.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: W from sd.prior, then the OR range
+sd_prior <- 0.3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $W = \text{sd.prior}^2 = 0.3^2 = 0.09$. (b) Two prior sds is $\pm 2(0.3) = \pm 0.6$ on
+the log-OR scale; exponentiating, the odds-ratio range is $e^{-0.6}$ to $e^{0.6}$, i.e.
+about $0.55$ to $1.82$.
+
+```{r p3-answer}
+sd_prior <- 0.3
+W <- sd_prior^2                                   # 0.09
+c(W = W, OR_low = exp(-2 * sd_prior), OR_high = exp(2 * sd_prior))    # 0.09, 0.549, 1.822
+```
+A bigger `sd.prior` widens the plausible odds-ratio range — the dial for "how large could a
+real effect be."
+:::
+
+## Problem 4 — spot the error
+
+A colleague sets up the two curves for a variant with $\hat\beta = 0.20$, $V = 0.0025$,
+$W = 0.04$ — it contains **exactly one mistake** — find it and fix it.
+
+> "Under the null the estimate is $N(0, 0.0025)$. Under the alternative it's shifted to the
+> observed effect and widened, so it's $N(0.20, \; 0.0025 + 0.04) = N(0.20, 0.0425)$."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is **centering the alternative curve at $0.20$**. Both curves are centered at
+**zero**; the alternative differs only by being *wider*, not shifted. The correct
+alternative curve is $N(0, 0.0425)$, not $N(0.20, 0.0425)$. (The prior on the true effect is
+centered at zero — it bets on "an effect of some size, either direction," not on the specific
+observed value — so averaging over it keeps the estimate's predicted curve centered at zero.)
+The widening part ($V + W = 0.0425$) is correct.
+
+```{r p4-answer}
+# correct: BOTH centered at 0; alternative is just wider
+c(null = "N(0, 0.0025)", alt_correct = "N(0, 0.0425)", alt_wrong = "N(0.20, 0.0425)")
+```
+:::
+
+## Problem 5 — mixing it with Module 1 *(uses Module 1's z-statistic)*
+
+Our running variant has $\hat\beta = 0.20$ and $\text{se} = 0.05$, with prior variance
+$W = 0.04$. (a) Compute $V$ and the z-statistic $Z$ (Module 1). (b) Then compute the two
+curve heights at $\hat\beta = 0.20$ and the ratio alternative/null. (c) In one sentence,
+connect the large $Z$ to the large height ratio.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+beta_hat <- 0.20
+se       <- 0.05
+W        <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $V = \text{se}^2 = 0.0025$; $Z = 0.20/0.05 = 4$. (b) Null height `dnorm(0.20, 0, 0.05)`
+$= 0.00268$; alternative height `dnorm(0.20, 0, sqrt(0.0425))` $= 1.209$; ratio $\approx
+451$. (c) The estimate sits $Z = 4$ standard errors from zero — deep in the tail of the
+narrow null curve but ordinary for the wide alternative curve — so the alternative
+out-predicts the null by a large factor.
+
+```{r p5-answer}
+beta_hat <- 0.20; se <- 0.05; W <- 0.04
+V <- se^2; Z <- beta_hat / se
+height_null <- dnorm(beta_hat, 0, sqrt(V))
+height_alt  <- dnorm(beta_hat, 0, sqrt(V + W))
+c(V = V, Z = Z, ratio = round(height_alt / height_null, 1))    # 0.0025, 4, 451.6
+```
+:::
+
+## Problem 6 — transfer (interpretation)
+
+Two variants both have the *same* estimate $\hat\beta = 0.20$ and the *same* prior $W =
+0.04$, but they differ in precision: variant A has $V = 0.0025$ (a well-powered study) and
+variant B has $V = 0.04$ (a noisy study). For each, compute the ratio of curve heights
+alternative/null at $\hat\beta = 0.20$. Which variant's data favor the alternative, and
+which barely distinguish the two hypotheses — and why?
+
+```{webr}
+#| autorun: false
+# p6-starter — edit and Run to solve, right here
+beta_hat <- 0.20
+W <- 0.04
+V_A <- 0.0025      # precise
+V_B <- 0.04        # noisy
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Variant A: ratio $\approx 451$ — the alternative crushes the null. Variant B: ratio $\approx
+0.91$ — *below 1*, so the null curve is actually slightly *taller* there, and the data
+barely favor either hypothesis (if anything, a whisker toward the null).
+
+```{r p6-answer}
+beta_hat <- 0.20; W <- 0.04
+ratio <- function(V) dnorm(beta_hat, 0, sqrt(V + W)) / dnorm(beta_hat, 0, sqrt(V))
+c(variant_A = round(ratio(0.0025), 1), variant_B = round(ratio(0.04), 2))   # 451.6, 0.91
+```
+Why: the *same* observed effect $0.20$ is a shock under variant A's tight null ($Z = 4$) but
+completely unremarkable under variant B's loose null ($Z = 1$). Evidence for an effect isn't
+the effect size alone — it's the effect *relative to the estimate's precision*, which is
+exactly what feeds the Bayes factor in the next module.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/approximate-bayes-factors/modules/02-a-prior-on-the-effect" pass="4"}
+
+::: {.quiz-q qid="ape-two-curves" qtype="mc" answer="b"}
+Under the null ($H_0$) and the alternative ($H_1$), what are the two predicted
+distributions of the estimate $\hat\beta$?
+
+a) $H_0$: $N(0, V)$; $H_1$: $N(\hat\beta, V + W)$ — the alternative shifts to the observed effect
+b) $H_0$: $N(0, V)$; $H_1$: $N(0, V + W)$ — both centered at zero, the alternative wider
+c) $H_0$: $N(0, W)$; $H_1$: $N(0, V)$ — the null uses the prior variance
+:::
+
+::: {.quiz-q qid="ape-alt-variance" qtype="numeric" answer="0.05" tolerance="0.0001"}
+A variant has variance $V = 0.01$ and you use prior variance $W = 0.04$. What is the
+variance of the alternative predicted curve $N(0, \,?)$ for the estimate?
+:::
+
+::: {.quiz-q qid="ape-W-from-sdprior" qtype="numeric" answer="0.04" tolerance="0.0001"}
+`coloc`'s case-control default is `sd.prior = 0.2`. What prior variance $W$ does this
+correspond to?
+:::
+
+::: {.quiz-q qid="ape-what-W-encodes" qtype="mc" answer="c"}
+What does the prior variance $W$ (equivalently `sd.prior` $= \sqrt{W}$) encode?
+
+a) The measurement noise in the estimate — how much $\hat\beta$ wobbles on fresh data
+b) The observed effect size at the variant being tested
+c) The plausible size of a true effect — how large a true log odds ratio could reasonably be
+:::
+
+::: {.quiz-q qid="ape-marginal-link" qtype="mc" answer="a"}
+*(Interleaved — uses marginal likelihood & model evidence.)* Why is the alternative curve
+$N(0, V + W)$ rather than something else?
+
+a) It is the estimate's noise $N(\cdot, V)$ averaged over the prior $N(0, W)$, and independent variances add
+b) It multiplies the two variances, because probabilities of independent events multiply
+c) It adds the two standard deviations, then squares the result
+:::
+
+:::
+
+::::

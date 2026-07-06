@@ -1,0 +1,234 @@
+---
+title: "Practice: The Approximate Bayes Factor"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer. A helper to paste as needed:
+`wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r) + r*z^2) }`.
+
+## Problem 1 — the toy example, new numbers
+
+A variant has $\hat\beta = 0.24$ and $\text{se} = 0.06$, with prior variance $W = 0.04$.
+Compute $Z$, $r$, and the lABF from the closed form. Confirm with `wakefield_abf`.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r) + r*z^2) }
+beta_hat <- 0.24; se <- 0.06; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$Z = 0.24/0.06 = 4$; $V = 0.06^2 = 0.0036$; $r = 0.04/(0.04 + 0.0036) = 0.9174$. lABF
+$= \tfrac12(\log(1 - 0.9174) + 0.9174 \times 16) = \tfrac12(-2.494 + 14.679) = 6.092$.
+
+```{r p1-answer}
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r) + r*z^2) }
+c(Z = 0.24/0.06, lABF = wakefield_abf(0.24, 0.06, 0.04))    # 4, 6.0924
+```
+(Slightly below the lesson's $6.11$: same $Z = 4$, but a bigger $V$ shrinks $r$, so the
+signal is discounted a touch more.)
+:::
+
+## Problem 2 — fill in the missing step
+
+A variant has $Z = 2$, $V = 0.0025$, and prior $W = 0.04$. Here is the worked solution with
+the core step blanked — supply only that step.
+
+- Step 1 (shown): the shrinkage factor is $r = W/(W + V) = 0.04/0.0425 = 0.9412$.
+- Step 2 (**your step here**): assemble the lABF from $r$ and $Z$. Write the exact
+  arithmetic.
+- Step 3 (shown): the lABF is $\approx 0.466$ (so BF $\approx 1.59$ — only mild evidence).
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+Z <- 2; r <- 0.9412
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing move is plugging $r$ and $Z$ into the closed form: lABF $= \tfrac12(\log(1 - r)
++ rZ^2) = \tfrac12(\log(0.0588) + 0.9412 \times 4) = \tfrac12(-2.833 + 3.765) = \tfrac12(0.932)
+= 0.466$.
+
+```{r p2-answer}
+Z <- 2; r <- 0.04 / 0.0425
+0.5 * (log(1 - r) + r * Z^2)      # 0.466 -- half of (width penalty + signal reward)
+```
+Note how close the signal ($3.765$) is to the penalty ($2.833$) here: at $Z = 2$ the ABF is
+barely positive, unlike the crushing $Z = 4$ case.
+:::
+
+## Problem 3 — a full computation, both ways
+
+A variant has $\hat\beta = 0.30$, $\text{se} = 0.10$, prior $W = 0.04$. Compute the lABF two
+ways and confirm they match: (a) as the log of the ratio of the two `dnorm` curve heights
+(Module 2's curves), and (b) from the closed form. Report the Bayes factor $e^{\text{lABF}}$
+too.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: both routes to the lABF, and the BF
+beta_hat <- 0.30; se <- 0.10; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$V = 0.01$, $Z = 3$, $r = 0.04/0.05 = 0.8$. Closed form: lABF $= \tfrac12(\log(0.2) + 0.8
+\times 9) = \tfrac12(-1.609 + 7.2) = 2.795$; density-ratio route gives the same $2.795$. BF
+$= e^{2.795} \approx 16.4$.
+
+```{r p3-answer}
+beta_hat <- 0.30; se <- 0.10; W <- 0.04
+V <- se^2; Z <- beta_hat / se; r <- W / (W + V)
+
+ratio  <- log(dnorm(beta_hat, 0, sqrt(V + W)) / dnorm(beta_hat, 0, sqrt(V)))   # curve route
+closed <- 0.5 * (log(1 - r) + r * Z^2)                                          # formula
+c(density_ratio = ratio, closed_form = closed, BF = exp(closed))    # 2.795, 2.795, 16.4
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague computes the lABF for a variant with $Z = 4$, $V = 0.0025$, $W = 0.04$ — the
+computation contains **exactly one mistake** — find it and fix it.
+
+> "The shrinkage factor is $r = W/(W + V) = 0.04/0.0425 = 0.9412$. So lABF $= \tfrac12(\log(1
+> + r) + rZ^2) = \tfrac12(\log(1.9412) + 0.9412 \times 16) = \tfrac12(0.663 + 15.06) =
+> 7.86$."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is $\log(1 + r)$ instead of $\log(1 - r)$. The width penalty is $\log(1 - r) =
+\log(0.0588) = -2.833$ (a *penalty*, so negative), not $\log(1 + r) = +0.663$. With the sign
+right, lABF $= \tfrac12(-2.833 + 15.06) = 6.11$, not $7.86$. Using $1 + r$ turns the
+alternative's width *penalty* into a spurious *reward* — it would make a wider curve look
+like more evidence, which is backwards.
+
+```{r p4-answer}
+r <- 0.04 / 0.0425; Z <- 4
+c(wrong = 0.5 * (log(1 + r) + r * Z^2),          # 7.86 -- sign error
+  correct = 0.5 * (log(1 - r) + r * Z^2))         # 6.11
+```
+:::
+
+## Problem 5 — mixing it with Module 2 *(uses Module 2's two curves)*
+
+A variant has $\hat\beta = 0.10$, $\text{se} = 0.05$, prior $W = 0.04$. (a) Write down the
+two Module-2 curves $N(0, V)$ and $N(0, V+W)$ and their heights at $\hat\beta = 0.10$. (b)
+Take their log-ratio to get the lABF, and confirm it equals the closed form. (c) Is this
+strong evidence?
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+beta_hat <- 0.10; se <- 0.05; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$V = 0.0025$, $Z = 2$. (a) Null $N(0, 0.0025)$ height $\approx 1.080$; alternative $N(0,
+0.0425)$ height $\approx 1.720$ (from Module 2's practice). (b) lABF $= \log(1.720/1.080) =
+\log(1.593) = 0.466$, matching the closed form $\tfrac12(\log(0.0588) + 0.9412 \times 4) =
+0.466$. (c) Not strong: BF $= e^{0.466} \approx 1.59$ — the alternative fits only about
+$1.6\times$ better, mild evidence at best.
+
+```{r p5-answer}
+beta_hat <- 0.10; se <- 0.05; W <- 0.04
+V <- se^2; Z <- beta_hat / se; r <- W / (W + V)
+curve_lABF <- log(dnorm(beta_hat, 0, sqrt(V + W)) / dnorm(beta_hat, 0, sqrt(V)))
+c(curve = curve_lABF, closed = 0.5 * (log(1 - r) + r * Z^2), BF = exp(curve_lABF))
+```
+:::
+
+## Problem 6 — transfer (interpretation)
+
+Keep $Z = 4$ and $V = 0.0025$ fixed, but sweep the prior variance $W$ over
+$\{0.001, 0.04, 1, 100\}$. Compute the lABF at each. What happens as $W$ grows very large,
+and why does that make sense given the two terms in the formula?
+
+```{webr}
+#| autorun: false
+# p6-starter — edit and Run to solve, right here
+Z <- 4; V <- 0.0025
+W_grid <- c(0.001, 0.04, 1, 100)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The lABF rises then *falls*: about $2.12$ at $W = 0.001$, $6.11$ at $W = 0.04$, $4.98$ at
+$W = 1$, and $2.70$ at $W = 100$. Very large $W$ **hurts** the evidence.
+
+```{r p6-answer}
+Z <- 4; V <- 0.0025
+labf <- function(W) { r <- W / (W + V); 0.5 * (log(1 - r) + r * Z^2) }
+round(sapply(c(0.001, 0.04, 1, 100), labf), 3)     # 2.117, 6.113, 4.983, 2.701
+```
+Why: $W$ pushes the signal reward $rZ^2$ up (good) but also deepens the width penalty
+$\log(1 - r)$ (bad, since $r \to 1$ makes $1 - r \to 0$ and $\log(1 - r) \to -\infty$). For
+small $W$ the reward is throttled ($r$ near 0); for huge $W$ the penalty dominates. The best
+evidence sits at a moderate $W$ matched to plausible effect sizes — which is exactly why
+choosing `sd.prior` sensibly matters.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/approximate-bayes-factors/modules/03-the-approximate-bayes-factor" pass="4"}
+
+::: {.quiz-q qid="abf-shrinkage-numeric" qtype="numeric" answer="0.9412" tolerance="0.001"}
+For a variant with $V = 0.0025$ and prior $W = 0.04$, compute the shrinkage factor $r =
+W/(W + V)$. Round to four decimals.
+:::
+
+::: {.quiz-q qid="abf-labf-numeric" qtype="numeric" answer="6.11" tolerance="0.02"}
+For a variant with $Z = 4$, $V = 0.0025$, and $W = 0.04$ (so $r = 0.9412$), compute the log
+ABF $= \tfrac12(\log(1 - r) + rZ^2)$. Round to two decimals.
+:::
+
+::: {.quiz-q qid="abf-two-terms" qtype="mc" answer="b"}
+In $\text{lABF} = \tfrac12(\log(1 - r) + rZ^2)$, what are the signs and roles of the two
+terms?
+
+a) Both terms are positive: a width reward and a signal reward
+b) $\log(1 - r)$ is a negative width penalty; $rZ^2$ is a positive signal reward
+c) $\log(1 - r)$ is a positive signal reward; $rZ^2$ is a negative width penalty
+:::
+
+::: {.quiz-q qid="abf-what-is-r" qtype="mc" answer="c"}
+What is $r$ in the ABF formula?
+
+a) The correlation between the estimate and the true effect, between $-1$ and $1$
+b) The p-value re-expressed on the $[0, 1]$ scale
+c) The shrinkage factor $W/(W + V)$, a variance ratio between $0$ and $1$
+:::
+
+::: {.quiz-q qid="abf-curve-ratio" qtype="mc" answer="a"}
+*(Interleaved — uses Module 2's two curves.)* The Bayes factor for association equals which
+ratio, evaluated at the observed $\hat\beta$?
+
+a) The alternative curve $N(0, V+W)$ height over the null curve $N(0, V)$ height
+b) The null curve height over the alternative curve height
+c) The prior $N(0, W)$ height over the estimate's noise $N(0, V)$ height
+:::
+
+:::
+
+::::

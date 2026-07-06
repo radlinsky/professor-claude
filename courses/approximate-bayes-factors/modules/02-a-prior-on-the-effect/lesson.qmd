@@ -1,0 +1,361 @@
+---
+title: "A prior on the effect"
+subtitle: "Two competing bell curves for β̂: N(0, V) if there's no effect, N(0, V+W) if there is"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The code cells below with a **Run** button are live — powered by WebR (R compiled to
+WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
+of them and re-run. The first run downloads a small R engine, so give it a few seconds.
+Cells without a Run button are ordinary listings whose output was computed when the
+page was built.
+:::
+
+## Where we're going
+
+Last module you reduced an association to the pair $(\hat\beta, V)$. Now we add the one
+Bayesian ingredient the Approximate Bayes Factor needs: a **prior on the true effect** — a
+normal curve $N(0, W)$ that says, before seeing any data, "the true effect is probably
+small, near zero, but could plausibly be as large as $W$'s spread allows." With that prior
+in hand, the estimate $\hat\beta$ has **two** competing predicted distributions: a narrow
+one, $N(0, V)$, if there is truly *no* effect (the null), and a wider one, $N(0, V + W)$,
+if there *is* an effect drawn from the prior (the alternative). The ratio of those two
+curves — next module — is the Bayes factor. This module builds the two curves and explains
+what the single knob $W$ controls.
+
+**Builds on:** the [previous module](../01-the-summary-of-an-association/lesson.qmd) — the
+pair $(\hat\beta, V)$;
+[distributions & densities](../../../../foundations/distributions-and-densities/lesson.qmd)
+— the normal curve $N(\mu, \sigma^2)$ and `dnorm`; and
+[marginal likelihood & model evidence](../../../../foundations/marginal-likelihood-and-model-evidence/lesson.qmd)
+— averaging an estimate's density over a prior gives the marginal $N(0, V + W)$, the exact
+result the alternative curve uses.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** *(Module 1)* A variant has $\hat\beta = 0.20$ and $\text{se} = 0.05$. What is its
+variance $V$?
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+se <- 0.05
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$V = \text{se}^2 = 0.05^2 = 0.0025$. This is our running variant for the rest of the
+course. Shaky? Revisit
+[the summary of an association](../01-the-summary-of-an-association/lesson.qmd).
+:::
+
+**2.** *(Foundation)* You average a normal estimate with variance $V$ over a normal prior
+$N(0, W)$ on the true value. What is the resulting marginal distribution of the estimate?
+
+::: {.callout-note collapse="true" title="Answer"}
+$N(0, V + W)$ — a normal curve centered at zero whose variance is the two variances
+**added**. See
+[marginal likelihood & model evidence](../../../../foundations/marginal-likelihood-and-model-evidence/lesson.qmd).
+:::
+
+**3.** *(Foundation)* In `dnorm(x, mean, sd)`, what does the returned number represent — a
+probability, or something else?
+
+::: {.callout-note collapse="true" title="Answer"}
+A **density** — the *height* of the bell curve at $x$, not a probability. Only *area* under
+the curve is a probability. See
+[distributions & densities](../../../../foundations/distributions-and-densities/lesson.qmd).
+:::
+
+## A tiny example first
+
+Take our running variant: the estimate is $\hat\beta = 0.20$, with variance $V = 0.0025$
+(so $\text{se} = 0.05$). We are weighing two stories about the *true* effect $\theta$ (the
+value $\hat\beta$ is trying to estimate):
+
+- **The null story ($H_0$):** there is no effect, $\theta = 0$. Then the estimate just
+  wobbles around zero with its own noise, so $\hat\beta \sim N(0, V) = N(0, 0.0025)$ — a
+  narrow bell curve, standard deviation $\sqrt{0.0025} = 0.05$.
+- **The alternative story ($H_1$):** there *is* an effect, and before the data we believe
+  it's drawn from a prior $\theta \sim N(0, W)$ with $W = 0.04$. Averaging the estimate's
+  noise over that prior (the foundation result) widens the curve to $\hat\beta \sim N(0, V
+  + W) = N(0, 0.0425)$ — standard deviation $\sqrt{0.0425} \approx 0.206$.
+
+Now ask: **at our observed value $\hat\beta = 0.20$, which curve is taller?** The height of
+each curve at $0.20$ is a `dnorm`:
+
+- Null curve height: `dnorm(0.20, 0, sqrt(0.0025))` $= 0.00268$.
+- Alternative curve height: `dnorm(0.20, 0, sqrt(0.0425))` $= 1.209$.
+
+The alternative curve is *far* taller at $0.20$ — about $450$ times taller. In plain terms:
+an estimate as big as $0.20$ is a shock under the narrow null curve (it's four standard
+errors out) but perfectly ordinary under the wider alternative curve. That height ratio is
+the seed of the Bayes factor.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+beta_hat <- 0.20
+V <- 0.0025          # variance of the estimate (from Module 1: se^2)
+W <- 0.04            # prior variance on the true effect
+
+# Two competing predicted curves for the estimate:
+height_null <- dnorm(beta_hat, mean = 0, sd = sqrt(V))       # N(0, V)   -- no effect
+height_alt  <- dnorm(beta_hat, mean = 0, sd = sqrt(V + W))   # N(0, V+W) -- effect
+
+c(null = height_null, alt = height_alt)          # 0.00268 vs 1.209
+height_alt / height_null                          # ~451: alt curve is far taller here
+```
+
+## Getting a feel for it
+
+**The mental picture: a wide net vs a tight net.** Think of each hypothesis as a fisher
+casting a net for where the estimate will land. The null caster believes the true effect is
+exactly zero, so they cast a **tight net** right around zero (spread $V$) — they're betting
+the estimate lands very close to zero. The alternative caster admits the effect *could* be
+anywhere the prior allows, so they cast a **wide net** (spread $V + W$) that still centers
+on zero but reaches much further out. When the estimate actually lands at $0.20$, far from
+zero, it falls *outside* the tight net but comfortably *inside* the wide one — so the wide
+net "predicted" it far better. A hypothesis is rewarded for having cast a net where the
+data actually landed. (Where the picture strains: both nets are centered at zero even though
+the alternative allows non-zero effects — that's because the prior itself is centered at
+zero, spreading the *possible* effects symmetrically around no-effect; the alternative bets
+on "an effect of some size," not on a specific direction.)
+
+**Why is the alternative curve wider — why $V + W$ and not something else?** The estimate
+carries two independent sources of wobble under the alternative: the measurement noise of
+the estimate (variance $V$) *and* the genuine spread of the true effect the prior allows
+(variance $W$). Two independent wobbles stacked on top of each other combine by **adding
+variances** (the foundation result), so the total spread is $V + W$. This is also why we
+carried $V = \text{se}^2$ as a variance back in Module 1 — so it could add cleanly to $W$
+here. The null curve has only the first wobble ($V$), because under "no effect" the true
+value isn't spread at all — it's pinned at zero.
+
+**What the knob $W$ feels like.** $W$ is the *only* free choice in the whole method, and it
+encodes "how big could a real effect plausibly be." Its square root is the prior standard
+deviation of the log-odds-ratio: with $W = 0.04$, the prior sd is $\sqrt{0.04} = 0.2$, so
+the prior thinks true log-ORs of roughly $\pm 0.4$ (two sds) are plausible — odds ratios
+from about $e^{-0.4} \approx 0.67$ to $e^{0.4} \approx 1.49$. Turn $W$ up and the
+alternative net widens, expecting bigger effects; turn it toward zero and the alternative
+net shrinks onto the null net, and the two hypotheses become hard to tell apart. The
+case-control default in `coloc`, `sd.prior = 0.2`, is exactly this $W = 0.2^2 = 0.04$.
+
+## What the notation is going to say
+
+The formulas just name the two nets. The **prior** on the true effect is $\theta \sim N(0,
+W)$: a bell curve for the unknown true effect, centered at zero (no effect is the default
+expectation), with spread $W$ (how big effects could plausibly get). The **null predicted
+distribution** of the estimate is $\hat\beta \sim N(0, V)$ — only the estimate's own noise.
+The **alternative predicted distribution** is $\hat\beta \sim N(0, V + W)$ — the estimate's
+noise plus the prior's spread, variances added. Every piece is a `dnorm` you can evaluate,
+exactly as in the toy computation.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\theta$ | "theta" | the unknown **true** effect the estimate is chasing (a true log odds ratio) | the true log-OR (unknown) |
+| $\hat\beta$ | "beta hat" | the effect **estimate** from the data | $0.20$ |
+| $V$ | "vee" | variance of the estimate ($V = \text{se}^2$, from Module 1) | $0.0025$ |
+| $W$ | "double-you" | the **prior variance** on the true effect — the one knob | $0.04$ |
+| $\sqrt{W}$ | "root double-you" | the prior standard deviation, `sd.prior` — the plausible log-OR scale | $0.2$ |
+| $N(0, V)$ | "normal, mean zero, variance vee" | the null predicted curve for $\hat\beta$ (no effect) | $N(0, 0.0025)$ |
+| $N(0, V+W)$ | "normal, mean zero, variance vee plus double-you" | the alternative predicted curve for $\hat\beta$ | $N(0, 0.0425)$ |
+| $H_0, H_1$ | "aitch-nought, aitch-one" | the null (no effect) and alternative (effect) hypotheses | the two stories |
+| $\sim$ | "is distributed as" | "follows the distribution" (in R: `rnorm`/`dnorm` with these parameters) | $\hat\beta \sim N(0, V)$ under $H_0$ |
+
+## The formal version
+
+**The prior.** Before the data, the true effect is modelled as a normal centered at zero:
+
+$$
+\theta \sim N(0, W).
+$$
+
+Reading it aloud: "theta is distributed normal with mean zero and variance double-you."
+Everyday words: **"we expect the true effect to be small (near zero), but allow it to be as
+large as a spread of $W$ makes plausible."** Centering at zero is the honest default — no
+effect is the baseline expectation — and $W$ is the dial for how far real effects might
+reach.
+
+**The two predicted distributions of the estimate.** Under each hypothesis, the estimate
+$\hat\beta$ has its own predicted (prior-predictive) curve:
+
+$$
+\text{Under } H_0:\quad \hat\beta \sim N(0, V),
+\qquad
+\text{Under } H_1:\quad \hat\beta \sim N(0, V + W).
+$$
+
+Reading it aloud: "under aitch-nought, beta-hat is normal with variance vee; under
+aitch-one, beta-hat is normal with variance vee plus double-you." Everyday words: **"if
+there's no effect the estimate just carries its own noise; if there is an effect the
+estimate carries its noise plus the prior's spread — so the variances add."**
+
+The $H_1$ curve is the marginal-likelihood result from the foundation, applied here:
+averaging the estimate's density $N(\theta, V)$ over the prior $\theta \sim N(0, W)$ gives
+$N(0, V + W)$ — the variances $V$ and $W$ add. The $H_0$ curve is the special case $W = 0$
+(the prior collapses to a spike at zero), leaving just $N(0, V)$.
+
+Mapping it onto the toy example: with $V = 0.0025$ and $W = 0.04$, the two curves are
+$N(0, 0.0025)$ and $N(0, 0.0425)$, whose heights at $\hat\beta = 0.20$ are $0.00268$ and
+$1.209$ — exactly the hand numbers. Sanity-check them in the Explore cells below.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the two competing curve HEIGHTS at the observed estimate.
+# TRY IT: change W (the prior variance / how big effects could be) and watch the heights.
+# PREDICT: if you shrink W to 0.0001 (barely any effect allowed), will the two heights get
+# CLOSER together or further apart? Commit, then run.
+beta_hat <- 0.20
+V <- 0.0025          # from Module 1: se^2
+W <- 0.04            # prior variance on the true effect
+
+height_null <- dnorm(beta_hat, 0, sqrt(V))         # N(0, V)
+height_alt  <- dnorm(beta_hat, 0, sqrt(V + W))     # N(0, V + W)
+c(null = round(height_null, 5), alt = round(height_alt, 5),
+  ratio_alt_over_null = round(height_alt / height_null, 1))     # ~451
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: confirm the alternative curve IS the marginal-likelihood result.
+# Averaging the estimate's noise N(theta, V) over the prior N(0, W) should give N(0, V+W).
+# PREDICT: will brute-force integration match the closed-form dnorm below? Guess, run.
+beta_hat <- 0.20; V <- 0.0025; W <- 0.04
+
+integrand <- function(theta) dnorm(beta_hat, theta, sqrt(V)) * dnorm(theta, 0, sqrt(W))
+brute  <- integrate(integrand, -Inf, Inf)$value    # average over the prior
+closed <- dnorm(beta_hat, 0, sqrt(V + W))           # N(0, V+W): the alternative curve
+
+c(brute_force = brute, closed_form = closed)        # equal -- the alt curve is the marginal
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two normal density curves centered at zero on the same axes: a tall narrow curve labelled 'null N(0, V)' and a much shorter wider curve labelled 'alternative N(0, V+W)'. A dashed vertical line at beta-hat = 0.20 sits far out in the tail of the narrow null curve but well within the wide alternative curve, where the alternative curve is clearly higher."
+# explore-3 — LIVE: SEE the two nets and where the estimate landed.
+# TRY IT: drag the estimate by changing beta_hat -- near 0 the null curve is taller;
+# far out the alternative curve is taller.
+beta_hat <- 0.20; V <- 0.0025; W <- 0.04
+grid <- seq(-0.6, 0.6, length.out = 500)
+
+plot(grid, dnorm(grid, 0, sqrt(V)), type = "l", lwd = 2,
+     xlab = expression(hat(beta)), ylab = "density",
+     main = "Two predicted curves for the estimate")
+lines(grid, dnorm(grid, 0, sqrt(V + W)), lwd = 2, lty = 2)
+abline(v = beta_hat, col = "grey50")
+legend("topright", c("null  N(0, V)", "alternative  N(0, V+W)"),
+       lwd = 2, lty = c(1, 2), bty = "n")
+```
+
+::: {.callout-note title="Optional — priors that vary with allele frequency"}
+Wakefield also considers priors whose variance $W$ depends on the variant's **minor allele
+frequency (MAF)**. The idea: a fixed prior on the log-OR isn't always the most natural — one
+can instead put the prior on a *standardized* effect, which makes the implied $W$ larger for
+rare variants (small MAF) and smaller for common ones, because a rare allele carries less
+information per copy. A common device makes $W$ scale like $1/[2\,\text{MAF}(1-\text{MAF})]$
+— roughly $10.5$ at MAF $0.05$ versus $2$ at MAF $0.5$. You don't need this for the core
+method (the case-control default uses a fixed $W = 0.04$), which is why it's optional; it
+buys you a prior that adapts to how much each variant could plausibly reveal.
+:::
+
+## Common traps
+
+**Trap 1 — "the two curves differ in where they're centered."** No — *both* the null curve
+$N(0, V)$ and the alternative curve $N(0, V + W)$ are centered at **zero**. They differ only
+in **spread**: the alternative is wider ($V + W = 0.0425$ vs $V = 0.0025$). The alternative
+doesn't bet on a specific non-zero effect; it bets on "an effect of some size, either
+direction," which spreads its curve symmetrically around zero rather than shifting it.
+
+**Trap 2 — "to widen the alternative curve, add the standard deviations."** No — you add the
+*variances*. Here $V = 0.0025$ (sd $0.05$) and $W = 0.04$ (sd $0.2$), so the alternative
+variance is $V + W = 0.0425$, whose sd is $\sqrt{0.0425} \approx 0.206$ — **not** $0.05 +
+0.2 = 0.25$. Adding sds would overstate the width. Variances (spreads²) add; standard
+deviations don't.
+
+## Check yourself
+
+**1.** A variant has $\hat\beta = 0.15$ and $V = 0.0025$, and you use a prior variance $W =
+0.04$. Compute the height of the null curve $N(0, V)$ and the alternative curve $N(0, V+W)$
+at $\hat\beta = 0.15$. Which is taller?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+beta_hat <- 0.15
+V <- 0.0025
+W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Null height: `dnorm(0.15, 0, sqrt(0.0025))` $= 0.0886$. Alternative height: `dnorm(0.15, 0,
+sqrt(0.0425))` $= 1.485$. The **alternative** is taller — $0.15$ is three standard errors
+out under the narrow null but ordinary under the wide alternative. (Note the alternative
+height is even a touch higher than at $\hat\beta = 0.20$, where it was $1.209$, because
+$0.15$ is closer to the wide curve's center.)
+:::
+
+**2.** You change the prior from $W = 0.04$ to $W = 0.0001$ (you now believe any real effect
+is minuscule). What happens to the alternative curve $N(0, V + W)$, and to its ability to
+out-predict the null curve?
+
+::: {.callout-note collapse="true" title="Answer"}
+The alternative variance drops from $0.0425$ to $0.0026$, nearly equal to the null's
+$0.0025$ — the wide net shrinks almost onto the tight net. The two curves become nearly
+identical, so the alternative can barely out-predict the null anywhere: with such a tiny
+prior, "there's an effect" and "there's no effect" make almost the same prediction, and the
+data can't distinguish them.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the prior $N(0, W)$
+does and why the alternative predicted curve for the estimate is wider than the null one.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The prior $N(0, W)$ encodes our before-the-data belief about the true effect — probably
+small (centered at zero) but plausibly as large as a spread of $W$ allows. The alternative
+curve for the estimate is wider because, under "there is an effect," the estimate carries
+*two* independent sources of spread — its own measurement noise ($V$) plus the genuine
+spread of the true effect the prior permits ($W$) — and independent variances add, giving
+$V + W$; the null curve has only the noise, so its variance is just $V$.
+:::
+
+## What you can now do
+
+- **Place a normal prior $N(0, W)$ on the true effect** and state what $W$ (and its root,
+  the `sd.prior`) encodes about the plausible odds-ratio range.
+- **Write down the two predicted curves for the estimate** — $N(0, V)$ under the null and
+  $N(0, V + W)$ under the alternative — and say why the variances add.
+- **Evaluate and compare the two curves' heights** at an observed $\hat\beta$ with `dnorm`,
+  and read the taller curve as "the hypothesis that predicted the data better."
+- **Avoid the centering and standard-deviation traps** — both curves center at zero, and
+  widths combine by adding variances, not standard deviations.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — the next module divides these
+two curves' heights to build the Approximate Bayes Factor.
+
+## Where this goes next
+
+You have the two competing curves for the estimate. The
+[next module](../03-the-approximate-bayes-factor/lesson.qmd) takes their ratio at the
+observed $\hat\beta$ — the taller-curve-wins comparison you just did numerically — and shows
+it collapses to a clean closed-form log Bayes factor you can build in a few lines of base R,
+$\text{lABF} = \tfrac12\big(\log(1 - r) + r Z^2\big)$. Ready for more reps? Do the
+[practice problems](practice.qmd).

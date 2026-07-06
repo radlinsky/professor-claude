@@ -1,4 +1,4 @@
 ShortName: Distributions & densities
 Concepts: A distribution as "which values are common vs rare" (histogram → smooth curve), density vs probability (AREA under the curve is probability, HEIGHT is not), the normal curve and its two knobs (mean = center, sd = spread), R's `d`/`p`/`q`/`r` families (`dnorm`/`pnorm`/`qnorm`/`rnorm`) as the four questions you can ask a distribution, and a name-drop of the wider zoo (t, chi-squared, binomial, Poisson) as "other curves, same grammar"
 BuildsOn: [probability-and-odds](probability-and-odds/lesson.qmd), [mean-variance-covariance](mean-variance-covariance/lesson.qmd), [derivative-as-slope](derivative-as-slope/lesson.qmd)
-UsedBy: —
+UsedBy: [approximate-bayes-factors](../courses/approximate-bayes-factors/syllabus.md)
