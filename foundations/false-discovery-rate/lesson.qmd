@@ -308,16 +308,15 @@ them.
 - **Use `p.adjust(p, method = ...)`** in R and read its output back against a 0.05 threshold.
 
 If any of these feels shaky, revisit the toy example and the "what the notation says" section —
-methods that run many tests and correct over the total (like the proportional colocalisation
-test) assume all of them.
+methods that run many tests and correct over the total number of possible tests assume all of them.
 
 ## Where this goes next
 
 Any method that runs a *pile* of tests and then asks "is any of them real?" has to correct for
-multiplicity, or it drowns in false alarms. In the proportional colocalisation course, the
-power fix runs *all pairwise* variant tests and corrects over the total number of possible
-pairs with exactly this `p.adjust` machinery — and you'll see there that the released package
-names its column "fdr" but actually calls `p.adjust`'s Holm default, which is why knowing both
-families matters.
+multiplicity, or it drowns in false alarms. A common pattern in applied courses is to run *all
+pairwise* tests over a set of items and correct over the total number of possible pairs with
+exactly this `p.adjust` machinery — and to watch for a subtlety worth knowing: some released
+software names an output column "fdr" while actually calling `p.adjust`'s Holm default, which is
+why knowing both the FWER and FDR families matters.
 
 Ready for more reps? Do the [practice problems](practice.qmd).

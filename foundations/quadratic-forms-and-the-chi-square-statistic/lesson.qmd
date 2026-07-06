@@ -34,8 +34,8 @@ lesson does the same thing for a **whole vector of numbers at once**. The tool i
 the vector is a bundle of noisy measurements, the right quadratic form is a *standardised
 squared distance* — and it turns out to follow a famous, tabulated distribution called the
 **chi-square**, which is what lets you attach a p-value to it. Test statistics all over
-statistics — from a goodness-of-fit test to the proportional colocalisation test — are
-exactly this shape.
+statistics — from a goodness-of-fit test to a test of whether a whole bundle of noisy
+estimates is jointly consistent with zero — are exactly this shape.
 
 **Builds on:** [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd)
 (a matrix times a vector, the transpose, the inverse as "undo"),
