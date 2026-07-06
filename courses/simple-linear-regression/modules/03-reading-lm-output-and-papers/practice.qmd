@@ -231,3 +231,52 @@ coefficient now means "the effect of this variable *holding the other fixed*", s
 precise — and the matrix notation $(\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$
 papers use for it — is the natural next course to ask for.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/simple-linear-regression/modules/03-reading-lm-output-and-papers" pass="4"}
+
+::: {.quiz-q qid="lmout-t-recon" qtype="numeric" answer="7.7" tolerance="0.05"}
+The lesson's paper table shows the Fertilizer estimate as 1.926 with SE 0.249.
+Reconstruct the t value (estimate ÷ SE). Round to one decimal.
+:::
+
+::: {.quiz-q qid="lmout-pvalue" qtype="mc" answer="c"}
+A regression reports $p = 0.002$ for a slope. Which interpretation is correct?
+
+a) There is a 0.2% chance the true slope is zero — so we have 99.8% confidence the effect is genuine
+b) The effect size must be large — a p-value this small only occurs when slopes are far from zero
+c) Under a true slope of zero, data this extreme would arise only 0.2% of the time by chance
+:::
+
+::: {.quiz-q qid="lmout-stars-vs-effect" qtype="mc" answer="a"}
+A predictor earns three stars ($p < 0.001$) but $R^2 = 0.08$. What does this mean?
+
+a) The slope is reliably nonzero but explains very little of y's variation
+b) The p-value and R² contradict each other — one of them must be misreported
+c) The model fits well, as three significance stars indicate a strong relationship
+:::
+
+::: {.quiz-q qid="lmout-r2" qtype="numeric" answer="0.9" tolerance="0"}
+For the lesson's season-1 data ($x = (1,2,3,4,5)$, $y = (4,4,7,10,10)$): SSE $= 3.6$ and
+$\sum(y_i - \bar{y})^2 = 36$. Compute $R^2 = 1 - \mathrm{SSE}/\sum(y_i-\bar{y})^2$.
+Enter one decimal.
+:::
+
+::: {.quiz-q qid="lmout-sse-interleaved" qtype="numeric" answer="2" tolerance="0"}
+(From Module 1.) For $x = (1,2,3,4)$, $y = (2,3,5,6)$: candidate line "intercept 1,
+slope 1" has residuals $(0, 0, +1, +1)$. What is its SSE? Enter a whole number.
+:::
+
+:::
+
+::::
