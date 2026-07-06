@@ -148,7 +148,8 @@ follow — every quantity a full regression reports, from two summary ingredient
 | $\hat\beta$ | "beta hat" | the reconstructed **joint** coefficients, $R^{-1}b$ | $(0.6, 0.2)$ |
 | $b^\top R^{-1} b$ | "b-transpose R-inverse b" | the fit's $R^2$ (standardized $y$) | $0.52$ |
 | $1 - b^\top R^{-1}b$ | — | residual variance of standardized $y$ | $0.48$ |
-| $S$ | "ess" | the number of studies being combined (meta-analysis) | 5 |
+| $S$ | "ess" | the subset of indicators a model keeps | e.g. $\{1, 2\}$ |
+| $|S|$ | "size of S" | how many indicators are in the subset $S$ | 2 |
 
 ## The formal version
 
