@@ -353,11 +353,15 @@ posteriors. A few honest edges, each a natural next step:
 - **Multiple causal variants per region (SuSiE-coloc).** `coloc.abf`'s five hypotheses assume
   *at most one* causal SNP per trait. When a region has several independent signals, newer
   methods (`coloc.susie`) run colocalisation per credible set instead.
-- **The single-causal-variant and LD assumptions.** The test assumes the two studies share the
-  same LD (correlation) structure and that a causal SNP is present in the data; violations can
-  distort PP3 vs PP4.
-- **Sensitivity to the priors.** PP4 depends on $p_{12}$; the paper and `coloc`'s
-  `sensitivity()` tools let you check how the verdict moves as you vary the priors.
+- **The single-causal-variant assumption.** `coloc.abf` uses *no* LD matrix — only per-SNP
+  summary statistics — and assumes each trait has at most one causal variant, present in both
+  datasets. When a trait really has several causal variants, the test is *conservative*: it
+  effectively asks whether the two traits' *strongest* signals colocalise, and can miss
+  secondary shared signals (Wallace 2020).
+- **Sensitivity to the priors.** PP4 depends on $p_{12}$, and `coloc`'s default
+  $p_{12} = 10^{-5}$ has been argued to be too liberal — Wallace (2020) suggests
+  $5 \times 10^{-6}$ and, above all, a *sensitivity analysis* (via `coloc`'s `sensitivity()`)
+  rather than trusting any single default.
 
 None of these change what you built; they extend it. You can read the core of the coloc paper
 and `coloc.abf` now — the rest is more of the same shape.

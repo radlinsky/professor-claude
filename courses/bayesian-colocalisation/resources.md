@@ -56,3 +56,8 @@ statistics." *PLoS Genetics* 10(5):e1004383.**
   (docs site) — for "what you still can't read yet": the SuSiE (`coloc.susie`) and
   variant-specific-prior vignettes here are the natural next steps beyond the single-causal
   `coloc.abf` you rebuilt.
+- 📖 [Wallace (2020), *Eliciting priors and relaxing the single causal variant assumption in colocalisation analyses*, PLoS Genetics (open access)](https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1008720)
+  (paper) — the direct follow-up to the source paper. It is where the $p_{12}$ caveat (default
+  $10^{-5}$ argued too liberal; $5\times10^{-6}$ suggested) and the sensitivity-analysis and
+  conditioning/masking approaches to the single-causal-variant assumption come from — read it
+  once the capstone's "Where this goes next" section makes you curious.
