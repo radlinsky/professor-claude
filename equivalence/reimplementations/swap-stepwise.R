@@ -1,4 +1,4 @@
-# From-scratch SwitchStep: likelihood-based variable selection from summary statistics.
+# From-scratch Swap-Stepwise: likelihood-based variable selection from summary statistics.
 #
 # Rebuilds the method Course B teaches, in base R, from only a predictor correlation
 # matrix R and a vector b of marginal (standardized, one-at-a-time) coefficients — never

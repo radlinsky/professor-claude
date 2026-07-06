@@ -1,6 +1,6 @@
 {
   "meta": {
-    "slug": "switchstep-selection-collinear",
+    "slug": "swap-stepwise-selection-collinear",
     "tier": "full",
     "source": "exhaustive best-subset over BIC(lm), 2^12 subsets",
     "tolerance": {
@@ -9,7 +9,7 @@
     },
     "seed": 1,
     "generated": "2026-07-05T09:14:47-0600",
-    "generator": "equivalence/generate/switchstep_full_oracles.R"
+    "generator": "equivalence/generate/swap_stepwise_full_oracles.R"
   },
   "inputs": {
     "R": [

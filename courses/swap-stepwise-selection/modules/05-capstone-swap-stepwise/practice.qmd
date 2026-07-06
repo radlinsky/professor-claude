@@ -1,5 +1,5 @@
 ---
-title: "Practice: Capstone — assembling SwitchStep"
+title: "Practice: Capstone — assembling Swap-Stepwise"
 subtitle: "Cumulative. No labels saying which tool — recalling that is part of the test."
 engine: knitr
 ---
@@ -46,13 +46,13 @@ $b_S^\top R_S^{-1} b_S = 0.5^2 = 0.25$, so $\mathrm{BIC} = 80\log(0.75) + \log(8
 
 ## Problem 3 — spot the error
 
-A report reads: *"SwitchStep selected `unemp`, `cpi_infl`, and `rate_10y`; each has $p < 0.01$ in
+A report reads: *"Swap-Stepwise selected `unemp`, `cpi_infl`, and `rate_10y`; each has $p < 0.01$ in
 the final fit, and the model's high $R^2$ confirms these are the true causal drivers of GDP."*
 This contains **more than one** questionable claim — name the two biggest.
 
 ::: {.callout-note collapse="true" title="Answer"}
 (1) **Post-selection p-values**: the $p < 0.01$ figures come from a model chosen *by searching*,
-so they're optimistically small and not honest evidence. (2) **Selection ≠ causation**: SwitchStep
+so they're optimistically small and not honest evidence. (2) **Selection ≠ causation**: Swap-Stepwise
 finds the subset that best predicts jointly under BIC; a high $R^2$ and being selected say nothing
 about causality — under collinearity it could even have picked a correlated stand-in (a noise twin)
 for a true driver. (Bonus: $R^2$ measures fit, not the trustworthiness of individual coefficients.)
@@ -95,7 +95,7 @@ rbind(unregularized = solve(R, b), ridge_0.1 = solve(R + 0.1 * diag(2), b))
 
 ## Problem 6 — interpret the meta-analysis result
 
-Running `switchstep()` on five studies' summaries selected the *same* indicators as a full-data
+Running `swap_stepwise()` on five studies' summaries selected the *same* indicators as a full-data
 oracle that pooled every study's raw rows, but the joint coefficients differed by up to ~0.05.
 Is that a failure? Explain in two or three sentences.
 
@@ -115,12 +115,12 @@ Here is a sentence from a different method's description you haven't seen:
 > scratch after each single-variable change, and we penalize model size with a criterion that
 > grows its per-parameter cost with the sample size."
 
-Name the two SwitchStep ideas this describes, and give the formula or move behind each.
+Name the two Swap-Stepwise ideas this describes, and give the formula or move behind each.
 
 ::: {.callout-note collapse="true" title="Answer"}
 (1) "Avoid recomputing the fit after each single-variable change" = **rank-1 / bordering updates**
 (Sherman–Morrison): grow/shrink $R_S^{-1}$ with an $O(k^2)$ update instead of re-inverting. (2)
 "A criterion whose per-parameter cost grows with the sample size" = **BIC**, $-2\log L + k\log n$
 (the penalty $\log n$ grows with $n$, unlike AIC's fixed $2k$). Both are pieces you assembled into
-`switchstep()`.
+`swap_stepwise()`.
 :::

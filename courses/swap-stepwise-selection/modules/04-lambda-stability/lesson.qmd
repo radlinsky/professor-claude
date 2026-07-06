@@ -276,7 +276,7 @@ this $\lambda$ into the full procedure.
 ## Where this goes next
 
 You now have all five pieces — reconstruct from summaries, search by switching, stop with BIC,
-speed up with rank-1 updates, stabilize with $\lambda$. Next: [the capstone](../05-capstone-switchstep/lesson.qmd)
-assembles them into one `switchstep()` function and runs it end-to-end on a simulated
+speed up with rank-1 updates, stabilize with $\lambda$. Next: [the capstone](../05-capstone-swap-stepwise/lesson.qmd)
+assembles them into one `swap_stepwise()` function and runs it end-to-end on a simulated
 meta-analysis. Ready for reps? Do the [practice problems](practice.qmd). External readings:
 [resources](../../resources.md).

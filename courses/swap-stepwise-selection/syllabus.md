@@ -1,5 +1,5 @@
 
-# SwitchStep Variable Selection — Syllabus
+# Swap-Stepwise Variable Selection — Syllabus
 
 **Goal:** given only each indicator's published one-at-a-time (marginal) coefficient and a
 known correlation matrix among the indicators — never the raw data — reconstruct the joint
@@ -37,7 +37,7 @@ re-teaching them:
 
 - [**Multiple Regression from Scratch**](../multiple-regression/syllabus.md) — the joint
   fit via the normal equations $X^\top X\hat\beta = X^\top y$, and *why joint ≠ marginal*
-  under correlated predictors. SwitchStep reconstructs that joint fit from summary
+  under correlated predictors. Swap-Stepwise reconstructs that joint fit from summary
   statistics and then searches over which predictors to keep. (Transitively, that course's
   own prerequisite, [Simple Linear Regression](../simple-linear-regression/syllabus.md).)
 
@@ -97,11 +97,11 @@ $R + \lambda I$ (invertible for any $\lambda > 0$), how $\lambda$ trades stabili
 shrinkage, and a sensitivity sweep showing selected sets stabilize.
 **Time:** ~35 min lesson + ~25 min practice
 
-### 5. Capstone — assembling SwitchStep (`modules/05-capstone-switchstep/`)
+### 5. Capstone — assembling Swap-Stepwise (`modules/05-capstone-swap-stepwise/`)
 
 **Why you need this:** the proof you reached the goal — decode the method's own description
 claim by claim and assemble the full procedure as a small base-R function suite.
 **You'll learn:** nothing new — you *consolidate* by decoding the method spec, building
-`switchstep(b, R, n, lambda)` end-to-end, and comparing its selected set and joint
+`swap_stepwise(b, R, n, lambda)` end-to-end, and comparing its selected set and joint
 coefficients against a full-data oracle on a simulated multi-study meta-analysis.
 **Time:** ~40 min lesson + ~40 min practice

@@ -1,4 +1,4 @@
-# Resources: SwitchStep Variable Selection
+# Resources: Swap-Stepwise Variable Selection
 
 External readings and videos per module. All links verified 2026-07-05. The method itself —
 a frequentist, likelihood-based variable-selection procedure — is specified for this course
@@ -43,9 +43,9 @@ and decoded claim by claim in the capstone. The two free textbooks it builds on:
   (book, PDF) — the key fact that $A^\top A + \lambda I$ (here $R + \lambda I$) is invertible for
   any $\lambda > 0$, exactly why the ridge diagonal-loading rescues a near-collinear $R$.
 
-## Module 05 — Capstone: assembling SwitchStep
+## Module 05 — Capstone: assembling Swap-Stepwise
 
-No new concepts — the best resource is your own R console. Re-run `switchstep()` on your own
+No new concepts — the best resource is your own R console. Re-run `swap_stepwise()` on your own
 simulated correlated panels, vary $\lambda$ and the study seeds, and compare to `lm()`-based
 best-subset on the pooled data. For the textbook framing of the whole subset-selection +
 regularization arc, re-read [ISLR Chapter 6](https://hastie.su.domains/ISLR2/ISLRv2_corrected_June_2023.pdf).

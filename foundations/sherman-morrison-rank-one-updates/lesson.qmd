@@ -141,7 +141,7 @@ a matrix by a whole new row *and* column and produces the enlarged inverse from 
 one — and a matching **partition** formula shrinks it by one. A variable-selection search
 uses exactly these: adding a predictor borders the correlation matrix by one row/column,
 removing one partitions it away, and a swap is a remove-then-add. The
-switchstep-variable-selection course derives and uses them; here we just verify one
+swap-stepwise-selection course derives and uses them; here we just verify one
 numerically:
 
 ```{r bordering}
@@ -248,6 +248,6 @@ search reuses this identity on every move.
 ## Where this goes next
 
 A model search that adds and drops predictors re-inverts a correlation matrix on every
-step; the `switchstep-variable-selection` course replaces each re-inversion with a
+step; the `swap-stepwise-selection` course replaces each re-inversion with a
 bordering/Sherman–Morrison update and times the payoff. Ready for reps? Do the
 [practice problems](practice.qmd). External readings: [resources](resources.md).
