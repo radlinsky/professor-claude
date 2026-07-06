@@ -194,3 +194,61 @@ data** — quietly, with nothing in the result itself to warn you. That is exact
 assumption list is the *stop-and-check* bucket: reading it against your own situation is how you
 learn whether a method's guarantees are actually yours to keep.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/paper-and-proof-conventions" pass="4"}
+
+::: {.quiz-q qid="ppc-iid-two-promises" qtype="mc" answer="c"}
+What does "iid" promise about data?
+
+a) Only that the data was collected randomly
+b) That the data is normally distributed
+c) Two promises: the observations are independent, and identically distributed (same underlying source)
+:::
+
+::: {.quiz-q qid="ppc-independence-violation" qtype="mc" answer="b"}
+Repeated measurements on the same subject most directly break which part of iid?
+
+a) Identical distribution — the readings come from different sources
+b) Independence — today's reading is tied to yesterday's
+c) Neither — repeated measurements are always iid
+:::
+
+::: {.quiz-q qid="ppc-trust-boxed" qtype="mc" answer="a"}
+You reach a Theorem whose proof you cannot follow. What is the right move on a first
+pass?
+
+a) Trust the boxed statement — it is already verified — and use it; read the proof only when you need the *why*
+b) Stop, because an unread proof means the result cannot be trusted
+c) Rewrite the proof yourself before going on
+:::
+
+::: {.quiz-q qid="ppc-consistent" qtype="mc" answer="b"}
+A paper calls an estimator "consistent." What does that promise?
+
+a) It is exactly correct for every sample size
+b) It converges to the true value as the sample size $n \to \infty$
+c) It has the smallest possible variance
+:::
+
+::: {.quiz-q qid="ppc-hat-vs-true" qtype="mc" answer="a"}
+(From reading math notation.) In a paper, how do $\hat\beta$ and $\beta$ differ?
+
+a) $\hat\beta$ is an estimate computed from data; $\beta$ is the true, unobserved value
+b) They mean the same thing
+c) $\hat\beta$ is always larger than $\beta$
+:::
+
+:::
+
+::::
