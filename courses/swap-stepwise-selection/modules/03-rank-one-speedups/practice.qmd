@@ -122,3 +122,62 @@ tiny $s$ makes the updated inverse's entries huge and unstable — the same near
 that plagues $R^{-1}b$. Module 4 adds a ridge $\lambda$ to the diagonal so the matrix (and this
 denominator) stays comfortably away from zero.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/swap-stepwise-selection/modules/03-rank-one-speedups" pass="4"}
+
+::: {.quiz-q qid="r1u-schur-meaning" qtype="mc" answer="c"}
+When you add an indicator, the bordering update's Schur complement is
+$s = d - b_{\text{new}}^\top R_S^{-1} b_{\text{new}}$. A value of $s$ near 0 means the new
+indicator:
+
+a) is uncorrelated with the indicators already present
+b) adds a large, unique effect on $y$
+c) is nearly a combination of the indicators already present
+:::
+
+::: {.quiz-q qid="r1u-swap-cost" qtype="mc" answer="b"}
+How does the search update $R_S^{-1}$ for a swap move (one indicator out, one in)?
+
+a) A fresh $O(k^3)$ inversion of the new matrix
+b) A remove then an add — two $O(k^2)$ updates
+c) It cannot update; swaps are skipped
+:::
+
+::: {.quiz-q qid="r1u-exact" qtype="mc" answer="c"}
+Across thousands of search moves, how do the bordering update's results compare with
+re-inverting from scratch each time?
+
+a) Approximate — re-invert occasionally to be safe
+b) Faster, but they drift over many moves
+c) Exactly equal (an algebraic identity), but faster
+:::
+
+::: {.quiz-q qid="r1u-schur-compute" qtype="numeric" answer="0.75" tolerance="0.01"}
+The indicators already in the model are uncorrelated, so $R_S^{-1} = I$. A new indicator has
+correlations $b_{\text{new}} = (0.3,\ 0.4)$ with them and diagonal $d = 1$. Compute the Schur
+complement $s = d - b_{\text{new}}^\top R_S^{-1} b_{\text{new}}$. (Enter 2 decimals.)
+:::
+
+::: {.quiz-q qid="r1u-why-updates" qtype="mc" answer="a"}
+(From Module 2.) Why do these cheap inverse updates help the switching search specifically,
+when they wouldn't help a single one-off regression fit?
+
+a) The search re-scores many subsets differing by one indicator, re-inverting $R_S$ repeatedly
+b) The search inverts only one matrix, once
+c) A one-off fit inverts more often than the search
+:::
+
+:::
+
+::::
