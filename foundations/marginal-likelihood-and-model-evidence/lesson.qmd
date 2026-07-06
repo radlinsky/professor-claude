@@ -386,6 +386,6 @@ The marginal likelihood is one model's "evidence." The moment you have *two* mod
 evidences you can compare them — divide one by the other and you get a **Bayes factor**,
 the subject of
 [Bayes factors & posterior odds](../bayes-factors-and-posterior-odds/lesson.qmd). The
-normal closed form $N(0, V + W)$ you just met is the exact ingredient that turns a genetic
-association's summary statistics into a Bayes factor with no simulation at all — the
-Approximate Bayes Factor. Ready for more reps? Do the [practice problems](practice.qmd).
+normal closed form $N(0, V + W)$ you just met is the exact ingredient that turns an
+estimated effect and its standard error into a Bayes factor with no simulation at all — a
+construction the applied courses build on. Ready for more reps? Do the [practice problems](practice.qmd).

@@ -33,7 +33,7 @@ Bayes factor**. The **Bayes factor** is the star: it is exactly the ratio of the
 models' evidences (the marginal likelihoods from the previous foundation), and it
 measures *how much the data alone shifts your belief* from one model toward the other,
 with no prior mixed in. This "belief in, evidence multiplier, belief out" shape is the
-backbone of Bayesian model comparison — and of the Approximate Bayes Factor this
+backbone of Bayesian model comparison — and of the applied Bayes-factor methods this
 foundation feeds.
 
 We build it on two coin models, then read off the general recipe: turn a probability into
@@ -367,9 +367,10 @@ evidence into a probability of a hypothesis leans on all of these.
 ## Where this goes next
 
 This "prior odds × Bayes factor = posterior odds" machine is the engine of Bayesian model
-comparison. The Approximate Bayes Factor takes a genetic association's summary statistics,
-computes the Bayes factor for "there is an effect" versus "there is none" in closed form
-(using the normal-marginal result from
+comparison. A closed-form Bayes-factor method takes an estimated effect and its standard
+error, computes the Bayes factor for "there is an effect" versus "there is none" in closed
+form (using the normal-marginal result from
 [marginal likelihood & model evidence](../marginal-likelihood-and-model-evidence/lesson.qmd)),
-then runs it through exactly this machine to get a posterior probability that the variant
-is associated. Ready for more reps? Do the [practice problems](practice.qmd).
+then runs it through exactly this machine to get a posterior probability of an effect —
+which is what the applied courses that build on this foundation do. Ready for more reps?
+Do the [practice problems](practice.qmd).
