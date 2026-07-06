@@ -144,3 +144,54 @@ its sign, because "holding the other fixed" leaves almost no independent variati
 work with. The marginal (alone) slope and the joint coefficient answer different
 questions and can disagree sharply. Module 3, *Marginal vs joint*, shows this happen.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/multiple-regression/modules/01-many-knobs-one-model" pass="4"}
+
+::: {.quiz-q qid="mko-prediction" qtype="numeric" answer="8" tolerance="0"}
+A fitted model is $\hat y = 1 + 2x_1 + 0.5x_2$. Predict $y$ at $x_1 = 2, x_2 = 6$.
+:::
+
+::: {.quiz-q qid="mko-coef-holding-fixed" qtype="mc" answer="b"}
+How should you read the coefficient $\beta_1$ on $x_1$ in a multiple regression?
+
+a) As $x_1$'s effect on $y$, full stop
+b) As $x_1$'s effect on $y$ with every other predictor held fixed
+c) As the correlation between $x_1$ and $y$
+:::
+
+::: {.quiz-q qid="mko-size-not-importance" qtype="mc" answer="a"}
+Predictor $x_1$ has a larger coefficient than $x_2$. Does that make it the more important
+predictor?
+
+a) Not necessarily — coefficient size depends on each predictor's units; compare fairly only after standardizing
+b) Yes — the largest coefficient is always the most important predictor
+c) Yes, but only if $x_1$ and $x_2$ are correlated
+:::
+
+::: {.quiz-q qid="mko-error-term" qtype="mc" answer="c"}
+In $y_i = \beta_0 + \sum_j \beta_j x_{ij} + \varepsilon_i$, what is $\varepsilon_i$?
+
+a) The intercept — the baseline when all predictors are zero
+b) The slope on the first predictor
+c) The leftover (error) — the part of $y_i$ the weighted predictors don't explain
+:::
+
+::: {.quiz-q qid="mko-slr-line" qtype="numeric" answer="14" tolerance="0"}
+(From simple linear regression.) For the line $\hat y = b_0 + b_1 x$ with $b_0 = 2$ and
+$b_1 = 3$, what is $\hat y$ at $x = 4$?
+:::
+
+:::
+
+::::

@@ -135,3 +135,54 @@ effect: it inflated `rate` to 1.10 (true value 0.4) and handed `rate2` a spuriou
 individual coefficient should be read as that predictor's real effect — the course's
 headline, on a brand-new table.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression" pass="4"}
+
+::: {.quiz-q qid="cap-prediction" qtype="numeric" answer="9" tolerance="0"}
+A fitted model is $\hat y = 2 + 3x_1 - x_2$. Predict $y$ at $x_1 = 4, x_2 = 5$.
+:::
+
+::: {.quiz-q qid="cap-coef-interpret" qtype="mc" answer="a"}
+A multiple regression reports $\hat\beta_1 = 3$. What does it mean?
+
+a) $y$ rises by $3$ for each unit of $x_1$, holding the other predictors fixed
+b) $x_1$ is the most important predictor
+c) $y$ equals $3$ when $x_1 = 1$
+:::
+
+::: {.quiz-q qid="cap-vif" qtype="numeric" answer="10" tolerance="0"}
+A predictor regressed on the others gives $R^2_j = 0.9$. What is its VIF, $1/(1 - R^2_j)$?
+:::
+
+::: {.quiz-q qid="cap-marginal-joint" qtype="mc" answer="b"}
+A predictor has a large coefficient fitted alone but a near-zero coefficient in the joint
+model. What does this most likely indicate?
+
+a) The data is corrupted
+b) It is correlated with the true driver — strong alone, but it adds little once the driver is included
+c) The single-predictor fit must have been computed wrong
+:::
+
+::: {.quiz-q qid="cap-r2-vs-trust" qtype="mc" answer="c"}
+A model has a high $R^2$ and a tiny F-test p-value, but one coefficient is
+non-significant with a high VIF. What is the right read?
+
+a) The high $R^2$ proves every coefficient is trustworthy
+b) The model should be discarded entirely
+c) Prediction can be good while an individual collinear coefficient stays unreliable — $R^2$ and coefficient trust are separate questions
+:::
+
+:::
+
+::::
