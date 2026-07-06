@@ -232,3 +232,55 @@ round(mean(errs), 3)  # 1.054
 Every point was used for testing exactly once, and no point was ever graded by a model
 that had already seen it — that is what makes 1.054 an honest guess at new-data error.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/model-fit-error-and-validation" pass="4"}
+
+::: {.quiz-q qid="mfev-r-squared" qtype="numeric" answer="0.92" tolerance="0.01"}
+A model has RSS $= 4$ and TSS $= 50$. What is $R^2 = 1 - \text{RSS}/\text{TSS}$? Round to
+two decimals.
+:::
+
+::: {.quiz-q qid="mfev-training-error-trap" qtype="mc" answer="b"}
+A wiggly model has lower training error than a straight line but much higher *test* error.
+Which is the better model?
+
+a) The wiggly model — lower training error means a better fit
+b) The straight line — a held-out (test) score measures real skill, not training fit
+c) They are equally good
+:::
+
+::: {.quiz-q qid="mfev-r-squared-meaning" qtype="mc" answer="a"}
+$R^2 = 0.5$ means:
+
+a) The model removed half the *variation* in $y$ compared with guessing the mean
+b) The model got half the predictions exactly right
+c) The model is correct 50% of the time
+:::
+
+::: {.quiz-q qid="mfev-overfitting" qtype="mc" answer="c"}
+A model that fits every wiggle in the training data — memorizing its noise — is:
+
+a) Underfitting — it missed the trend
+b) Perfectly calibrated
+c) Overfitting — it memorized noise, so it generalizes poorly
+:::
+
+::: {.quiz-q qid="mfev-rss" qtype="numeric" answer="9" tolerance="0"}
+(From loss functions & optimization.) RSS is the sum of squared residuals. For residuals
+$(1, -2, 2)$, what is RSS?
+:::
+
+:::
+
+::::
