@@ -173,3 +173,54 @@ So the sigmoid takes *any* number and squashes it into the interval $(0, 1)$ —
 at exactly $0.5$ when its input is $0$. That "squash any number into a probability" move
 is the whole reason logistic regression starts here — the next course builds on it.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/exponentials-and-logs" pass="4"}
+
+::: {.quiz-q qid="eal-product-rule" qtype="numeric" answer="2.995" tolerance="0.001"}
+Given $\log 4 \approx 1.386$ and $\log 5 \approx 1.609$, use the product rule to find
+$\log 20$. Round to three decimals.
+:::
+
+::: {.quiz-q qid="eal-log-of-sum" qtype="mc" answer="a"}
+A student writes $\log(a + b) = \log a + \log b$. For which positive inputs does this
+hold?
+
+a) For no positive $a$ and $b$ — $\log$ of a sum has no simplification rule
+b) For all positive $a$ and $b$
+c) Only when $a = b$
+:::
+
+::: {.quiz-q qid="eal-neg-exponent-sign" qtype="mc" answer="b"}
+What is the sign of $e^{-2}$?
+
+a) Negative — the minus sign carries through, giving about $-7.389$
+b) Positive — a negative exponent means "one over", so $e^{-2} = 1/e^{2} \approx 0.135$
+c) Zero — a negative exponent collapses the exponential to zero
+:::
+
+::: {.quiz-q qid="eal-undo-pair" qtype="numeric" answer="8" tolerance="0"}
+The undo pair says exp and log cancel. What is $e^{\log(8)}$?
+:::
+
+::: {.quiz-q qid="eal-why-log-likelihood" qtype="mc" answer="c"}
+Why are likelihoods worked on the log scale?
+
+a) The log makes likelihood values positive, which is required before maximizing
+b) The log converts probabilities into log-odds, linking to the logit
+c) The log turns a product of many probabilities into a sum, avoiding underflow to zero
+:::
+
+:::
+
+::::

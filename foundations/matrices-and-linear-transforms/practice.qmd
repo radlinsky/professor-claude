@@ -260,3 +260,55 @@ Check: $2(1) + 3 = 5$ ✓ and $1 + 3(3) = 10$ ✓. This is why `solve()` is *nam
 full inverse is really a special case. Turning a whole method into "stack it into a
 matrix, then apply an inverse" is exactly what matrix notation buys you.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/matrices-and-linear-transforms" pass="4"}
+
+::: {.quiz-q qid="mlt-product-shape" qtype="mc" answer="a"}
+With $A$ of shape $2 \times 3$ and $B$ of shape $3 \times 2$, what shape is $AB$?
+
+a) $2 \times 2$ — the outer dimensions, once the inner $3$s match
+b) $3 \times 3$
+c) $2 \times 3$
+:::
+
+::: {.quiz-q qid="mlt-not-commutative" qtype="mc" answer="b"}
+Is matrix multiplication commutative — does $AB = BA$?
+
+a) Yes, just like ordinary numbers
+b) No — order changes the entries and often the shape, so keep the order the paper wrote
+c) Only for square matrices of the same size
+:::
+
+::: {.quiz-q qid="mlt-singular-no-inverse" qtype="mc" answer="c"}
+The matrix $\begin{bmatrix} 1 & 2 \\ 2 & 4 \end{bmatrix}$ has row $2$ equal to twice row
+$1$. What about its inverse?
+
+a) It is found by swapping the two diagonal entries
+b) Every square matrix has an inverse, so it does
+c) It has none — the matrix is singular (a redundant row), the matrix version of dividing by zero
+:::
+
+::: {.quiz-q qid="mlt-matrix-vector" qtype="numeric" answer="3" tolerance="0"}
+For $A = \begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}$ and $v = (1, 1)$, the first entry
+of $Av$ is row $1$ of $A$ dotted with $v$. What is that first entry?
+:::
+
+::: {.quiz-q qid="mlt-dot-product" qtype="numeric" answer="23" tolerance="0"}
+(From vectors & summation.) Each entry of a matrix–vector product is a dot product — a
+sum of products. For the row $(2, 3)$ and the vector $(4, 5)$, what is that dot product?
+:::
+
+:::
+
+::::
