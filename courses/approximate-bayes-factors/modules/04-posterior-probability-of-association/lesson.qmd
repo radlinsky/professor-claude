@@ -63,7 +63,7 @@ $= 6.11$. What is the Bayes factor $e^{\text{lABF}}$?
 ```{webr}
 #| autorun: false
 # warmup2-starter — edit and Run to check
-lABF <- 6.11
+lABF <- 6.1128
 ```
 
 ::: {.callout-note collapse="true" title="Answer"}
@@ -243,7 +243,7 @@ wakefield_ppa <- function(labf, prior = 1e-4) {
   po <- prior_odds * exp(labf)             # posterior odds = prior odds x BF
   po / (1 + po)                             # PPA
 }
-lABF <- 6.11
+lABF <- 6.1128
 c(pi_1e4 = wakefield_ppa(lABF, 1e-4),
   pi_1e3 = wakefield_ppa(lABF, 1e-3),
   pi_1e2 = wakefield_ppa(lABF, 1e-2))       # 0.0432, 0.311, 0.820

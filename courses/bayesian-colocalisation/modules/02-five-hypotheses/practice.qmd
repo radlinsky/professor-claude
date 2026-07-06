@@ -1,0 +1,178 @@
+---
+title: "Practice: Five hypotheses"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then open
+the answer.
+
+## Problem 1 — the toy example, new numbers
+
+For a region with $Q = 5$ SNPs, count the configurations of each of the five hypotheses (as in
+the lesson's $Q = 3$ example).
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve
+Q <- 5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r}
+Q <- 5
+c(H0 = 1, H1 = Q, H2 = Q, H3 = Q*(Q-1), H4 = Q)
+```
+So $H_0 = 1$, $H_1 = 5$, $H_2 = 5$, $H_3 = 5\times4 = 20$, $H_4 = 5$. Distinct ($H_3$) has by
+far the most ways to happen — 20 — because there are many ways to pick *two different* SNPs.
+:::
+
+## Problem 2 — fill in the missing step
+
+You're describing the five hypotheses for a region. Fill in the blank statement.
+
+- $H_0$: no causal SNP for either trait.
+- $H_1$: a causal SNP for trait 1 only.
+- $H_2$: a causal SNP for trait 2 only.
+- $H_3$: **your step here** — state the "both, but…" hypothesis precisely.
+- $H_4$: one shared causal SNP for both traits.
+
+::: {.callout-note collapse="true" title="Answer"}
+$H_3$: **both traits have a causal SNP in the region, but at two *distinct* (different)
+SNPs.** The whole scientific point of coloc is separating this from $H_4$ (same SNP): "both
+associated" is not the same as "shared mechanism." $H_3$ is what you report as PP3.
+:::
+
+## Problem 3 — interpret a result
+
+`coloc.abf` returns these five posteriors for a region. In one or two sentences, what do you
+conclude, and which single number did you base it on?
+
+```{webr}
+#| autorun: false
+# p3-starter — read these off; no computation needed
+pp <- c(PP0 = 0.01, PP1 = 0.02, PP2 = 0.01, PP3 = 0.05, PP4 = 0.91)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**PP4 = 0.91** is well above the usual 0.8 bar, so the data support a **shared causal
+variant** — the two traits colocalise. PP3 (distinct) is only 0.05, and the "no/one-trait
+signal" hypotheses are tiny, so this is a clean colocalisation call. (You'd still add the
+"correlation, not proven causation" caveat when reporting it.)
+:::
+
+## Problem 4 — spot the error
+
+A colleague summarises a run like this — it contains **exactly one mistake** in the
+*reasoning*. Find it.
+
+> "We got PP3 = 0.88. That means the method couldn't find any signal in the region, so there's
+> nothing here for either trait."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: **PP3 = 0.88 is not "no signal."** A high PP3 says *both* traits have a real
+causal variant in the region — the method is confident there are **two distinct** causal SNPs.
+"No signal at all" would be a high **PP0**, not PP3. The correct summary: "both traits are
+associated here, but by different variants, so don't assume a shared mechanism."
+:::
+
+## Problem 5 — mixing it with Module 1 *(uses Module 1's lABF fingerprint reading)*
+
+Here are two lABF vectors for a three-SNP region (from Module 1's machine). Based on the loud
+SNPs, which *hypothesis* ($H_3$ or $H_4$) do you expect the data to favour, and why?
+
+```{webr}
+#| autorun: false
+# p5-starter — eyeball the loud SNPs, then name the hypothesis
+l1 <- c(-1.1, -0.9, 6.4)   # trait 1
+l2 <- c(6.0, -1.2, -1.0)   # trait 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Trait 1 is loud on **SNP 3**; trait 2 is loud on **SNP 1**. The loud SNPs are *different*, so
+the fingerprint (Module 1) points to **distinct** causal variants → expect the data to favour
+**$H_3$** (high PP3). If both had been loud on the same SNP, you'd expect $H_4$ (PP4) instead.
+Module 3 turns this eyeballed guess into the actual numbers.
+:::
+
+## Problem 6 — transfer / cliffhanger
+
+coloc's default priors are $p_1 = p_2 = 10^{-4}$ and $p_{12} = 10^{-5}$. In one sentence, why
+would raising $p_{12}$ (say to $10^{-4}$, equal to $p_1$) tend to *increase* PP4 for a given
+region? You can reason it out even before Module 3's formulas.
+
+::: {.callout-note collapse="true" title="Answer"}
+$p_{12}$ is the prior weight on the *shared* hypothesis $H_4$. Since each hypothesis's posterior
+is (prior $\times$ evidence), a bigger $p_{12}$ multiplies $H_4$'s support up before
+normalising, so PP4 rises (and the others fall to compensate). Module 3 shows this exactly:
+$\ell_{H_4} = \log p_{12} + s_{12}$, so raising $p_{12}$ adds a constant to $H_4$'s log
+support. This is also why colocalisation results should be checked for prior sensitivity.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Score under 4? Revisit what the missed
+questions point at, then retake in a **later session** — passing after another gap is the
+evidence that counts. Results are saved in this browser only.
+
+::: {.module-check module="courses/bayesian-colocalisation/modules/02-five-hypotheses" pass="4"}
+
+::: {.quiz-q qid="fh-h3-vs-h4" qtype="mc" answer="c"}
+What is the difference between $H_3$ and $H_4$?
+
+a) $H_3$ means no signal; $H_4$ means a signal
+b) $H_3$ means trait 1 only; $H_4$ means trait 2 only
+c) $H_3$ means both traits are causal at distinct SNPs; $H_4$ means they share one SNP
+d) $H_3$ uses a larger prior than $H_4$
+:::
+
+::: {.quiz-q qid="fh-h3-configs" qtype="numeric" answer="20" tolerance="0"}
+For a region of $Q = 5$ SNPs, how many configurations does $H_3$ (distinct) have?
+:::
+
+::: {.quiz-q qid="fh-high-pp3" qtype="mc" answer="b"}
+You get PP3 = 0.90. What do you conclude?
+
+a) There is no causal variant in the region for either trait
+b) Both traits have a causal variant here, but they are two distinct variants
+c) The two traits share a single causal variant
+d) Only trait 1 has a causal variant
+:::
+
+::: {.quiz-q qid="fh-p12-default" qtype="mc" answer="a"}
+Why does coloc set $p_{12}$ smaller than $p_1$ and $p_2$?
+
+a) A SNP being causal for both traits is rarer than being causal for just one
+b) Sharing configurations vastly outnumber distinct ones
+c) $p_{12}$ must sum to 1 with $p_1$ and $p_2$
+d) It makes PP4 larger by default
+:::
+
+::: {.quiz-q qid="fh-labf-fingerprint" qtype="mc" answer="b"}
+*(interleaved — from Module 1.)* Trait 1's lABF is loud on SNP 2 and trait 2's lABF is loud on
+SNP 4. Which hypothesis does this fingerprint point toward?
+
+a) $H_4$ (shared)
+b) $H_3$ (distinct)
+c) $H_0$ (no signal)
+d) $H_1$ (trait 1 only)
+:::
+
+:::
+
+::::

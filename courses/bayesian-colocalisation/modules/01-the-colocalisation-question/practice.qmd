@@ -1,0 +1,235 @@
+---
+title: "Practice: The colocalisation question"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then open
+the answer.
+
+## Problem 1 — the toy example, new numbers
+
+A three-SNP region has these summary statistics ($W = 0.04$). Build the two lABF vectors
+$\ell_1$ and $\ell_2$, and say which SNP looks loud in each trait.
+
+| SNP | Trait 1 $\hat\beta$ | Trait 1 se | Trait 2 $\hat\beta$ | Trait 2 se |
+|---|---|---|---|---|
+| 1 | 0.03 | 0.04 | 0.22 | 0.04 |
+| 2 | −0.01 | 0.04 | 0.01 | 0.04 |
+| 3 | 0.24 | 0.04 | −0.02 | 0.04 |
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+beta1 <- c(0.03, -0.01, 0.24); se1 <- rep(0.04, 3)
+beta2 <- c(0.22, 0.01, -0.02); se2 <- rep(0.04, 3)
+W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Run each column through `wakefield_abf`:
+
+```{r}
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+l1 <- wakefield_abf(c(0.03, -0.01, 0.24), rep(0.04, 3), 0.04)   # trait 1
+l2 <- wakefield_abf(c(0.22, 0.01, -0.02), rep(0.04, 3), 0.04)   # trait 2
+round(rbind(l1 = l1, l2 = l2), 3)
+```
+
+Trait 1 is loud on **SNP 3** ($Z = 0.24/0.04 = 6$, a big lABF); trait 2 is loud on **SNP 1**
+($Z = 5.5$). The loud SNPs are *different* — this looks like a **distinct** pattern (heading
+toward PP3, once we can compute it).
+:::
+
+## Problem 2 — fill in the missing step
+
+For a single SNP with $\hat\beta = 0.18$, $\text{se} = 0.06$, $W = 0.04$, here is the lABF
+computation with one step blanked. Supply the missing step.
+
+- Step 1: $Z = \hat\beta / \text{se} = 0.18 / 0.06 = 3$, and $V = \text{se}^2 = 0.0036$.
+- Step 2: **your step here** — compute the shrinkage factor $r$.
+- Step 3: $\text{lABF} = \tfrac12\big(\log(1 - r) + r Z^2\big)$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+beta <- 0.18; se <- 0.06; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing move is $r = W/(W + V)$, the shrinkage factor:
+$$ r = \frac{0.04}{0.04 + 0.0036} = \frac{0.04}{0.0436} \approx 0.9174. $$
+That's the one number that turns the raw $Z$ into a Bayes factor — it says what fraction of the
+total variance is "real prior effect" versus noise. Then
+$\text{lABF} = \tfrac12(\log(1 - 0.9174) + 0.9174 \times 9) \approx \tfrac12(-2.494 + 8.257)
+\approx 2.88$.
+
+```{r}
+beta <- 0.18; se <- 0.06; W <- 0.04
+V <- se^2; r <- W/(W+V); Z <- beta/se
+c(r = r, lABF = 0.5*(log(1-r) + r*Z^2))
+```
+:::
+
+## Problem 3 — read the fingerprint
+
+Here are two lABF vectors already computed for a four-SNP region. Without any more math, say
+whether this region looks **shared** or **distinct**, and name the SNP(s) involved.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: eyeball the loud SNPs in each trait
+l1 <- c(-1.2, 5.8, -0.9, -1.1)   # trait 1 lABFs
+l2 <- c(-1.0, 6.3, -1.3, -0.8)   # trait 2 lABFs
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Both traits are loud on **SNP 2** (lABF $\approx 5.8$ and $6.3$; every other SNP is small and
+negative). The loud SNPs line up on the *same* SNP → this looks **shared** (heading toward a
+high PP4). Recall from the lesson: colocalisation is about whether the loud SNPs coincide, not
+about which trait's number is bigger.
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants trait 1's lABF at a SNP with $\hat\beta = 0.20$, $\text{se} = 0.05$,
+$W = 0.04$. They wrote this — it contains **exactly one mistake**. Find and fix it.
+
+```{webr}
+#| autorun: false
+# p4-starter — there is one bug in this computation
+beta <- 0.20; se <- 0.05; W <- 0.04
+Z <- beta / se          # 4
+V <- se                 # <- they used se, not se^2
+r <- W / (W + V)
+lABF <- 0.5 * (log(1 - r) + r * Z^2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The bug is `V <- se`: the variance is $V = \text{se}^2$, **not** the standard error itself.
+With `V <- se` you get $V = 0.05$ (should be $0.0025$), so $r = 0.04/0.09 \approx 0.444$ and a
+badly wrong lABF. Fixing it:
+
+```{r}
+beta <- 0.20; se <- 0.05; W <- 0.04
+Z <- beta / se
+V <- se^2                # the fix: variance is se squared
+r <- W / (W + V)
+c(V = V, r = r, lABF = 0.5*(log(1-r) + r*Z^2))   # lABF ~ 6.11, the correct value
+```
+
+This is the same "variance vs standard error" trap you'll meet again in `coloc.abf`, where the
+argument is `varbeta` ($= \text{se}^2$), not `se`.
+:::
+
+## Problem 5 — mixing it with the ABF course *(uses the ABF course's posterior-of-association step)*
+
+A SNP has trait-1 lABF $= 6.11$. Two different questions:
+(a) Within a region assumed to hold exactly one causal SNP, its *regional* posterior weight is
+$e^{\text{lABF}}$ relative to the others. (b) Its *genome-wide* posterior probability of
+association uses the tiny prior $\pi = 10^{-4}$: posterior odds $= \tfrac{\pi}{1-\pi}
+e^{\text{lABF}}$, then PPA $=$ odds$/(1+$odds$)$. Compute the genome-wide PPA.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve
+labf <- 6.11; prior <- 1e-4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+This is the posterior-odds step from the
+[ABF course Module 4](../../../approximate-bayes-factors/modules/04-posterior-probability-of-association/lesson.qmd):
+
+```{r}
+labf <- 6.11; prior <- 1e-4
+po <- (prior/(1-prior)) * exp(labf)   # posterior odds
+c(post_odds = po, PPA = po/(1+po))     # PPA ~ 0.043
+```
+
+The genome-wide PPA is only about **0.043** — even a Bayes factor of $e^{6.11} \approx 450$
+barely moves a $10^{-4}$ prior. That's the key contrast: colocalisation works with the
+*regional* evidence ($e^{\text{lABF}}$ and the sums of it), not the tiny genome-wide prior, so
+its numbers can be decisive where the genome-wide PPA is not.
+:::
+
+## Problem 6 — transfer / cliffhanger
+
+You have $\ell_1 = \log(1, 2, 5)$ and $\ell_2 = \log(2, 1, 4)$ for a three-SNP region. You want
+the total evidence that trait 1 has *some* causal SNP here — i.e. $\sum_i \text{BF}_{1,i}$ — but
+computed from the **logs** without leaving log space. You can't fully do this yet; sketch what
+you'd need.
+
+::: {.callout-note collapse="true" title="Answer"}
+You need a "log of a sum" helper: $\text{logsum}(\ell_1) = \log\big(e^{\ell_{1,1}} +
+e^{\ell_{1,2}} + e^{\ell_{1,3}}\big) = \log(1 + 2 + 5) = \log 8 \approx 2.079$. Doing this
+*stably* (subtracting the max first, so huge real lABFs don't overflow) is `logsum`, which
+[Module 3](../03-combining-abfs-with-priors/lesson.qmd) builds — along with its partner
+`logdiff` for the distinct-evidence subtraction. That module turns these evidence sums, plus
+the priors, into the five posterior probabilities.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Score under 4? Revisit what the missed
+questions point at, then retake in a **later session** — passing after another gap is the
+evidence that counts. Results are saved in this browser only.
+
+::: {.module-check module="courses/bayesian-colocalisation/modules/01-the-colocalisation-question" pass="4"}
+
+::: {.quiz-q qid="cq-what-coloc-asks" qtype="mc" answer="c"}
+What does colocalisation ask about two studies' signals in one genomic region?
+
+a) Which study has the larger effect size
+b) Whether both studies reach genome-wide significance
+c) Whether the same causal variant drives both, or two different ones do
+d) How many SNPs are in the region
+:::
+
+::: {.quiz-q qid="cq-length-l2" qtype="numeric" answer="7" tolerance="0"}
+A region has 7 SNPs. How many entries does the vector $\ell_2$ have?
+:::
+
+::: {.quiz-q qid="cq-both-sig" qtype="mc" answer="b"}
+Both studies have a strong, real signal in the same region. What does that tell you about
+colocalisation?
+
+a) They definitely share a causal variant
+b) Nothing yet — they could share one variant or have two distinct nearby variants
+c) They definitely have distinct variants
+d) The region has no causal variant
+:::
+
+::: {.quiz-q qid="cq-labf-from-z" qtype="numeric" answer="6.113" tolerance="0.01"}
+For a SNP with $\hat\beta = 0.20$, $\text{se} = 0.05$, $W = 0.04$: what is its lABF (coloc
+convention)? Enter to 3 decimals.
+:::
+
+::: {.quiz-q qid="cq-abf-large-strong" qtype="mc" answer="a"}
+*(interleaved — from the Approximate Bayes Factors course, Module 3.)* In coloc's sign
+convention, a **large** log Bayes factor means:
+
+a) Strong evidence for association
+b) Strong evidence against association
+c) The prior variance $W$ is large
+d) The standard error is large
+:::
+
+:::
+
+::::

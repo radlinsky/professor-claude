@@ -1,0 +1,247 @@
+---
+title: "Practice: Combining ABFs with priors"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+Work these in order — they get harder. Do them on paper or in an R session; only then open
+the answer.
+
+## Problem 1 — the toy example, new numbers
+
+For $\text{BF}_1 = (2, 1, 3)$ and $\text{BF}_2 = (1, 4, 2)$, compute by hand: the two totals,
+the diagonal (shared, $H_4$) sum, and the off-diagonal (distinct, $H_3$) sum via the trick.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to check your hand work
+BF1 <- c(2, 1, 3); BF2 <- c(1, 4, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Totals: $\sum\text{BF}_1 = 6$, $\sum\text{BF}_2 = 7$, grid $= 42$. Diagonal:
+$2\cdot1 + 1\cdot4 + 3\cdot2 = 2 + 4 + 6 = 12$. Distinct (trick): $42 - 12 = 30$.
+
+```{r}
+BF1 <- c(2, 1, 3); BF2 <- c(1, 4, 2)
+diag <- sum(BF1*BF2)                 # 12
+offdiag <- sum(BF1)*sum(BF2) - diag  # 42 - 12 = 30
+c(total1 = sum(BF1), total2 = sum(BF2), grid = sum(BF1)*sum(BF2), diag = diag, distinct = offdiag)
+```
+Check by listing off-diagonal pairs: $2\cdot4 + 2\cdot2 + 1\cdot1 + 1\cdot2 + 3\cdot1 +
+3\cdot4 = 8+4+1+2+3+12 = 30$. ✓
+:::
+
+## Problem 2 — fill in the missing step
+
+Here is the five-support computation in log space for $\ell_1 = \log(1,2,5)$,
+$\ell_2 = \log(2,1,4)$, toy priors $p_1 = p_2 = 0.1$, $p_{12} = 0.05$. One line is blanked —
+supply it.
+
+- $s_1 = \text{logsum}(\ell_1) = \log 8$; $s_2 = \text{logsum}(\ell_2) = \log 7$;
+  $s_{12} = \text{logsum}(\ell_1 + \ell_2) = \log 24$.
+- $\ell_{H_1} = \log p_1 + s_1$; $\ell_{H_2} = \log p_2 + s_2$; $\ell_{H_4} = \log p_{12} + s_{12}$.
+- $\ell_{H_3} =$ **your step here** — write the distinct support using `logdiff`.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+l1 <- log(c(1,2,5)); l2 <- log(c(2,1,4))
+p1 <- 0.1; p2 <- 0.1; p12 <- 0.05
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$$\ell_{H_3} = \log p_1 + \log p_2 + \text{logdiff}(s_1 + s_2,\; s_{12}).$$
+The `logdiff` is "grid minus diagonal" in log space: $s_1 + s_2 = \log(8\cdot7) = \log 56$ and
+$s_{12} = \log 24$, so $\text{logdiff} = \log(56 - 24) = \log 32$.
+
+```{r}
+logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+l1 <- log(c(1,2,5)); l2 <- log(c(2,1,4))
+s1 <- logsum(l1); s2 <- logsum(l2); s12 <- logsum(l1+l2)
+lH3 <- log(0.1) + log(0.1) + logdiff(s1+s2, s12)
+c(logdiff = logdiff(s1+s2, s12), exp_logdiff = exp(logdiff(s1+s2, s12)), lH3 = lH3)  # exp = 32
+```
+:::
+
+## Problem 3 — full posteriors
+
+Using the same $\ell_1 = \log(1,2,5)$, $\ell_2 = \log(2,1,4)$ and toy priors $p_1=p_2=0.1$,
+$p_{12}=0.05$, compute all five posterior probabilities $\text{PP0}\dots\text{PP4}$ and confirm
+they sum to 1.
+
+```{webr}
+#| autorun: false
+# p3-starter — build the five supports, then normalise
+logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+l1 <- log(c(1,2,5)); l2 <- log(c(2,1,4))
+p1 <- 0.1; p2 <- 0.1; p12 <- 0.05
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r}
+logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+l1 <- log(c(1,2,5)); l2 <- log(c(2,1,4)); p1<-0.1; p2<-0.1; p12<-0.05
+s1 <- logsum(l1); s2 <- logsum(l2); s12 <- logsum(l1+l2)
+lH <- c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+logdiff(s1+s2,s12), log(p12)+s12)
+pp <- exp(lH - logsum(lH))
+c(setNames(round(pp,4), c("PP0","PP1","PP2","PP3","PP4")), sum = sum(pp))
+```
+PP4 $\approx 0.2985$ is the largest — the toy region leans (weakly) toward a shared variant —
+and the five sum to exactly 1.
+:::
+
+## Problem 4 — spot the error
+
+A colleague computes the distinct ($H_3$) support like this — it contains **exactly one
+mistake**. Find it.
+
+```{webr}
+#| autorun: false
+# p4-starter — one bug in the distinct support
+logsum <- function(x) { m<-max(x); m+log(sum(exp(x-m))) }
+l1 <- log(c(1,2,5)); l2 <- log(c(2,1,4)); p1 <- 0.1; p2 <- 0.1
+s1 <- logsum(l1); s2 <- logsum(l2)
+lH3 <- log(p1) + log(p2) + (s1 + s2)   # <- distinct support?
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The bug: `lH3` uses `s1 + s2` alone, which is the log of the **whole grid** ($\log 56$) — it
+includes the shared (diagonal) configurations. The distinct support must **subtract the
+diagonal**: `logdiff(s1 + s2, s12)` where `s12 = logsum(l1 + l2) = log 24`, giving
+$\log(56 - 24) = \log 32$. Using `s1 + s2` double-counts the shared cases and inflates PP3.
+
+```{r}
+logsum  <- function(x) { m<-max(x); m+log(sum(exp(x-m))) }
+logdiff <- function(x, y) { m<-max(x,y); m+log(exp(x-m)-exp(y-m)) }
+l1 <- log(c(1,2,5)); l2 <- log(c(2,1,4)); p1<-0.1; p2<-0.1
+s1 <- logsum(l1); s2 <- logsum(l2); s12 <- logsum(l1+l2)
+c(wrong_exp = exp(s1+s2), correct_exp = exp(logdiff(s1+s2, s12)))  # 56 vs 32
+```
+:::
+
+## Problem 5 — mixing it with Module 1 *(uses Module 1's wakefield_abf)*
+
+Start from raw summary statistics (not BFs). For a three-SNP region, trait 1
+$\hat\beta = (0.02, 0.21, -0.01)$, trait 2 $\hat\beta = (-0.01, 0.20, 0.03)$, all $\text{se} =
+0.04$, $W = 0.04$, coloc default priors. Build $\ell_1$, $\ell_2$ with `wakefield_abf`, then
+run the full `coloc_abf` combination. Which PP dominates?
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m<-max(x); m+log(sum(exp(x-m))) }
+.logdiff <- function(x,y) { m<-max(x,y); m+log(exp(x-m)-exp(y-m)) }
+beta1 <- c(0.02, 0.21, -0.01); beta2 <- c(-0.01, 0.20, 0.03); se <- rep(0.04, 3); W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Both traits are loud on SNP 2, so expect PP4 (shared). Assemble and run:
+
+```{r}
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m<-max(x); m+log(sum(exp(x-m))) }
+.logdiff <- function(x,y) { m<-max(x,y); m+log(exp(x-m)-exp(y-m)) }
+coloc_abf <- function(beta1, se1, beta2, se2, W1, W2, p1=1e-4, p2=1e-4, p12=1e-5) {
+  l1 <- wakefield_abf(beta1, se1, W1); l2 <- wakefield_abf(beta2, se2, W2)
+  s1 <- .logsum(l1); s2 <- .logsum(l2); s12 <- .logsum(l1+l2)
+  all <- c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2,s12), log(p12)+s12)
+  list(pp = exp(all - .logsum(all)))
+}
+pp <- coloc_abf(c(0.02,0.21,-0.01), rep(0.04,3), c(-0.01,0.20,0.03), rep(0.04,3), 0.04, 0.04)$pp
+setNames(round(pp,4), c("PP0","PP1","PP2","PP3","PP4"))
+```
+PP4 dominates — the two loud SNPs coincide (Module 1's fingerprint), and the combination
+(Module 3) turns that into a shared-variant posterior near 1.
+:::
+
+## Problem 6 — transfer / interpretation
+
+You run `coloc_abf` on a real-scale region and get PP4 $= 0.55$, PP3 $= 0.40$. A collaborator
+says "great, over half — they colocalise." Is that a safe conclusion? What number would you
+look at?
+
+::: {.callout-note collapse="true" title="Answer"}
+Not safe. With five hypotheses, PP4 = 0.55 is not decisive — the usual bar is PP4 $> 0.8$, and
+here PP3 = 0.40 is nearly as large, so the data genuinely can't tell shared from distinct. A
+useful extra number is the **conditional** PP4/(PP3+PP4) $= 0.55/0.95 \approx 0.58$ — still not
+convincing. Honest report: "both traits are associated in the region, but the evidence does not
+decisively favour a shared over a distinct causal variant (PP4 = 0.55)." More data (bigger sample)
+is what would sharpen it — the capstone's power caveat.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Score under 4? Revisit what the missed
+questions point at, then retake in a **later session** — passing after another gap is the
+evidence that counts. Results are saved in this browser only.
+
+::: {.module-check module="courses/bayesian-colocalisation/modules/03-combining-abfs-with-priors" pass="4"}
+
+::: {.quiz-q qid="ca-distinct-trick" qtype="numeric" answer="30" tolerance="0"}
+For $\text{BF}_1 = (2, 1, 3)$ and $\text{BF}_2 = (1, 4, 2)$: what is the distinct ($H_3$)
+evidence, $(\sum\text{BF}_1)(\sum\text{BF}_2) - \sum_i \text{BF}_{1,i}\text{BF}_{2,i}$?
+:::
+
+::: {.quiz-q qid="ca-diagonal-meaning" qtype="mc" answer="b"}
+In the grid picture, what does the **diagonal** ($\sum_i \text{BF}_{1,i}\text{BF}_{2,i}$)
+represent?
+
+a) The distinct ($H_3$) configurations
+b) The shared ($H_4$) configurations — the same SNP causal for both traits
+c) The total evidence for trait 1
+d) The null hypothesis $H_0$
+:::
+
+::: {.quiz-q qid="ca-lh4-form" qtype="mc" answer="c"}
+Which is the correct log support for $H_4$ (shared)?
+
+a) $\log p_1 + \log p_2 + s_{12}$
+b) $\log p_{12} + s_1 + s_2$
+c) $\log p_{12} + s_{12}$, where $s_{12} = \text{logsum}(\ell_1 + \ell_2)$
+d) $\log p_{12} + \text{logdiff}(s_1 + s_2, s_{12})$
+:::
+
+::: {.quiz-q qid="ca-why-logspace" qtype="mc" answer="a"}
+Why normalise (subtract $\text{logsum}$ of all five supports) *before* exponentiating?
+
+a) Real supports can be $\pm 50$, so exponentiating first overflows or underflows
+b) It changes which hypothesis wins
+c) Because logs cannot be added
+d) To make the priors sum to 1
+:::
+
+::: {.quiz-q qid="ca-labf-loud" qtype="mc" answer="b"}
+*(interleaved — from Modules 1 and 2.)* Both traits' lABFs are loud on the **same** SNP. After
+running `coloc_abf`, which PP do you expect to dominate?
+
+a) PP3 (distinct)
+b) PP4 (shared)
+c) PP0 (no signal)
+d) PP1 (trait 1 only)
+:::
+
+:::
+
+::::

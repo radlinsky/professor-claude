@@ -1,0 +1,273 @@
+---
+title: "Five hypotheses"
+subtitle: "H0 through H4 as concrete statements about the region — and why PP3 and PP4 are the two you watch"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live {webr} cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+`coloc.abf` hands you five numbers — $\text{PP0}, \text{PP1}, \text{PP2}, \text{PP3},
+\text{PP4}$ — that sum to 1. Before we compute them (that's Module 3), you need to know
+*what each one is the probability of*. This module makes each of the five hypotheses a plain
+sentence about the region, introduces the idea of a **configuration** (which SNP is causal
+for which trait), and pins down the two numbers you'll actually report to a collaborator:
+**PP3** (two distinct causal variants) and **PP4** (one shared causal variant). It also
+introduces the three prior weights $p_1, p_2, p_{12}$ that tilt the five before the data
+speaks.
+
+**Builds on:** [Module 1](../01-the-colocalisation-question/lesson.qmd) (the two lABF
+vectors $\ell_1, \ell_2$), and the foundation
+[priors-posteriors-and-updating](../../../../foundations/priors-posteriors-and-updating/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** *(Module 1)* For a region of $Q$ SNPs, what are $\ell_1$ and $\ell_2$, and where do
+they come from?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\ell_1$ and $\ell_2$ are the per-SNP log Bayes factor vectors for trait 1 and trait 2 —
+each SNP's summary statistics run through `wakefield_abf`. See
+[Module 1](../01-the-colocalisation-question/lesson.qmd).
+:::
+
+**2.** *(Module 1)* If trait 1's loud SNP and trait 2's loud SNP are *different* SNPs, does
+that look more like a shared or a distinct signal?
+
+::: {.callout-note collapse="true" title="Answer"}
+**Distinct** — the two studies peak on different variants, so they're likely two separate
+causal SNPs sitting close together. See [Module 1](../01-the-colocalisation-question/lesson.qmd).
+:::
+
+**3.** *(foundation)* In Bayesian updating, before you see any data, what does a **prior**
+give each competing hypothesis?
+
+::: {.callout-note collapse="true" title="Answer"}
+A prior gives each hypothesis a starting weight — how plausible it is *before* the data —
+which then gets multiplied by how well the hypothesis explains the data. See
+[priors-posteriors-and-updating](../../../../foundations/priors-posteriors-and-updating/lesson.qmd).
+:::
+
+## A tiny example first
+
+Keep the three-SNP region from Module 1. There are exactly five stories the region could be
+telling. Let's list them concretely for **SNP 1, SNP 2, SNP 3**, and count how many specific
+"which SNP" arrangements each story allows — call each arrangement a **configuration**.
+
+- **$H_0$ — nothing here.** Neither trait has a causal SNP in this region. Just one
+  configuration (no causal SNP at all): **1**.
+- **$H_1$ — trait 1 only.** Trait 1 has one causal SNP; trait 2 has none. The causal SNP
+  could be SNP 1, 2, or 3: **3** configurations.
+- **$H_2$ — trait 2 only.** Mirror image: trait 2 has one causal SNP, trait 1 none: **3**.
+- **$H_3$ — both, but distinct.** Trait 1 is causal at one SNP, trait 2 at a *different* one.
+  Trait 1 picks one of 3, trait 2 picks one of the *other* 2: $3 \times 2 = $ **6**
+  configurations (e.g. "trait 1 at SNP 1, trait 2 at SNP 3").
+- **$H_4$ — both, shared.** One single SNP is causal for *both* traits. That SNP is 1, 2, or
+  3: **3** configurations (e.g. "SNP 2 for both").
+
+Notice $H_3$ and $H_4$ both mean "both traits have a signal here" — the difference is only
+whether it's the *same* SNP. That single distinction is the entire scientific payload of
+colocalisation.
+
+The same counting in R (it's just combinatorics, no statistics yet):
+
+```{r toy-example}
+Q <- 3                        # three SNPs in the region
+c(H0 = 1,                     # no causal SNP anywhere
+  H1 = Q,                     # trait-1 causal at one of Q SNPs
+  H2 = Q,                     # trait-2 causal at one of Q SNPs
+  H3 = Q * (Q - 1),           # distinct: t1 at one SNP, t2 at a DIFFERENT one
+  H4 = Q)                     # shared: one SNP causal for BOTH traits
+```
+
+## Getting a feel for it
+
+**Analogy — two guest lists, one party.** Think of each trait as a party that may or may not
+have invited exactly one special guest (its causal SNP) from a room of $Q$ people. $H_0$:
+neither party invited anyone. $H_1$/$H_2$: only one party invited a guest. Then the
+interesting case, both parties invited a guest, splits in two: **$H_4$** is "both parties
+invited the *same* person" (they share a friend — colocalisation); **$H_3$** is "each party
+invited a *different* person" (they just both happen to know someone in that crowded room).
+The whole test is a careful way of asking: given who lit up at each party, did they invite
+the same guest?
+
+Where the analogy breaks: a real party either did or didn't invite someone, but we never get
+to see the guest list — we only see noisy "brightness" (the lABFs). So we can't declare a
+winner; we can only spread probability across the five stories.
+
+**Why exactly these five, and why split $H_3$ from $H_4$?** Because those are the only
+mutually exclusive, exhaustive stories under the working assumption that each trait has *at
+most one* causal SNP in the region. Lumping $H_3$ and $H_4$ together (as an older "do they
+both have a signal?" test would) throws away the one thing you care about. Splitting them is
+what lets the method say "yes both have signal, but it's *not* the same variant" — the
+false-colocalisation guard.
+
+**What the numbers feel like.** For $Q = 3$ the configuration counts are $1, 3, 3, 6, 3$.
+$H_3$ (distinct) has the *most* configurations — 6 ways to pick two different SNPs — so if
+the data were totally uninformative and priors were equal *per configuration*, $H_3$ would be
+favoured just by having more ways to happen. That's a hint of why the *priors* matter: coloc
+deliberately makes sharing ($p_{12}$) rarer per SNP than a single-trait signal, to keep the
+"more configurations" bookkeeping honest. We'll see the exact weights next.
+
+## What the notation is going to say
+
+The notation will attach a **prior weight** to each configuration, using three per-SNP
+numbers:
+
+- $p_1$ = the prior probability that any given SNP is causal for **trait 1 only**,
+- $p_2$ = the same for **trait 2 only**,
+- $p_{12}$ = the prior probability that a given SNP is causal for **both** traits.
+
+So the prior for hypothesis $H_1$ (trait-1-only, one SNP out of $Q$) is built from $p_1$; for
+$H_4$ (shared, one SNP) from $p_{12}$; and for $H_3$ (distinct) from $p_1 \times p_2$ (one SNP
+causal for trait 1, a different one for trait 2). coloc's defaults are $p_1 = p_2 = 10^{-4}$
+and $p_{12} = 10^{-5}$ — sharing is deliberately an order of magnitude rarer than a
+single-trait hit.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $H_0 \dots H_4$ | "aitch zero … aitch four" | the five hypotheses about the region | the five stories above |
+| $\text{PP}_k$ | "pee-pee sub kay" | posterior probability of hypothesis $H_k$ (they sum to 1) | computed in Module 3 |
+| $Q$ | "cue" | number of SNPs in the region | 3 |
+| $p_1$ | "pee one" | prior prob. a SNP is causal for trait 1 only | coloc default $10^{-4}$ |
+| $p_2$ | "pee two" | prior prob. a SNP is causal for trait 2 only | coloc default $10^{-4}$ |
+| $p_{12}$ | "pee one-two" | prior prob. a SNP is causal for both traits | coloc default $10^{-5}$ |
+| configuration | — | one specific "which SNP is causal for which trait" arrangement | e.g. "SNP 2 causal for both" |
+
+## The formal version
+
+No algebra to derive yet — the "formal version" here is the exact statement of the five
+hypotheses and the two you report. Under the one-causal-per-trait assumption:
+
+$$
+\begin{aligned}
+H_0 &: \text{no causal SNP for either trait} \\
+H_1 &: \text{a causal SNP for trait 1 only} \\
+H_2 &: \text{a causal SNP for trait 2 only} \\
+H_3 &: \text{causal SNPs for both traits, at \textbf{distinct} SNPs} \\
+H_4 &: \text{one \textbf{shared} causal SNP for both traits}
+\end{aligned}
+$$
+
+Reading it aloud: "$H_3$ says both traits have a causal SNP here but they're different SNPs;
+$H_4$ says both traits are driven by the very same SNP." In everyday words: **PP4 large →
+colocalisation (shared variant); PP3 large → two separate variants that only look joined.**
+
+The two you report: after the data speaks, you get $\text{PP0}\dots\text{PP4}$ summing to 1.
+A high **PP4** (coloc convention often uses $> 0.8$) is the evidence *for* a shared causal
+variant; a high **PP3** is evidence *against* — two distinct variants. The other three
+($\text{PP0}, \text{PP1}, \text{PP2}$) mostly tell you the region lacked the joint
+signal to decide.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# TRY IT: change Q (the number of SNPs) and watch the configuration counts.
+# PREDICT: which hypothesis's count grows FASTEST as Q gets big -- H1, H4, or H3?
+Q <- 3
+counts <- c(H0 = 1, H1 = Q, H2 = Q, H3 = Q * (Q - 1), H4 = Q)
+counts
+# H3 (distinct) grows like Q^2 -- there are far more ways to pick TWO different SNPs
+# than one shared SNP. That is why coloc makes p12 smaller per SNP than p1, p2.
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A bar chart of the five hypotheses' configuration counts for a three-SNP region: H0=1, H1=3, H2=3, H3=6, H4=3. The H3 (distinct) bar is the tallest."
+# LIVE: SEE why 'distinct' has the most ways to happen in a small region.
+# PREDICT: for Q = 3, which bar is tallest -- H3 (distinct) or H4 (shared)?
+Q <- 3
+counts <- c(H0 = 1, H1 = Q, H2 = Q, H3 = Q * (Q - 1), H4 = Q)
+barplot(counts, ylab = "number of configurations",
+        main = paste0("How many ways can each story happen? (Q = ", Q, ")"),
+        col = c("grey", "grey", "grey", "tomato", "steelblue"))
+legend("topleft", fill = c("tomato", "steelblue"),
+       legend = c("H3 = distinct (PP3)", "H4 = shared (PP4)"), bty = "n")
+```
+
+## Common traps
+
+**Trap: "a high PP3 means the method failed / found nothing."** No — PP3 is a genuine,
+informative result. It says: *both* traits really do have a causal variant in this region,
+and the method is confident they are **different** variants. That is often the most important
+finding (it stops you from wrongly claiming a shared mechanism). "Found nothing" is PP0
+being high, not PP3.
+
+**Trap: "PP4 near 0.5 is decent evidence for sharing."** Not really. Because there are five
+hypotheses, the neutral baseline isn't 0.5 — the standard threshold people use is
+**PP4 $> 0.8$** (and often they also want PP4/(PP3+PP4) high). A PP4 of 0.5 usually means the
+data can't distinguish shared from distinct, not that sharing is "more likely than not" in
+any useful sense. Report the number, not a coin-flip conclusion.
+
+## Check yourself
+
+**1.** A region has $Q = 4$ SNPs. How many **distinct** ($H_3$) configurations are there, and
+how many **shared** ($H_4$) configurations?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run
+Q <- 4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$H_3$: $Q(Q-1) = 4 \times 3 = 12$ ways to put trait 1 at one SNP and trait 2 at a different
+one. $H_4$: $Q = 4$ ways to pick one shared SNP. Distinct always outnumbers shared, and by
+more as $Q$ grows.
+:::
+
+**2.** You run `coloc.abf` and get $\text{PP3} = 0.92$. In one sentence, what do you tell
+your collaborator?
+
+::: {.callout-note collapse="true" title="Answer"}
+"Both traits have a real association signal in this region, but the method is 92% confident
+they're driven by **two different** causal variants, not a shared one — so don't assume a
+common mechanism." (High PP3 = distinct, not "no signal.")
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, the difference between
+$H_3$ and $H_4$ and why coloc bothers to separate them.
+
+::: {.callout-note collapse="true" title="A model answer"}
+$H_4$ says both traits are driven by the *same* causal SNP (they colocalise), while $H_3$ says
+each trait has its own *different* causal SNP that just sits nearby. coloc separates them
+because "both have a signal here" is not the same as "they share a mechanism" — and only the
+shared case (high PP4) supports a common causal variant.
+:::
+
+## What you can now do
+
+- **State each of $H_0$–$H_4$** as a concrete sentence about a region, and count the
+  configurations each allows for a small $Q$.
+- **Explain why PP3 (distinct) and PP4 (shared) are the two numbers you report**, and why the
+  usual bar for claiming colocalisation is PP4 $> 0.8$, not $0.5$.
+- **Read the priors $p_1, p_2, p_{12}$** as per-SNP weights, and say why coloc makes sharing
+  ($p_{12}$) rarer than a single-trait hit.
+
+If any of these feels shaky, revisit the five-story list above before continuing — Module 3
+turns each story into a number, and every formula there is named after one of these
+hypotheses.
+
+## Where this goes next
+
+You can now say what the five probabilities *mean*. [Module 3](../03-combining-abfs-with-priors/lesson.qmd)
+computes them: it combines $\ell_1$, $\ell_2$, and the priors $p_1, p_2, p_{12}$ into
+$\ell_{H_0}\dots\ell_{H_4}$ (with the clever $\sum_{i\neq j}$ trick for the distinct case),
+normalises to $\text{PP0}\dots\text{PP4}$, and builds `coloc_abf()`. Ready for reps? Do the
+[practice problems](practice.qmd).

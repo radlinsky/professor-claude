@@ -1,0 +1,456 @@
+---
+title: "Combining ABFs with priors"
+subtitle: "The lH0..lH4 formulas, the sum-over-i-not-j trick, and building coloc_abf() from scratch"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live {webr} cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The R cells below with a **Run** button are live (WebR) — you build `coloc_abf()` and check it
+against the real `coloc` reference numbers right here. All of it is base R.
+:::
+
+## Where we're going
+
+This is the method. You have the two per-SNP lABF vectors $\ell_1$, $\ell_2$ (Module 1) and
+the five hypotheses with their priors (Module 2). Now we turn them into the five posterior
+probabilities. The engine is three moves: (1) each hypothesis gets a **log support**
+$\ell_{H_k}$ = log(prior) + log(evidence); (2) the tricky "distinct" hypothesis $H_3$ uses a
+neat algebraic identity — the $\sum_{i\neq j}$ trick — to avoid a double loop over SNP pairs;
+(3) everything is done in **log space** with two small helpers, `logsum` and `logdiff`, then
+normalised to $\text{PP0}\dots\text{PP4}$. By the end you'll have built `coloc_abf()` and
+checked it against `coloc`'s own output.
+
+**Builds on:** [Module 1](../01-the-colocalisation-question/lesson.qmd) ($\ell_1, \ell_2$),
+[Module 2](../02-five-hypotheses/lesson.qmd) (the five hypotheses and priors), and the
+foundations [likelihood-and-log-likelihood](../../../../foundations/likelihood-and-log-likelihood/lesson.qmd),
+[marginal-likelihood-and-model-evidence](../../../../foundations/marginal-likelihood-and-model-evidence/lesson.qmd),
+and [bayes-factors-and-posterior-odds](../../../../foundations/bayes-factors-and-posterior-odds/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** *(Module 2)* Which hypothesis means "one shared causal SNP for both traits," and which
+means "two distinct causal SNPs"?
+
+::: {.callout-note collapse="true" title="Answer"}
+$H_4$ = shared (report PP4); $H_3$ = distinct (report PP3). See
+[Module 2](../02-five-hypotheses/lesson.qmd).
+:::
+
+**2.** *(foundation)* Why do we add logs instead of multiplying probabilities directly?
+
+::: {.callout-note collapse="true" title="Answer"}
+Products of many tiny probabilities underflow to zero and lose precision; adding their logs
+is numerically safe and turns "multiply the evidence" into "add the log-evidence." See
+[likelihood-and-log-likelihood](../../../../foundations/likelihood-and-log-likelihood/lesson.qmd).
+:::
+
+**3.** *(foundation)* To turn a set of unnormalised scores into probabilities that sum to 1,
+what do you do?
+
+::: {.callout-note collapse="true" title="Answer"}
+Divide each score by the total (normalise). In log space: subtract the log of the total,
+$\log\!\sum e^{\text{score}}$, then exponentiate. See
+[bayes-factors-and-posterior-odds](../../../../foundations/bayes-factors-and-posterior-odds/lesson.qmd).
+:::
+
+## A tiny example first
+
+To see every step by hand, let's skip the ABF machine for a moment and work with **clean
+per-SNP Bayes factors** directly — the actual $\ell$s are just logs of these. Take a
+three-SNP region with
+
+$$\text{BF}_1 = (1, 2, 5), \qquad \text{BF}_2 = (2, 1, 4).$$
+
+(So $\ell_1 = \log \text{BF}_1$ and $\ell_2 = \log \text{BF}_2$.) The evidence pieces we need
+are all sums:
+
+- Trait 1's total evidence: $\sum \text{BF}_1 = 1 + 2 + 5 = 8$.
+- Trait 2's total evidence: $\sum \text{BF}_2 = 2 + 1 + 4 = 7$.
+- The **shared** ($H_4$) evidence, one SNP causal for both:
+  $\sum_i \text{BF}_{1,i}\text{BF}_{2,i} = 1\cdot2 + 2\cdot1 + 5\cdot4 = 2 + 2 + 20 = 24$.
+- The **distinct** ($H_3$) evidence, trait 1 at SNP $i$ and trait 2 at a *different* SNP $j$:
+  $\sum_{i\neq j}\text{BF}_{1,i}\text{BF}_{2,j}$. Instead of listing all 6 off-diagonal pairs,
+  use the identity (derived below): $(\sum \text{BF}_1)(\sum \text{BF}_2) - \sum_i
+  \text{BF}_{1,i}\text{BF}_{2,i} = 8 \times 7 - 24 = 56 - 24 = 32$.
+
+Now attach priors. Use toy priors $p_1 = p_2 = 0.1$, $p_{12} = 0.05$ (bigger than coloc's
+real defaults so the toy numbers stay readable). The five (unnormalised) supports are
+prior $\times$ evidence:
+
+$$
+\begin{aligned}
+S_0 &= 1 \\
+S_1 &= p_1 \cdot 8 = 0.8 \\
+S_2 &= p_2 \cdot 7 = 0.7 \\
+S_3 &= p_1 p_2 \cdot 32 = 0.01 \times 32 = 0.32 \\
+S_4 &= p_{12} \cdot 24 = 0.05 \times 24 = 1.2
+\end{aligned}
+$$
+
+Normalise by the total $S_0+\dots+S_4 = 1 + 0.8 + 0.7 + 0.32 + 1.2 = 4.02$:
+$\text{PP4} = 1.2 / 4.02 \approx 0.299$ — the biggest, so the toy region leans (weakly)
+toward a shared variant.
+
+The same thing in R, done directly (we'll switch to log space right after):
+
+```{r toy-example}
+BF1 <- c(1, 2, 5); BF2 <- c(2, 1, 4)
+p1 <- 0.1; p2 <- 0.1; p12 <- 0.05
+
+sum1 <- sum(BF1)                 # 8   total evidence, trait 1
+sum2 <- sum(BF2)                 # 7   total evidence, trait 2
+diag <- sum(BF1 * BF2)           # 24  shared (H4): same SNP for both
+offdiag <- sum1 * sum2 - diag    # 32  distinct (H3): the i != j trick
+
+S <- c(H0 = 1,
+       H1 = p1 * sum1,
+       H2 = p2 * sum2,
+       H3 = p1 * p2 * offdiag,
+       H4 = p12 * diag)
+round(S / sum(S), 4)             # PP0..PP4, summing to 1
+```
+
+## Getting a feel for it
+
+**Analogy — a multiplication table with the diagonal removed.** Lay trait 1's Bayes factors
+down the rows and trait 2's across the columns of a $3\times 3$ grid; each cell $(i,j)$ holds
+$\text{BF}_{1,i}\text{BF}_{2,j}$ — the evidence that trait 1 is causal at SNP $i$ **and**
+trait 2 at SNP $j$. The **whole grid's total** is $(\sum \text{BF}_1)(\sum \text{BF}_2) = 56$.
+The **diagonal** cells ($i = j$) are the *shared* configurations (same SNP for both) — that's
+$H_4$, summing to 24. Everything **off** the diagonal ($i \neq j$) is the *distinct*
+configurations — that's $H_3$. So the distinct evidence is just "the whole grid minus its
+diagonal": $56 - 24 = 32$. That is the entire $\sum_{i\neq j}$ trick, seen at a glance.
+
+Where the analogy breaks: for a real region of thousands of SNPs the grid has millions of
+cells, so you would never build it. The identity is precious exactly *because* it computes
+"grid minus diagonal" from three cheap sums, never touching the grid.
+
+**Why prior $\times$ evidence, then normalise?** Each hypothesis's support is "how plausible
+before data" (its prior) times "how well it explains the region's evidence" (a sum of Bayes
+factors over the configurations it allows). That product is an unnormalised posterior weight —
+the numerator of Bayes' rule. Dividing by the total is Bayes' rule's denominator, and it
+forces the five to sum to 1. It's the exact machinery from
+[bayes-factors-and-posterior-odds](../../../../foundations/bayes-factors-and-posterior-odds/lesson.qmd),
+just with five models instead of two.
+
+**What the numbers feel like.** In the toy, $S_4 = 1.2$ edged out everything because SNP 3
+was loud in *both* traits ($5$ and $4$), pumping the diagonal. If trait 2's loud SNP had been
+a *different* one, the diagonal would shrink and the off-diagonal (distinct) would swell,
+pushing weight from PP4 to PP3. With coloc's real priors ($p_{12} = 10^{-5}$, ten times
+rarer than $p_1$), sharing needs *much* louder aligned evidence to win — which is why real
+PP4 near 1 is a strong statement.
+
+## What the notation is going to say
+
+Everything above, but in **log space**, because real BFs are astronomically large or tiny.
+Two helpers do the heavy lifting:
+
+- $\text{logsum}(x) = \log\!\big(\sum_i e^{x_i}\big)$ — "add things that are stored as logs,"
+  computed stably. Applied to $\ell_1$ it gives $\log \sum \text{BF}_1$.
+- $\text{logdiff}(x, y) = \log\!\big(e^x - e^y\big)$ for $x > y$ — "subtract two things stored
+  as logs." It's how we do "grid minus diagonal" without leaving log space.
+
+Then each hypothesis's log support is $\log(\text{prior}) + \log(\text{evidence})$, and the
+distinct case's log evidence is exactly $\text{logdiff}$ of "whole grid (in logs)" and
+"diagonal (in logs)."
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\ell_{1,i}, \ell_{2,i}$ | "ell one/two sub eye" | per-SNP log Bayes factors (Module 1) | $\ell_1 = \log(1,2,5)$ |
+| $\text{BF}_{1,i}$ | "bee-eff one sub eye" | trait 1's Bayes factor at SNP $i$ ($=e^{\ell_{1,i}}$) | $1, 2, 5$ |
+| $\sum_i$ | "the sum over i" | add over all SNPs (in R: `sum(...)`) | $\sum \text{BF}_1 = 8$ |
+| $\sum_{i\neq j}$ | "the sum over i not equal to j" | add over all SNP *pairs with different indices* | the off-diagonal, $32$ |
+| $\text{logsum}(x)$ | "log-sum of ex" | $\log\sum e^{x_i}$, stably (log of a sum) | $\text{logsum}(\ell_1)=\log 8$ |
+| $\text{logdiff}(x,y)$ | "log-diff of ex and why" | $\log(e^x - e^y)$, $x>y$ (log of a difference) | $\log(56-24)=\log 32$ |
+| $s_1, s_2$ | "ess one, ess two" | log total evidence per trait, $\text{logsum}(\ell_1)$ and $\text{logsum}(\ell_2)$ | $s_1=\log 8,\ s_2=\log 7$ |
+| $s_{12}$ | "ess one-two" | log diagonal (shared) evidence, $\text{logsum}(\ell_1+\ell_2)$ | $s_{12}=\log 24$ |
+| $\ell_{H_k}$ | "ell aitch sub kay" | log support of hypothesis $H_k$ = log prior + log evidence | $\ell_{H_4}=\log(0.05\cdot24)$ |
+| $p_1, p_2, p_{12}$ | "pee one, pee two, pee one-two" | the per-SNP priors (Module 2) | toy: $0.1, 0.1, 0.05$ |
+| $\text{PP}_k$ | "pee-pee sub kay" | posterior prob. of $H_k$ (sum to 1) | PP4 $\approx 0.299$ |
+
+## The formal version
+
+First the identity that powers $H_3$. We want the distinct evidence $\sum_{i\neq j}
+\text{BF}_{1,i}\text{BF}_{2,j}$. Build it up:
+
+$$
+\begin{aligned}
+\Big(\sum_i \text{BF}_{1,i}\Big)\Big(\sum_j \text{BF}_{2,j}\Big)
+  &= \sum_i \sum_j \text{BF}_{1,i}\,\text{BF}_{2,j} \\
+  &= \sum_{i = j} \text{BF}_{1,i}\,\text{BF}_{2,j} \;+\; \sum_{i \neq j} \text{BF}_{1,i}\,\text{BF}_{2,j} \\
+  &= \sum_i \text{BF}_{1,i}\,\text{BF}_{2,i} \;+\; \sum_{i \neq j} \text{BF}_{1,i}\,\text{BF}_{2,j}.
+\end{aligned}
+$$
+
+- Line 1: a product of two sums is the sum of all pairwise products (expand the product —
+  the distributive law, one term per cell of the grid).
+- Line 2: split the double sum into the diagonal ($i = j$) plus the off-diagonal ($i \neq j$) —
+  a sum can be split into two sums over disjoint pieces (taught in
+  [vectors-and-summation](../../../../foundations/vectors-and-summation/lesson.qmd)).
+- Line 3: on the diagonal $j$ equals $i$, so $\text{BF}_{2,j} = \text{BF}_{2,i}$ — just
+  relabel.
+
+Rearranging the last line gives the identity we use:
+
+$$
+\sum_{i \neq j} \text{BF}_{1,i}\,\text{BF}_{2,j}
+= \Big(\sum_i \text{BF}_{1,i}\Big)\Big(\sum_j \text{BF}_{2,j}\Big) - \sum_i \text{BF}_{1,i}\,\text{BF}_{2,i}.
+$$
+
+Reading it aloud: "the distinct-pair sum equals the product of the two totals, minus the
+matched (same-SNP) sum" — grid total minus diagonal.
+
+Sanity check on the toy: $8 \times 7 - 24 = 56 - 24 = 32$. ✓ (matches the hand count above).
+
+Now the five log supports. With $s_1 = \text{logsum}(\ell_1)$, $s_2 = \text{logsum}(\ell_2)$,
+and $s_{12} = \text{logsum}(\ell_1 + \ell_2)$ (note: $\ell_{1,i} + \ell_{2,i} = \log(\text{BF}_{1,i}\text{BF}_{2,i})$, so $e^{s_{12}}$ is the diagonal sum):
+
+$$
+\begin{aligned}
+\ell_{H_0} &= 0 \\
+\ell_{H_1} &= \log p_1 + s_1 \\
+\ell_{H_2} &= \log p_2 + s_2 \\
+\ell_{H_3} &= \log p_1 + \log p_2 + \text{logdiff}(s_1 + s_2,\; s_{12}) \\
+\ell_{H_4} &= \log p_{12} + s_{12}
+\end{aligned}
+$$
+
+- $\ell_{H_0} = 0$: the null's Bayes factor against itself is 1, and $\log 1 = 0$ — it's the
+  reference everything else is measured against.
+- $\ell_{H_1}, \ell_{H_2}$: log prior + log of that trait's total evidence ($s_1 = \log\sum\text{BF}_1$).
+- $\ell_{H_3}$: log priors + $\text{logdiff}$ of "log grid total" ($s_1 + s_2$, since
+  $\log[(\sum\text{BF}_1)(\sum\text{BF}_2)] = s_1 + s_2$) minus "log diagonal" ($s_{12}$) —
+  the identity, in log space.
+- $\ell_{H_4}$: log prior + log diagonal ($s_{12}$).
+
+Finally normalise: $\text{PP}_k = \exp\!\big(\ell_{H_k} - \text{logsum}(\ell_{H_0},\dots,\ell_{H_4})\big)$.
+
+Sanity check that the log-space route reproduces the direct toy numbers:
+
+```{r formal-sanity}
+logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+
+l1 <- log(c(1, 2, 5)); l2 <- log(c(2, 1, 4))   # the toy BFs, as logs
+p1 <- 0.1; p2 <- 0.1; p12 <- 0.05
+
+s1  <- logsum(l1)        # = log 8
+s2  <- logsum(l2)        # = log 7
+s12 <- logsum(l1 + l2)   # = log 24 (the diagonal)
+
+lH <- c(H0 = 0,
+        H1 = log(p1)  + s1,
+        H2 = log(p2)  + s2,
+        H3 = log(p1)  + log(p2)  + logdiff(s1 + s2, s12),  # logdiff = log(56 - 24) = log 32
+        H4 = log(p12) + s12)
+pp <- exp(lH - logsum(lH))
+round(pp, 4)             # identical to the direct S/sum(S) above: PP4 ~ 0.2985
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# TRY IT: move trait 2's loud SNP. Right now BF2's biggest (4) is at SNP 3, same as BF1's (5)
+#         -> shared -> PP4 wins. Change BF2 to c(4, 1, 2) so its loud SNP is #1 instead.
+# PREDICT: with the loud SNPs on DIFFERENT SNPs, which grows -- PP3 or PP4?
+logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+
+BF1 <- c(1, 2, 5); BF2 <- c(2, 1, 4)      # <- edit BF2
+l1 <- log(BF1); l2 <- log(BF2)
+p1 <- 0.1; p2 <- 0.1; p12 <- 0.05
+
+s1 <- logsum(l1); s2 <- logsum(l2); s12 <- logsum(l1 + l2)
+lH <- c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+logdiff(s1+s2, s12), log(p12)+s12)
+pp <- exp(lH - logsum(lH))
+setNames(round(pp, 4), c("PP0","PP1","PP2","PP3","PP4"))
+```
+
+Now assemble the real thing — `coloc_abf()` — starting from raw summary statistics, exactly
+as `coloc.abf` does. It stacks the ABF machine from Module 1 in front of the combination
+above.
+
+```{webr}
+#| autorun: true
+# LIVE: the complete from-scratch method (base R). This IS what coloc.abf computes.
+# PREDICT: SNP 2 is the loud one in both traits here -- which PP will come out largest?
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+
+coloc_abf <- function(beta1, se1, beta2, se2, W1, W2,
+                      p1 = 1e-4, p2 = 1e-4, p12 = 1e-5) {
+  l1 <- wakefield_abf(beta1, se1, W1)   # per-SNP lABF, trait 1  (Module 1)
+  l2 <- wakefield_abf(beta2, se2, W2)   # per-SNP lABF, trait 2
+  s1  <- .logsum(l1)                    # log total evidence, trait 1
+  s2  <- .logsum(l2)                    # log total evidence, trait 2
+  s12 <- .logsum(l1 + l2)               # log diagonal (shared) evidence
+  lH0 <- 0
+  lH1 <- log(p1)  + s1
+  lH2 <- log(p2)  + s2
+  lH3 <- log(p1)  + log(p2)  + .logdiff(s1 + s2, s12)   # distinct: grid - diagonal
+  lH4 <- log(p12) + s12                                 # shared
+  all <- c(lH0, lH1, lH2, lH3, lH4)
+  list(pp = exp(all - .logsum(all)))
+}
+
+# a quick shared-looking region (loud SNP #2 in both traits)
+out <- coloc_abf(beta1 = c(0.01, 0.20, -0.02), se1 = rep(0.03, 3),
+                 beta2 = c(-0.01, 0.19, 0.02), se2 = rep(0.035, 3),
+                 W1 = 0.04, W2 = 0.04)
+setNames(round(out$pp, 4), c("PP0","PP1","PP2","PP3","PP4"))
+```
+
+### The self-check against `coloc` {#self-check}
+
+Prove your `coloc_abf()` matches the real package. The cell embeds the **frozen reference**
+from `equivalence/fixtures/coloc-abf-shared.json` — the exact inputs and the
+$\text{PP0}\dots\text{PP4}$ vector that `coloc::coloc.abf` 5.2.3 produced — and compares.
+
+```{webr}
+#| autorun: true
+# LIVE SELF-CHECK: your coloc_abf() vs the FROZEN coloc reference (scenario: shared).
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(beta1, se1, beta2, se2, W1, W2, p1 = 1e-4, p2 = 1e-4, p12 = 1e-5) {
+  l1 <- wakefield_abf(beta1, se1, W1); l2 <- wakefield_abf(beta2, se2, W2)
+  s1 <- .logsum(l1); s2 <- .logsum(l2); s12 <- .logsum(l1 + l2)
+  all <- c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2, s12), log(p12)+s12)
+  list(pp = exp(all - .logsum(all)))
+}
+
+# frozen inputs + reference, copied verbatim from equivalence/fixtures/coloc-abf-shared.json
+beta1 <- c(-0.009781094715461567, 0.01657385566257415, -0.02024831531867491, 0.16,
+           0.00932307651940807, 0.03521898862688097, 0.01856369566877904,
+           -0.003382029442626436, 0.02751084868538136, -0.006697780938817877)
+se1 <- rep(0.03, 10)
+beta2 <- c(0.01579344296620927, -0.02384533306245165, 0.04283266634049109, 0.15,
+           -0.007100501358086871, -0.005800138949925011, -0.02549264221001584,
+           0.00175396493548505, -0.02453011067627874, -0.06150923446918894)
+se2 <- rep(0.035, 10)
+W1 <- 0.04; W2 <- 0.04; p1 <- 1e-4; p2 <- 1e-4; p12 <- 1e-5
+reference_pp <- c(0.0004764450235039068, 0.007762352170233302, 6.09890757517626e-05,
+                  1.949819640442383e-06, 0.9916982639108702)
+
+mine <- coloc_abf(beta1, se1, beta2, se2, W1, W2, p1, p2, p12)$pp
+cat("PP4 (shared):", round(mine[5], 4), "-> colocalisation\n")
+cat("max |mine - coloc reference| =", format(max(abs(mine - reference_pp)), scientific = TRUE), "\n")
+cat("match within 1e-6?", max(abs(mine - reference_pp)) < 1e-6, "\n")   # TRUE
+```
+
+**PP4 $\approx 0.992$** — a clean shared-variant call, matching `coloc` to about $10^{-6}$.
+You just rebuilt `coloc.abf`'s core in base R.
+
+::: {.callout-note title="Runs on your machine, not here"}
+The reference numbers above came from the **real `coloc` package** (`coloc::coloc.abf`
+5.2.3), which cannot run in the browser (WebR has no `coloc`). On your own machine the same
+check is what `equivalence/check.R` re-verifies against `equivalence/fixtures/`. The call
+looks like this — shown for reading, not running here:
+
+```r
+# On your machine (not in the browser): coloc's own routine, GPL-3, shown for reference only
+library(coloc)
+d1 <- list(beta = beta1, varbeta = se1^2, snp = paste0("rs", 1:10),
+           type = "cc", N = 5000, s = 0.5, MAF = maf)      # trait 1 (e.g. GWAS)
+d2 <- list(beta = beta2, varbeta = se2^2, snp = paste0("rs", 1:10),
+           type = "cc", N = 5000, s = 0.5, MAF = maf)      # trait 2 (e.g. eQTL)
+coloc.abf(d1, d2, p1 = 1e-4, p2 = 1e-4, p12 = 1e-5)$summary   # PP.H0.abf .. PP.H4.abf
+```
+:::
+
+**Validation tier: FULL.** The match is against `coloc::coloc.abf` 5.2.3's actual output on
+these inputs (not a reported number or a closed form re-derived by us), and
+`equivalence/check.R` re-verifies it in CI. Your `coloc_abf()` *is* coloc's colocalisation core.
+
+## Common traps
+
+**Trap: "the distinct evidence is just the product of the two totals."** No — that product,
+$(\sum\text{BF}_1)(\sum\text{BF}_2) = 56$, is the *whole grid*, which includes the shared
+(diagonal) configurations. The distinct evidence must **subtract the diagonal**: $56 - 24 =
+32$. Forgetting the subtraction double-counts the shared cases inside $H_3$ and inflates PP3.
+That's precisely why $\ell_{H_3}$ uses `logdiff(s1 + s2, s12)`, not just $s_1 + s_2$.
+
+**Trap: "you can compute PP4 by exponentiating $\ell_{H_4}$ directly."** With real BFs,
+$s_{12}$ can be $+50$ or $-50$; $e^{50}$ overflows and $e^{-50}$ underflows. You must
+normalise on the log scale first — subtract $\text{logsum}$ of all five, *then* exponentiate.
+`.logsum` subtracts the max before exponentiating for exactly this reason. Skipping it gives
+`NaN` or `Inf` on realistic data even though the toy numbers "work."
+
+## Check yourself
+
+**1.** For $\text{BF}_1 = (2, 3)$ and $\text{BF}_2 = (1, 4)$, compute the distinct ($H_3$)
+evidence with the trick.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run
+BF1 <- c(2, 3); BF2 <- c(1, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Totals: $\sum\text{BF}_1 = 5$, $\sum\text{BF}_2 = 5$, grid $= 25$. Diagonal:
+$2\cdot1 + 3\cdot4 = 2 + 12 = 14$. Distinct $= 25 - 14 = 11$. (Check by listing off-diagonal
+pairs: $2\cdot4 + 3\cdot1 = 8 + 3 = 11$. ✓)
+:::
+
+**2.** In the shared self-check, PP4 came out $\approx 0.992$ and PP3 $\approx 0.000002$. What
+would happen to PP3 if trait 2's loud SNP (SNP 4) had instead been a *different* SNP from
+trait 1's?
+
+::: {.callout-note collapse="true" title="Answer"}
+PP3 would shoot up and PP4 would collapse. Aligned loud SNPs pump the diagonal ($s_{12}$),
+which feeds $\ell_{H_4}$; misaligned loud SNPs leave the diagonal small but keep the grid
+total large, so `logdiff(s1 + s2, s12)` — the distinct evidence — dominates and PP3 wins.
+That's the distinct fixture (PP3 $\approx 1$) you'll meet in the capstone.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the $\sum_{i\neq j}$
+trick does and why it matters.
+
+::: {.callout-note collapse="true" title="A model answer"}
+It computes the "distinct causal variants" evidence — every pair of *different* SNPs, one per
+trait — as the product of the two evidence totals minus the same-SNP (diagonal) sum, instead
+of looping over all pairs. It matters because a real region has thousands of SNPs, so the
+identity replaces a million-cell double sum with three cheap sums.
+:::
+
+## What you can now do
+
+- **Write the five log supports** $\ell_{H_0}\dots\ell_{H_4}$ from $\ell_1$, $\ell_2$, and
+  the priors, and normalise them to $\text{PP0}\dots\text{PP4}$.
+- **Derive and apply the $\sum_{i\neq j}$ identity** (grid total minus diagonal), and its
+  log-space form via `logdiff`.
+- **Implement `logsum` and `logdiff` stably in base R** and explain why log-space normalising
+  is necessary on real data.
+- **Build `coloc_abf()` from scratch** and confirm it matches `coloc::coloc.abf` to $\sim
+  10^{-6}$.
+
+If any of these feels shaky, revisit the "multiplication table minus the diagonal" picture or
+the derivation before continuing — the capstone assembles exactly this and runs it on both a
+shared and a distinct region.
+
+## Where this goes next
+
+You've built the method. [The capstone](../04-capstone-reading-coloc-abf/lesson.qmd) returns
+to the source: it decodes the paper's own $H_0$–$H_4$ equations and the `coloc::coloc.abf`
+interface line by line, then runs your `coloc_abf()` on both a shared and a distinct region,
+interprets PP4 vs PP3, adds the paper's sample-size caveat, and states the validation tier.
+Ready for reps? Do the [practice problems](practice.qmd).

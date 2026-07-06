@@ -1,0 +1,371 @@
+---
+title: "Capstone: reading coloc.abf"
+subtitle: "Return to the source — decode the paper's H0–H4 and the coloc interface, then assemble and validate the whole method on shared and distinct regions"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
+The R cells below with a **Run** button are live (WebR) — you assemble and validate the whole
+method right here. The real `coloc` package can't run in the browser (WebR has no `coloc`), so
+its interface is shown for reading under a note, with the reference numbers embedded inline.
+:::
+
+## Where we're going
+
+No new ideas here — this capstone proves you reached the goal. When you started, "does trait 1
+and trait 2 share a causal variant in this region?" was a wall of five posterior probabilities
+and an intimidating $\sum_{i\neq j}$. Now you've **built** every piece: the two per-SNP lABF
+vectors, the five hypotheses, the grid-minus-diagonal identity, the log-space combination, and
+`coloc_abf()`. So we return to the source — decode Giambartolomei et al. (2014)'s own $H_0$–
+$H_4$ statements and the `coloc::coloc.abf` interface, line by line, tracing each term to the
+module that built it. Then we assemble the full `coloc_abf()`, run it on a simulated eQTL +
+biomarker region for **both** a shared-variant and a distinct-variant scenario, interpret PP4
+vs PP3, add the paper's sample-size caveat, and validate against the frozen `coloc` reference.
+
+**Builds on:** every module — [the two lABF vectors (1)](../01-the-colocalisation-question/lesson.qmd),
+[the five hypotheses (2)](../02-five-hypotheses/lesson.qmd), and
+[the combination + coloc_abf (3)](../03-combining-abfs-with-priors/lesson.qmd), plus the
+[ABF course](../../../approximate-bayes-factors/syllabus.md) that built `wakefield_abf`.
+
+## Warm-up: do you remember?
+
+Four recalls spanning the course. Produce each before opening it.
+
+**1.** *(Module 1)* Where do the two vectors $\ell_1$ and $\ell_2$ come from?
+
+::: {.callout-note collapse="true" title="Answer"}
+Run each trait's per-SNP summary statistics $(\hat\beta, \text{se})$ through `wakefield_abf(beta, se, W)`
+from the ABF course. See [Module 1](../01-the-colocalisation-question/lesson.qmd).
+:::
+
+**2.** *(Module 2)* Which posterior probability is "shared causal variant," and which is
+"two distinct variants"?
+
+::: {.callout-note collapse="true" title="Answer"}
+PP4 = shared (colocalisation); PP3 = distinct. See
+[Module 2](../02-five-hypotheses/lesson.qmd).
+:::
+
+**3.** *(Module 3)* Write the distinct-evidence identity in words.
+
+::: {.callout-note collapse="true" title="Answer"}
+Distinct evidence $=$ (grid total) $-$ (diagonal) $= (\sum\text{BF}_1)(\sum\text{BF}_2) -
+\sum_i \text{BF}_{1,i}\text{BF}_{2,i}$. See [Module 3](../03-combining-abfs-with-priors/lesson.qmd).
+:::
+
+**4.** *(Module 3)* Why must you subtract $\text{logsum}$ of all five supports before
+exponentiating?
+
+::: {.callout-note collapse="true" title="Answer"}
+To normalise on the log scale so the five PPs sum to 1 without overflow/underflow — real
+supports can be $\pm 50$, and $e^{\pm 50}$ breaks. See
+[Module 3](../03-combining-abfs-with-priors/lesson.qmd).
+:::
+
+## The artifact, part 1 — the paper's five hypotheses
+
+Here is how Giambartolomei et al. (2014) frame the test. Read it aloud, then we decode it.
+
+> For a genomic region containing $Q$ SNPs and two traits, consider five mutually exclusive
+> hypotheses: $H_0$ (no association with either trait), $H_1$ (association with trait 1 only),
+> $H_2$ (association with trait 2 only), $H_3$ (both traits associated, with **distinct**
+> causal variants), and $H_4$ (both traits associated, sharing a **single** causal variant).
+> The posterior probability of each is
+> $$
+> \text{PP}_k \;=\; \frac{\sum_{S \in H_k} P(S)\,P(D \mid S)}{\sum_{\text{all } S} P(S)\,P(D \mid S)},
+> $$
+> where each configuration $S$ specifies which SNP (if any) is causal for each trait, $P(S)$
+> is its prior, and $P(D\mid S)$ its evidence — with the per-configuration $P(D\mid S)$ built
+> from the per-SNP approximate Bayes factors.
+
+### The decode, term by term
+
+Read each piece and trace it home to the module that built it.
+
+**"$Q$ SNPs and two traits."** The setup from [Module 1](../01-the-colocalisation-question/lesson.qmd):
+one region, two studies, and per-SNP evidence $\ell_1$, $\ell_2$ from `wakefield_abf`.
+
+**"five mutually exclusive hypotheses $H_0\dots H_4$."** Exactly the five stories of
+[Module 2](../02-five-hypotheses/lesson.qmd). $H_3$ = distinct (report PP3), $H_4$ = shared
+(report PP4) — the two that carry the science.
+
+**"a configuration $S$ specifies which SNP is causal for each trait."** The *configuration*
+idea from Module 2 — one cell of the grid picture in
+[Module 3](../03-combining-abfs-with-priors/lesson.qmd). $H_4$'s configurations are the grid's
+diagonal (same SNP for both); $H_3$'s are the off-diagonal.
+
+**"$P(S)$ is its prior."** Built from $p_1, p_2, p_{12}$ (Module 2): a trait-1-only SNP costs
+$p_1$, a shared SNP costs $p_{12}$, a distinct pair costs $p_1 p_2$.
+
+**"$P(D\mid S)$ built from the per-SNP approximate Bayes factors."** Each configuration's
+evidence is a product of the relevant SNPs' Bayes factors; summing prior $\times$ evidence over
+a hypothesis's configurations is what $\ell_{H_k}$ computes in log space
+([Module 3](../03-combining-abfs-with-priors/lesson.qmd)). The paper's
+"$\sum_{S\in H_3}$" over distinct pairs is exactly the $\sum_{i\neq j}$ you replaced with
+grid-minus-diagonal.
+
+**"$\text{PP}_k = $ numerator / denominator over all $S$."** Bayes' rule: the denominator is
+$\text{logsum}$ of all five supports, and dividing is the normalising step that makes
+$\text{PP0}\dots\text{PP4}$ sum to 1.
+
+So the paper's compact formula unfolds, term by term, into the exact `coloc_abf()` you built.
+
+## The artifact, part 2 — the `coloc` interface
+
+Now the software. `coloc::coloc.abf` takes each study's per-SNP summary statistics and returns
+the five posteriors. Here is the shape of the call, shown for reading (it can't run in the
+browser).
+
+::: {.callout-note title="Runs on your machine, not here"}
+This uses the **`coloc` package** (GPL-3), which isn't in the browser's WebR build. The code is
+shown for decoding, not running; copy it into your own R session with `coloc` installed. The
+reference numbers your self-checks use (below) were produced by exactly this machinery
+(`coloc::coloc.abf` 5.2.3) and frozen into `equivalence/fixtures/`.
+:::
+
+```r
+# --- coloc.abf: two studies -> five colocalisation posteriors, shown for reference only ---
+# Each dataset is a list of per-SNP summary stats over the SAME SNPs, in the SAME order.
+#   beta    : per-SNP effect estimates (hat-beta)      -> feeds wakefield_abf (Module 1)
+#   varbeta : per-SNP VARIANCE of the estimate (se^2)  -> NOT the standard error
+#   type    : "cc" (case-control) or "quant"; sets the default prior sd (sd.prior=0.2 => W=0.04)
+#   snp     : SNP ids, used only to align the two datasets
+res <- coloc.abf(
+  dataset1 = list(beta = b1, varbeta = v1, type = "cc",    s = 0.5, N = n1, snp = ids),
+  dataset2 = list(beta = b2, varbeta = v2, type = "quant", sdY = 1, N = n2, snp = ids),
+  p1 = 1e-4, p2 = 1e-4, p12 = 1e-5)   # the priors from Module 2 (these are the defaults)
+
+res$summary   # a named vector: nsnps, PP.H0.abf, PP.H1.abf, PP.H2.abf, PP.H3.abf, PP.H4.abf
+```
+
+### The decode, argument by argument
+
+- **`beta`, `varbeta`** — each study's summary pair per SNP. `varbeta` is the *variance*
+  $V = \text{se}^2$, so coloc's `se` is `sqrt(varbeta)`. These feed `wakefield_abf` to make
+  $\ell_1$, $\ell_2$ ([Module 1](../01-the-colocalisation-question/lesson.qmd)).
+- **`type`, `sd.prior`/`sdY`** — sets the prior variance $W$: case-control uses
+  `sd.prior = 0.2`, i.e. $W = 0.04$ ([ABF Module 2](../../../approximate-bayes-factors/modules/02-a-prior-on-the-effect/lesson.qmd));
+  `sdY` matters only for quantitative traits. In our `coloc_abf` this is the `W1`, `W2`
+  arguments.
+- **`p1`, `p2`, `p12`** — the per-SNP colocalisation priors
+  ([Module 2](../02-five-hypotheses/lesson.qmd)); the shown values *are* coloc's defaults.
+- **`snp`** — ids used only to line the two datasets up SNP-for-SNP; the math needs $\ell_1$
+  and $\ell_2$ in matching order.
+- **`res$summary`'s `PP.H0.abf … PP.H4.abf`** — the five posteriors, in the same order as your
+  `coloc_abf()$pp` vector ([Module 3](../03-combining-abfs-with-priors/lesson.qmd)).
+  `PP.H4.abf` is the colocalisation probability.
+
+Everything `coloc.abf` does with two studies' per-SNP evidence, you can now reproduce.
+
+## Assemble the whole method and validate it
+
+Put the pieces together into `coloc_abf()` and run it on a **simulated eQTL + biomarker
+region** — 6 SNPs — in two scenarios: one where both traits' signal sits on the *same* SNP
+(shared → PP4), and one where they sit on *different* SNPs (distinct → PP3).
+
+```{webr}
+#| autorun: true
+# LIVE: the complete from-scratch method (base R), then two simulated regions.
+wakefield_abf <- function(beta, se, W) { z <- beta/se; V <- se^2; r <- W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(beta1, se1, beta2, se2, W1, W2, p1 = 1e-4, p2 = 1e-4, p12 = 1e-5) {
+  l1 <- wakefield_abf(beta1, se1, W1); l2 <- wakefield_abf(beta2, se2, W2)
+  s1 <- .logsum(l1); s2 <- .logsum(l2); s12 <- .logsum(l1 + l2)
+  all <- c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2, s12), log(p12)+s12)
+  list(pp = exp(all - .logsum(all)))
+}
+lbl <- c("PP0","PP1","PP2","PP3","PP4")
+W <- 0.04
+
+# SHARED: biomarker (trait1) and eQTL (trait2) both peak on SNP 3
+b1s <- c(0.01, -0.02, 0.20, 0.03, -0.01, 0.02); se1 <- rep(0.03, 6)
+b2s <- c(-0.01, 0.02, 0.19, -0.02, 0.01, -0.03); se2 <- rep(0.035, 6)
+shared <- coloc_abf(b1s, se1, b2s, se2, W, W)
+
+# DISTINCT: trait1 peaks on SNP 3, trait2 peaks on SNP 5
+b1d <- c(0.01, -0.02, 0.20, 0.03, -0.01, 0.02)
+b2d <- c(-0.01, 0.02, -0.02, 0.01, 0.21, -0.03)
+distinct <- coloc_abf(b1d, se1, b2d, se2, W, W)
+
+round(rbind(shared = setNames(shared$pp, lbl),
+            distinct = setNames(distinct$pp, lbl)), 4)
+# shared region -> PP4 dominates (colocalisation); distinct region -> PP3 dominates
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two grouped bar charts of the five posterior probabilities. Left (shared region): PP4 towers near 1. Right (distinct region): PP3 towers near 1. The other bars are near zero in both."
+# LIVE: SEE the two verdicts side by side -- shared lights up PP4, distinct lights up PP3.
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(beta1, se1, beta2, se2, W1, W2, p1=1e-4, p2=1e-4, p12=1e-5) {
+  l1<-wakefield_abf(beta1,se1,W1); l2<-wakefield_abf(beta2,se2,W2)
+  s1<-.logsum(l1); s2<-.logsum(l2); s12<-.logsum(l1+l2)
+  all<-c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2,s12), log(p12)+s12)
+  list(pp=exp(all-.logsum(all)))
+}
+W <- 0.04; se1 <- rep(0.03,6); se2 <- rep(0.035,6)
+shared   <- coloc_abf(c(0.01,-0.02,0.20,0.03,-0.01,0.02), se1, c(-0.01,0.02,0.19,-0.02,0.01,-0.03), se2, W, W)$pp
+distinct <- coloc_abf(c(0.01,-0.02,0.20,0.03,-0.01,0.02), se1, c(-0.01,0.02,-0.02,0.01,0.21,-0.03), se2, W, W)$pp
+
+barplot(rbind(shared, distinct), beside = TRUE, ylim = c(0, 1),
+        names.arg = c("PP0","PP1","PP2","PP3","PP4"), ylab = "posterior probability",
+        main = "Shared vs distinct region", col = c("steelblue", "tomato"))
+legend("topleft", fill = c("steelblue", "tomato"),
+       legend = c("shared (expect PP4)", "distinct (expect PP3)"), bty = "n")
+```
+
+### Self-check 1 — the shared region {#self-check-shared}
+
+Prove the assembled method matches the real thing on the **shared** fixture: the exact inputs
+and the $\text{PP0}\dots\text{PP4}$ vector `coloc::coloc.abf` 5.2.3 produced, frozen in
+`equivalence/fixtures/coloc-abf-shared.json`.
+
+```{webr}
+#| autorun: true
+# LIVE SELF-CHECK (shared): coloc_abf() vs FROZEN coloc reference.
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(beta1, se1, beta2, se2, W1, W2, p1=1e-4, p2=1e-4, p12=1e-5) {
+  l1<-wakefield_abf(beta1,se1,W1); l2<-wakefield_abf(beta2,se2,W2)
+  s1<-.logsum(l1); s2<-.logsum(l2); s12<-.logsum(l1+l2)
+  all<-c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2,s12), log(p12)+s12)
+  list(pp=exp(all-.logsum(all)))
+}
+# frozen, copied verbatim from equivalence/fixtures/coloc-abf-shared.json
+beta1 <- c(-0.009781094715461567, 0.01657385566257415, -0.02024831531867491, 0.16,
+           0.00932307651940807, 0.03521898862688097, 0.01856369566877904,
+           -0.003382029442626436, 0.02751084868538136, -0.006697780938817877)
+se1 <- rep(0.03, 10)
+beta2 <- c(0.01579344296620927, -0.02384533306245165, 0.04283266634049109, 0.15,
+           -0.007100501358086871, -0.005800138949925011, -0.02549264221001584,
+           0.00175396493548505, -0.02453011067627874, -0.06150923446918894)
+se2 <- rep(0.035, 10)
+reference_pp <- c(0.0004764450235039068, 0.007762352170233302, 6.09890757517626e-05,
+                  1.949819640442383e-06, 0.9916982639108702)
+
+mine <- coloc_abf(beta1, se1, beta2, se2, 0.04, 0.04, 1e-4, 1e-4, 1e-5)$pp
+cat("PP4 (shared):", round(mine[5], 4), "-> colocalisation\n")
+cat("max |mine - coloc reference| =", format(max(abs(mine - reference_pp)), scientific = TRUE), "\n")
+cat("match within 1e-6?", max(abs(mine - reference_pp)) < 1e-6, "\n")   # TRUE
+```
+
+### Self-check 2 — the distinct region {#self-check-distinct}
+
+And the mirror case: the **distinct** fixture (`equivalence/fixtures/coloc-abf-distinct.json`),
+where PP3 dominates.
+
+```{webr}
+#| autorun: true
+# LIVE SELF-CHECK (distinct): coloc_abf() vs FROZEN coloc reference.
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
+.logdiff <- function(x, y) { m <- max(x, y); m + log(exp(x - m) - exp(y - m)) }
+coloc_abf <- function(beta1, se1, beta2, se2, W1, W2, p1=1e-4, p2=1e-4, p12=1e-5) {
+  l1<-wakefield_abf(beta1,se1,W1); l2<-wakefield_abf(beta2,se2,W2)
+  s1<-.logsum(l1); s2<-.logsum(l2); s12<-.logsum(l1+l2)
+  all<-c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2,s12), log(p12)+s12)
+  list(pp=exp(all-.logsum(all)))
+}
+# frozen, copied verbatim from equivalence/fixtures/coloc-abf-distinct.json
+beta1 <- c(-0.0339535279581504, -0.01321480528179818, 0.2, -0.02541147125022161,
+           -0.004380823144182888, -0.04291647994097764, -0.02329801554310606,
+           -0.05799937818529349, 0.009391378657181183, 0.01405956303306844)
+se1 <- rep(0.03, 10)
+beta2 <- c(-0.004153202093409514, 0.03539647397659662, -0.02327648922207905,
+           -0.003210174015617792, 0.05009011419614164, -0.007746684370319128, 0.22,
+           -0.01683903595494349, 0.02872101209573504, 0.04335257775563077)
+se2 <- rep(0.035, 10)
+reference_pp <- c(6.743869955169983e-09, 0.0002746555235643482, 2.454641806458769e-05,
+                  0.9996944346653516, 6.356649148486135e-06)
+
+mine <- coloc_abf(beta1, se1, beta2, se2, 0.04, 0.04, 1e-4, 1e-4, 1e-5)$pp
+cat("PP3 (distinct):", round(mine[4], 4), "-> two separate causal variants\n")
+cat("max |mine - coloc reference| =", format(max(abs(mine - reference_pp)), scientific = TRUE), "\n")
+cat("match within 1e-6?", max(abs(mine - reference_pp)) < 1e-6, "\n")   # TRUE
+```
+
+**Validation tier: FULL.** Both matches are against `coloc::coloc.abf` 5.2.3's actual output on
+these inputs — the real reference library's numbers, not a reported figure or a re-derived
+formula — verified to about $10^{-6}$. This repo's `equivalence/check.R` re-verifies both in CI.
+Your `coloc_abf()` *is* coloc's colocalisation test.
+
+## The paper's caveat — power and sample size
+
+One honest note the paper stresses: a **high PP4 needs enough data**, and an *inconclusive*
+result is not evidence against colocalisation. In their simulations, with a biomarker study of
+~2,000 individuals, the causal variant had to explain close to **2% of the trait's variance**
+before the analysis reliably favoured a shared signal (the lower percentile of PP4 exceeding
+~80%). Underpowered regions tend to pile probability onto PP0/PP1/PP2 — "not enough joint
+signal to decide" — rather than onto PP3 or PP4. So when you report a result, report the
+sample sizes too: a PP4 of 0.3 in a tiny study means "can't tell," not "probably distinct."
+
+## Common traps
+
+**Trap: "a high PP4 proves the same variant causes both traits."** No — the paper is explicit
+that PP4 reflects **statistical colocalisation (correlation), not proven causality**. It says
+the evidence is consistent with a single shared variant; it does not establish a causal
+mechanism, and it can be fooled by unmodelled linkage or a third variant. Report it as "the
+data support a shared causal variant," not "we proved X causes Y."
+
+**Trap: "PP3 + PP4 near 1 means we colocalise."** Careful — PP3 + PP4 near 1 only means "both
+traits are associated in this region"; it is the *split between* PP3 and PP4 that answers the
+question. A common summary is the conditional PP4/(PP3+PP4): if that is high, the shared story
+wins among the "both associated" cases. In our distinct fixture PP3 $\approx 0.9997$, so PP3 +
+PP4 $\approx 1$ but PP4/(PP3+PP4) $\approx 0.000006$ — decisively *distinct*, the opposite of
+colocalisation.
+
+## What you can now do
+
+- **Decode the paper's five-hypothesis formula** term by term, mapping each configuration,
+  prior, and evidence piece to the module that built it.
+- **Read the `coloc::coloc.abf` interface** — `beta`/`varbeta`, `type`/`sd.prior`, `p1`/`p2`/
+  `p12`, and the `PP.H0.abf … PP.H4.abf` output — tracing each to your `coloc_abf()`.
+- **Assemble the full method** in base R and run it on a region to get PP0–PP4, correctly
+  calling shared (PP4) vs distinct (PP3).
+- **Validate the from-scratch method** against the frozen `coloc::coloc.abf` 5.2.3 reference on
+  both a shared and a distinct region, and state the validation tier (full).
+- **State the power caveat** and the correlation-not-causality caveat when reporting a result.
+
+If any field still reads as jargon, revisit the module it points to above — reading the coloc
+paper and the `coloc.abf` interface cold is the entire goal of this course, and you just did it.
+
+## What you still can't read (yet)
+
+This course took you from two studies' summary statistics to their five colocalisation
+posteriors. A few honest edges, each a natural next step:
+
+- **Multiple causal variants per region (SuSiE-coloc).** `coloc.abf`'s five hypotheses assume
+  *at most one* causal SNP per trait. When a region has several independent signals, newer
+  methods (`coloc.susie`) run colocalisation per credible set instead.
+- **The single-causal-variant and LD assumptions.** The test assumes the two studies share the
+  same LD (correlation) structure and that a causal SNP is present in the data; violations can
+  distort PP3 vs PP4.
+- **Sensitivity to the priors.** PP4 depends on $p_{12}$; the paper and `coloc`'s
+  `sensitivity()` tools let you check how the verdict moves as you vary the priors.
+
+None of these change what you built; they extend it. You can read the core of the coloc paper
+and `coloc.abf` now — the rest is more of the same shape.
+
+## Where this goes next
+
+You've built and decoded Bayesian colocalisation end to end, on top of the Approximate Bayes
+Factor you built before it. The natural continuations are the multiple-causal-variant methods
+(SuSiE-coloc) and prior-sensitivity analysis — both reuse exactly the per-SNP and combination
+machinery you now own. Ready for the final cumulative set? Do the
+[practice problems](practice.qmd).

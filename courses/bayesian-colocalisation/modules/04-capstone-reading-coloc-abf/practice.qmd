@@ -1,0 +1,233 @@
+---
+title: "Practice: Capstone — reading coloc.abf"
+subtitle: "Cumulative — every module, mixed order. Answers hidden; try first."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+These draw on the whole course, in mixed order — part of the test is recognising *which* tool
+each problem needs. Work each before opening the answer.
+
+## Problem 1 — from summary stats to two lABF vectors
+
+A two-SNP region: trait 1 $\hat\beta = (0.22, -0.02)$, trait 2 $\hat\beta = (0.20, 0.01)$, all
+$\text{se} = 0.04$, $W = 0.04$. Build $\ell_1$ and $\ell_2$, and say which SNP is loud in each.
+
+```{webr}
+#| autorun: false
+# p1-starter
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+beta1 <- c(0.22, -0.02); beta2 <- c(0.20, 0.01); se <- rep(0.04, 2); W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r}
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+l1 <- wakefield_abf(c(0.22,-0.02), rep(0.04,2), 0.04)
+l2 <- wakefield_abf(c(0.20, 0.01), rep(0.04,2), 0.04)
+round(rbind(l1=l1, l2=l2), 3)
+```
+Both traits are loud on **SNP 1** ($Z = 5.5$ and $5$); SNP 2 is quiet in both. Loud SNPs
+coincide → looks shared.
+:::
+
+## Problem 2 — the distinct-evidence identity
+
+For $\text{BF}_1 = (4, 1, 2)$ and $\text{BF}_2 = (1, 3, 5)$, compute the shared (diagonal) and
+distinct (off-diagonal) evidence.
+
+```{webr}
+#| autorun: false
+# p2-starter
+BF1 <- c(4, 1, 2); BF2 <- c(1, 3, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r}
+BF1 <- c(4,1,2); BF2 <- c(1,3,5)
+diag <- sum(BF1*BF2)                  # 4*1 + 1*3 + 2*5 = 17
+dist <- sum(BF1)*sum(BF2) - diag      # 7*9 - 17 = 63 - 17 = 46
+c(diag = diag, distinct = dist)
+```
+Shared evidence 17, distinct evidence 46 (= grid $63$ minus diagonal $17$). Distinct is larger
+here because no single SNP is loud in *both* traits (the diagonal products stay small).
+:::
+
+## Problem 3 — full posteriors and a verdict
+
+Assemble `coloc_abf` and run it: trait 1 $\hat\beta = (0.01, 0.24, -0.02, 0.03)$, trait 2
+$\hat\beta = (0.02, -0.01, 0.03, 0.23)$, all $\text{se} = 0.04$, $W = 0.04$, coloc defaults.
+Give PP0–PP4 and state shared vs distinct.
+
+```{webr}
+#| autorun: false
+# p3-starter
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m<-max(x); m+log(sum(exp(x-m))) }
+.logdiff <- function(x,y) { m<-max(x,y); m+log(exp(x-m)-exp(y-m)) }
+beta1 <- c(0.01, 0.24, -0.02, 0.03); beta2 <- c(0.02, -0.01, 0.03, 0.23); se <- rep(0.04, 4); W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Trait 1 is loud on SNP 2; trait 2 on SNP 4 — *different* SNPs, so expect distinct (PP3).
+
+```{r}
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+.logsum  <- function(x) { m<-max(x); m+log(sum(exp(x-m))) }
+.logdiff <- function(x,y) { m<-max(x,y); m+log(exp(x-m)-exp(y-m)) }
+coloc_abf <- function(beta1, se1, beta2, se2, W1, W2, p1=1e-4, p2=1e-4, p12=1e-5) {
+  l1 <- wakefield_abf(beta1, se1, W1); l2 <- wakefield_abf(beta2, se2, W2)
+  s1 <- .logsum(l1); s2 <- .logsum(l2); s12 <- .logsum(l1+l2)
+  all <- c(0, log(p1)+s1, log(p2)+s2, log(p1)+log(p2)+.logdiff(s1+s2,s12), log(p12)+s12)
+  list(pp = exp(all - .logsum(all)))
+}
+pp <- coloc_abf(c(0.01,0.24,-0.02,0.03), rep(0.04,4), c(0.02,-0.01,0.03,0.23), rep(0.04,4), 0.04, 0.04)$pp
+setNames(round(pp,4), c("PP0","PP1","PP2","PP3","PP4"))
+```
+**PP3 dominates** — two distinct causal variants. The loud SNPs did not coincide, so the
+diagonal stayed small and the off-diagonal (distinct) evidence won.
+:::
+
+## Problem 4 — spot the error
+
+A colleague reports: "PP4 = 0.35, so it's more likely than not that the two traits share a
+causal variant." Their conclusion has **exactly one flaw** — name it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The flaw: **PP4 = 0.35 is not "more likely than not."** With five hypotheses that sum to 1, the
+baseline is not 0.5 — the standard bar for claiming colocalisation is PP4 $> 0.8$. A PP4 of 0.35
+usually means the data can't decide shared vs distinct, not that sharing wins. Correct summary:
+"the evidence does not strongly support a shared causal variant (PP4 = 0.35)."
+:::
+
+## Problem 5 — interpretation with the power caveat
+
+Two runs on the *same* region: Study A (small, $N \approx 500$ each) gives PP0 = 0.7, PP4 =
+0.15; Study B (large, $N \approx 20{,}000$ each) gives PP4 = 0.93. Explain the difference in one
+or two sentences.
+
+::: {.callout-note collapse="true" title="Answer"}
+The small study is **underpowered**: without enough data the joint signal is weak, so
+probability piles onto PP0 ("not enough signal to decide") rather than onto PP4 — an
+inconclusive result, *not* evidence against sharing. The large study has the power to resolve
+the shared signal, so PP4 rises to 0.93. This is exactly the paper's caveat: a low PP4 in a
+small study means "can't tell," and you should report sample sizes alongside the PPs.
+:::
+
+## Problem 6 — connect to the ABF course
+
+In `coloc.abf`, each dataset is given as `beta` and `varbeta`. A colleague passes the *standard
+error* as `varbeta`. What goes wrong, and which quantity does `varbeta` actually need?
+
+```{webr}
+#| autorun: false
+# p6-starter — see the effect of the mistake on one SNP's lABF
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+beta <- 0.20; se <- 0.05; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`varbeta` is the **variance** $V = \text{se}^2$, not the standard error. Passing `se` as
+`varbeta` inflates $V$ (here from $0.0025$ to $0.05$), which shrinks $r = W/(W+V)$ and collapses
+every lABF, distorting all five PPs.
+
+```{r}
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+se <- 0.05
+correct <- { V <- se^2; r <- 0.04/(0.04+V); 0.5*(log(1-r) + r*(0.20/se)^2) }
+wrong   <- { V <- se;   r <- 0.04/(0.04+V); 0.5*(log(1-r) + r*(0.20/se)^2) }
+c(correct_lABF = correct, wrong_lABF = wrong)   # ~6.11 vs a much smaller, wrong value
+```
+This is the variance-vs-SE trap from the ABF course, surfacing in the `coloc.abf` interface.
+:::
+
+## Problem 7 — decode a fresh passage
+
+Here is a sentence from a colocalisation results table you've never seen. Decode it: what does
+each piece mean, and what would you conclude?
+
+> "For the *SORT1* region, coloc.abf returned PP.H4.abf = 0.97 (nsnps = 342), with PP.H3.abf =
+> 0.02, using p12 = 1e-5."
+
+::: {.callout-note collapse="true" title="Answer"}
+- **`PP.H4.abf = 0.97`** — the posterior probability of $H_4$, a *shared* causal variant, from
+  the `coloc.abf` output vector (Module 4). At 0.97, well above 0.8, this is strong evidence of
+  **colocalisation** between the two traits at *SORT1*.
+- **`nsnps = 342`** — the region had $Q = 342$ SNPs; the `logsum`/`logdiff` machinery (Module 3)
+  scales fine to that many because it never builds the full pairwise grid.
+- **`PP.H3.abf = 0.02`** — the *distinct* posterior is tiny, so the "two separate variants"
+  story is firmly rejected; PP4/(PP3+PP4) $\approx 0.98$.
+- **`p12 = 1e-5`** — coloc's default shared prior (Module 2); a sensitivity check would confirm
+  the call holds as $p_{12}$ varies.
+
+Conclusion: the two traits very likely share a single causal variant at *SORT1* — reported as
+statistical colocalisation (correlation), not proven causation.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Score under 4? Revisit what the missed
+questions point at, then retake in a **later session** — passing after another gap is the
+evidence that counts. Results are saved in this browser only.
+
+::: {.module-check module="courses/bayesian-colocalisation/modules/04-capstone-reading-coloc-abf" pass="4"}
+
+::: {.quiz-q qid="cap-pp4-meaning" qtype="mc" answer="b"}
+`coloc.abf` returns `PP.H4.abf = 0.95`. What does this mean?
+
+a) The two traits have distinct causal variants
+b) The data support a single shared causal variant for both traits
+c) There is no causal variant in the region
+d) Only trait 2 has a causal variant
+:::
+
+::: {.quiz-q qid="cap-varbeta" qtype="mc" answer="c"}
+In `coloc.abf`, the `varbeta` argument should be given as:
+
+a) The effect estimate $\hat\beta$
+b) The standard error se
+c) The variance $V = \text{se}^2$
+d) The z-statistic $\hat\beta/\text{se}$
+:::
+
+::: {.quiz-q qid="cap-distinct-evidence" qtype="numeric" answer="46" tolerance="0"}
+For $\text{BF}_1 = (4, 1, 2)$ and $\text{BF}_2 = (1, 3, 5)$: what is the distinct ($H_3$)
+evidence?
+:::
+
+::: {.quiz-q qid="cap-low-pp4-small-study" qtype="mc" answer="a"}
+A small, underpowered study gives PP4 = 0.10 and PP0 = 0.80. The best interpretation is:
+
+a) Not enough data to decide — inconclusive, not evidence against sharing
+b) The traits definitely have distinct causal variants
+c) The traits definitely do not colocalise
+d) The prior $p_{12}$ was set too high
+:::
+
+::: {.quiz-q qid="cap-h4-support" qtype="mc" answer="c"}
+The shared hypothesis $H_4$'s log support is $\log p_{12} + s_{12}$, where $s_{12} =
+\text{logsum}(\ell_1 + \ell_2)$. What is $e^{s_{12}}$?
+
+a) The total evidence for trait 1
+b) The whole pairwise grid total
+c) The diagonal: $\sum_i \text{BF}_{1,i}\text{BF}_{2,i}$ (same SNP causal for both)
+d) The distinct (off-diagonal) evidence
+:::
+
+:::
+
+::::

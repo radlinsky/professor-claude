@@ -1,4 +1,4 @@
 ShortName: Bayes factors & posterior odds
 Concepts: Bayes' rule written on the odds scale (the shared evidence denominator cancels), the Bayes factor as the ratio of two models' evidences $P(D\mid M_2)/P(D\mid M_1)$, the update rule posterior odds = prior odds × Bayes factor, recovering a posterior probability from posterior odds ($\text{PP}=\text{odds}/(1+\text{odds})$), reading a Bayes factor's strength, and the trap of mistaking a Bayes factor for a posterior probability or ignoring the prior
 BuildsOn: [marginal-likelihood-and-model-evidence](marginal-likelihood-and-model-evidence/lesson.qmd), [probability-and-odds](probability-and-odds/lesson.qmd), [priors-posteriors-and-updating](priors-posteriors-and-updating/lesson.qmd)
-UsedBy: [approximate-bayes-factors](../courses/approximate-bayes-factors/syllabus.md)
+UsedBy: [approximate-bayes-factors](../courses/approximate-bayes-factors/syllabus.md), [bayesian-colocalisation](../courses/bayesian-colocalisation/syllabus.md)

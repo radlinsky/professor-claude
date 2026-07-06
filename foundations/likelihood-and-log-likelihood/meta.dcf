@@ -1,4 +1,4 @@
 ShortName: Likelihood & log-likelihood
 Concepts: The flip (data fixed, parameter varies — "how plausible is this parameter given what I saw"), likelihood of independent observations as a product ($L(p) = p^k(1-p)^{n-k}$), the log-likelihood (product→sum via log rules, tames tiny numbers), the maximum-likelihood idea and MLE ($\hat{p}$), and how the peak is found (slope = 0 / climb it numerically — soft-mentioned)
 BuildsOn: [probability-and-odds](probability-and-odds/lesson.qmd), [exponentials-and-logs](exponentials-and-logs/lesson.qmd)
-UsedBy: [approximate-bayes-factors](../courses/approximate-bayes-factors/syllabus.md)
+UsedBy: [approximate-bayes-factors](../courses/approximate-bayes-factors/syllabus.md), [bayesian-colocalisation](../courses/bayesian-colocalisation/syllabus.md)

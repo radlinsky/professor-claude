@@ -1,0 +1,75 @@
+---
+title: "Roadmap"
+---
+
+How every module depends on the others. Blue nodes are reusable
+[foundations](../../foundations/README.md) modules shared across courses; the green node
+is a prerequisite *course*; arrows mean "needed for".
+
+Like every course, this one assumes the notation grammar in
+[reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) — take it
+first if the symbols aren't yet second nature.
+
+This course also **builds on** [Approximate Bayes Factors](../approximate-bayes-factors/syllabus.md)
+(it starts from the per-SNP Wakefield log Bayes factors `wakefield_abf(beta, se, W)` you
+built there) and reuses its anchors rather than re-teaching them; if the ABF is rusty,
+skim its syllabus first.
+
+```{mermaid}
+flowchart TD
+    classDef foundation fill:#e8f0fe,stroke:#4285f4
+    classDef priorcourse fill:#e6f4ea,stroke:#34a853
+
+    F1["distributions-and-densities<br/>(dnorm, N(mu, sigma^2))"]:::foundation
+    F2["likelihood-and-log-likelihood<br/>(work in log space)"]:::foundation
+    F3["priors-posteriors-and-updating<br/>(prior x evidence)"]:::foundation
+    F4["marginal-likelihood-and-model-evidence<br/>(average over which SNP)"]:::foundation
+    F5["bayes-factors-and-posterior-odds<br/>(evidence x prior, normalise)"]:::foundation
+
+    C1["course: approximate-bayes-factors<br/>(per-SNP lABF: l1, l2)"]:::priorcourse
+
+    M1["01 · The colocalisation question<br/>(two studies, one region; l1, l2)"]
+    M2["02 · Five hypotheses<br/>(H0..H4; PP3 distinct vs PP4 shared; p1,p2,p12)"]
+    M3["03 · Combining ABFs with priors<br/>(lH0..lH4; the i!=j trick; coloc_abf)"]
+    M4["04 · Capstone<br/>(decode coloc.abf; shared vs distinct)"]
+
+    F2 --> F4
+    F3 --> F4
+    F1 --> F4
+    F4 --> F5
+    F3 --> F5
+
+    C1 --> M1
+    F1 --> M1
+    M1 --> M2
+    F3 --> M2
+    M2 --> M3
+    F2 --> M3
+    F4 --> M3
+    F5 --> M3
+    M3 --> M4
+```
+
+## Suggested order
+
+1. Foundation: [distributions-and-densities](../../foundations/distributions-and-densities/lesson.qmd) —
+   new? take it fully; done before? skim its pronunciation table.
+2. Foundation: [likelihood-and-log-likelihood](../../foundations/likelihood-and-log-likelihood/lesson.qmd) —
+   same rule.
+3. Foundation: [priors-posteriors-and-updating](../../foundations/priors-posteriors-and-updating/lesson.qmd) —
+   same rule.
+4. Foundation: [marginal-likelihood-and-model-evidence](../../foundations/marginal-likelihood-and-model-evidence/lesson.qmd) —
+   the engine behind each hypothesis's support.
+5. Foundation: [bayes-factors-and-posterior-odds](../../foundations/bayes-factors-and-posterior-odds/lesson.qmd) —
+   take it after marginal-likelihood.
+6. [01 · The colocalisation question](modules/01-the-colocalisation-question/lesson.qmd)
+   (+ [practice](modules/01-the-colocalisation-question/practice.qmd))
+7. [02 · Five hypotheses](modules/02-five-hypotheses/lesson.qmd)
+   (+ [practice](modules/02-five-hypotheses/practice.qmd))
+8. [03 · Combining ABFs with priors](modules/03-combining-abfs-with-priors/lesson.qmd)
+   (+ [practice](modules/03-combining-abfs-with-priors/practice.qmd))
+9. [04 · Capstone — reading coloc.abf](modules/04-capstone-reading-coloc-abf/lesson.qmd)
+   (+ [practice](modules/04-capstone-reading-coloc-abf/practice.qmd))
+
+After each lesson, do its practice page before moving on — the problems are the part that
+makes it stick. External videos/posts for each module: [resources](resources.md).

@@ -1,0 +1,302 @@
+---
+title: "The colocalisation question"
+subtitle: "Two studies, one region, one yes/no question — and the two per-SNP vectors it all runs on"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live {webr} cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+Two research groups each study a stretch of the genome. One ran a GWAS on, say, LDL
+cholesterol; the other measured how strongly the same genetic variants change the
+*expression* of a nearby gene (an eQTL study). Both find a signal in the same region. The
+question this course answers is deceptively simple: **is it the same underlying variant
+driving both, or two different variants that just happen to sit close together?** That
+question is *colocalisation*. This module builds the picture and, crucially, sets up the
+two per-SNP number-vectors — $\ell_1$ and $\ell_2$ — that every formula in the rest of the
+course consumes. We do **not** re-derive where those numbers come from; you already built
+that machine.
+
+**Builds on:** the [Approximate Bayes Factors course](../../../approximate-bayes-factors/syllabus.md)
+(its `wakefield_abf(beta, se, W)` produces the per-SNP log Bayes factors we start from), and
+the foundation [distributions-and-densities](../../../../foundations/distributions-and-densities/lesson.qmd).
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** *(ABF course, Module 1)* A variant reports $\hat\beta = 0.15$ and $\text{se} = 0.05$.
+What is its z-statistic $Z$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$Z = \hat\beta / \text{se} = 0.15 / 0.05 = 3$. The z-statistic is just the effect estimate
+divided by its standard error — taught in
+[ABF Module 1](../../../approximate-bayes-factors/modules/01-the-summary-of-an-association/lesson.qmd).
+:::
+
+**2.** *(ABF course, Module 3)* In the coloc sign convention, does a **large** log Bayes
+factor (lABF) mean strong or weak evidence of association?
+
+::: {.callout-note collapse="true" title="Answer"}
+**Strong.** coloc flips Wakefield's original sign so that large lABF = strong evidence *for*
+association (alternative over null). See
+[ABF Module 3](../../../approximate-bayes-factors/modules/03-the-approximate-bayes-factor/lesson.qmd)
+and its capstone.
+:::
+
+**3.** *(foundation)* A normal density $N(0, \sigma^2)$ is a bell curve. If you widen it (bigger
+$\sigma^2$), does the height at the centre go up or down?
+
+::: {.callout-note collapse="true" title="Answer"}
+**Down** — a density always integrates to 1, so spreading it wider pushes the peak lower. See
+[distributions-and-densities](../../../../foundations/distributions-and-densities/lesson.qmd).
+:::
+
+## A tiny example first
+
+Forget formulas. Picture a short stretch of genome with just **three** genetic variants
+(SNPs) — call them SNP 1, SNP 2, SNP 3. We have two studies over exactly these three SNPs:
+
+- **Trait 1** is a GWAS (say, an LDL cholesterol study). For each SNP it reports an effect
+  estimate $\hat\beta$ and a standard error.
+- **Trait 2** is an eQTL study (how much each SNP changes a nearby gene's expression). It too
+  reports a $\hat\beta$ and standard error per SNP.
+
+Here are the summary statistics. Notice SNP 2 has the biggest effect in **both** studies —
+that is the pattern that will eventually say "shared."
+
+| SNP | Trait 1 $\hat\beta$ | Trait 1 se | Trait 2 $\hat\beta$ | Trait 2 se |
+|---|---|---|---|---|
+| 1 | 0.01 | 0.05 | −0.01 | 0.05 |
+| 2 | 0.20 | 0.05 | 0.18 | 0.05 |
+| 3 | −0.02 | 0.05 | 0.02 | 0.05 |
+
+Now the key move: run each column through the ABF machine you already built. With prior
+variance $W = 0.04$ (coloc's case-control default $\sqrt{W} = 0.2$), each SNP in each trait
+becomes **one number** — its log Bayes factor for association. By hand for SNP 2, trait 1:
+$Z = 0.20/0.05 = 4$, and `wakefield_abf` turns that into an lABF of about $6.11$ (a huge
+Bayes factor: $e^{6.11} \approx 452$). The two weak SNPs give small, slightly negative lABFs.
+
+The same thing in R (this *is* `wakefield_abf` from the ABF course — no new math):
+
+```{r toy-example}
+# The ABF machine you built in the previous course (base R, coloc sign convention).
+wakefield_abf <- function(beta, se, W) {
+  z <- beta / se          # z-statistic  (ABF Module 1)
+  V <- se^2               # variance of the estimate
+  r <- W / (W + V)        # shrinkage factor r  (ABF Module 3)
+  0.5 * (log(1 - r) + r * z^2)   # the closed-form log Bayes factor
+}
+
+W <- 0.04                                  # coloc case-control default: sqrt(W)=0.2
+beta1 <- c(0.01, 0.20, -0.02); se1 <- rep(0.05, 3)   # trait 1 (GWAS)
+beta2 <- c(-0.01, 0.18, 0.02); se2 <- rep(0.05, 3)   # trait 2 (eQTL)
+
+l1 <- wakefield_abf(beta1, se1, W)   # per-SNP lABF, trait 1
+l2 <- wakefield_abf(beta2, se2, W)   # per-SNP lABF, trait 2
+round(rbind(l1 = l1, l2 = l2), 3)
+```
+
+Those two rows — `l1` and `l2` — are the entire input to colocalisation. From here on, the
+raw $\hat\beta$s and standard errors never appear again.
+
+## Getting a feel for it
+
+**Analogy — two spotlights on the same stage.** Imagine a dark theatre stage lined with
+three actors (the SNPs). Two spotlight operators (the two studies) each sweep a beam along
+the row and mark where their beam is brightest. Colocalisation asks: **are both spotlights
+lighting up the same actor, or are they lighting up two different actors who happen to stand
+close together?** If both beams peak on actor 2, the traits plausibly share a causal
+variant. If one peaks on actor 1 and the other on actor 3, they are two separate stories
+that only *look* joined because the actors are crowded together.
+
+Where the analogy breaks: real spotlights point at exactly one spot, but each study's
+"beam" is fuzzy — the lABF vector is a *profile of brightness* across all three SNPs, not a
+single pointer. That fuzziness (from finite sample size and from SNPs being correlated) is
+exactly why we need a probabilistic test instead of just eyeballing which SNP is biggest.
+
+**Why per-SNP log Bayes factors, and not raw effect sizes?** Two reasons. First, the lABF
+already folds in *how sure* we are (a big effect with a huge standard error is not strong
+evidence — the ABF course built exactly that shrinkage). Second — and this is the payoff we
+cash in Module 3 — Bayes factors **multiply** when you combine independent pieces of
+evidence, and adding their logs is the numerically safe way to multiply. Starting from lABFs
+sets us up to combine two studies with additions instead of dangerous products of tiny
+numbers.
+
+**What the numbers feel like.** Look at the toy `l1`, `l2`: SNP 2's entries are around $+6$
+and $+4.7$ (loud), the other four are around $-1.4$ (quiet, slightly *against* association).
+Both loud entries land on the **same** SNP — the shared-signal fingerprint. If instead
+trait 1 were loud on SNP 1 and trait 2 loud on SNP 3, the loud entries would sit in
+different columns: the distinct-signal fingerprint. The whole course is machinery for
+turning "which columns are loud, and do they line up?" into five clean probabilities.
+
+## What the notation is going to say
+
+There is no new formula in this module — only new *names*. The notation will say: for a
+region with $Q$ SNPs and two traits, collect trait 1's per-SNP log Bayes factors into a
+vector $\ell_1 = (\ell_{1,1}, \ell_{1,2}, \dots, \ell_{1,Q})$, and trait 2's into
+$\ell_2$. In our toy example $Q = 3$, and $\ell_1$ is exactly the `l1` row we just computed:
+$\ell_{1,2} \approx 6.11$ is trait 1's log Bayes factor at SNP 2. That's it — these two
+vectors are the alphabet of the whole course.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $Q$ | "cue" | how many SNPs are in the region (in R: `length(l1)`) | 3 |
+| $i$ | "eye" | which SNP we're pointing at (a row index) | 1, 2, or 3 |
+| $\ell_{1,i}$ | "ell one sub eye" | trait 1's log Bayes factor for association at SNP $i$ (`l1[i]`) | $\ell_{1,2}\approx 6.11$ |
+| $\ell_{2,i}$ | "ell two sub eye" | trait 2's log Bayes factor for association at SNP $i$ (`l2[i]`) | $\ell_{2,2}\approx 4.68$ |
+| $\ell_1, \ell_2$ | "ell one, ell two" | the whole per-SNP lABF vector for each trait | the two rows above |
+| $\hat\beta$ | "beta hat" | an effect estimate from a fitted study (a log odds ratio for a case-control GWAS) | $0.20$ at SNP 2, trait 1 |
+| $\text{se}$ | "ess ee" | the standard error of an effect estimate | $0.05$ |
+| $Z$ | "zee" | the z-statistic $\hat\beta/\text{se}$ | $4$ at SNP 2, trait 1 |
+| $W$ | "double-you" | the prior variance on the true effect (coloc: $\sqrt{W}=0.2$) | $0.04$ |
+
+## The formal version
+
+No derivation here — the "formal version" of this module is just the definition of the two
+vectors, tied to the toy numbers. For a region of $Q$ SNPs:
+
+$$
+\ell_1 = \big(\ell_{1,1}, \dots, \ell_{1,Q}\big), \qquad
+\ell_{1,i} = \text{wakefield\_abf}(\hat\beta_{1,i}, \text{se}_{1,i}, W),
+$$
+
+and the same for trait 2 with $\ell_2$.
+
+Reading it aloud: "ell-one is the list, over SNPs 1 through Q, of trait 1's Wakefield log
+Bayes factor at each SNP" — or in everyday words: "run every SNP's summary statistics for
+trait 1 through the ABF machine and stack the answers into a vector; do it again for trait
+2."
+
+Mapping it onto the toy example:
+
+- $\ell_{1,2} \approx 6.11$ is the "$Z = 4$ at SNP 2 → lABF" step for trait 1.
+- $\ell_{2,2} \approx 4.68$ is the same for trait 2 (its $Z = 3.6$).
+- The other four entries ($\approx -1.4$) are the quiet SNPs.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# TRY IT: move the big signal. Right now SNP 2 is loud in BOTH traits (shared-looking).
+#         Change beta2 so trait 2 is loud on SNP 3 instead -> a distinct-looking pattern.
+# PREDICT: before running, which SNP's l1 will be largest? which SNP's l2?
+wakefield_abf <- function(beta, se, W) {
+  z <- beta / se; V <- se^2; r <- W / (W + V)
+  0.5 * (log(1 - r) + r * z^2)
+}
+W <- 0.04
+beta1 <- c(0.01, 0.20, -0.02); se1 <- rep(0.05, 3)   # trait 1 (GWAS)
+beta2 <- c(-0.01, 0.18, 0.02); se2 <- rep(0.05, 3)   # trait 2 (eQTL)
+
+l1 <- wakefield_abf(beta1, se1, W)
+l2 <- wakefield_abf(beta2, se2, W)
+data.frame(snp = 1:3, Z1 = beta1/se1, Z2 = beta2/se2,
+           l1 = round(l1, 3), l2 = round(l2, 3))
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two side-by-side bar charts over three SNPs. In both charts SNP 2's bar towers above SNPs 1 and 3, showing both traits' log Bayes factors peak on the same SNP — the shared-signal fingerprint."
+# LIVE: SEE the two brightness profiles. Do the loud bars line up on the same SNP?
+# PREDICT: before running, will BOTH charts' tallest bar sit over the same SNP number?
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+W <- 0.04
+l1 <- wakefield_abf(c(0.01,0.20,-0.02), rep(0.05,3), W)
+l2 <- wakefield_abf(c(-0.01,0.18,0.02), rep(0.05,3), W)
+
+op <- par(mfrow = c(1, 2))
+barplot(l1, names.arg = paste0("SNP", 1:3), main = "Trait 1 (GWAS): l1", ylab = "lABF")
+barplot(l2, names.arg = paste0("SNP", 1:3), main = "Trait 2 (eQTL): l2", ylab = "lABF")
+par(op)
+```
+
+## Common traps
+
+**Trap: "the study with the bigger effect size wins."** No — colocalisation never compares
+the two studies' effect *sizes* against each other, and it doesn't even use raw $\hat\beta$s
+after this step. It compares *where each study's evidence peaks*. In the toy data trait 1's
+big effect ($0.20$) is larger than trait 2's ($0.18$), but that's irrelevant; what matters
+is that **both** peak on SNP 2. A tiny-effect trait and a huge-effect trait can perfectly
+colocalise, and two huge-effect traits can fail to.
+
+**Trap: "if both studies are significant in the region, they colocalise."** Also no. That is
+exactly the mistake the method exists to prevent. Two studies can both have a genuine,
+strong signal in the same region and yet be driven by *different* causal SNPs sitting close
+together (linkage). "Both significant here" is the *setup* for the question, not the answer —
+distinguishing shared (PP4) from distinct (PP3) is the whole point, and we build it in
+Module 2.
+
+## Check yourself
+
+**1.** A region has $Q = 5$ SNPs. How many entries does the vector $\ell_2$ have, and what
+does its 4th entry $\ell_{2,4}$ mean?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\ell_2$ has 5 entries (one per SNP). $\ell_{2,4}$ is trait 2's log Bayes factor for
+association at SNP 4 — how strong the eQTL evidence is that SNP 4 specifically is a causal
+variant for trait 2.
+:::
+
+**2.** For a SNP with $\hat\beta = 0.10$, $\text{se} = 0.05$, $W = 0.04$: is its lABF for
+that trait positive or negative? (Try it, then predict what happens if $\hat\beta$ doubles.)
+
+```{webr}
+#| autorun: false
+# check2-starter — edit and Run
+wakefield_abf <- function(beta, se, W) { z<-beta/se; V<-se^2; r<-W/(W+V); 0.5*(log(1-r)+r*z^2) }
+beta <- 0.10; se <- 0.05; W <- 0.04
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$Z = 0.10/0.05 = 2$, giving lABF $\approx 0.47$ — slightly **positive** (mild evidence for
+association). Double $\hat\beta$ to $0.20$ and $Z = 4$; the lABF jumps to $\approx 6.1$
+because the $r Z^2$ term grows with $Z$ squared. Evidence climbs fast as the z-statistic
+grows.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what colocalisation asks
+and why we start from per-SNP log Bayes factors instead of raw effect sizes.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Colocalisation asks whether two traits' association signals in one region are driven by the
+same causal variant (shared) or by two different variants that happen to sit close together
+(distinct). We start from per-SNP log Bayes factors because they already weigh each SNP's
+evidence by how certain it is, and because working in log space lets us combine the two
+studies' evidence by adding rather than by multiplying tiny numbers.
+:::
+
+## What you can now do
+
+- **Describe the colocalisation question** in plain words for two studies over one region,
+  and say why "both significant here" is not the same as "shared causal variant."
+- **Turn two studies' per-SNP summary statistics into the two lABF vectors** $\ell_1$ and
+  $\ell_2$ using the `wakefield_abf` machine from the previous course.
+- **Read the shared-vs-distinct fingerprint** off the two lABF profiles: do the loud SNPs
+  line up on the same SNP, or not?
+
+If any of these feels shaky, revisit the toy example above — or the
+[ABF course capstone](../../../approximate-bayes-factors/modules/05-capstone-reading-wakefields-abf/lesson.qmd)
+if `wakefield_abf` itself is hazy — before continuing; the next module assumes you can
+produce $\ell_1$ and $\ell_2$ on demand.
+
+## Where this goes next
+
+Now that every SNP in every trait is a single log Bayes factor, we can state the actual
+question precisely. [Module 2](../02-five-hypotheses/lesson.qmd) turns "shared or distinct?"
+into **five** competing hypotheses about the region — $H_0$ through $H_4$ — with PP3
+(distinct) and PP4 (shared) as the two answers you'll care about. Ready for reps? Do the
+[practice problems](practice.qmd).

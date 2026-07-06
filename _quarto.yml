@@ -153,6 +153,17 @@ project:
     - courses/approximate-bayes-factors/modules/05-capstone-reading-wakefields-abf/lesson.qmd
     - courses/approximate-bayes-factors/modules/05-capstone-reading-wakefields-abf/practice.qmd
     - courses/approximate-bayes-factors/resources.md
+    - courses/bayesian-colocalisation/syllabus.md
+    - courses/bayesian-colocalisation/00-roadmap.qmd
+    - courses/bayesian-colocalisation/modules/01-the-colocalisation-question/lesson.qmd
+    - courses/bayesian-colocalisation/modules/01-the-colocalisation-question/practice.qmd
+    - courses/bayesian-colocalisation/modules/02-five-hypotheses/lesson.qmd
+    - courses/bayesian-colocalisation/modules/02-five-hypotheses/practice.qmd
+    - courses/bayesian-colocalisation/modules/03-combining-abfs-with-priors/lesson.qmd
+    - courses/bayesian-colocalisation/modules/03-combining-abfs-with-priors/practice.qmd
+    - courses/bayesian-colocalisation/modules/04-capstone-reading-coloc-abf/lesson.qmd
+    - courses/bayesian-colocalisation/modules/04-capstone-reading-coloc-abf/practice.qmd
+    - courses/bayesian-colocalisation/resources.md
 
 website:
   title: "Professor Claude"
@@ -567,6 +578,36 @@ website:
                 href: courses/approximate-bayes-factors/modules/05-capstone-reading-wakefields-abf/practice.qmd
           - text: "Resources"
             href: courses/approximate-bayes-factors/resources.md
+      - section: "Bayesian Colocalisation"
+        contents:
+          - courses/bayesian-colocalisation/syllabus.md
+          - courses/bayesian-colocalisation/00-roadmap.qmd
+          - section: "1 · The colocalisation question"
+            contents:
+              - text: "Lesson"
+                href: courses/bayesian-colocalisation/modules/01-the-colocalisation-question/lesson.qmd
+              - text: "Practice"
+                href: courses/bayesian-colocalisation/modules/01-the-colocalisation-question/practice.qmd
+          - section: "2 · Five hypotheses"
+            contents:
+              - text: "Lesson"
+                href: courses/bayesian-colocalisation/modules/02-five-hypotheses/lesson.qmd
+              - text: "Practice"
+                href: courses/bayesian-colocalisation/modules/02-five-hypotheses/practice.qmd
+          - section: "3 · Combining ABFs with priors"
+            contents:
+              - text: "Lesson"
+                href: courses/bayesian-colocalisation/modules/03-combining-abfs-with-priors/lesson.qmd
+              - text: "Practice"
+                href: courses/bayesian-colocalisation/modules/03-combining-abfs-with-priors/practice.qmd
+          - section: "4 · Capstone: reading coloc.abf"
+            contents:
+              - text: "Lesson"
+                href: courses/bayesian-colocalisation/modules/04-capstone-reading-coloc-abf/lesson.qmd
+              - text: "Practice"
+                href: courses/bayesian-colocalisation/modules/04-capstone-reading-coloc-abf/practice.qmd
+          - text: "Resources"
+            href: courses/bayesian-colocalisation/resources.md
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that
 # lessons can host runnable in-browser WebR chunks with a single, uniform theme.
