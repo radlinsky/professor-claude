@@ -267,7 +267,7 @@ c) The model fits well, as three significance stars indicate a strong relationsh
 :::
 
 ::: {.quiz-q qid="lmout-r2" qtype="numeric" answer="0.9" tolerance="0"}
-For the season-1 data ($x = (1,2,3,4,5)$, $y = (4,4,7,10,10)$): SSE $= 3.6$ and
+For the lesson's season-1 data ($x = (1,2,3,4,5)$, $y = (4,4,7,10,10)$): SSE $= 3.6$ and
 $\sum(y_i - \bar{y})^2 = 36$. Compute $R^2 = 1 - \mathrm{SSE}/\sum(y_i-\bar{y})^2$.
 Enter one decimal.
 :::
