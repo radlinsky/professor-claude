@@ -219,3 +219,58 @@ c(lower = est - 2 * se, upper = est + 2 * se)             # (-1.03, 2.03): conta
 t.test(c_change)$p.value       # 0.5416 — fail to reject
 ```
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/hypothesis-tests-p-values-and-confidence-intervals" pass="4"}
+
+::: {.quiz-q qid="ht-pvalue-meaning" qtype="mc" answer="b"}
+A study reports $p = 0.045$. What does that mean?
+
+a) There is a 4.5% chance the null hypothesis is true
+b) If the null were true, data this extreme would occur about 4.5% of the time
+c) The effect is real 95.5% of the time
+:::
+
+::: {.quiz-q qid="ht-fail-to-reject" qtype="mc" answer="a"}
+With $p = 0.10$ you fail to reject the null. What can you conclude?
+
+a) Not enough evidence to reject; a real effect could still be too small to detect
+b) The null is proven true — there is no effect
+c) The alternative hypothesis is proven true
+:::
+
+::: {.quiz-q qid="ht-test-statistic" qtype="mc" answer="c"}
+A test statistic is built as:
+
+a) The estimate minus the null value
+b) The p-value times the sample size
+c) The estimate divided by its standard error — distance from the null in noise units
+:::
+
+::: {.quiz-q qid="ht-type-i-error" qtype="mc" answer="a"}
+The cutoff $\alpha = 0.05$ sets the rate of which error?
+
+a) Type I — a false alarm: rejecting the null when it is actually true
+b) Type II — a missed signal: failing to reject when there is a real effect
+c) Neither — $\alpha$ is the probability the null is true
+:::
+
+::: {.quiz-q qid="ht-ci-upper" qtype="numeric" answer="14" tolerance="0"}
+(From randomness & sampling distributions.) A 95% confidence interval is roughly estimate
+$\pm\ 2$ standard errors. If the estimate is $10$ with SE $= 2$, what is the upper end
+(estimate $+ 2 \times$ SE)?
+:::
+
+:::
+
+::::
