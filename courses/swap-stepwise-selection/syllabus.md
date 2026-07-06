@@ -10,7 +10,7 @@ and keep it stable with a ridge $\lambda$ on the correlation matrix.
 **Source:** concept course (no paper) — a frequentist, likelihood-based variable-selection
 procedure specified for this course (quoted and decoded in the capstone). Its statistics come
 from *An Introduction to Statistical Learning* (James, Witten, Hastie, Tibshirani; ISLR Ch. 3
-& 6) and *Introduction to Applied Linear Algebra* (Boyd & Vandenberghe; VMLS Ch. 12–15) — see
+& 6) and *Introduction to Applied Linear Algebra* (Boyd & Vandenberghe; VMLS Ch. 11, 12–13 & 15) — see
 [resources.md](resources.md). Rebuilt from scratch in base R and validated against
 `lm()`/`solve()` oracles via this repo's equivalence harness.
 
