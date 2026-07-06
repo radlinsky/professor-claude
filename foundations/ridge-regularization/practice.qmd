@@ -135,3 +135,60 @@ set.seed(1); n <- 30; x1 <- rnorm(n); x2 <- x1; y <- x1 + rnorm(n); X <- cbind(x
 solve(t(X) %*% X + 0.1 * diag(2), t(X) %*% y)   # returns an answer; plain solve() would error
 ```
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/ridge-regularization" pass="4"}
+
+::: {.quiz-q qid="rr-penalized-rss" qtype="mc" answer="b"}
+Ridge regression minimizes which objective?
+
+a) The fit term (RSS) alone
+b) RSS plus a penalty $\lambda \sum_j \beta_j^2$
+c) RSS divided by $\lambda$
+:::
+
+::: {.quiz-q qid="rr-lambda-shrinks" qtype="mc" answer="c"}
+As $\lambda$ grows large, what happens to the coefficients?
+
+a) They are thrown away, deleted from the model
+b) They grow without bound
+c) They shrink *toward* zero — biased for stability, not discarded
+:::
+
+::: {.quiz-q qid="rr-vs-lasso" qtype="mc" answer="a"}
+Does ridge do variable selection — zeroing out useless predictors?
+
+a) No — ridge shrinks toward zero but rarely to *exactly* zero; the lasso (a $\sum_j |\beta_j|$ penalty) is what selects
+b) Yes — ridge sets useless coefficients to exactly zero
+c) Yes — ridge and lasso are the same method
+:::
+
+::: {.quiz-q qid="rr-invertibility" qtype="mc" answer="b"}
+Besides shrinking coefficients, what does ridge's $+\lambda I$ term guarantee?
+
+a) That $R^2$ always reaches $1$
+b) That $(X^\top X + \lambda I)$ is invertible for any $\lambda > 0$, even with collinear predictors
+c) That all coefficients become equal
+:::
+
+::: {.quiz-q qid="rr-standardize-first" qtype="mc" answer="a"}
+(From variance structure & standardization.) Why standardize the predictors before ridge?
+
+a) So the single penalty $\lambda$ treats every coefficient on a comparable scale, instead of penalizing large-unit columns less
+b) So the intercept becomes exactly zero
+c) It is optional — standardization changes nothing for ridge
+:::
+
+:::
+
+::::
