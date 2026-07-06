@@ -199,3 +199,52 @@ $\hat{\beta}_1 = s_{xy}/s_x^2$. You just computed your first regression coeffici
 from raw ingredients — the course shows where that formula comes from and why it's
 the "best" line.
 :::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/mean-variance-covariance" pass="4"}
+
+::: {.quiz-q qid="mvc-mean" qtype="numeric" answer="5" tolerance="0"}
+For $x = (2, 4, 9)$, what is the mean $\bar{x}$?
+:::
+
+::: {.quiz-q qid="mvc-variance-n-minus-1" qtype="numeric" answer="4" tolerance="0"}
+For $x = (1, 3, 5)$ the mean is $3$ and the squared deviations are $4, 0, 4$, summing to
+$8$. What is the sample variance $s^2$ (divide by $n - 1$)?
+:::
+
+::: {.quiz-q qid="mvc-divide-by-n-trap" qtype="mc" answer="b"}
+A student divides the sum of squared deviations by $n$ instead of $n - 1$. What is the
+consequence?
+
+a) Nothing — $n$ and $n - 1$ give the same variance
+b) The variance comes out too small; sample variance uses $n - 1$ (as R's `var()` does)
+c) The variance comes out negative
+:::
+
+::: {.quiz-q qid="mvc-covariance-units" qtype="mc" answer="a"}
+Rescaling $y$ from liters to milliliters multiplies the covariance by $1000$, though the
+relationship is unchanged. What does this say about judging strength by covariance size?
+
+a) Size is unreliable — covariance carries the variables' units; the *sign* is the trustworthy part, and correlation gives a comparable size
+b) A bigger covariance always means a stronger relationship
+c) The relationship genuinely became $1000$ times stronger
+:::
+
+::: {.quiz-q qid="mvc-sum-of-squares" qtype="numeric" answer="14" tolerance="0"}
+(From vectors & summation.) The variance formula sums squared deviations. As a warm-up,
+for $x = (1, 2, 3)$ what is $\sum_{i=1}^{3} x_i^2$?
+:::
+
+:::
+
+::::
