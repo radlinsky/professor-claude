@@ -1,0 +1,8 @@
+ShortName: The false discovery rate
+Concepts: The multiple-testing problem (the family-wise false-alarm chance $1-(1-\alpha)^m$
+ climbing toward 1 as tests pile up); family-wise error rate vs false discovery rate; Bonferroni
+ and Holm (control the chance of ANY false alarm) vs Benjamini–Hochberg (control the FRACTION of
+ rejections that are false); `p.adjust` in R and its Holm default; how correcting over many tests
+ changes a reject/keep decision
+BuildsOn: [hypothesis-tests-p-values-and-confidence-intervals](hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+UsedBy: —

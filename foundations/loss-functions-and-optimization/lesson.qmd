@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -43,7 +36,9 @@ for the bottom when the algebra is too messy — `optimize()` and `optim()`. We 
 **Builds on:** [the derivative as a slope](../derivative-as-slope/lesson.qmd) — we lean
 hard on "slope zero means momentarily flat," and we reuse its numeric `slope_at()`
 tool; and [vectors & summation](../vectors-and-summation/lesson.qmd) — a loss is
-usually a *sum* over your data points ($\sum$), one penalty per point.
+usually a *sum* over your data points ($\sum$), one penalty per point; and
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) — the warm-up
+uses squared deviations from the mean.
 
 ## Warm-up: do you remember?
 
@@ -75,13 +70,16 @@ engine of this lesson. See
 [the derivative as a slope](../derivative-as-slope/lesson.qmd).
 :::
 
-**3.** In R, `f <- function(m) sum((c(4,6,8) - m)^2)` defines a function of one input
-`m`. Without running it, what does `f(6)` compute — in words?
+**3.** From [mean-variance-covariance](../mean-variance-covariance/lesson.qmd):
+`y <- c(4, 6, 8)`. What does `sum((y - mean(y))^2)` measure — in words? Compute
+it by hand.
 
 ::: {.callout-note collapse="true" title="Answer"}
-"Subtract 6 from each of 4, 6, 8; square each difference; add them up." That's
-$(4-6)^2 + (6-6)^2 + (8-6)^2 = 4 + 0 + 4 = 8$. A function turns an input (`m`) into an
-output (a number) — exactly the mental model this whole lesson rides on.
+It measures the **total squared deviation** from the mean — how spread out the data is
+(unnormalized). The mean is $6$, so the squared deviations are $(4-6)^2 + (6-6)^2 +
+(8-6)^2 = 4 + 0 + 4 = 8$. Divide by $n$ and you have the (population) variance; divide
+by $n-1$ and you have R's `var()`. Shaky? Revisit
+[mean-variance-covariance](../mean-variance-covariance/lesson.qmd).
 :::
 
 ## A tiny example first
@@ -322,10 +320,19 @@ cost ($8$). Mixing them up reports the wrong quantity entirely.
 **Trap 2 — "slope zero always means the lowest point."** Slope zero means *momentarily
 flat* — which is true at a valley bottom, but also at a hill **top** and on a flat
 shelf. "Differentiate, set to zero, solve" finds the flat spots; you still must check
-you landed in a valley, not on a peak. Our squared-error loss is a single clean bowl
-(only one flat spot, and it's the bottom), so we're safe here — but that's a property of
-this loss, not a free guarantee. It's why real optimizers also *search* and compare, as
-`optimize()` does, rather than trusting a single zero-slope point blindly.
+you landed in a valley, not on a peak. Concrete example: try $g(m) = -(m-6)^2$. Its
+derivative is $-2(m-6)$, which is zero at $m = 6$ — but $g(6) = 0$ is the **largest**
+value, not the smallest ($g(4) = -4$ and $g(8) = -4$ are both lower). The zero-slope
+point is a hilltop, not a valley. Our squared-error loss is a single clean bowl (only one
+flat spot, and it's the bottom), so we're safe here — but that's a property of this loss,
+not a free guarantee. It's why real optimizers also *search* and compare, as `optimize()`
+does, rather than trusting a single zero-slope point blindly.
+
+```{r trap2-check}
+# Quick sanity check: g(m) = -(m-6)^2 has slope zero at 6, but that's a MAXIMUM
+g <- function(m) -(m - 6)^2
+optimize(g, c(0, 12), maximum = TRUE)$maximum   # 6 — the peak, not a valley
+```
 
 ## Check yourself
 

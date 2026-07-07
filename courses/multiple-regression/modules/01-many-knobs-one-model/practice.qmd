@@ -11,6 +11,8 @@ engine: knitr
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only then
 open the answer.
 

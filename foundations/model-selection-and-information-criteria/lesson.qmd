@@ -1,0 +1,289 @@
+---
+title: "Choosing a model: information criteria"
+subtitle: "Why 'lowest error' picks the wrong model, and how AIC/BIC fix it"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+You have a pool of candidate predictors and want the *best* model. The obvious idea —
+"pick the model with the smallest error" — is a trap: adding *any* predictor, even pure
+noise, can only lower the training error, so "smallest error" always votes for the
+biggest model. This module builds the fix: score a model by **fit *plus* a penalty for
+complexity**. That's what **AIC** and **BIC** do, and it's how methods choose *how many*
+predictors to keep. You'll also meet the search problem — there are $2^p$ possible
+subsets — and the greedy shortcuts (forward/backward stepwise) that don't always find the
+best one.
+
+**Builds on:** [model-fit-error-and-validation](../model-fit-error-and-validation/lesson.qmd)
+(RSS, $R^2$, overfitting), [likelihood-and-log-likelihood](../likelihood-and-log-likelihood/lesson.qmd)
+(the log-likelihood, which the criteria are built from).
+
+## Warm-up: do you remember?
+
+**1.** *(model fit)* What is the residual sum of squares $\mathrm{RSS}$, in one line, and
+does adding a predictor to a model ever *increase* it?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mathrm{RSS} = \sum_i (y_i - \hat{y}_i)^2$, the total squared miss. Adding a predictor
+**never increases** it — the fit can always ignore the new column (coefficient 0) or use
+it to shave off a little more, so RSS only stays equal or drops. See
+[model-fit-error-and-validation](../model-fit-error-and-validation/lesson.qmd).
+:::
+
+**2.** *(likelihood)* What does the **log-likelihood** measure, and do we want it large or
+small for a good fit?
+
+::: {.callout-note collapse="true" title="Answer"}
+The log-likelihood scores how plausible the observed data is under the model; a
+better-fitting model makes the data more plausible, so we want it **large** (equivalently,
+$-2\times$ log-likelihood **small**). See
+[likelihood-and-log-likelihood](../likelihood-and-log-likelihood/lesson.qmd).
+:::
+
+## A tiny example first
+
+Five points, one predictor $x_1 = (1,2,3,4,5)$ and $y = (1,3,2,5,4)$.
+
+**Model 0 — just the mean.** With no predictor, the best guess is $\bar{y} = 3$. Its
+error is $\mathrm{RSS}_0 = (1-3)^2 + (3-3)^2 + (2-3)^2 + (5-3)^2 + (4-3)^2 = 4+0+1+4+1 = 10$.
+
+**Model 1 — add $x_1$.** Fit a line; its $\mathrm{RSS}_1 = 3.6$ — much lower. Good, $x_1$
+helps.
+
+**Model 2 — add a second predictor $x_2$ that is pure noise** (random numbers unrelated
+to $y$). Its $\mathrm{RSS}_2 = 3.351$. **Lower still** — even though $x_2$ is meaningless!
+That's the whole problem: "smallest RSS" would pick Model 2, chasing noise.
+
+```{r toy-example}
+x1 <- c(1, 2, 3, 4, 5); y <- c(1, 3, 2, 5, 4)
+set.seed(7); x2 <- rnorm(5)                 # a predictor with NO real relationship to y
+
+rss <- function(fit) sum(resid(fit)^2)
+c(mean_only = rss(lm(y ~ 1)),               # 10.0
+  with_x1   = rss(lm(y ~ x1)),              # 3.6
+  add_noise = rss(lm(y ~ x1 + x2)))         # 3.351 — lower, chasing noise
+```
+
+The cure: charge a **penalty** for each predictor, so a tiny RSS improvement isn't worth
+it unless it beats the penalty.
+
+## Getting a feel for it
+
+**Paying rent for each predictor.** Think of each predictor as an employee you hire to
+explain $y$. Every hire reduces the "unexplained work" (RSS) at least a little — even a
+lazy one who just shuffles noise. If you judged your team only by "work remaining," you'd
+hire everyone. So you charge **rent**: each employee must reduce the unexplained work by
+more than their salary, or they're not worth keeping. Information criteria are that
+salary rule — they add a per-predictor cost to the fit score, so only predictors that
+*earn their keep* lower the total.
+
+**Why a penalty and not just "use a test set."** Holding out data (cross-validation, the
+[model-fit](../model-fit-error-and-validation/lesson.qmd) module's tool) also fights
+overfitting, and it's excellent. Information criteria are a *cheaper, all-at-once*
+alternative: one formula on the full-data fit, no re-splitting, with a penalty derived
+from theory. They shine when you're comparing many models quickly — like a search over
+predictor subsets.
+
+**What the penalty feels like.** In the toy, going from Model 1 to Model 2 dropped RSS by
+only $3.6 - 3.351 = 0.249$ — a rounding error's worth of "improvement" bought with a whole
+extra predictor. A good penalty is bigger than that, so it *rejects* Model 2. AIC and BIC
+both do; BIC (the heavier penalty) rejects extra predictors more aggressively.
+
+## What the notation is going to say
+
+The criteria say: *take a "badness" score built from the log-likelihood (small = good
+fit), then add a penalty that grows with the number of parameters $k$.* AIC's penalty is
+$2k$; BIC's is $k\log n$ — and because $\log n > 2$ once $n > 7$, BIC charges more per
+parameter on any real dataset, so it prefers **smaller** models. Lowest score wins.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\mathrm{RSS}$ | "residual sum of squares" | total squared miss $\sum_i (y_i-\hat{y}_i)^2$ | 10, 3.6, 3.351 |
+| $\mathrm{TSS}$ | "total sum of squares" | total spread of $y$ around its mean $\sum_i (y_i-\bar{y})^2$ (the mean-only RSS) | 10 |
+| $n$ | "en" | number of observations | 5 |
+| $k$ | "kay" | number of free parameters (predictors + intercept + noise variance) | 3 for Model 1 |
+| $p$ | "pee" | number of candidate predictors in the pool | 10 later |
+| $\log$ | "log" (natural log) | natural logarithm (in R: `log`) | — |
+| $\ell$, $\log L$ | "log-likelihood" | how plausible the data is under the fit (bigger = better) | −6.27 for Model 1 |
+| $\mathrm{AIC}$ | "A-I-C" | $-2\log L + 2k$ (in R: `AIC`) | 18.55 for Model 1 |
+| $\mathrm{BIC}$ | "B-I-C" | $-2\log L + k\log n$ (in R: `BIC`) | 17.38 for Model 1 |
+| $R^2$ | "R-squared" | proportion of variance explained by the model; $1 - \mathrm{RSS}/\mathrm{TSS}$ | — |
+| $2^p$ | "two to the pee" | how many subsets of $p$ predictors exist | $2^{10}=1024$ |
+
+## The formal version
+
+Both criteria have the same shape — **fit term + complexity penalty** — and both are
+scored so that **lower is better**:
+
+$$
+\mathrm{AIC} = \underbrace{-2\log L}_{\text{misfit}} + \underbrace{2k}_{\text{penalty}},
+\qquad
+\mathrm{BIC} = \underbrace{-2\log L}_{\text{misfit}} + \underbrace{k\log n}_{\text{penalty}}.
+$$
+
+- The **misfit term** $-2\log L$ is small when the model makes the data plausible (from
+  the [likelihood](../likelihood-and-log-likelihood/lesson.qmd) module). For a
+  least-squares fit with Gaussian noise it is a rising function of $\mathrm{RSS}$, so
+  "smaller RSS" *does* lower this term — it's the penalty that stops the runaway.
+- The **penalty** counts parameters $k$. AIC charges 2 per parameter; BIC charges
+  $\log n$. Since $\log n$ exceeds 2 for any $n > 7$, **BIC penalizes complexity harder
+  and selects smaller models**; its penalty also *grows with the sample size*, so with
+  lots of data BIC demands a predictor prove itself more.
+
+Reading it aloud: "B-I-C equals minus-two log-likelihood, plus k times log n" — or in
+everyday words: "badness of fit, plus a fine of $\log n$ for every knob you added."
+
+Mapping onto the toy (R computes the log-likelihood; you read the ranking):
+
+```{webr}
+#| autorun: false
+# PREDICT: which model will BIC crown — mean-only, x1, or x1+x2? (x2 is pure noise.)
+# Think it through, then click Run to see if you're right.
+x1 <- c(1, 2, 3, 4, 5); y <- c(1, 3, 2, 5, 4); set.seed(7); x2 <- rnorm(5)
+m0 <- lm(y ~ 1); m1 <- lm(y ~ x1); m2 <- lm(y ~ x1 + x2)
+
+rbind(AIC = c(mean = AIC(m0), x1 = AIC(m1), x1_x2 = AIC(m2)),
+      BIC = c(BIC(m0), BIC(m1), BIC(m2)))
+
+# BIC from the raw formula (-2 logL + k log n) equals the built-in BIC() — the formula IS
+# the function. logLik's `df` is k (slopes + intercept + noise variance).
+k1 <- attr(logLik(m1), "df")
+c(from_formula = -2 * as.numeric(logLik(m1)) + k1 * log(5), builtin = BIC(m1))  # identical
+```
+
+Both criteria bottom out at **Model 1** (`x1` alone): BIC is 20.87 → **17.38** → 18.63.
+The noise predictor `x2` *lowered RSS* but *raised BIC* — its tiny fit gain didn't cover
+the penalty. The criterion made the call RSS couldn't.
+
+## Explore it
+
+### Best-subset: the right size, on a bigger pool
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A curve of BIC against model size from 0 to 5 predictors: it falls to a minimum at size 3 and then rises. A printed table shows RSS falling monotonically while BIC turns around at 3."
+# TRY IT: change the true model (e.g. make only x1, x2 matter, or add x4) and re-run.
+# PREDICT: the BIC curve's minimum should land on the number of predictors you kept real.
+# Simulate y from just 3 of 10 predictors; find the best-RSS subset of each size,
+# then score each by BIC. Watch RSS keep falling while BIC bottoms at the true size 3.
+set.seed(1); n <- 120; p <- 10
+X <- matrix(rnorm(n * p), n, p); colnames(X) <- paste0("x", 1:p)
+y <- 2 * X[, 1] - 1.5 * X[, 2] + 1 * X[, 3] + rnorm(n)   # only x1, x2, x3 matter
+dat <- data.frame(X, y)
+
+best_of_size <- function(k) {                       # smallest-RSS model with k predictors
+  if (k == 0) { fit <- lm(y ~ 1, dat); return(c(rss = sum(resid(fit)^2), bic = BIC(fit))) }
+  combs <- combn(p, k)
+  fits  <- apply(combs, 2, function(cols) lm(y ~ ., dat[, c(cols, p + 1)]))
+  rss   <- sapply(fits, function(f) sum(resid(f)^2))
+  best  <- fits[[which.min(rss)]]
+  c(rss = min(rss), bic = BIC(best))
+}
+tab <- sapply(0:5, best_of_size); colnames(tab) <- 0:5
+round(tab, 1)
+
+plot(0:5, tab["bic", ], type = "b", lwd = 2, col = "firebrick",
+     xlab = "number of predictors", ylab = "BIC (lower = better)",
+     main = "BIC bottoms at the true size (3); RSS would never stop")
+abline(v = 3, lty = 3)
+```
+
+RSS falls all the way to size 5; BIC turns around and bottoms at **3** — the true number
+of real predictors.
+
+### The search is huge, so we use greedy shortcuts
+
+There are $2^p$ possible subsets — $2^{10} = 1024$ here, but $2^{30} \approx 10^9$ for 30
+predictors. **Best-subset** (check them all) is infeasible past ~30 predictors, so we use
+**forward stepwise** (start empty, add the single best predictor each step) or
+**backward** (start full, drop the worst). R's `step()` does this:
+
+```{r stepwise}
+set.seed(1); n <- 120; p <- 10
+X <- matrix(rnorm(n * p), n, p); colnames(X) <- paste0("x", 1:p)
+y <- 2 * X[, 1] - 1.5 * X[, 2] + X[, 3] + rnorm(n)
+dat <- data.frame(X, y)
+
+fwd <- step(lm(y ~ 1, dat), scope = ~ x1+x2+x3+x4+x5+x6+x7+x8+x9+x10,
+            direction = "forward", trace = 0)      # greedy: add best predictor each step
+sort(names(coef(fwd))[-1])
+```
+
+## Common traps
+
+**Trap: "the model with the lowest RSS (or highest $R^2$ ('R-squared,' the proportion of variance explained)) is the best model."** False on
+training data — RSS can only fall as you add predictors, so it always crowns the biggest
+model (Model 2 beat Model 1 on RSS with a *noise* predictor). $R^2$ has the same flaw
+(it's $1 - \mathrm{RSS}/\mathrm{TSS}$). Information criteria and adjusted $R^2$ exist
+precisely because raw fit can't choose model size.
+
+**Trap: "stepwise found it, so it's the best subset."** Greedy is not exhaustive. Forward
+stepwise commits to its first pick and can never remove it, so an early mistake sticks —
+its size-$k$ model can differ from the true best-subset-of-$k$ (a point ISLR's Table 6.1
+makes). Above, the greedy search overshot the true `{x1, x2, x3}`. Greedy is a practical
+necessity for large $p$, not a guarantee of the optimum.
+
+## Check yourself
+
+**1.** A model has log-likelihood $\log L = -50$ and $k = 4$ parameters, fit on $n = 100$
+observations. Compute its AIC and BIC.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\mathrm{AIC} = -2(-50) + 2\times4 = 100 + 8 = 108$.
+$\mathrm{BIC} = -2(-50) + 4\log(100) = 100 + 4(4.605) = 100 + 18.42 = 118.42$. BIC is
+larger because $\log(100) = 4.6 > 2$ — it fines each parameter more.
+:::
+
+**2.** You add a predictor and RSS drops from 3.6 to 3.55. Under what condition does BIC
+still get *worse* (increase)?
+
+::: {.callout-note collapse="true" title="Answer"}
+When the drop in the misfit term ($-2\log L$) from that tiny RSS improvement is **smaller
+than the added penalty** $\log n$. A 0.05 RSS drop barely moves the fit term, while the
+penalty adds a full $\log n$, so BIC rises and rejects the predictor — exactly what
+happened to the noise predictor in the toy.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why we don't just pick
+the model with the smallest training error, and what AIC/BIC add.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Training error only ever drops as you add predictors, so "smallest error" always picks the
+biggest, most overfit model — including predictors that are just fitting noise. AIC and
+BIC add a per-parameter penalty to the fit score, so a predictor is kept only if it
+improves the fit by more than its complexity costs.
+:::
+
+## What you can now do
+
+- **Explain why RSS/$R^2$ can't choose model size** — they only improve as predictors are
+  added, even useless ones.
+- **Write down AIC $= -2\log L + 2k$ and BIC $= -2\log L + k\log n$**, and say why BIC
+  prefers smaller models (heavier, sample-size-growing penalty).
+- **Read a BIC-vs-size curve** and locate the chosen model at its minimum.
+- **Describe the search problem** ($2^p$ subsets) and why forward/backward stepwise are
+  greedy approximations that can miss the best subset.
+
+If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
+before continuing — methods that select variables lean on all of it.
+
+## Where this goes next
+
+Information criteria are the *stopping rule* for any variable-selection search. A
+switching search that adds, drops, and swaps predictors uses BIC to decide when to stop —
+built in a later course. Ready for reps? Do the
+[practice problems](practice.qmd). External videos/readings: [resources](resources.md).

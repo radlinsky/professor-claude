@@ -3,14 +3,14 @@
 All links verified 2026-07-02.
 
 - 📺 [StatQuest: Calculating the Mean, Variance and Standard Deviation, Clearly Explained!!!](https://youtu.be/SzZ6GpcfoQY)
-  (video) — Josh Starmer works tiny numeric examples in exactly this lesson's
+  (video, ~8 min) — Josh Starmer works tiny numeric examples in exactly this lesson's
   spirit, including the calculate-vs-estimate distinction (μ/σ² vs x̄/s²). Watch
   after the toy example.
 - 📺 [StatQuest: Why Dividing By N Underestimates the Variance](https://youtu.be/sHRBg6BhKjI)
-  (video) — the full story behind this lesson's "why n − 1?" box, with pictures
+  (video, ~5 min) — the full story behind this lesson's "why n − 1?" box, with pictures
   instead of algebra. Optional but very satisfying.
 - 📺 [StatQuest: Covariance, Clearly Explained!!!](https://youtu.be/qtaqvPAeEJY)
-  (video) — builds covariance from paired deviations just like our plant-and-water
+  (video, ~9 min) — builds covariance from paired deviations just like our plant-and-water
   table, and explains why the raw number is hard to interpret (setting up
   correlation).
 - 🎮 [Seeing Theory: Basic Probability](https://seeing-theory.brown.edu/basic-probability/index.html)

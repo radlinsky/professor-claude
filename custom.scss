@@ -1,5 +1,22 @@
 /*-- scss:rules --*/
 
+// Put the theme toggle on its own line below the sidebar title
+.sidebar-tools-main {
+  display: block !important;
+  margin-top: 0.3rem;
+  margin-left: 0 !important;
+}
+.quarto-color-scheme-toggle {
+  transform: scale(1.35);
+  transform-origin: left center;
+  &::after {
+    content: "Theme";
+    font-size: 0.7rem;
+    margin-left: 0.35rem;
+    vertical-align: middle;
+  }
+}
+
 // Display equations that are wider than the column scroll horizontally
 // instead of overflowing the page / sidebar. MathJax v3 wraps each display
 // block in <mjx-container display="true">.

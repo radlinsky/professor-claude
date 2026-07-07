@@ -15,13 +15,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -136,6 +129,7 @@ vanish.
 | $\sum_{i=1}^{n}$ | "the sum from eye equals one to en" | add up the term to its right, once per data point (in R: `sum(...)`) | sums the squared misses |
 | $b_0, b_1$ | "bee zero, bee one" | the candidate line's intercept and slope (the two knobs) | true line: $1, 2$ |
 | $\mathbf{b}_t$ | "bee sub tee" | the position: the two knobs $(b_0, b_1)$ together after $t$ steps | starts at `c(0, 0)` |
+| $\mathbf{b}_{t+1}$ | "bee sub tee plus one" | the position after the next step | follows from descent on the toy data |
 | $\hat{y}_i$ | "why hat sub eye" | the line's prediction, $b_0 + b_1 x_i$ | $3, 5, 7$ for the true line |
 | $\mathrm{MSE}(b_0, b_1)$ | "em-ess-ee of bee-zero, bee-one" | mean squared error — the bowl's height at $(b_0, b_1)$ | $0$ at the true line |
 | $\nabla \mathrm{MSE}$ | "grad em-ess-ee" | the gradient of the error: (slope in $b_0$, slope in $b_1$) | $(0,0)$ at the bottom |
@@ -282,6 +276,14 @@ a line. The noisy data above never can — no straight line passes through all e
 scattered points — so the bottom of its error bowl is *above* zero. "Best fit" means the
 lowest achievable error, not zero. (Our clean toy hit 0 precisely because those three
 points were exactly collinear.)
+
+**Trap: "the loss is the average of the misses, $\frac{1}{n}\sum(b_0 + b_1 x_i - y_i)$."**
+Close, but missing the square. Raw misses can be positive or negative, and they cancel:
+a line that's too high on half the points and too low on the other half can score zero
+even though it misses every point. The *squared* misses $(\hat y_i - y_i)^2$ are always
+non-negative, so they can't cancel, and `mean(...)` returns zero only when every miss is
+truly zero. Drop the square and the "loss" is no longer a bowl — it slopes off to
+$-\infty$, sending descent chasing the intercept forever.
 
 **Trap: "different optimizers give different answers, so which do I trust?"** For this
 squared-error bowl they give the *same* answer — our descent, scipy's L-BFGS-B, and R's

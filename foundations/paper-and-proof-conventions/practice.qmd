@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Most are reading/translation exercises (this is a
 reading module); a couple hand you R to *feel* an asymptotic word. Try each honestly, then open
 the answer.

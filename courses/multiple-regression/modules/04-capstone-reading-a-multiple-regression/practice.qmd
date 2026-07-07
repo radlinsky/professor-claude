@@ -11,6 +11,8 @@ engine: knitr
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 These draw on the whole course, in mixed order — deciding *which* idea each problem needs
 is part of the workout. Try each honestly before opening the answer.
 
@@ -121,8 +123,7 @@ F-statistic: 14.63 on 3 and 76 DF,  p-value: 1.3e-07
 
 You're told `rate` and `rate2` are correlated 0.97 (VIFs ≈ 20 each), and that the data
 were generated with `gdp_lag` and `rate` truly mattering while `rate2`'s true effect is
-zero. Decode it: (a) Is at least one predictor useful? (b) Which coefficient is most
-the most trustworthy? (c) Explain the odd-looking `rate` / `rate2` pair.
+zero. Decode it: (a) Is at least one predictor useful? (b) Which coefficient is the most trustworthy? (c) Explain the odd-looking `rate` / `rate2` pair.
 
 ::: {.callout-note collapse="true" title="Answer"}
 (a) **Yes** — the F-statistic (14.63, p ≈ 1.3e-07) says the model as a whole explains
@@ -180,7 +181,7 @@ non-significant with a high VIF. What is the right read?
 
 a) The high $R^2$ proves every coefficient is trustworthy
 b) The model should be discarded entirely
-c) Prediction can be good while an individual collinear coefficient stays unreliable — $R^2$ and coefficient trust are separate questions
+c) Good prediction and unreliable coefficients can coexist under collinearity
 :::
 
 :::

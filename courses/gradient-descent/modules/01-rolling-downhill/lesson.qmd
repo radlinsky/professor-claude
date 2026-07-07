@@ -16,13 +16,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -237,9 +230,15 @@ fewer of them, right? But past a threshold the step overshoots the bottom and la
 *higher* up the opposite wall; the next step overshoots even more, and the value
 explodes. Try it: from $x = 1$ on our bowl, $\alpha = 1.02$ sends $x$ to
 $1 - 1.02(-6) = 7.12$, then the slope there ($+6.24$) throws it to
-$7.12 - 1.02(6.24) = 0.75$, then further out again — diverging, not converging.
+$7.12 - 1.02(6.24) = 0.76$, then further out again — diverging, not converging.
 `gradient_descent_1d(f, 1, lr = 1.02, n_steps = 20)` runs away to a huge number. The
 right rate is a Goldilocks choice, not "as big as possible."
+
+**Trap: "it doesn't matter whether you add or subtract the slope."** It absolutely
+does. The update is $x \leftarrow x - \alpha f'(x)$: the minus means "step *against*
+the slope," i.e. downhill. Flip it to a plus and you step *with* the slope — uphill —
+and walk away from the minimum forever (gradient *ascent*). A sign slip in code is
+the fastest way to turn a minimizer into a maximizer.
 
 **Trap: "gradient descent always finds the lowest point of the whole curve."** On a
 single bowl, yes. But on a curve with several dips, the ball settles into whichever

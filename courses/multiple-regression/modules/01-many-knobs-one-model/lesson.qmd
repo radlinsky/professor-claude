@@ -220,6 +220,18 @@ yhat <- b0 + b1 * x1 + b2 * x2      # the model's prediction, straight from the 
 data.frame(x1, x2, yhat)
 ```
 
+```{webr}
+#| autorun: false
+# TRY IT: here the model has a NEGATIVE coefficient on x2. Before running:
+# PREDICT: with b2 = -4 and (x1=1, x2=3), will yhat be above or below the intercept?
+b0 <- 10; b1 <- 2; b2 <- -4
+x1 <- c(0, 1, 1, 3)
+x2 <- c(0, 0, 3, 2)
+
+yhat <- b0 + b1 * x1 + b2 * x2
+data.frame(x1, x2, yhat)
+```
+
 Now the real thing. Here is the course's running example: a simulated panel of GDP
 growth against twelve economic indicators. We fit all twelve at once with `lm(y ~ .)`
 ("`.`" means "every other column as a predictor"). This is a listing to *read*, not

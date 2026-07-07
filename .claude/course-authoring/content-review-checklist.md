@@ -104,7 +104,12 @@ re-render, and re-check.
     with exactly one real mistake (verify the mistake is where the answer says);
     one labeled interleaved problem when an earlier module exists; a transfer or
     clearly-labeled cliffhanger last. Capstone sets instead: every course module
-    represented, mixed order, no module labels.
+    represented, mixed order, no module labels. `## Extra reps — round N` sections
+    (relearning rounds appended after the original set) are NOT ramp violations —
+    audit them against `problem-authoring.md` §Fresh-rep rounds instead: 3–5
+    problems, one spot-the-error with a different planted mistake than earlier
+    rounds, sitting before the Module check, and **no data value reused** from any
+    earlier round or the lesson's toy example.
 
 12. **The interactive/static split is correct and wired.**
     Contract: `.claude/course-authoring/interactive-webr.md`. Check each:
@@ -200,6 +205,18 @@ re-render, and re-check.
     combined options; the key is not recognizably the longest option; key letters vary
     across the set; no item's stem or options reveal another item's answer; decimal
     numeric answers carry a rounding `tolerance=`. Rules: `quiz-authoring.md`.
+
+21. **No inline reteaching of foundation content.**
+    Scan each lesson for concepts taught from scratch (their own worked example,
+    intuition section, or "refresher" block) that an existing `foundations/` module
+    already covers. Open `foundations/README.md` and compare its Concepts column
+    against the lesson's inline teaching. If a foundation covers the concept, the
+    lesson should BUILD ON it (a "Builds on" link + warm-up retrieval question), not
+    reteach it — a one-line reminder of the punchline is fine per TEACHING.md
+    §Layering, but a re-derivation or multi-paragraph refresher is a defect. Seed
+    bug: the OLS lesson taught chain-rule-lite and partial derivatives inline while
+    `loss-functions-and-optimization` and `partial-derivatives-and-the-gradient`
+    already covered those exact concepts.
 
 ## Reporting
 

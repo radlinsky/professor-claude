@@ -39,7 +39,11 @@ You may run `Rscript scripts/check-teaching-lint.R` read-only (banned condescens
 words, missing `fig-alt` on figure chunks). It scans the whole repo, so treat only
 the hits that fall in the files you were asked to audit as defects — ignore hits in
 files outside your audit scope. Report the in-scope hits alongside your numbered-check
-findings.
+findings. You may likewise run `Rscript scripts/check-webr-cells.R` read-only — the
+native-R proxy that executes every `#| autorun: true` `{webr}` cell (see
+`interactive-webr.md` §Verifying); an in-scope failure is a defect. It is a proxy,
+not the browser: it does not lift the "never claim in-browser execution was verified"
+rule above.
 
 ## Inputs
 
@@ -67,7 +71,12 @@ module folder, also audit each module's `resources.md` (checklist check 19).
    honest analogies, prerequisite links — foundation modules AND prerequisite courses
    — present and resolving, per checklist check 14). Treat §Self-check as the full
    set to sweep, not these examples alone.
-5. Note, separately from defects, anything legacy: sections the current templates
+5. Cross-check for inline reteaching of foundation content (checklist check 21).
+   Open `foundations/README.md` and scan its Concepts column. For each lesson you
+   audit, flag any concept taught from scratch (its own worked example, intuition,
+   or multi-paragraph "refresher") that an existing foundation already covers —
+   the lesson should build on that foundation, not reteach it.
+6. Note, separately from defects, anything legacy: sections the current templates
    require that an older file predates (e.g. no Warm-up in a pre-contract lesson).
    These are "retrofit candidates", not author errors.
 

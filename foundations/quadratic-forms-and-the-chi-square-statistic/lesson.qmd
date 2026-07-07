@@ -1,0 +1,389 @@
+---
+title: "Quadratic forms & the chi-square statistic"
+subtitle: "Turning a whole vector of deviations into one 'how surprising is this?' number — the squared distance that a covariance matrix scales"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R is all we
+# need, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+You already know how to turn *one* number's surprise into a score: take how far it landed
+from where you expected, divide by its typical wobble, and square it — a "z-squared." This
+lesson does the same thing for a **whole vector of numbers at once**. The tool is a
+**quadratic form**: a recipe that eats a vector and spits out a single number measuring
+"how far is this vector from zero, counting some directions as cheaper than others?" When
+the vector is a bundle of noisy measurements, the right quadratic form is a *standardised
+squared distance* — and it turns out to follow a famous, tabulated distribution called the
+**chi-square**, which is what lets you attach a p-value to it. Test statistics all over
+statistics — from a goodness-of-fit test to a test of whether a whole bundle of noisy
+estimates is jointly consistent with zero — are exactly this shape.
+
+**Builds on:** [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd)
+(a matrix times a vector, the transpose, the inverse as "undo"),
+[variance structure & standardization](../variance-structure-and-standardization/lesson.qmd)
+(the covariance matrix, and dividing by spread to standardise), and
+[distributions & densities](../distributions-and-densities/lesson.qmd) (the normal bell curve,
+and what "distributed as" means).
+
+## Warm-up: do you remember?
+
+Three quick reps first — produce each from memory, then check.
+
+**1.** For a single measurement that landed at $x = 6$ when you expected $4$, with a typical
+wobble (standard deviation) of $2$: what is the standardised value $z = (x - 4)/2$, and what
+is $z^2$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$z = (6 - 4)/2 = 1$, so $z^2 = 1$. Dividing the gap by the wobble turns "2 units off" into "1
+wobble off"; squaring makes it a size (sign gone) you can compare across measurements. This
+"gap over spread, then squared" idea is from
+[variance structure & standardization](../variance-structure-and-standardization/lesson.qmd).
+:::
+
+**2.** In R, if `A` is a 2×2 matrix and `x` is a length-2 vector, what does
+`A %*% x` compute, and what does `solve(A)` give you?
+
+::: {.callout-note collapse="true" title="Answer"}
+`A %*% x` is the matrix-times-vector product: each entry of the result is one row of `A`
+dotted with `x`. `solve(A)` is the **inverse** $A^{-1}$ — the matrix that undoes `A`
+(so `solve(A) %*% A` is the identity). See
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd).
+:::
+
+**3.** A covariance matrix for two variables has variances on its diagonal and their
+covariance off the diagonal. For variables with variances $4$ and $9$ and covariance $0$,
+write the 2×2 covariance matrix.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\begin{bmatrix} 4 & 0 \\ 0 & 9 \end{bmatrix}$ — variances $4$ and $9$ on the diagonal, and
+$0$ off the diagonal because they don't co-move. See
+[variance structure & standardization](../variance-structure-and-standardization/lesson.qmd).
+:::
+
+## A tiny example first
+
+You measured two things and stacked their **deviations from what you expected** into a
+length-2 vector: $x = (3, 4)$. Think "measurement one came in 3 above target, measurement two
+came in 4 above target." You want ONE number that says how far this pair sits from
+$(0, 0)$ — from "no surprise at all."
+
+**The simplest such number** ignores any co-movement and just weights each deviation by how
+noisy that measurement is. Suppose measurement one has variance $9$ (noisy) and measurement
+two has variance $4$ (tighter). The standardised squared distance is
+
+- measurement one: $3^2 / 9 = 9/9 = 1$,
+- measurement two: $4^2 / 4 = 16/4 = 4$,
+- add them: $1 + 4 = 5$.
+
+So the pair's "total surprise" is **5**. Notice each term is a z-squared: deviation squared,
+divided by that measurement's variance. A big deviation in a *noisy* measurement counts for
+little; the same deviation in a *precise* measurement counts for a lot.
+
+The same thing in R, step by step:
+
+```{r toy-example}
+# The two deviations from expectation
+x <- c(3, 4)
+
+# Each measurement's variance (measurement one is noisier)
+v <- c(9, 4)
+
+# z-squared for each: deviation^2 / variance
+per_term <- x^2 / v
+per_term            # 1 and 4
+
+# Add them up: the total standardised squared distance
+sum(per_term)       # 5
+```
+
+## Getting a feel for it
+
+**Analogy — a distorted dartboard.** Ordinary (Euclidean) distance treats every direction as
+the same: two units north is as far as two units east. But suppose your dartboard is
+*stretched* — easy to drift east (that measurement is noisy), hard to drift north (that one
+is precise). A fair "how off-target am I?" score should count a big eastward miss as no big
+deal but a small northward miss as alarming. That is exactly what dividing each squared
+deviation by its variance does: it **shrinks the noisy directions and stretches the precise
+ones** before measuring distance. The general name for this stretched distance is the
+*Mahalanobis distance* (say it "mah-ha-la-NO-bis" — just a person's name); you don't need the
+name, only the picture: distance measured on a board that's been un-stretched so noisy
+directions count less.
+
+Where the analogy breaks: a real dartboard stretch is fixed by the board; here the "stretch"
+is the covariance matrix of your measurements, and it can also tilt (if the two measurements
+co-move), not just stretch along the axes. We handle the tilt in the formal version.
+
+**Why divide by the variance and not something else?** Because a raw squared deviation has
+units of "measurement squared," and a noisy measurement's deviations are *naturally* larger —
+comparing them raw would let the noisy measurement dominate for no good reason. Dividing by
+the variance converts each term into unit-free "wobbles-squared," so every measurement speaks
+on the same scale. It is the multi-number version of the single z-score you warmed up with.
+
+**What does 5 feel like?** With two measurements, a "typical" total under pure noise is around
+2 (each z-squared averages about 1, and there are two of them). A total of **5** is on the
+high side — more surprise than pure noise usually produces, but not wildly so. Halve the first
+deviation to $1.5$ and its term drops from $1$ to $0.25$, pulling the total down to $4.25$;
+double it to $6$ and its term jumps to $4$, pushing the total to $8$. The number moves as the
+square of the deviation, so surprises grow fast.
+
+## What the notation is going to say
+
+The formula will say: take your vector of deviations, and instead of just squaring-and-adding
+its entries, first **run it through the inverse of the covariance matrix**, then dot it back
+against itself. In our toy example, because the two measurements didn't co-move, the
+covariance matrix was diagonal ($9$ and $4$ on the diagonal, $0$ off it), its inverse is just
+$1/9$ and $1/4$ on the diagonal, and the whole thing collapses to exactly the
+"$3^2/9 + 4^2/4 = 5$" we already did. The matrix machinery only earns its keep when the
+measurements *do* co-move — then the inverse mixes the terms so shared wobble isn't
+double-counted.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\mathbf{x}$ | "the vector ex" | a column of numbers (here, deviations from expectation) | $(3, 4)$ |
+| $A$ | "the matrix A" | any square grid of numbers used to weight the vector | — |
+| $\mathbf{x}^\top$ | "ex transpose" | the vector laid on its side (a row instead of a column) so it can multiply from the left (in R: `t(x)`) | the row $(3\ \ 4)$ |
+| $\mathbf{x}^\top A\, \mathbf{x}$ | "ex transpose A ex" | a **quadratic form** — the single number you get by sandwiching $A$ between the vector and itself | — |
+| $V$ | "the matrix V" (for variance) | the covariance matrix of the measurements: variances on the diagonal, covariances off it | $\begin{bmatrix} 9 & 0 \\ 0 & 4 \end{bmatrix}$ |
+| $V^{-1}$ | "V inverse" | the matrix that undoes $V$ (in R: `solve(V)`); for a diagonal $V$ it just flips each diagonal entry to its reciprocal | $\begin{bmatrix} 1/9 & 0 \\ 0 & 1/4 \end{bmatrix}$ |
+| $\mathbf{x}^\top V^{-1} \mathbf{x}$ | "ex transpose V-inverse ex" | the **standardised squared distance** — the quadratic form using the covariance matrix | $5$ |
+| $\chi^2_k$ | "chi-square with k degrees of freedom" | the distribution this statistic follows; $\chi$ is the Greek letter *chi*, said "KY" (rhymes with "sky") | $\chi^2_2$ here |
+| $k$ | "k" | the **degrees of freedom** — here, how many independent numbers went into the sum | $2$ |
+| $Q$ | "Q" | a function label for the quadratic form | $Q(\mathbf{x}) = \mathbf{x}^\top A\,\mathbf{x}$ |
+| $X^2$ | "X-squared" | the standardised squared distance statistic | $X^2 = \mathbf{x}^\top V^{-1}\mathbf{x}$ |
+| $x_i$ | "x sub i" | the $i$-th entry of the vector $\mathbf{x}$ | $x_1 = 3,\ x_2 = 4$ |
+| $\sum$ | "the sum of" | add up the terms that follow | $\sum x_i^2$ |
+| $z$ | "zee" | a standardised measurement (deviation divided by its standard deviation) | $z = (6 - 4)/2 = 1$ |
+| $\sim$ | "is distributed as" | tells you a random quantity follows a named distribution | $z \sim N(0,1)$ |
+| $N(0,1)$ | "the standard normal" | the normal (bell-curve) distribution with mean $0$ and variance $1$ | $z \sim N(0,1)$ |
+
+## The formal version
+
+A **quadratic form** is any expression of the shape
+
+$$
+Q(\mathbf{x}) = \mathbf{x}^\top A\, \mathbf{x},
+$$
+
+read aloud "Q of x equals ex transpose, A, ex" — in everyday words, "sandwich the weighting
+matrix $A$ between the vector and itself to get one number." (When $A$ is the identity matrix,
+this is just $\sum x_i^2$, plain squared length; a general $A$ lets different directions carry
+different weight.)
+
+The version we care about uses the **inverse covariance matrix** as the weight:
+
+$$
+X^2 = \mathbf{x}^\top V^{-1} \mathbf{x},
+$$
+
+read "X-squared equals ex transpose, V-inverse, ex" — everyday words: "the squared distance
+of $\mathbf{x}$ from zero, measured on a scale that divides out the measurements' spread and
+co-movement." This single number is the **standardised squared distance**.
+
+**Mapping it onto the toy example.** Our covariance matrix was diagonal:
+
+- $V = \begin{bmatrix} 9 & 0 \\ 0 & 4 \end{bmatrix}$, so $V^{-1} = \begin{bmatrix} 1/9 & 0 \\ 0 & 1/4 \end{bmatrix}$ — the "$V^{-1}$" step is just "divide by each variance."
+- $V^{-1}\mathbf{x} = (3/9,\ 4/4) = (1/3,\ 1)$ — the "divide each deviation by its variance" step.
+- $\mathbf{x}^\top (V^{-1}\mathbf{x}) = 3\cdot\tfrac{1}{3} + 4\cdot 1 = 1 + 4 = 5$ — the final "dot it back against itself and add" step, matching our hand answer of **5**.
+
+Let's sanity-check that the matrix machinery gives the same 5, and then that it *changes* the
+answer once the measurements co-move:
+
+```{r formal-check}
+x <- c(3, 4)
+
+# Diagonal covariance: the matrix form must reproduce the by-hand 3^2/9 + 4^2/4 = 5
+V_diag <- matrix(c(9, 0,
+                   0, 4), nrow = 2, byrow = TRUE)
+Xsq_diag <- as.numeric(t(x) %*% solve(V_diag) %*% x)
+Xsq_diag                      # 5 — matches the hand computation
+
+# Now let the two measurements co-move (covariance 3): the off-diagonal changes the answer
+V_corr <- matrix(c(9, 3,
+                   3, 4), nrow = 2, byrow = TRUE)
+Xsq_corr <- as.numeric(t(x) %*% solve(V_corr) %*% x)
+Xsq_corr                      # different from 5 — the inverse now mixes the two terms
+```
+
+### Why is it chi-square, and what are the degrees of freedom?
+
+Here is the payoff. Suppose the vector $\mathbf{x}$ is pure noise: each entry is a draw from a
+normal (bell-curve) distribution, centred at zero, and $V$ is its true covariance matrix. Then
+the standardised squared distance $\mathbf{x}^\top V^{-1}\mathbf{x}$ is not just *some* number
+— it follows the **chi-square distribution with $k$ degrees of freedom**, where $k$ is the
+length of $\mathbf{x}$ (the number of independent measurements).
+
+The one-measurement case makes this believable: with a single standardised measurement
+$z \sim N(0,1)$, the "statistic" is just $z^2$, and *the square of a standard normal is by
+definition a chi-square with 1 degree of freedom*. Stacking $k$ independent standardised
+measurements and adding their squares gives a chi-square with $k$ degrees of freedom — the
+inverse-covariance sandwich is exactly what does the "standardise then add the squares" for
+correlated measurements too. The degrees of freedom count *how many independent squared
+things you added*.
+
+Why this matters: because the distribution is known and tabulated, you can turn the statistic
+into a **p-value** — "if this were pure noise, how often would the standardised squared
+distance be at least this big?" In R that's `pchisq(stat, df, lower.tail = FALSE)`.
+
+```{webr}
+#| autorun: true
+# TRY IT: change 'stat' or 'df' and re-run. PREDICT: does a bigger stat give a bigger or
+# smaller p-value?
+stat <- 5      # our toy standardised squared distance
+df   <- 2      # two measurements went in
+
+# The p-value: chance a pure-noise chi-square would be at least this big
+p <- pchisq(stat, df = df, lower.tail = FALSE)
+cat("stat =", stat, " df =", df, " p-value =", round(p, 4), "\n")
+# ~0.082: a total of 5 is on the high side for pure noise, but not decisively so
+```
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The chi-square density curve for 2 degrees of freedom, a right-skewed hump starting high at zero and tailing off; a vertical line at x = 5 marks the toy statistic, and the shaded area to its right is the p-value."
+# TRY IT: change df to 1, 3, or 5 and re-run — watch the curve's shape and where 5 lands.
+# PREDICT: as df grows, does the bulk of the curve sit at bigger or smaller values?
+df <- 2
+grid <- seq(0, 15, length.out = 400)
+plot(grid, dchisq(grid, df = df), type = "l", lwd = 2,
+     xlab = "value of the statistic", ylab = "density",
+     main = paste("chi-square with", df, "degrees of freedom"))
+abline(v = 5, col = "tomato", lwd = 2)              # our toy statistic
+tail_x <- seq(5, 15, length.out = 100)
+polygon(c(5, tail_x, 15), c(0, dchisq(tail_x, df), 0),
+        col = adjustcolor("tomato", 0.3), border = NA)  # shaded p-value
+legend("topright", legend = c("stat = 5", "p-value area"),
+       col = c("tomato", adjustcolor("tomato", 0.3)), lwd = c(2, 8), bty = "n")
+```
+
+```{webr}
+#| autorun: true
+# TRY IT: this SIMULATES the claim. Draw many pure-noise vectors, compute the statistic each
+# time, and check its average is about df. PREDICT: what should mean(stats) be for df = 2?
+set.seed(1)
+V <- matrix(c(9, 3, 3, 4), nrow = 2, byrow = TRUE)   # a covariance with co-movement
+L <- chol(V)                                          # so we can draw noise WITH this covariance
+n_sim <- 20000
+stats <- replicate(n_sim, {
+  z <- rnorm(2)                    # two independent standard-normal draws
+  x <- as.numeric(t(L) %*% z)      # reshape them to have covariance V
+  as.numeric(t(x) %*% solve(V) %*% x)   # the standardised squared distance
+})
+cat("mean of simulated statistic:", round(mean(stats), 3), " (chi-square df=2 has mean 2)\n")
+# A chi-square with k degrees of freedom has mean exactly k — here ~2, confirming df = 2
+```
+
+```{webr}
+#| autorun: true
+# The raw-formula computation and R's built-in mahalanobis() should agree exactly.
+# TRY IT: change V or x and re-run — the two numbers always match.
+x <- c(3, 4)
+V <- matrix(c(9, 3, 3, 4), nrow = 2, byrow = TRUE)
+
+# Raw formula: t(x) %*% solve(V) %*% x
+raw <- as.numeric(t(x) %*% solve(V) %*% x)
+
+# Built-in: mahalanobis(x, center, cov) computes the same standardised squared distance
+builtin <- mahalanobis(x, center = c(0, 0), cov = V)
+
+cat("raw formula:", raw, "\n")
+cat("mahalanobis():", builtin, "\n")
+cat("match:", all.equal(raw, builtin), "\n")
+```
+
+## Common traps
+
+**Trap: "just square and add the raw deviations."** Tempting, because plain squared length is
+what you learned first. But it ignores that some measurements are noisier than others. Our raw
+squared length is $3^2 + 4^2 = 25$; the *standardised* squared distance is only $5$. The 25
+treats a wobble in the noisy measurement as just as alarming as the same wobble in the precise
+one — which is exactly the mistake dividing by the variance fixes. Only when every measurement
+has variance $1$ and none co-move do the two agree.
+
+**Trap: "degrees of freedom is the sample size."** No — the degrees of freedom here is the
+**length of the vector you sandwiched** (how many independent squared things you added), not
+how many people or rows were in the study. Our toy statistic used a length-2 vector, so
+$df = 2$, regardless of how many observations produced those two deviations. Using the wrong
+$df$ gives the wrong p-value: `pchisq(5, df = 2, lower.tail = FALSE)` is about $0.082$, but
+`pchisq(5, df = 200, ...)` is essentially $1$ — a completely different verdict.
+
+## Check yourself
+
+**1.** For deviations $\mathbf{x} = (2, 6)$ with variances $4$ and $9$ and no co-movement,
+compute the standardised squared distance by hand.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check
+x <- c(2, 6)
+v <- c(4, 9)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$2^2/4 + 6^2/9 = 4/4 + 36/9 = 1 + 4 = 5$. In R: `sum(x^2 / v)` is `5`. Because the two don't
+co-move, the diagonal-$V$ shortcut "divide each squared deviation by its variance and add" is
+the whole story.
+:::
+
+**2.** You computed a statistic of $12$ from a length-3 deviation vector. Roughly, is that a
+lot of surprise or a little, and what R call gives the p-value?
+
+::: {.callout-note collapse="true" title="Answer"}
+A length-3 vector means $df = 3$, whose pure-noise average is $3$; a value of $12$ is four
+times that, so it is a **lot** of surprise. The p-value is
+`pchisq(12, df = 3, lower.tail = FALSE)` — about $0.007$, so pure noise would rarely produce
+something this big.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what
+$\mathbf{x}^\top V^{-1} \mathbf{x}$ measures and why it's built the way it is.
+
+::: {.callout-note collapse="true" title="A model answer"}
+It measures how far a whole bundle of noisy measurements landed from where you expected, but
+on a fair scale that counts wobble in a noisy measurement as less alarming than the same
+wobble in a precise one. It's built by dividing out the measurements' spread and co-movement
+(that's the $V^{-1}$) before adding up the squared gaps, so that under pure noise the total
+follows a known chi-square distribution and can be turned into a p-value.
+:::
+
+## What you can now do
+
+- **Read a quadratic form** $\mathbf{x}^\top A\, \mathbf{x}$ as "sandwich the matrix between
+  the vector and itself to get one number."
+- **Compute a standardised squared distance** $\mathbf{x}^\top V^{-1}\mathbf{x}$ by hand for a
+  diagonal covariance (divide each squared deviation by its variance and add) and in R for any
+  covariance (`t(x) %*% solve(V) %*% x`).
+- **Explain why it follows a chi-square distribution** and identify its **degrees of freedom**
+  as the length of the sandwiched vector.
+- **Turn the statistic into a p-value** with `pchisq(stat, df, lower.tail = FALSE)` and say
+  whether the value is surprising for pure noise.
+
+If any of these feels shaky, revisit the toy example and the "why is it chi-square" section
+before continuing — methods that build a test statistic (like a colocalisation
+test) assume all of them.
+
+## Where this goes next
+
+Any method that summarises a vector of noisy quantities into a single "how surprising?" score
+uses exactly this quadratic-form-and-chi-square shape. In a later course,
+the test statistic $X^2(\theta) = d(\theta)^\top V^{*}(\theta)^{-1} d(\theta)$ is
+*literally* a standardised squared distance of a vector of effect-size gaps — and its chi-square
+degrees of freedom is what you'll read off there.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

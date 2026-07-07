@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -38,7 +31,7 @@ and measure the slope along that single direction — a plain one-input slope in
 Second, the **gradient**: do that once for each knob and collect all the slopes into a
 vector. That vector points straight uphill, and its negative points straight downhill. We
 will build both from the numeric slope tool you already have, and read the symbol papers
-use for the gradient — $\nabla f$ — as ordinary R you can run.
+write for the gradient as ordinary R you can run.
 
 **Builds on:** [the derivative as a slope](../derivative-as-slope/lesson.qmd) — we reuse
 its numeric `slope_at()` central-difference tool and the fact that *slope zero means
@@ -165,9 +158,9 @@ knobs; the picture is just the 2-knob case you can actually see.)
 **Why "hold the others still"?** On a hillside, "what's the slope here?" has no single
 answer — it depends which way you face. Walk due east and you might be climbing; walk due
 north and you might be on the level. So to get *one* number you must commit to *one*
-direction. The partial derivative $\partial f/\partial a$ commits to the pure-$a$ direction:
-face straight along the $a$-axis, freeze every other dial, and read the ordinary
-one-input slope. Freezing the others is not a trick — it's the only way the question
+direction. The slope-in-one-direction (what the formula section will call the partial
+derivative) commits to the pure-$a$ direction: face straight along the $a$-axis, freeze
+every other dial, and read the ordinary one-input slope. Freezing the others is not a trick — it's the only way the question
 "the slope" has a definite answer. That's why each partial is *literally* a `slope_at()`
 call on a one-input slice of the surface.
 

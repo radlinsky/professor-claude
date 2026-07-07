@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -181,8 +183,8 @@ The log-likelihood is the log of the product of the per-flip pieces. The log rul
 $\log(ab\cdots) = \log a + \log b + \cdots$ lets you compute it either as one log of the
 whole product, or as the sum of the individual logs — they are the same number:
 
-- (a) $\log(0.6 \times 0.6 \times 0.6 \times 0.4) = \log(0.0864) \approx -2.4489$.
-- (b) $\log 0.6 + \log 0.6 + \log 0.6 + \log 0.4 \approx -2.4489$.
+- (a) $\log(0.6 \times 0.6 \times 0.6 \times 0.4) = \log(0.0864) \approx -2.4488$.
+- (b) $\log 0.6 + \log 0.6 + \log 0.6 + \log 0.4 \approx -2.4488$.
 
 Both are **negative**, because every piece is below 1 and the log of a number below 1 is
 negative. This equality is *why* log-likelihood is a sum — it's the product-to-sum rule
@@ -192,7 +194,7 @@ likelihood.
 ```{r p5-answer}
 pieces <- c(0.6, 0.6, 0.6, 0.4)
 c(log_of_product = log(prod(pieces)),   # (a)
-  sum_of_logs    = sum(log(pieces)))    # (b) -- both ~ -2.4489, identical
+  sum_of_logs    = sum(log(pieces)))    # (b) -- both ~ -2.4488, identical
 ```
 :::
 

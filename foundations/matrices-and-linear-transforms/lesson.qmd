@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -197,6 +190,7 @@ call dressed in a symbol.
 | $\mathbf{x}$ (bold) | "the vector x" | a whole column of numbers at once (an R vector!) | the prices $(3, 4, 5)$ |
 | $x_j$ | "x-sub-j" | the $j$-th entry of the vector $\mathbf{x}$ (in R: `x[j]`) | $x_2 = 4$ |
 | $n \times p$ | "n by p" | a matrix's shape: $n$ rows, $p$ columns | $A$ is $2 \times 3$ |
+| $m$ | "m" | the column count of the second matrix in a product | $B$ has $m = 2$ columns |
 | $A\mathbf{x}$ | "A times x" | matrix times vector: one dot product per row (in R: `A %*% x`) | $(15, 11)$ |
 | $AB$ | "A times B" | matrix times matrix: every row of $A$ dotted with every column of $B$ (in R: `A %*% B`) | (below) |
 | $B_{jk}$ | "B-sub-j-k" | the entry in row $j$, column $k$ of $B$ (in R: `B[j, k]`) | used in $AB$ below |
@@ -374,7 +368,7 @@ B %*% A      # a 3x3 result -- completely different: matrix multiply is not comm
 ```
 
 ```{webr}
-#| autorun: false
+#| autorun: true
 # explore-3 — LIVE: the inverse undoes the matrix. Then break it.
 # PREDICT: solve(M) %*% M -- what matrix should you get back? Write it, then run.
 M <- matrix(c(2, 1,

@@ -15,12 +15,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The R cell below with a **Run** button is live (WebR) — you rebuild the predicted
-probabilities from the fitted coefficients right here. The `glm()` output itself is baked
-in at build time (it uses R's `stats` package, which isn't in the browser build), so it's
-shown for reading, with a note beside it.
-:::
 
 ## Where we're going
 

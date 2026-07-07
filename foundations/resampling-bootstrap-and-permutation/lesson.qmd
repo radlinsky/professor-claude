@@ -18,18 +18,12 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
 Sometimes you can look up a formula for the wobble of a statistic — for the sample
-*mean*, the standard error is $s/\sqrt{n}$, and you're done. But for a **median**, a
+*mean*, the standard error is $s/\sqrt{n}$ (where $s$ (the sample standard deviation)
+and $n$ (the sample size) are decoded in the table below), and you're done. But for a **median**, a
 **correlation**, a **90th percentile**, or the gap between two groups, there is often
 no clean formula at all. **Resampling** is the escape hatch: instead of deriving the
 wobble on paper, you *manufacture* it from the one sample you already have — by
@@ -190,6 +184,7 @@ pile: chop off the lowest 2.5% and the highest 2.5% with `quantile(., c(.025, .9
 | $\bar{x}^{*}$ | "ex bar star" | the same statistic on **one resample**; the star means "from a resample" | 5.8 for the first resample |
 | $\bar{x}^{*}_1, \dots, \bar{x}^{*}_R$ | "ex bar star sub one … up to sub R" | the resampled statistic from resample 1, 2, …, $R$ — the pile we histogram | 5.8, 5.4, … |
 | $\mathrm{SE}$ | "the standard error" | the wobble of the statistic — here the `sd()` of the resampled pile | ≈ 0.76 |
+| $\mathrm{SE}_{\text{boot}}$ | "S-E sub boot" | the bootstrap estimate of the standard error — the `sd()` of the resampled statistics | ≈ 0.76 |
 | $s$ | "ess" | the sample standard deviation — the spread of your data (in R: `sd(x)`) | ≈ 1.92 |
 | $n$ | "en" | the sample size — how many numbers we resample each time (in R: `length(x)`) | 5 |
 | $R$ | "big R" | how many resamples we take (in R: `replicate(R, ...)`) | 2000 |
@@ -383,6 +378,24 @@ almost never happens when the labels are meaningless, so the label looks like it
 **How extreme "extreme enough" is** — turning the picture into a p-value and a decision —
 is the [hypothesis-tests module's](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
 job; resampling's job is just to build the pile.
+
+```{webr}
+#| autorun: true
+# explore-4 — LIVE sanity check: bootstrap SE ≈ formula SE for the mean.
+# For the mean we DO have a formula: s/sqrt(n). Run this and confirm the two agree.
+# PREDICT: will they match exactly, or just approximately? Why?
+set.seed(42)
+mysample <- c(4, 7, 6, 9, 5)
+boot_means <- replicate(2000, mean(sample(mysample, length(mysample), replace = TRUE)))
+
+boot_se    <- sd(boot_means)                          # bootstrap SE
+formula_se <- sd(mysample) / sqrt(length(mysample))   # the s/sqrt(n) shortcut
+
+c(bootstrap_SE = boot_se,    # ~0.76
+  formula_SE   = formula_se) # ~0.86
+# They're close — the bootstrap agrees with the formula where a formula exists,
+# which is exactly why we trust it where one does NOT.
+```
 
 ## When resampling beats a formula — and when it fails
 

@@ -281,8 +281,10 @@ explicit TODO. ☐ Zero unverified URLs anywhere.
    baked `{r}` chunk must execute; live `{webr}` cells are emitted for the browser and
    are NOT run at build (their in-browser execution is a manual/CI check — see
    `.claude/course-authoring/interactive-webr.md`). Fix errors and re-render until
-   green. (No quarto/R available? Say so explicitly in your final report — never claim
-   it rendered.)
+   green. Then run `Rscript scripts/check-webr-cells.R` — the native-R proxy that
+   executes every `#| autorun: true` `{webr}` cell (render skips them; CI runs this
+   same script) — and fix any failure. (No quarto/R available? Say so explicitly in
+   your final report — never claim it rendered.)
 2. Open the rendered HTML of one lesson and confirm the answer callouts are
    collapsed by default.
 3. If any lesson added an R package (a non-empty `needed` vector), run
@@ -298,10 +300,21 @@ explicit TODO. ☐ Zero unverified URLs anywhere.
      `_quarto.yml` foundation blocks. Never hand-edit between the generated markers.
      The generator preserves each existing *Status* value; verify with
      `Rscript scripts/gen-indexes.R --check` (exit 0).
+5. **Back-check existing courses for missing prerequisites (new foundations only).**
+   For each NEW foundation module created in this build, grep existing course and
+   foundation lessons for inline teaching of the same concepts (e.g. a "refresher"
+   block, a from-scratch worked example, or a compressed reteaching). Use the new
+   foundation's Concepts field from its `meta.dcf` as search terms. Flag any
+   existing lesson that teaches the concept inline instead of building on the new
+   foundation — report these in your final Notes as "existing courses that may need
+   a prerequisite update" (fixing them is an update-course task, not this build's
+   scope).
 
 (The final report to the user happens in Phase 8, after the content review.)
 
-**GATE 7:** ☐ Render green (or inability honestly reported). ☐ Callouts collapsed.
+**GATE 7:** ☐ Render green (or inability honestly reported). ☐ `Rscript
+scripts/check-webr-cells.R` green (every autorun `{webr}` cell executes). ☐ Callouts
+collapsed.
 ☐ `renv.lock` snapshotted if packages were added. ☐ `courses/README.md` updated by
 hand; each new foundation module has a `meta.dcf` and `Rscript scripts/gen-indexes.R`
 was run. ☐ `Rscript scripts/gen-indexes.R --check` exits 0. ☐ Existing rows' *Status*

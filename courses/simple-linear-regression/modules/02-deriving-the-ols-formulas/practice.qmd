@@ -1,7 +1,10 @@
 ---
 title: "Practice: Deriving the OLS formulas"
 subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
 ---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
 
 ```{r setup}
 #| message: false
@@ -13,6 +16,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -21,8 +26,9 @@ then open the answer.
 Find the bottom of $f(b) = (b - 5)^2 + 1$ two ways: (a) guess-and-check at
 $b = 3, 4, 5, 6, 7$; (b) take the derivative, set it to zero, solve.
 
-```{r p1-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
 f <- function(b) (b - 5)^2 + 1
 ```
 
@@ -89,8 +95,9 @@ formulas to find the **best** one: compute $\bar{x}$, $\bar{y}$, $s_{xy}$, $s_x^
 then $\hat{\beta}_1$ and $\hat{\beta}_0$. Check with `lm()`, and note how much lower
 the best line's SSE is than the guessed line's (which scored 1 back in module 01).
 
-```{r p4-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p4-starter — edit and Run to solve, right here
 x <- c(1, 2, 3); y <- c(3, 4, 6)
 ```
 
@@ -122,8 +129,9 @@ The slope formula divides by $s_x^2$. Predict what happens when all x values are
 identical (say every plant got exactly 2 scoops) — then confirm with the starter,
 and explain in plain English why no slope *could* be estimated.
 
-```{r p5-starter}
-# Starter — your job: try the by-hand slope formula AND lm() on this data
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
 x <- c(2, 2, 2, 2)
 y <- c(2, 3, 5, 6)
 ```
@@ -197,9 +205,9 @@ $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$. Enter one decimal.
 What does the Step-1 result $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$ imply
 geometrically?
 
-a) It tells you the slope must be positive for any real dataset
-b) It proves the best line has the smallest possible slope for the data
-c) The fitted line always passes through $(\bar{x},\bar{y})$
+a) It tells you the slope must be positive for any real dataset with an upward trend
+b) It proves the best line has the smallest possible slope among all candidate lines
+c) The fitted line always passes through the point of means $(\bar{x},\bar{y})$
 :::
 
 ::: {.quiz-q qid="ols-chain-rule" qtype="mc" answer="b"}

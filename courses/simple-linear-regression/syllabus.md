@@ -32,7 +32,13 @@ table as a refresher instead.
 |---|---|
 | [reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) | The standing first prerequisite — it decodes the accents, Greek letters, subscripts, and operators every other formula uses. New? take it fully; done before? skim its symbol table. |
 | [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) | Every regression formula is written with $x_i$, $n$, and Σ; the derivation in Module 2 leans on sum-Rules 1–3. |
+| [derivative-as-slope](../../foundations/derivative-as-slope/lesson.qmd) | Module 2's derivation finds a valley bottom by setting the slope to zero — you need to know what "the derivative is the slope" means. |
 | [mean-variance-covariance](../../foundations/mean-variance-covariance/lesson.qmd) | The slope estimate IS covariance ÷ variance; deviations-from-the-mean do all the work. |
+| [loss-functions-and-optimization](../../foundations/loss-functions-and-optimization/lesson.qmd) | The SSE is a loss function; Module 2 applies the "differentiate, set to zero, solve" recipe from this foundation. |
+| [differentiation-rules](../../foundations/differentiation-rules/lesson.qmd) | Module 2's derivation uses the power rule and chain rule to differentiate the SSE. |
+| [partial-derivatives-and-the-gradient](../../foundations/partial-derivatives-and-the-gradient/lesson.qmd) | SSE has two knobs ($b_0$, $b_1$); Module 2 takes a partial derivative with respect to each. |
+| [randomness-samples-and-sampling-distributions](../../foundations/randomness-samples-and-sampling-distributions/lesson.qmd) | Module 3 decodes the `Std. Error` column — the typical bounce of an estimate across hypothetical re-runs. You need the sampling-distribution idea first. |
+| [hypothesis-tests-p-values-and-confidence-intervals](../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd) | Module 3 decodes the `t value` and `Pr(>\|t\|)` columns — the test statistic and p-value. You need the null-hypothesis testing framework first. |
 
 ## Course modules
 

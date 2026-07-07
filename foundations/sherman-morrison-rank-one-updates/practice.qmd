@@ -1,0 +1,185 @@
+---
+title: "Practice: Sherman–Morrison rank-1 updates"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — one update by hand, new numbers
+
+Let $A = \begin{pmatrix} 4 & 0 \\ 0 & 1 \end{pmatrix}$ (so
+$A^{-1} = \begin{pmatrix} 0.25 & 0 \\ 0 & 1 \end{pmatrix}$), and bump the bottom-right
+entry by 1 with $u = v = (0, 1)$. Use Sherman–Morrison to find $(A + uv^\top)^{-1}$, then
+check against the obvious inverse.
+
+```{webr}
+#| autorun: false
+# p1-starter
+A <- matrix(c(4, 0, 0, 1), 2); u <- c(0, 1); v <- c(0, 1)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$A^{-1}u = (0, 1)$, $v^\top A^{-1} u = 1$, denominator $= 1 + 1 = 2$. The rank-1
+correction is $\begin{pmatrix}0&0\\0&1\end{pmatrix}/2 = \begin{pmatrix}0&0\\0&0.5\end{pmatrix}$.
+Subtract from $A^{-1}$: bottom-right becomes $1 - 0.5 = 0.5$, so
+$(A+uv^\top)^{-1} = \begin{pmatrix}0.25&0\\0&0.5\end{pmatrix}$ — the inverse of
+$\begin{pmatrix}4&0\\0&2\end{pmatrix}$, as expected.
+:::
+
+## Problem 2 — fill in the missing step
+
+Applying Sherman–Morrison, someone has computed $A^{-1}u = (2, -1)$, $v^\top A^{-1} = (2, -1)$
+(as a row), and $v^\top A^{-1} u = 5$.
+
+- Step 1: numerator (rank-1 matrix) $= (A^{-1}u)(v^\top A^{-1}) = \begin{pmatrix}2\\-1\end{pmatrix}(2, -1) = \begin{pmatrix}4 & -2\\ -2 & 1\end{pmatrix}$.
+- Step 2: **your step here** — form the full correction term.
+- Step 3: subtract it from $A^{-1}$ to get the updated inverse.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: divide the numerator by the scalar $1 + v^\top A^{-1}u = 1 + 5 = 6$:
+$\text{correction} = \dfrac{1}{6}\begin{pmatrix}4 & -2\\ -2 & 1\end{pmatrix}
+= \begin{pmatrix}2/3 & -1/3\\ -1/3 & 1/6\end{pmatrix}$. The easy-to-forget move is dividing
+by $1 + v^\top A^{-1}u$ (not by $v^\top A^{-1}u$ alone).
+:::
+
+## Problem 3 — it matches `solve()`, in R
+
+For the random 5×5 matrix below, update its inverse for the rank-1 change $u v^\top$ using
+Sherman–Morrison, and confirm it matches a fresh `solve(A + u %*% t(v))`.
+
+```{webr}
+#| autorun: false
+# p3-starter — build the SM update and compare to a fresh solve
+set.seed(4); p <- 5
+A <- crossprod(matrix(rnorm(p * p), p)); Ai <- solve(A)
+u <- rnorm(p); v <- rnorm(p)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The update reproduces a fresh inverse to ~$10^{-15}$.
+
+```{r}
+set.seed(4); p <- 5
+A <- crossprod(matrix(rnorm(p * p), p)); Ai <- solve(A); u <- rnorm(p); v <- rnorm(p)
+Aiu <- Ai %*% u
+sm  <- Ai - (Aiu %*% (t(v) %*% Ai)) / as.numeric(1 + t(v) %*% Aiu)
+max(abs(sm - solve(A + u %*% t(v))))      # ~1e-15
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague writes: *"Sherman–Morrison is only an approximation, so for anything important
+I re-invert from scratch to be safe — the update would drift."* This contains **exactly
+one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: calling it an approximation that "drifts." Sherman–Morrison is an **exact
+algebraic identity** — it equals a fresh inverse to floating-point precision (`all.equal`
+returns `TRUE`; the difference is ~$10^{-15}$, the same rounding you'd see between any two
+computations of an inverse). There is no drift and no accuracy reason to re-invert; the
+only reason to re-invert would be a zero denominator (a singular result).
+:::
+
+## Problem 5 — mixing it with matrices *(uses matrices-and-linear-transforms' outer product)*
+
+Without any inverse: for $u = (1, 2, 0)$ and $v = (3, 0, 1)$, write out the rank-1 matrix
+$u v^\top$, and state its rank.
+
+```{webr}
+#| autorun: false
+u <- c(1, 2, 0)
+v <- c(3, 0, 1)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$u v^\top = \begin{pmatrix}1\\2\\0\end{pmatrix}(3, 0, 1)
+= \begin{pmatrix} 3 & 0 & 1 \\ 6 & 0 & 2 \\ 0 & 0 & 0 \end{pmatrix}$. Its **rank is 1** —
+every row is a multiple of $(3, 0, 1)$ (and every column a multiple of $u$). That is why
+the change is called "rank-1," and why the correction to the inverse is also rank-1.
+:::
+
+## Problem 6 — transfer: when the update refuses
+
+Sherman–Morrison has a denominator $1 + v^\top A^{-1} u$. Construct (in words) a situation
+where this is zero, say what it means about $A + uv^\top$, and why that's the *right*
+behavior. *(In the next course, this is what a ridge $\lambda$ prevents.)*
+
+::: {.callout-note collapse="true" title="Answer"}
+If $v^\top A^{-1} u = -1$, the denominator is 0 and the formula blows up. That's not a bug:
+it happens exactly when the rank-1 change $u v^\top$ makes $A + u v^\top$ **singular** (no
+inverse exists), so there is nothing for the formula to return. The update faithfully
+reports "no inverse here." In a variable-selection search, near-singular correlation
+matrices make this denominator tiny and the update unstable — which is why the next course
+adds a ridge $\lambda$ to the diagonal to keep the matrix comfortably invertible.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/sherman-morrison-rank-one-updates" pass="4"}
+
+::: {.quiz-q qid="smru-exact" qtype="mc" answer="b"}
+Is the Sherman–Morrison update an approximation?
+
+a) Yes — small errors accumulate over many updates
+b) No — it is an exact algebraic identity; differences are only $\sim 10^{-15}$ floating-point rounding
+c) Yes — it is a first-order Taylor approximation
+:::
+
+::: {.quiz-q qid="smru-fails-when" qtype="mc" answer="a"}
+Sherman–Morrison fails in exactly one case. Which?
+
+a) When $1 + v^\top A^{-1} u = 0$ — precisely when $A + uv^\top$ is singular and has no inverse
+b) When the update vector $u$ is longer than $v$
+c) When $A$ is symmetric
+:::
+
+::: {.quiz-q qid="smru-cost" qtype="mc" answer="c"}
+Why use Sherman–Morrison instead of recomputing the inverse from scratch after a rank-1
+change?
+
+a) It is more accurate than a fresh solve
+b) A fresh inverse cannot handle rank-1 changes
+c) It costs $O(p^2)$ per update versus $O(p^3)$ for a fresh inverse — a big saving inside a loop
+:::
+
+::: {.quiz-q qid="smru-woodbury" qtype="mc" answer="a"}
+Sherman–Morrison generalizes to higher-rank updates under what name?
+
+a) The Woodbury identity
+b) The quadratic formula
+c) Gaussian elimination
+:::
+
+::: {.quiz-q qid="smru-singular" qtype="mc" answer="b"}
+(From matrices & linear transforms.) Sherman–Morrison fails exactly when the updated
+matrix is singular. What does "singular" mean?
+
+a) The matrix is symmetric
+b) The matrix has no inverse (redundant rows or columns)
+c) The matrix is very large
+:::
+
+:::
+
+::::

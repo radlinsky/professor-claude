@@ -53,6 +53,39 @@ set: every course module represented, mixed order, no labels saying which module
 each problem comes from — retrieval is the point. Format in `course-structure.md`
 §Capstone.
 
+## Fresh-rep rounds (relearning sets)
+
+The set for a learner who already worked the original ramp but needs more reps —
+typically after a **Module-check miss** (TEACHING.md §Module check's relearning
+loop), or on request once the original answers are remembered. Re-solving a
+memorized problem retrieves the *answer*, not the *procedure*; a fresh round makes
+the retrieval real again.
+
+- **Where they live:** appended **inside the module's existing `practice.qmd`**, as
+  a `## Extra reps — round 2` section (then round 3, …) placed immediately
+  **before** the `## Module check` section — the quiz stays the file's last section
+  (checklist check 20). **Never a new file**: every rendered page must be registered
+  in `_quarto.yml`, and foundation sidebars are generated from `meta.dcf`, so a
+  `practice-2.qmd` breaks index-check CI without generator changes. Appending
+  touches no index, no registration, no CI.
+- **Open the round with one orientation line** telling the learner why it exists:
+  "Fresh numbers, same skills — your round-1 answers won't help you here, which is
+  the point."
+- **Abbreviated ramp — 3–5 problems.** The original ramp's scaffolds (faded worked
+  example, cliffhanger) are first-encoding tools; a relearning round drops them.
+  Include: fresh **full problems** on the target skills (the skills the missed quiz
+  items point at, or the module's core moves if no miss is named), **one
+  spot-the-error** built from a lesson trap with a *different* planted mistake than
+  round 1's, **one labeled interleaved** problem (when earlier material exists), and
+  **one interpretation** question. Ramp lightly within the round (easiest first).
+- **The freshness rule (the whole point):** same constructions, different surface —
+  every number, vector, and context must differ from **every earlier round** (and
+  from the lesson's toy example), so a remembered answer earns nothing. Grep the
+  file for the old data values to be sure; recompute every new answer from scratch.
+- Everything else is unchanged: copy-able live starters, hidden fully-worked
+  answers, the lesson's exact notation, no new symbols. Problem numbering continues
+  the file's sequence (`## Problem 7 …`) so starter comments stay unique.
+
 ## Copy-able data (non-negotiable)
 
 Any question that hands the learner specific data to compute with — a vector, a
@@ -78,7 +111,8 @@ x <- c(3, 1, 4, 2)
 
 Chunk-label convention: `{webr}` starters take no label — name them in a leading
 comment (`# pN-starter` in practice sets, `# checkN-starter` in lesson "Check
-yourself" questions). Comment names must be unique within the file.
+yourself" questions, `# warmupN-starter` in lesson Warm-ups). Comment names must be
+unique within the file.
 
 **Exempt from the starter chunk:** problems that use a built-in dataset (e.g.
 `mtcars`) — nothing to retype — and prompts stated entirely with scalars already in

@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -285,6 +278,18 @@ Or use Rule 2 (pull the constant out): $2 \sum x_i = 2 \times 12 = 24$. In R:
 No. Square-then-add: $4 + 16 + 36 = 56$ (`sum(x^2)`). Add-then-square:
 $12^2 = 144$ (`sum(x)^2`). The Σ only applies to what's written directly to its
 right — parentheses change the order of operations, exactly like in R.
+:::
+
+**3.** In two sentences, explain to a colleague what the big Σ means and why it is
+written with a counter $i$ and an upper bound $n$ instead of just listing the numbers.
+Don't use a formula — use words only.
+
+::: {.callout-note collapse="true" title="Model answer"}
+The big Σ is shorthand for "walk through a list from the first item to the last,
+adding each one to a running total as you go" — it is exactly a `for` loop frozen
+into a single symbol. The counter $i$ and the bound $n$ are there because they let
+one compact recipe describe adding up any list, whether it has 3 values or 3 million,
+without having to write out every term.
 :::
 
 ## What you can now do

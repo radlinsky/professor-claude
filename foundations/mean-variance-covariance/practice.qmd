@@ -1,7 +1,10 @@
 ---
 title: "Practice: The mean, variance & covariance"
 subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
 ---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
 
 ```{r setup}
 #| message: false
@@ -13,6 +16,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -21,8 +26,9 @@ then open the answer.
 Four mushrooms weigh $x = (3, 1, 4, 2)$ grams. By hand: find $\bar{x}$, the four
 deviations, and $s_x^2$. Check with `mean()` and `var()`.
 
-```{r p1-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p1-starter — Starter: copy this to begin
 x <- c(3, 1, 4, 2)
 ```
 
@@ -56,8 +62,9 @@ the last line.
 > $\sum (x_i - \bar{x})(y_i - \bar{y}) = \underline{\phantom{00}}$
 > Finally divide by $n - 1 = 2$: $\;s_{xy} = \underline{\phantom{00}}$.
 
-```{r p2-starter}
-# Starter — copy this to check your two blanks
+```{webr}
+#| autorun: false
+# p2-starter — Starter: copy this to check your two blanks
 x <- c(1, 3, 5)
 y <- c(2, 2, 8)
 ```
@@ -131,8 +138,9 @@ A colleague computes the variance of $x = (4, 8, 12)$ like this. It contains
 > "Mean is $(4 + 8 + 12)/3 = 8$. Deviations $-4, 0, 4$; squared $16, 0, 16$; they
 > sum to $32$. There are $n = 3$ values, so the variance is $32 / 3 \approx 10.67$."
 
-```{r p5-starter}
-# Starter — copy this to check the corrected answer
+```{webr}
+#| autorun: false
+# p5-starter — Starter: copy this to check the corrected answer
 x <- c(4, 8, 12)
 ```
 
@@ -150,21 +158,52 @@ var(x)                            # 16 — R agrees (it uses n - 1)
 ```
 :::
 
-## Problem 6 — the formula IS the function (in R)
+## Problem 6 — interleaved *(uses vectors & summation's sum rules)*
+
+For $x = (5, 10, 15)$: expand $\sum_{i=1}^{3}(x_i - \bar{x})^2$ step by step
+using sum rules from [vectors & summation](../vectors-and-summation/lesson.qmd).
+First find $\bar{x}$, then write out each $(x_i - \bar{x})^2$ term, sum them, and
+finally divide by $n - 1$ to get $s_x^2$. Check with `var()`.
+
+```{webr}
+#| autorun: false
+# p6-interleaved — Starter
+x <- c(5, 10, 15)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\bar{x} = (5 + 10 + 15)/3 = 10$.
+
+Deviations: $5 - 10 = -5$, $10 - 10 = 0$, $15 - 10 = 5$.
+
+Expanding the sum term by term (writing out $\sum_{i=1}^{3}$ as three addends):
+$$\sum_{i=1}^{3}(x_i - \bar{x})^2 = (-5)^2 + (0)^2 + (5)^2 = 25 + 0 + 25 = 50$$
+
+Divide by $n - 1 = 2$: $s_x^2 = 50 / 2 = 25$.
+
+```{r p6-interleaved-answer}
+x <- c(5, 10, 15)
+sum((x - mean(x))^2) / (length(x) - 1)   # 25
+var(x)                                    # 25 — same
+```
+:::
+
+## Problem 7 — the formula IS the function (in R)
 
 Starter below. Compute the covariance of `x` and `y` **without** `cov()` — build it
 straight from the formula $s_{xy} = \frac{1}{n-1}\sum (x_i - \bar{x})(y_i - \bar{y})$
 — then confirm against `cov(x, y)`.
 
-```{r p6-starter}
-# Starter data — your job: covariance by hand, then check with cov()
+```{webr}
+#| autorun: false
+# p7-starter — Starter data: your job is covariance by hand, then check with cov()
 set.seed(42)
 x <- rnorm(500, mean = 10, sd = 2)
 y <- 3 * x + rnorm(500, sd = 5)
 ```
 
 ::: {.callout-note collapse="true" title="Answer"}
-```{r p6-answer}
+```{r p7-answer}
 set.seed(42)
 x <- rnorm(500, mean = 10, sd = 2)
 y <- 3 * x + rnorm(500, sd = 5)
@@ -181,7 +220,7 @@ If you can write this line, you can *read* the covariance formula in any paper �
 they are the same statement in two languages.
 :::
 
-## Problem 7 — a gentle cliffhanger
+## Problem 8 — a gentle cliffhanger
 
 Using the `mtcars` variables again: compute `cov(mtcars$wt, mtcars$mpg) /
 var(mtcars$wt)`. Keep that number. Then run `coef(lm(mpg ~ wt, data = mtcars))` and
@@ -189,7 +228,7 @@ compare. (Explaining WHY those match is the whole point of the
 [simple-linear-regression course](../../courses/simple-linear-regression/syllabus.md).)
 
 ::: {.callout-note collapse="true" title="Answer"}
-```{r p7-answer}
+```{r p8-answer}
 cov(mtcars$wt, mtcars$mpg) / var(mtcars$wt)   # -5.344
 coef(lm(mpg ~ wt, data = mtcars))             # slope: -5.344
 ```
@@ -235,7 +274,7 @@ c) The variance comes out negative
 Rescaling $y$ from liters to milliliters multiplies the covariance by $1000$, though the
 relationship is unchanged. What does this say about judging strength by covariance size?
 
-a) Size is unreliable — covariance carries the variables' units; the *sign* is the trustworthy part, and correlation gives a comparable size
+a) Covariance size is unreliable; the sign is the trustworthy part
 b) A bigger covariance always means a stronger relationship
 c) The relationship genuinely became $1000$ times stronger
 :::

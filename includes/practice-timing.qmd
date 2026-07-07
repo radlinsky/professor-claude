@@ -1,0 +1,7 @@
+::: {.callout-tip title="📋 When to do what on this page" collapse="true"}
+**Practice problems (now):** Work these in the same sitting as the lesson — feedback while the attempt is fresh is the point.
+
+**Module check (tomorrow or later):** The quiz at the bottom is collapsed for a reason — come back **at least a day from now**. The gap makes the retrieval effortful, which is what builds durable memory.
+
+**Scored under 4/5?** Don't re-grind these same problems (you'll just recall the answers). Ask Claude Code for fresh practice: run `/add-problems` to generate new problems on the skills you missed. Work them in a **new session**, then retake the quiz after another gap.
+:::

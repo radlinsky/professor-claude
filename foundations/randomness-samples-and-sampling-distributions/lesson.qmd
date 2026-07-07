@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -231,10 +224,10 @@ own `sd()`:
 set.seed(42)
 one_sample <- rnorm(25, mean = 100, sd = 15)
 mean(one_sample)   # ~102.8 — one sample's mean
-sd(one_sample)     # ~19.6 — the spread of the DATA (near the true sigma = 15)
+sd(one_sample)     # ~19.6 — the spread of the DATA (samples of 25 can land this far from σ = 15)
 ```
 
-The data's spread is about **19.6** (it estimates $\sigma = 15$, the population spread).
+The data's spread is about **19.6** (it estimates $\sigma = 15$, though individual samples of 25 can stray this far from the true value).
 The standard error is about **3.0**. These are wildly different numbers describing two
 different things: 19.6 is "how spread out the 25 measurements are"; 3.0 is "how much the
 *average of 25* would jump if I redrew." Same data, two spreads — never swap them.

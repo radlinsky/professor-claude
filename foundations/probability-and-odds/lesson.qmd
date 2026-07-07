@@ -16,13 +16,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -99,7 +92,8 @@ log-odds of exactly $0$ means a 50/50 event (odds of 1, probability $0.5$); a ne
 log-odds means it's *less* likely than not.
 
 And you can walk back the other way. Given odds, probability is $p = \text{odds} /
-(1 + \text{odds}) = 3/4 = 0.75$ again. Given a log-odds, exponentiate first to recover
+(1 + \text{odds}) = 3/4 = 0.75$ again (the formal version below shows the one-step
+algebra behind this). Given a log-odds, exponentiate first to recover
 the odds ($e^{1.099} \approx 3$), then convert.
 
 The same thing in R, so you can check every step:
@@ -326,7 +320,8 @@ it without ever poking outside a valid range.
   log-odds over all real numbers — and why that last range is the useful one for
   line-based models.
 
-If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) —
+If converting between scales feels shaky, revisit [The formal version](#the-formal-version);
+if the *why* feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) —
 the "three scales, one fact" table is the thing to have solid before any course uses it.
 
 ## Where this goes next
