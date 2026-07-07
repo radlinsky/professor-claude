@@ -228,7 +228,7 @@ points(0, exp(0), pch = 16)     # e^0 = 1
 ```
 
 ```{webr}
-#| autorun: false
+#| autorun: true
 # explore-2 — LIVE: log and exp really are inverses. Feed a number through both.
 # PREDICT: what will `log(exp(z))` and `exp(log(z))` each equal? Guess, then run.
 z <- 7                          # <-- try other POSITIVE numbers
@@ -237,7 +237,7 @@ c(round_trip_1 = log(exp(z)),   # exp then log
 ```
 
 ```{webr}
-#| autorun: false
+#| autorun: true
 # explore-3 — LIVE: the "products become sums" rule is what makes logs useful.
 # PREDICT: multiply these three numbers, then take the log. Will it equal the SUM of
 # their three individual logs? Write yes/no, then run.

@@ -243,7 +243,7 @@ derivative of $x^3$ is $3x^2$, then $x^3$ is an **antiderivative** of $3x^2$.
 Let's check with numbers. If $F(x) = x^3$, is $F'(x) = 3x^2$?
 
 - At $x = 2$: the slope of $x^3$ should be $3 \times 2^2 = 12$. Measure it:
-  $(f(2.01) - f(1.99))/(0.02) = (8.120601 - 7.880599)/0.02 \approx 12$. Check.
+  $(F(2.01) - F(1.99))/(0.02) = (8.120601 - 7.880599)/0.02 \approx 12$. Check.
 
 So the antiderivative of $3x^2$ is $x^3$ — and the remarkable thing is that the
 definite integral of $3x^2$ from $0$ to $3$ equals exactly $F(3) - F(0) = 27 - 0 = 27$.

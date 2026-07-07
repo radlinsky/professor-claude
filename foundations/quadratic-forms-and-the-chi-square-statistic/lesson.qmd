@@ -381,8 +381,7 @@ test) assume all of them.
 ## Where this goes next
 
 Any method that summarises a vector of noisy quantities into a single "how surprising?" score
-uses exactly this quadratic-form-and-chi-square shape. In the
-a later course,
+uses exactly this quadratic-form-and-chi-square shape. In a later course,
 the test statistic $X^2(\theta) = d(\theta)^\top V^{*}(\theta)^{-1} d(\theta)$ is
 *literally* a standardised squared distance of a vector of effect-size gaps — and its chi-square
 degrees of freedom is what you'll read off there.

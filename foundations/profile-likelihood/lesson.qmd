@@ -192,7 +192,7 @@ bookkeeping that turns $n$ into $n-1$ when you estimate a mean before computing 
 "used up" one number.
 
 ```{webr}
-#| autorun: false
+#| autorun: true
 # TRY IT: SIMULATE the degrees-of-freedom rule. We build a fit statistic over n=3 noisy numbers
 # that would be chi-square_3 if the shared level were known, then PROFILE OUT that level (its
 # best-fit is the mean). PREDICT: after profiling one parameter, is the average statistic 3 or 2?
@@ -212,7 +212,7 @@ cat("mean of profiled statistic:", round(mean(stats), 3),
 ## Explore it
 
 ```{webr}
-#| autorun: false
+#| autorun: true
 #| fig-alt: "A U-shaped curve of the profiled score against the parameter of interest a, bottoming out at zero near a = 3 and rising symmetrically on both sides."
 # TRY IT: change the '5' in (a+b-5) to another number and re-run — the bottom of the profile
 # stays at score 0 but the best a shifts. PREDICT: does the CURVE'S BOTTOM value change?
@@ -227,7 +227,7 @@ legend("top", legend = "best a = 3", lty = 2, col = "tomato", bty = "n")
 ```
 
 ```{webr}
-#| autorun: false
+#| autorun: true
 # TRY IT: watch the nuisance SLIDE. For several a values, report the best-fit b-hat(a). PREDICT:
 # does b-hat stay fixed or move as a changes?
 S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
@@ -238,7 +238,7 @@ data.frame(a = a_vals, best_b = round(sapply(a_vals, bhat), 3))
 ```
 
 ```{webr}
-#| autorun: false
+#| autorun: true
 # TRY IT: verify that the hand algebra and optimize() give the same profiled score.
 # At a = 2 the nuisance best-fit is b-hat = 5 - a = 3, so S(2,3) = (2-3)^2 + (2+3-5)^2 = 1.
 S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
@@ -315,15 +315,14 @@ statistic to carry.
 - **Get the right p-value** by using the *reduced* degrees of freedom in `pchisq`.
 
 If any of these feels shaky, revisit the toy example and the degrees-of-freedom section — a test
-statistic that profiles out a parameter (like a colocalisation test) assumes all
-of them.
+statistic that profiles out a parameter assumes all of them.
 
 ## Where this goes next
 
 Any test statistic with a nuisance parameter needs profiling to get both a clean curve and the
-right distribution. In a later course, the fit statistic depends on an
+right distribution. In a later course, you'll see a fit statistic that depends on an
 angle (a reparametrised slope) you don't care about reporting — you profile that angle out by
-minimising the statistic over it, and the "n minus 1" degrees of freedom you'll see there is
+minimising the statistic over it, and the "n minus 1" degrees of freedom you see there is
 exactly this "started at n, profiled out one parameter" rule.
 
 Ready for more reps? Do the [practice problems](practice.qmd).

@@ -291,6 +291,7 @@ c(RSS = RSS, MSE = MSE, RMSE = RMSE, R2 = R2)   # 4, 0.8, 0.894, 0.92
 #| autorun: true
 # explore-1b — LIVE: confirm the by-hand formulas match R's built-in lm().
 # Fit a line through the same y values, then check: both paths agree.
+y <- c(3, 5, 6, 9, 12)
 x <- 1:5
 lm_fit   <- lm(y ~ x)
 lm_RSS   <- sum(lm_fit$residuals^2)

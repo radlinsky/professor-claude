@@ -152,7 +152,8 @@ An accent is a verb applied to the letter under it — it changes what the lette
 | Symbol | How to say it | What it means | In R |
 |---|---|---|---|
 | $\mu, \sigma, \beta, \theta$ | "mew, sigma, beta, THAY-ta" | **Greek lowercase = an unknown truth** you never observe (a *parameter*) | — (you estimate it) |
-| $\hat{\beta}, \bar{x}$ | "beta hat, ex bar" | **Hatted = estimated from data** — the hat turns any letter (Greek or Latin) into a statistic | `coef(fit)`, `mean(x)` |
+| $\hat{\beta}$ | "beta hat" | **Hatted = estimated from data** — the hat turns any letter (Greek or Latin) into a statistic | `coef(fit)` |
+| $\bar{x}$ | "ex bar" | **Barred = an average**, also computed from data but the bar specifically means *mean* | `mean(x)` |
 | $s, n$ | "ess, en" | **Bare Latin = statistic or count from your data** (no hat needed) | `sd(x)`, `length(x)` |
 | $\Sigma$ vs $\sigma$ | "big sigma / little sigma" | **case matters:** $\Sigma$ is often a sum *or* a covariance matrix; $\sigma$ is a spread | `sum(...)` / — |
 

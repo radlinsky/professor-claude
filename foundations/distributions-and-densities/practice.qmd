@@ -245,7 +245,7 @@ b) The probability of landing exactly on $33$
 c) The height of the curve at $33$
 :::
 
-::: {.quiz-q qid="dd-slice-prob" qtype="numeric" answer="0.682" tolerance="0.001"}
+::: {.quiz-q qid="dd-slice-prob" qtype="numeric" answer="0.682" tolerance="0.0015"}
 For a normal, $P(X < 33) = 0.841$ and $P(X < 27) = 0.159$. What is the slice probability
 $P(27 < X < 33)$? Round to three decimals.
 :::
