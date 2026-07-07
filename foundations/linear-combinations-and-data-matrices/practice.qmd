@@ -307,9 +307,9 @@ $\sum_j x_j \beta_j$. What is it?
 A category has $3$ levels (A, B, C) and the model already carries an all-1s column. How
 many indicator columns should you add?
 
-a) $3$ — one indicator column per level, so every level gets its own column
-b) $2$ — one level is dropped as the reference, so only $k-1$ columns are needed
-c) $1$ — a single column coding the three levels as the integers $1$, $2$, $3$
+a) $3$ — one per level
+b) $2$ — a $k$-level category takes $k-1$ columns, with the dropped level as the reference
+c) $1$ — a single column coding A/B/C as $1/2/3$
 :::
 
 ::: {.quiz-q qid="lcdm-interaction-product" qtype="mc" answer="c"}

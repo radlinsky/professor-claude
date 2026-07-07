@@ -248,9 +248,9 @@ Two points differ by $6$ units east and $8$ units north. What is the straight-li
 Two towns are $3$ units apart east and $4$ north. A student adds the gaps, $3 + 4 = 7$,
 and calls that the distance. What is $7$?
 
-a) The Euclidean (straight-line) distance; this gives $\sqrt{3^2 + 4^2} = 5$, not $7$
+a) The Euclidean (straight-line) distance
 b) The Manhattan (grid-walking) distance; the straight-line distance is $\sqrt{3^2 + 4^2} = 5$
-c) An error — you must square the gaps before adding, so adding raw gaps produces a meaningless result
+c) An error — a distance cannot be found from coordinate gaps
 :::
 
 ::: {.quiz-q qid="dsg-scaling-dominates" qtype="mc" answer="a"}
@@ -258,15 +258,15 @@ In a table with income (in thousands) and age (in tens), income dominates every
 distance. Why?
 
 a) Distance weighs each column by its raw numeric spread, so the large-scale column dominates until you rescale
-b) Income is genuinely the more important variable, so distance correctly gives it more weight in the calculation
-c) Age should be dropped from the calculation because it is measured on a smaller numeric scale than income
+b) Income is genuinely the more important variable
+c) Age should be dropped from the calculation
 :::
 
 ::: {.quiz-q qid="dsg-zero-dot-orthogonal" qtype="mc" answer="c"}
 Two vectors have a dot product of $0$. What does that mean geometrically?
 
-a) They point in the same direction and have proportional coordinates, so one is a scaled copy of the other
-b) They have zero length, meaning at least one of the vectors is the zero vector with all coordinates equal to $0$
+a) They point in the same direction
+b) They have zero length
 c) They are orthogonal — at right angles, carrying separate information
 :::
 

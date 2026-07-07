@@ -248,7 +248,7 @@ browser only.
 
 ::: {.quiz-q qid="lll-log-likelihood-value" qtype="numeric" answer="-2.079" tolerance="0.001"}
 Three independent flips at $p = 0.5$ give a likelihood of $0.125$. Its log-likelihood is
-$\log(0.125)$. Compute it, rounded to three decimals.
+$\ln(0.125)$. Compute it, rounded to three decimals.
 :::
 
 ::: {.quiz-q qid="lll-combine-multiply" qtype="mc" answer="b"}
@@ -263,16 +263,16 @@ c) Average them: $(0.6 + 0.6 + 0.4)/3$
 ::: {.quiz-q qid="lll-not-prob-of-p" qtype="mc" answer="a"}
 Why is the likelihood $L(p)$ *not* a probability distribution over $p$?
 
-a) $L(p)$ scores the data's probability at each $p$, and those scores don't have to sum to $1$
-b) Because likelihood values are always negative, so they can never be probabilities
-c) Because $p$ is a fixed known quantity rather than something random or uncertain
+a) $L(p)$ gives the probability of the *data* as $p$ varies, and these values do not sum to $1$ across $p$
+b) Because likelihood values are always negative
+c) Because $p$ is known rather than random
 :::
 
 ::: {.quiz-q qid="lll-mle-idea" qtype="mc" answer="c"}
 What is the maximum-likelihood estimate $\hat{p}$?
 
-a) The average of all the likelihood values computed across the parameter range
-b) The probability that the chosen parameter value is the correct one given the data
+a) The average of all the likelihood values
+b) The probability that the parameter is correct
 c) The parameter value that maximizes the likelihood — the top of the curve
 :::
 

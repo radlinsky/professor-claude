@@ -274,7 +274,7 @@ c) The variance comes out negative
 Rescaling $y$ from liters to milliliters multiplies the covariance by $1000$, though the
 relationship is unchanged. What does this say about judging strength by covariance size?
 
-a) Covariance size is unreliable; the sign is the trustworthy part
+a) Size is unreliable — covariance carries the variables' units; the *sign* is the trustworthy part, and correlation gives a comparable size
 b) A bigger covariance always means a stronger relationship
 c) The relationship genuinely became $1000$ times stronger
 :::

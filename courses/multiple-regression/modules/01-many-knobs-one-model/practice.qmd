@@ -167,9 +167,9 @@ A fitted model is $\hat y = 1 + 2x_1 + 0.5x_2$. Predict $y$ at $x_1 = 2, x_2 = 6
 ::: {.quiz-q qid="mko-coef-holding-fixed" qtype="mc" answer="b"}
 How should you read the coefficient $\beta_1$ on $x_1$ in a multiple regression?
 
-a) As $x_1$'s unconditional effect on $y$, ignoring the other predictors entirely
+a) As $x_1$'s effect on $y$, full stop
 b) As $x_1$'s effect on $y$ with every other predictor held fixed
-c) As the correlation between $x_1$ and $y$, scaled by their standard deviations
+c) As the correlation between $x_1$ and $y$
 :::
 
 ::: {.quiz-q qid="mko-size-not-importance" qtype="mc" answer="a"}

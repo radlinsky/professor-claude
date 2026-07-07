@@ -246,9 +246,8 @@ c) The height of the curve at $33$
 :::
 
 ::: {.quiz-q qid="dd-slice-prob" qtype="numeric" answer="0.682" tolerance="0.001"}
-For a normal with $\mu = 50$ and $\sigma = 5$, `pnorm(55, 50, 5)` $= 0.841$ and
-`pnorm(45, 50, 5)` $= 0.159$. What is the slice probability $P(45 < X < 55)$?
-Round to three decimals.
+For a normal, $P(X < 33) = 0.841$ and $P(X < 27) = 0.159$. What is the slice probability
+$P(27 < X < 33)$? Round to three decimals.
 :::
 
 ::: {.quiz-q qid="dd-normal-knobs" qtype="mc" answer="c"}

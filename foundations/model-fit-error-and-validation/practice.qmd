@@ -287,6 +287,11 @@ b) Minimize it
 c) Set it to 1
 :::
 
+::: {.quiz-q qid="mfev-rss" qtype="numeric" answer="9" tolerance="0"}
+(From loss functions & optimization.) RSS is the sum of squared residuals. For residuals
+$(1, -2, 2)$, what is RSS?
+:::
+
 :::
 
 ::::

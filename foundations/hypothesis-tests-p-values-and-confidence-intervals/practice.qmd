@@ -238,25 +238,25 @@ browser only.
 ::: {.quiz-q qid="ht-pvalue-meaning" qtype="mc" answer="b"}
 A study reports $p = 0.045$. What does that mean?
 
-a) The null hypothesis has only a 4.5% chance of being true
-b) Assuming the null, data this extreme would arise about 4.5% of the time
-c) The probability the effect is real is 95.5%
+a) There is a 4.5% chance the null hypothesis is true
+b) If the null were true, data this extreme would occur about 4.5% of the time
+c) The effect is real 95.5% of the time
 :::
 
 ::: {.quiz-q qid="ht-fail-to-reject" qtype="mc" answer="a"}
 With $p = 0.10$ you fail to reject the null. What can you conclude?
 
-a) Not enough evidence; the effect might be real but too small to catch here
-b) The null is proven true — the effect is definitely zero, not just undetected
-c) The alternative is proven true — failing to reject confirms the effect exists
+a) Not enough evidence to reject; a real effect could still be too small to detect
+b) The null is proven true — there is no effect
+c) The alternative hypothesis is proven true
 :::
 
 ::: {.quiz-q qid="ht-test-statistic" qtype="mc" answer="c"}
 A test statistic is built as:
 
-a) The estimate minus the null value, scaled by the sample size
-b) The p-value multiplied by the sample size to get a count of extreme outcomes
-c) The estimate divided by its standard error
+a) The estimate minus the null value
+b) The p-value times the sample size
+c) The estimate divided by its standard error — distance from the null in noise units
 :::
 
 ::: {.quiz-q qid="ht-type-i-error" qtype="mc" answer="a"}

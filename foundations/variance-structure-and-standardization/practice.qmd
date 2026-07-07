@@ -262,23 +262,23 @@ Can you compare raw covariances across differently-scaled columns to judge which
 moves together most?
 
 a) Yes — a bigger covariance always means stronger co-movement
-b) No — covariance size rides on column units; use the correlation matrix instead
+b) No — covariances carry the columns' units; read the correlation matrix ($[-1, 1]$) to compare
 c) No — covariances across columns are always equal
 :::
 
 ::: {.quiz-q qid="vss-split-total-spread" qtype="mc" answer="c"}
 Between-group spread is $15000$ and within-group is $400$, so the total is $15400$. If
-the group means move closer together, what happens? (Remember: total = within + between.)
+the group means move closer together, what happens?
 
 a) The total spread stays fixed while between-spread grows
 b) Within-spread grows to keep the total constant
-c) Between-spread collapses toward $0$
+c) Between-spread collapses toward $0$; which bucket dominates is a numeric question, not an eyeball call
 :::
 
 ::: {.quiz-q qid="vss-collinearity" qtype="mc" answer="a"}
 Two nearly-duplicate columns ("two knobs, one wheel") show up in a fit as:
 
-a) An `NA` coefficient or a near-$\pm 1$ off-diagonal correlation
+a) An `NA` coefficient or a near-$\pm 1$ correlation, flagging collinearity
 b) A perfectly stable, precise coefficient for each column
 c) A higher $R^2$ with no downside
 :::

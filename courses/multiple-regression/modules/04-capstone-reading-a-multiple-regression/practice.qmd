@@ -157,9 +157,9 @@ A fitted model is $\hat y = 2 + 3x_1 - x_2$. Predict $y$ at $x_1 = 4, x_2 = 5$.
 ::: {.quiz-q qid="cap-coef-interpret" qtype="mc" answer="a"}
 A multiple regression reports $\hat\beta_1 = 3$. What does it mean?
 
-a) $y$ rises by $3$ per unit of $x_1$, others held fixed
-b) $x_1$ is the single most important predictor in the model
-c) $y$ equals $3$ whenever $x_1$ takes the value $1$
+a) $y$ rises by $3$ for each unit of $x_1$, holding the other predictors fixed
+b) $x_1$ is the most important predictor
+c) $y$ equals $3$ when $x_1 = 1$
 :::
 
 ::: {.quiz-q qid="cap-vif" qtype="numeric" answer="10" tolerance="0"}
@@ -179,9 +179,9 @@ c) The single-predictor fit must have been computed wrong
 A model has a high $R^2$ and a tiny F-test p-value, but one coefficient is
 non-significant with a high VIF. What is the right read?
 
-a) The high $R^2$ proves that every individual coefficient is trustworthy
-b) The model should be discarded entirely and rebuilt from fewer predictors
-c) Good prediction and unreliable coefficients can coexist under collinearity
+a) The high $R^2$ proves every coefficient is trustworthy
+b) The model should be discarded entirely
+c) Prediction can be good while an individual collinear coefficient stays unreliable — $R^2$ and coefficient trust are separate questions
 :::
 
 :::

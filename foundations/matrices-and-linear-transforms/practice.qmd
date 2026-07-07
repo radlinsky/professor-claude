@@ -280,24 +280,24 @@ browser only.
 With $A$ of shape $2 \times 3$ and $B$ of shape $3 \times 2$, what shape is $AB$?
 
 a) $2 \times 2$ — the outer dimensions, once the inner $3$s match
-b) $3 \times 3$ — the inner dimensions give the shape, not the outer ones
-c) $2 \times 3$ — the same shape as $A$, since sizes carry through unchanged
+b) $3 \times 3$
+c) $2 \times 3$
 :::
 
 ::: {.quiz-q qid="mlt-not-commutative" qtype="mc" answer="b"}
 Is matrix multiplication commutative — does $AB = BA$?
 
-a) Yes — just like ordinary numbers, order never changes the result
+a) Yes, just like ordinary numbers
 b) No — order changes the entries and often the shape, so keep the order the paper wrote
-c) Only for square matrices of the same size, because non-square products may not even be defined in both orders
+c) Only for square matrices of the same size
 :::
 
 ::: {.quiz-q qid="mlt-singular-no-inverse" qtype="mc" answer="c"}
 The matrix $\begin{bmatrix} 1 & 2 \\ 2 & 4 \end{bmatrix}$ has row $2$ equal to twice row
 $1$. What about its inverse?
 
-a) It is found by swapping the two diagonal entries and negating the off-diagonal ones
-b) Every square matrix has an inverse, so this one does too — just call `solve()` on it
+a) It is found by swapping the two diagonal entries
+b) Every square matrix has an inverse, so it does
 c) It has none — the matrix is singular (a redundant row), the matrix version of dividing by zero
 :::
 

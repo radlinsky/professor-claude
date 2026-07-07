@@ -223,6 +223,11 @@ For $x = (2, 4, 6)$, evaluate $\sum_{j=2}^{4} x_{j-1}$. (Hint: reindexing shifts
 counter but picks out the same terms.)
 :::
 
+::: {.quiz-q qid="amd-two-ab" qtype="numeric" answer="20" tolerance="0"}
+Expand and evaluate $(a + b)^2 - a^2 - b^2$ for $a = 2, b = 5$. (It is the cross term the
+"$a^2 + b^2$" trap drops.)
+:::
+
 ::: {.quiz-q qid="amd-complete-square" qtype="mc" answer="c"}
 Completing the square rewrites $x^2 + 6x$ as $(x + 3)^2 + c$. What is $c$?
 

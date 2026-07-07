@@ -261,26 +261,26 @@ c) You used too many replications
 ::: {.quiz-q qid="rbp-shuffle-labels" qtype="mc" answer="c"}
 A permutation test for a group difference shuffles what?
 
-a) The values within each group — reordering numbers inside a group changes nothing
-b) The order of the rows, leaving each value's group assignment unchanged
-c) The group *labels* across the pooled values — reassigning which group each value belongs to
+a) The values within each group
+b) The order of the rows, leaving the groups intact
+c) The group *labels* across the pooled values — because the null is "the label doesn't matter"
 :::
 
 ::: {.quiz-q qid="rbp-when-right" qtype="mc" answer="a"}
 When is resampling the right tool?
 
-a) When no clean formula exists for the statistic's uncertainty — though it struggles with very small $n$ or dependent data
-b) Always — it produces better answers than any formula, regardless of sample size or structure
-c) Only when the data are normally distributed, since the resampling approximation requires it
+a) When no clean formula exists for the statistic's uncertainty; be wary with very small $n$ or dependent data
+b) Always — it replaces every formula
+c) Only when the data are normally distributed
 :::
 
 ::: {.quiz-q qid="rbp-bootstrap-se" qtype="mc" answer="b"}
 (From randomness & sampling distributions.) A bootstrap estimates a standard error as the
 spread of the resampled statistics. Which R function gives that spread?
 
-a) `mean()` — returns the average of the pile, not its spread
-b) `sd()` — returns the standard deviation, which measures how spread out the pile is
-c) `sum()` — returns the total of the pile, not a measure of spread
+a) `mean()`
+b) `sd()` — the standard deviation of the resampled statistics
+c) `sum()`
 :::
 
 :::
