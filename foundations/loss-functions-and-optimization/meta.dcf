@@ -1,4 +1,4 @@
 ShortName: Loss functions & optimization
 Concepts: A function as input→output and its graph as a curve (`function`, `curve()`); a loss/objective/cost function measuring "how wrong," with a parameter as the knob; slope zero at a valley bottom and the recipe "differentiate, set to zero, solve" ($\arg\min$ vs the minimum); chain-rule-lite (derivative of (stuff)² is $2\,(\text{stuff})(\text{stuff})'$, derivative of a sum is the sum of derivatives); letting a computer search downhill when algebra can't solve it (`optimize()`, `optim()`)
-BuildsOn: [derivative-as-slope](derivative-as-slope/lesson.qmd), [vectors-and-summation](vectors-and-summation/lesson.qmd)
+BuildsOn: [derivative-as-slope](derivative-as-slope/lesson.qmd), [vectors-and-summation](vectors-and-summation/lesson.qmd), [mean-variance-covariance](mean-variance-covariance/lesson.qmd)
 UsedBy: [simple-linear-regression](../courses/simple-linear-regression/syllabus.md)

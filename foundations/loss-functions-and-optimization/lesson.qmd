@@ -36,7 +36,9 @@ for the bottom when the algebra is too messy — `optimize()` and `optim()`. We 
 **Builds on:** [the derivative as a slope](../derivative-as-slope/lesson.qmd) — we lean
 hard on "slope zero means momentarily flat," and we reuse its numeric `slope_at()`
 tool; and [vectors & summation](../vectors-and-summation/lesson.qmd) — a loss is
-usually a *sum* over your data points ($\sum$), one penalty per point.
+usually a *sum* over your data points ($\sum$), one penalty per point; and
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) — the warm-up
+uses squared deviations from the mean.
 
 ## Warm-up: do you remember?
 
