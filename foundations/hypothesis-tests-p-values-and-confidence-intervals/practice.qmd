@@ -256,7 +256,7 @@ A test statistic is built as:
 
 a) The estimate minus the null value
 b) The p-value times the sample size
-c) The estimate divided by its standard error — distance from the null in noise units
+c) The estimate divided by its standard error
 :::
 
 ::: {.quiz-q qid="ht-type-i-error" qtype="mc" answer="a"}

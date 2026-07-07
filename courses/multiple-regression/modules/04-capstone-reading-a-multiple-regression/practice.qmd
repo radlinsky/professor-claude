@@ -181,7 +181,7 @@ non-significant with a high VIF. What is the right read?
 
 a) The high $R^2$ proves every coefficient is trustworthy
 b) The model should be discarded entirely
-c) Prediction can be good while an individual collinear coefficient stays unreliable — $R^2$ and coefficient trust are separate questions
+c) Good prediction and unreliable coefficients can coexist under collinearity
 :::
 
 :::
