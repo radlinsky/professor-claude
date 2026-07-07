@@ -1,0 +1,385 @@
+---
+title: "Marginal likelihood and model evidence"
+subtitle: "Average a likelihood over a prior to get one number for how well a whole model explains the data"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+You already know the **likelihood**: fix the data, turn a dial labelled with a parameter,
+and read off "how probable was my data at this setting?" But the likelihood gives you a
+different number for *every* setting of the dial — a whole curve, not a single verdict.
+This lesson answers a different question: **how well does the whole model explain the
+data, once you no longer get to pick the best parameter?** The trick is to *average* the
+likelihood over a **prior** — your before-the-data belief about which parameter values
+are plausible. That single averaged number is the **marginal likelihood** (also called
+the **model evidence** or the **prior-predictive** probability of the data), and it is
+the raw material that lets you compare two whole models — the workhorse of Bayesian
+model comparison.
+
+We build it on a coin with a handful of parameter guesses, then meet the one continuous
+case that has a clean closed form: when both the estimate and the prior are normal
+bell curves, the average comes out to *another* normal curve, with the two spreads just
+added together.
+
+**Builds on:** [likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd)
+— the likelihood as "how probable is my fixed data, as the parameter varies";
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd) — a prior
+as a probability weight over parameter values, and posterior $\propto$ prior $\times$
+likelihood; and [distributions & densities](../distributions-and-densities/lesson.qmd) —
+the normal curve $N(\mu, \sigma^2)$ and its density `dnorm`.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** For a coin flipped 3 times giving heads, heads, tails, the likelihood of a value
+$p$ is $L(p) = p^2(1-p)$. Compute $L(0.6)$.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+lik <- function(p) p^2 * (1 - p)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$L(0.6) = 0.6^2 \times 0.4 = 0.36 \times 0.4 = 0.144$. This is "how probable was
+heads-heads-tails if the coin's true heads-probability were $0.6$." Shaky? Revisit
+[likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd).
+:::
+
+**2.** In one line: what is a **prior**, and what must a set of prior weights over a
+handful of possibilities add up to?
+
+::: {.callout-note collapse="true" title="Answer"}
+A prior is your belief, *before* seeing the data, about how plausible each parameter
+value is — expressed as probability weights. Over a fixed set of possibilities those
+weights must sum to $1$ (they are a probability distribution). See
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd).
+:::
+
+**3.** Read this aloud and give its value: the density of the normal curve
+$N(0, 1)$ at the point $x = 0$, written `dnorm(0, mean = 0, sd = 1)`. (You don't need to
+recall the exact number — is it bigger or smaller than $0.5$?)
+
+```{webr}
+#| autorun: false
+# warmup3-starter — edit and Run to check
+x <- 0
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+"dee-norm of zero, mean zero, standard deviation one" — the *height* of the standard
+bell curve at its center. `dnorm(0, 0, 1)` is about $0.399$, so **smaller** than $0.5$.
+The height is a density, not a probability; only *area* under the curve is probability.
+See [distributions & densities](../distributions-and-densities/lesson.qmd).
+:::
+
+## A tiny example first
+
+You flip a coin **three times** and see **heads, heads, tails**. As before, the
+likelihood of a heads-probability $p$ is $L(p) = p^2(1-p)$.
+
+Last time you *maximized* this — you hunted for the single best $p$. Now play a different
+game. Suppose that, before flipping, you weren't sure of the coin's bias, but you thought
+only three values were plausible and equally likely: $p = 0.4$, $p = 0.6$, or $p = 0.8$
+(each with prior weight $1/3$). The question is no longer "which $p$ is best?" — it is
+**"how probable was my data, averaged over all the $p$ values I thought plausible?"**
+
+Work it by hand. First the likelihood at each plausible $p$:
+
+- $L(0.4) = 0.4^2 \times 0.6 = 0.16 \times 0.6 = 0.096$.
+- $L(0.6) = 0.6^2 \times 0.4 = 0.36 \times 0.4 = 0.144$.
+- $L(0.8) = 0.8^2 \times 0.2 = 0.64 \times 0.2 = 0.128$.
+
+Now **average them, weighting each by its prior** ($1/3$ each):
+
+$$
+\tfrac{1}{3}(0.096) + \tfrac{1}{3}(0.144) + \tfrac{1}{3}(0.128)
+= \tfrac{1}{3}(0.368) = 0.1227.
+$$
+
+That single number, $0.1227$, is the **marginal likelihood** of the data under this
+model — "how probable was heads-heads-tails, given everything I believed about $p$
+before flipping." The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The likelihood of a value p for our FIXED data H, H, T:
+lik <- function(p) p^2 * (1 - p)
+
+p     <- c(0.4, 0.6, 0.8)     # the plausible parameter values (the prior's support)
+prior <- c(1/3, 1/3, 1/3)     # equal prior weight on each — sums to 1
+
+lik(p)                         # 0.096, 0.144, 0.128 -- likelihood at each p
+
+# Marginal likelihood = weighted average of the likelihood over the prior:
+marginal <- sum(prior * lik(p))
+marginal                       # 0.1227 -- one number for the whole model
+```
+
+## Getting a feel for it
+
+**The mental picture: a committee vote, not a champion.** Maximum likelihood crowns a
+single champion — the one $p$ that explains the data best — and reports *its* score. The
+marginal likelihood instead polls a whole **committee** of parameter values (everyone the
+prior thinks plausible) and reports the committee's *average* score, with more-trusted
+members (higher prior weight) counting more. A model "wins" not by having one lucky
+setting that fits, but by having its *typical* settings fit well. (Where the picture
+strains: the committee members aren't people casting equal votes — the prior can weight
+them very unequally, and in the continuous case there are infinitely many of them, so the
+"average" becomes an integral rather than a sum.)
+
+**Why average instead of maximize?** Because maximizing always flatters a model. Give a
+model an extra free parameter and it can *always* find a setting that fits the data a
+little better — so the maximum likelihood never gets worse as you add complexity, which
+makes it a poor judge of a model as a whole. Averaging is honest: a model that needs to
+be tuned *just so* to fit will have most of its committee (most prior settings) fitting
+badly, dragging the average down. This built-in penalty for "only works if tuned
+perfectly" is exactly why the marginal likelihood is the right currency for comparing
+whole models.
+
+**What the number feels like.** Our marginal, $0.1227$, sits just below the best single
+likelihood ($0.144$ at $p = 0.6$) and above the worst ($0.096$ at $p = 0.4$) — an average
+must land between its ingredients. If you'd been more confident up front and put all your
+prior weight on $p = 0.6$, the marginal would climb toward $0.144$; spread the weight
+onto poorer values and it sinks. The marginal rewards a prior that pointed at good
+parameter values *before* the data arrived.
+
+## What the notation is going to say
+
+The formula just writes down the "average the likelihood over the prior" recipe you did
+by hand. For a handful of parameter values it says: **for each plausible value, multiply
+its likelihood by its prior weight, then add those up** — exactly the
+$\tfrac13(0.096) + \tfrac13(0.144) + \tfrac13(0.128)$ you computed. When the parameter is
+*continuous* (any real number, not three choices), the sum becomes an **integral** — the
+smooth-curve version of a sum, adding up infinitely many tiny weighted slices — but it is
+the same idea: sweep the parameter across all its values, weight each by the prior, and
+total up the likelihood.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\theta$ | "theta" | the parameter we're uncertain about (the coin's $p$, or a true effect) | the heads-probability $p$ |
+| $D$ | "dee" | the observed data, held fixed | heads, heads, tails |
+| $L(\theta)$ | "the likelihood of theta" | how probable the fixed data $D$ is under $\theta$; also written $P(D \mid \theta)$ | $L(0.6) = 0.144$ |
+| $P(\theta)$ | "the prior of theta" | the prior weight/probability on each value of $\theta$ | $1/3$ on each of $0.4, 0.6, 0.8$ |
+| $P(D)$ | "the probability of the data" | the **marginal likelihood** / model evidence — likelihood averaged over the prior | $0.1227$ |
+| $\sum_{\theta}$ | "the sum over theta" | add the term to its right, once per plausible value of $\theta$ (in R: `sum(...)`) | adds the 3 weighted pieces |
+| $\int \cdots \, d\theta$ | "the integral over theta, dee-theta" | the smooth-curve version of that sum: add up infinitely many tiny weighted slices | the continuous version below |
+| $N(\mu, \sigma^2)$ | "normal with mean mew and variance sigma-squared" | a bell curve centered at $\mu$ (mew) with spread $\sigma^2$ (sigma-squared) | the normal case below |
+| $\sim$ | "is distributed as" | the left-hand side follows the distribution on the right | $\hat\theta \sim N(0, V + W)$ below |
+| $\hat\theta$ | "theta hat" | an *estimate* of the true value $\theta$ from data — the hat means "estimated" | the normal estimate below |
+| $V$ | "vee" | the variance of a normal estimate (its spread²) | $0.0025$ below |
+| $W$ | "double-you" | the variance of a normal *prior* on the true value | $0.04$ below |
+
+## The formal version
+
+**The discrete case (a handful of parameter values).** Averaging the likelihood over the
+prior is one weighted sum:
+
+$$
+P(D) = \sum_{\theta} P(D \mid \theta)\, P(\theta).
+$$
+
+Reading it aloud: "the probability of the data equals the sum, over each value of theta,
+of the likelihood of the data given theta, times the prior of theta." Everyday words:
+**"for every plausible parameter value, multiply how well it fits by how much you believed
+it, then add those up."**
+
+Mapping it onto the toy example: the three terms are
+$P(D\mid 0.4)\,P(0.4) = 0.096 \times \tfrac13$, then $0.144 \times \tfrac13$, then
+$0.128 \times \tfrac13$; their sum is $0.1227$ — exactly the hand number.
+
+**The continuous case.** When $\theta$ can be any real number, the prior is a *density*
+$P(\theta)$ (a curve, like the normal) and the sum becomes an integral:
+
+$$
+P(D) = \int L(\theta)\, P(\theta)\, d\theta.
+$$
+
+Reading it aloud: "the probability of the data equals the integral, over theta, of the
+likelihood times the prior, dee-theta." Everyday words: **"the same weighted average, but
+over a continuous range of parameter values instead of a short list."** The
+[integral](../integration-and-area/lesson.qmd) is just the sum's smooth-curve twin — you
+almost never compute it by hand, and in the one case this repo needs, you won't have to,
+because it has a clean closed form.
+
+**The normal closed form (the one result to remember).** Here is the case that makes
+this whole lesson pay off. Suppose your data is a single estimate $\hat\theta$ of some
+true value, and — as happens for most estimates from enough data — that estimate is
+approximately normal around the truth with variance $V$: its density is
+$N(\text{true value},\, V)$. Put a normal prior $N(0, W)$ on the true value. Then the
+marginal likelihood — the density of your estimate $\hat\theta$ after averaging over that
+prior — is *another normal*, centered at $0$, whose variance is just the two variances
+**added**:
+
+$$
+\hat\theta \ \sim\ N(0,\ V + W).
+$$
+
+Reading it aloud: "theta-hat is distributed normal with mean zero and variance V plus W."
+Everyday words: **"averaging a normal estimate over a normal prior gives a normal curve
+whose spread is the estimate's spread plus the prior's spread."** The two sources of
+uncertainty — noise in the estimate ($V$) and genuine spread in the true value the prior
+allows ($W$) — stack up.
+
+Why the spreads add (the intuition, not a proof): your estimate wobbles by $V$ around
+whatever the true value is, and the true value itself is spread by $W$ around zero.
+Stacking one wobble on top of the other, the *total* wobble of the estimate around zero
+is the sum $V + W$. (Deriving this cleanly needs an integral trick called *completing the
+square* — **Optional**, and worth it only if you want to see *why* rather than trust the
+result; the payoff of skipping it is you still get the formula every method here uses.)
+
+Sanity-check the closed form against the integral, numerically, in the Explore section
+below — the two agree to many decimals.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the discrete marginal likelihood, both ways.
+# TRY IT: change the prior weights (they must still sum to 1) and watch the marginal
+# move toward the p values you trust more.
+# PREDICT: if you put ALL the weight on p = 0.6, what will the marginal equal? Guess, run.
+lik   <- function(p) p^2 * (1 - p)
+p     <- c(0.4, 0.6, 0.8)
+prior <- c(1/3, 1/3, 1/3)               # try c(0, 1, 0), or c(0.5, 0.3, 0.2)
+
+marginal <- sum(prior * lik(p))          # weighted average = the marginal likelihood
+c(marginal = round(marginal, 4),
+  best_single = round(max(lik(p)), 4))   # marginal <= best single likelihood, always
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the normal closed form vs brute-force numeric integration.
+# The estimate is theta_hat with variance V; the prior on the truth is N(0, W).
+# PREDICT: will the brute-force integral match the closed form to many decimals, or will there be a gap? Write your guess, then run.
+theta_hat <- 0.20
+V <- 0.0025          # variance of the estimate (spread^2)
+W <- 0.04            # variance of the prior on the true value
+
+# Brute force: integrate  dnorm(theta_hat | theta, sqrt(V)) * dnorm(theta | 0, sqrt(W))
+integrand <- function(theta) dnorm(theta_hat, theta, sqrt(V)) * dnorm(theta, 0, sqrt(W))
+brute <- integrate(integrand, -Inf, Inf)$value
+
+# Closed form: the marginal is just N(0, V + W) evaluated at theta_hat
+closed <- dnorm(theta_hat, 0, sqrt(V + W))
+
+c(brute_force = brute, closed_form = closed)   # equal: variances simply ADD
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two normal density curves centered at zero on the same axes: a narrow tall curve labelled 'estimate density N(0, V)' and a wider shorter curve labelled 'marginal N(0, V+W)'. A dashed vertical line at theta-hat = 0.20 shows the marginal curve is much higher there than the narrow curve."
+# explore-3 — LIVE: SEE why the marginal spreads out. The prior widens the curve
+# from N(0, V) to N(0, V+W), so an estimate far from zero (like 0.20) is far more
+# plausible under the wider marginal.
+# TRY IT: shrink W toward 0 and watch the wide curve collapse onto the narrow one.
+V <- 0.0025; W <- 0.04; theta_hat <- 0.20
+grid <- seq(-0.5, 0.5, length.out = 400)
+
+plot(grid, dnorm(grid, 0, sqrt(V)), type = "l", lwd = 2,
+     xlab = expression(theta), ylab = "density",
+     main = "Averaging over the prior widens the curve")
+lines(grid, dnorm(grid, 0, sqrt(V + W)), lwd = 2, lty = 2)
+abline(v = theta_hat, col = "grey50")
+legend("topright", c("N(0, V)  narrow", "N(0, V+W)  marginal"),
+       lwd = 2, lty = c(1, 2), bty = "n")
+```
+
+## Common traps
+
+**Trap 1 — "the marginal likelihood is just the biggest likelihood."** Tempting, because
+maximum likelihood is the recipe you learned first. But the marginal *averages* over the
+prior, so it can never exceed the best single likelihood, and usually sits below it: here
+the best single value is $0.144$ (at $p = 0.6$) while the marginal is $0.1227$. Averaging
+in the poorer values ($0.096$, $0.128$) pulls it down — and that downward pull *is* the
+honesty that makes the marginal a fair judge of a whole model.
+
+**Trap 2 — "when I add the two normal curves, I add the standard deviations."** No — you
+add the **variances**, not the standard deviations. With $V = 0.0025$ (so $\text{sd} =
+0.05$) and $W = 0.04$ (so $\text{sd} = 0.2$), the marginal variance is $V + W = 0.0425$,
+whose standard deviation is $\sqrt{0.0425} \approx 0.206$ — **not** $0.05 + 0.2 = 0.25$.
+Variances (spreads²) add; standard deviations do not.
+
+## Check yourself
+
+**1.** A model puts prior weight $0.5$ on $p = 0.5$ and $0.5$ on $p = 0.7$, for the same
+data with $L(p) = p^2(1-p)$. Compute the marginal likelihood by hand, then check in R.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+lik   <- function(p) p^2 * (1 - p)
+p     <- c(0.5, 0.7)
+prior <- c(0.5, 0.5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$L(0.5) = 0.5^2 \times 0.5 = 0.125$ and $L(0.7) = 0.7^2 \times 0.3 = 0.49 \times 0.3 =
+0.147$. Weighted average: $0.5(0.125) + 0.5(0.147) = 0.0625 + 0.0735 = 0.136$. In R,
+`sum(prior * lik(p))` returns `0.136`.
+:::
+
+**2.** An estimate has variance $V = 0.01$; the prior on the true value is $N(0, W)$ with
+$W = 0.09$. What is the variance of the marginal (prior-predictive) distribution of the
+estimate, and what is its standard deviation?
+
+::: {.callout-note collapse="true" title="Answer"}
+Variances add: $V + W = 0.01 + 0.09 = 0.10$. Its standard deviation is $\sqrt{0.10}
+\approx 0.316$ — note it is **not** $\sqrt{0.01} + \sqrt{0.09} = 0.1 + 0.3 = 0.4$;
+standard deviations don't add.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the marginal
+likelihood measures and why we average over the prior instead of just taking the best
+parameter value.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The marginal likelihood scores a whole model by asking "how probable was my data,
+averaged over every parameter value the model thought plausible beforehand" — a single
+number for the model, not for one lucky setting of it. We average rather than maximize
+because maximizing always flatters a more complex model (it can always find *some*
+setting that fits), whereas averaging penalizes a model that only fits when tuned just
+right, which is exactly the honesty you need to compare models fairly.
+:::
+
+## What you can now do
+
+- **Compute a marginal likelihood over a discrete prior** — multiply each parameter
+  value's likelihood by its prior weight and add the pieces up.
+- **Explain why we average the likelihood over a prior** rather than maximizing it —
+  averaging is the honest, complexity-penalizing judge of a whole model.
+- **State the normal closed form** — averaging a normal estimate $N(\cdot, V)$ over a
+  normal prior $N(0, W)$ gives the marginal $N(0, V + W)$, with the *variances* added.
+- **Avoid the standard-deviation-adding trap** — combine normal spreads by adding
+  variances, never standard deviations.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — every method that compares
+two models by their evidence leans on all of these.
+
+## Where this goes next
+
+The marginal likelihood is one model's "evidence." The moment you have *two* models'
+evidences you can compare them — divide one by the other and you get a **Bayes factor**,
+the subject of
+[Bayes factors & posterior odds](../bayes-factors-and-posterior-odds/lesson.qmd). The
+normal closed form $N(0, V + W)$ you just met is the exact ingredient that turns an
+estimated effect and its standard error into a Bayes factor with no simulation at all — a
+construction the applied courses build on. Ready for more reps? Do the [practice problems](practice.qmd).

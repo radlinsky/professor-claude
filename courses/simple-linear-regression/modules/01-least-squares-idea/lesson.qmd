@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -158,6 +151,7 @@ that score as small as possible." Exactly the table game we just played — twic
 | $\bar{x}$ | "ex bar" | the mean of the x values (in R: `mean(x)`) | 2.5 |
 | $\bar{y}$ | "why bar" | the mean of the y values (in R: `mean(y)`) | 4 |
 | $n$ | "en" | the number of data points (in R: `length(x)`) | 4 |
+| $b_0, b_1$ | "bee-zero, bee-one" | any candidate intercept and slope we're testing | guess 1: (1, 1); guess 2: (0, 1.5) |
 | $\beta_0$ | "beta zero" (or "beta naught") | the intercept: the line's height at $x = 0$ | guess 1 used 1; guess 2 used 0 |
 | $\beta_1$ | "beta one" | the slope: how much $y$ rises per unit of $x$ | guess 1 used 1; guess 2 used 1.5 |
 | $\hat{y}_i$ | "why hat sub eye" | the line's prediction for observation i — the hat means "estimated, not observed" | guess 1 predicted 2, 3, 4, 5 |
@@ -295,6 +289,16 @@ $6-4 = +2$. Un-squared sum: $-2 - 1 + 1 + 2 = 0$ — a "perfect" score for a lin
 that ignores x entirely! (Deviations from a mean always cancel — the same fact we
 met in the foundations module.) Squaring stops the cancelling: the squared score is
 $4 + 1 + 1 + 4 = 10$, honestly bad. `sum(y - 4)` vs `sum((y - 4)^2)` confirms.
+:::
+
+**3.** In two sentences, explain to a colleague what SSE measures and why the misses
+are squared instead of just added.
+
+::: {.callout-note collapse="true" title="Answer"}
+SSE adds up the squared gaps between each data point and the line's prediction, so a
+larger SSE means a worse-fitting line. We square the gaps because raw gaps can be
+positive or negative and would cancel each other out, giving a misleadingly low score
+to a line that misses badly in both directions.
 :::
 
 ## What you can now do

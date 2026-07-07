@@ -11,6 +11,8 @@ engine: knitr
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only then
 open the answer.
 
@@ -182,9 +184,9 @@ c) A predictor column is an exact linear combination of others, so $X^\top X$ is
 ::: {.quiz-q qid="lsn-why-qr" qtype="mc" answer="a"}
 Why does `lm()` fit with a QR decomposition rather than forming $X^\top X$ directly?
 
-a) Forming $X^\top X$ squares the predictors' scale spread, losing precision on near-collinear data; QR is more stable for the same answer
-b) QR gives different, better coefficients
-c) QR is the only method that handles more than two predictors
+a) Forming $X^\top X$ squares the condition number, losing precision on near-collinear data
+b) QR produces different coefficients that are always closer to the true values
+c) QR is the only factorization that can handle more than two predictor columns
 :::
 
 ::: {.quiz-q qid="lsn-xtx-dotproduct" qtype="numeric" answer="7" tolerance="0"}

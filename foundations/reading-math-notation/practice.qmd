@@ -15,6 +15,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Say each formula out loud first, then check.
 
 ## Problem 1 — decode a known formula, new numbers

@@ -65,7 +65,8 @@ Give BOTH the symbol-by-symbol reading and the everyday-words version.
 | $\mathbf{X}$ (bold capital) | "the matrix ex" | a table of numbers (rows = observations, columns = variables) |
 | $\mathbf{X}^\top$ or $\mathbf{X}'$ | "ex transpose" | the matrix flipped: rows become columns (in R: `t(X)`) |
 | $\mathbf{X}^{-1}$ | "ex inverse" | the matrix that undoes X (in R: `solve(X)`) |
-| $\|\mathbf{x}\|$ | "the norm of ex" | the length of the vector (in R: `sqrt(sum(x^2))`) |
+| $|x|$ | "the absolute value of ex" | the distance of x from zero — drop the minus sign (in R: `abs(x)`) |
+| $\|\mathbf{x}\|$ | "the norm of ex" | the length of the vector — the vector version of absolute value (in R: `sqrt(sum(x^2))`) |
 | $\log$ | "log" | natural log (base e) unless the paper says otherwise (in R: `log(x)`) |
 | iid | "eye-eye-dee" | "independent and identically distributed" — each data point is a fresh, unrelated draw from the same source |
 

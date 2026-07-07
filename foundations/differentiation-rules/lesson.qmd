@@ -1,0 +1,734 @@
+---
+title: "Differentiation rules: computing derivatives by hand"
+subtitle: "The mechanical recipes — power, constant-multiple, sum, and chain — each verified with the numerical tool you already trust"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+You already know *what* a derivative is (the slope of a curve at a point) and how
+to *measure* one numerically (the central difference). What you don't yet have is a
+faster path: a set of algebraic **recipes** that let you write down the derivative of
+most functions without measuring at all. These recipes — the power rule, the
+constant-multiple rule, the sum rule, and the chain rule — are the standard toolkit
+that lets you go from "$f(x) = 3x^2 + 5x - 7$" to "$f'(x) = 6x + 5$" on paper in
+fifteen seconds.
+
+Here's the key move: every time you compute a derivative by rule, you'll check it
+with the `slope_at()` tool from the derivative-as-slope module. That makes the rules
+feel reliable rather than magical — each recipe is just a shortcut to the number you
+could have measured.
+
+**Builds on:**
+[The derivative, as a slope you can measure](../derivative-as-slope/lesson.qmd) —
+the central-difference tool `slope_at()` and the meaning of $f'(x)$;
+[Loss functions, and finding their bottom](../loss-functions-and-optimization/lesson.qmd)
+— chain-rule-lite ("the derivative of (stuff)² is $2 \cdot \text{stuff} \cdot \text{stuff}'$"),
+which we'll extend into the general chain rule here.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** The `slope_at()` tool from the derivative-as-slope module uses the
+*central-difference* formula. Write out that formula: what does it compute to estimate
+$f'(x)$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$$f'(x) \approx \frac{f(x+h) - f(x-h)}{2h}$$
+
+"Take the output one step to the right, minus the output one step to the left, divide
+by twice the step." In R: `(f(x+h) - f(x-h)) / (2*h)` with a tiny `h` like `1e-5`.
+Shaky? Revisit [The derivative, as a slope you can measure](../derivative-as-slope/lesson.qmd).
+:::
+
+**2.** In the loss-functions module, you used chain-rule-lite: "the derivative of
+$(y_i - m)^2$ with respect to $m$ is $2(y_i - m) \cdot (-1)$." What is the **general
+pattern** that rule is an example of? State it in words (no formula yet).
+
+::: {.callout-note collapse="true" title="Answer"}
+"The derivative of (stuff) squared is two times (stuff) times the derivative of stuff."
+The inner piece $(y_i - m)$ is the "stuff," and its derivative with respect to $m$ is
+$-1$, so the result is $2(y_i - m)(-1)$. That "outer × inner derivative" move is chain-rule-lite,
+and this module generalises it. Shaky? Revisit
+[Loss functions, and finding their bottom](../loss-functions-and-optimization/lesson.qmd).
+:::
+
+**3.** At the *bottom* of a U-shaped loss curve, the slope is zero. If you measured the
+slope numerically at the bottom using `slope_at()`, what number would you get (roughly)?
+
+::: {.callout-note collapse="true" title="Answer"}
+Roughly **0** (or numerically very close to zero — within rounding noise of `slope_at()`).
+The bottom is the momentarily-flat point, so rise over run there approaches zero.
+This "slope zero = bottom" fact is why the differentiation rules matter: once we can
+compute derivatives *algebraically*, we can set them to zero and solve — without
+measuring at all. Shaky? Revisit
+[Loss functions, and finding their bottom](../loss-functions-and-optimization/lesson.qmd).
+:::
+
+---
+
+## Rule 1: The constant rule
+
+### A tiny example first
+
+The function $f(x) = 7$ outputs $7$ no matter what $x$ you feed in. It's a
+**horizontal line** at height 7. What is its slope?
+
+A horizontal line is perfectly flat — it never tilts up or down. So its slope is
+zero everywhere. That's the whole rule.
+
+```{r constant-rule-example}
+# The function: always outputs 7, regardless of x
+f <- function(x) 7
+
+# The numerical slope tool from derivative-as-slope
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+# Measure at a few different x-values — all should be zero
+slope_at(f, 0)    # 0
+slope_at(f, 3)    # 0
+slope_at(f, -10)  # 0
+```
+
+### Getting a feel for it
+
+**Picture:** plot any constant function — it's a horizontal line. Slope is rise over
+run. For a horizontal line, rise is always zero no matter how far you move. Zero rise
+divided by any run is zero.
+
+**Why it has to be zero:** a constant function doesn't *change* as $x$ moves. The
+derivative measures change. No change means no slope — zero, always.
+
+**What the number feels like:** a slope of zero here doesn't mean "no function" — it
+means "perfectly flat." The line has a height (7 in our example), it just never tilts.
+
+### What the notation is going to say
+
+The formula will say: "if your function is just a fixed number $c$, its derivative is
+zero — because the output never changes as $x$ moves."
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $c$ | "see" | a constant — a fixed number, not depending on $x$ | $7$ |
+| $f(x)$ | "eff of ex" | the output of $f$ at input $x$ | $f(x) = 7$ |
+| $f'(x)$ | "eff prime of ex" | the derivative (slope) of $f$ at $x$ | $f'(x) = 0$ |
+| $\frac{d}{dx}$ | "dee by dee ex" | "take the derivative with respect to $x$" — an instruction | $\frac{d}{dx}(7) = 0$ |
+
+### The formal version
+
+$$
+\frac{d}{dx}(c) = 0
+$$
+
+Reading it aloud: "dee by dee ex of see equals zero" — or in everyday words: **"the
+derivative of any constant is zero."**
+
+Mapping onto our toy: $c = 7$; $f'(x) = 0$ everywhere, confirmed by `slope_at(f, 3)` = 0.
+
+### Explore it
+
+```{webr}
+#| autorun: true
+# explore-constant — LIVE: change the constant and watch the slope stay zero.
+# PREDICT: what will the slope be if you change 7 to 100? Write it, then run.
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) 7    # <-- change this constant
+
+# Rule says derivative of a constant = 0. Does the numeric tool agree?
+by_rule   <- 0
+by_numeric <- slope_at(f, 3)
+c(rule = by_rule, numeric = by_numeric)
+```
+
+---
+
+## Rule 2: The power rule
+
+### A tiny example first
+
+Take $f(x) = x^3$. At $x = 2$, what is the slope?
+
+By the power rule recipe: **bring the exponent down as a multiplier, then reduce the
+exponent by one.** Here: bring the $3$ down, reduce the exponent to $3 - 1 = 2$, so
+$f'(x) = 3x^2$. At $x = 2$ that gives $3 \times 4 = 12$.
+
+Let's check that with `slope_at()`:
+
+```{r power-rule-example}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+f <- function(x) x^3
+slope_at(f, 2)      # should be 12 — matches 3 * 2^2 = 12
+```
+
+The rule gives 12. The numerical measurement gives 12. They agree.
+
+### Getting a feel for it
+
+**An escalating-speed picture.** If you drive and your distance is $x^3$ kilometres,
+your speed (derivative of distance = rate of change) at time $x = 2$ is $3 \cdot 2^2
+= 12$ km/s. Higher powers curve upward faster — the slope grows more steeply than the
+function itself.
+
+**Why "bring the exponent down, reduce by one"?** This is what you get when you carry
+out the limit definition of the derivative for $x^n$ and use the binomial expansion:
+the $x^n$ terms cancel, you're left with $nx^{n-1}$ and everything smaller that
+vanishes as the step shrinks. The recipe encodes that whole calculation.
+
+**What the slope feels like.** For $x^3$ at $x = 2$, the slope is $12$ — steep and
+positive. At $x = -2$ it's $3 \cdot (-2)^2 = 12$ again — also positive, because $x^3$
+is climbing on both sides of zero. At $x = 0$ it's $3 \cdot 0^2 = 0$ — the inflection
+point where the curve momentarily flattens.
+
+### What the notation is going to say
+
+The formula will say: "for $x$ to any fixed power $n$, the derivative is $n$ times $x$
+to the power $n - 1$." In our toy: $n = 3$, so the derivative is $3 \cdot x^2$.
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x^n$ | "ex to the en" | $x$ raised to the power $n$ | $x^3$ — "ex cubed" |
+| $n$ | "en" | the exponent (any fixed number) | $3$ |
+| $n - 1$ | "en minus one" | the reduced exponent after differentiating | $2$ |
+| $nx^{n-1}$ | "en times ex to the en minus one" | the derivative of $x^n$ | $3x^2$ — evaluated at $x=2$: $12$ |
+
+### The formal version
+
+$$
+\frac{d}{dx}(x^n) = n\,x^{n-1}
+$$
+
+Reading it aloud: "dee by dee ex of ex-to-the-en equals en times ex to the en minus one"
+— or in everyday words: **"bring the exponent down as a multiplier, then reduce the
+exponent by one."**
+
+Mapping onto the toy ($f(x) = x^3$ at $x = 2$):
+
+- The exponent $n = 3$ comes down: → $3 \cdot x^2$
+- Evaluate at $x = 2$: $3 \cdot 2^2 = 3 \cdot 4 = 12$
+- `slope_at(f, 2)` = 12 ✓
+
+The rule works for **any** real $n$ — negative, fractional, decimal — though for this
+module we stick to non-negative integers (which covers all the stats work we'll need).
+
+### Explore it
+
+```{webr}
+#| autorun: true
+# explore-power — LIVE: try different powers and x-values.
+# PREDICT: what is the slope of x^4 at x = 3? By the power rule, n = 4, so
+# the derivative is 4*x^3; at x = 3 that's 4*27 = 108. Write your prediction, then run.
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+# Power-rule prediction vs. numerical measurement
+n  <- 4   # <-- change the power
+x0 <- 3   # <-- change the point
+
+f <- function(x) x^n
+
+by_rule    <- n * x0^(n - 1)          # power rule: bring n down, reduce exponent
+by_numeric <- slope_at(f, x0)         # central-difference measurement
+
+c(rule = by_rule, numeric = by_numeric)   # should match
+```
+
+---
+
+## Rule 3: The constant-multiple rule
+
+### A tiny example first
+
+Now take $f(x) = 3x^2$. The power rule gives the derivative of $x^2$ as $2x$. Does
+multiplying by 3 change that? Try measuring at $x = 2$:
+
+- By rule: the derivative of $3x^2$ should be $3 \times 2x = 6x$. At $x = 2$:
+  $6 \times 2 = 12$.
+
+```{r constant-multiple-example}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+f <- function(x) 3 * x^2
+slope_at(f, 2)      # should be 12 — matches 6 * 2 = 12
+```
+
+The constant "passes through" the derivative unchanged.
+
+### Getting a feel for it
+
+**A volume dial picture.** Imagine the derivative is a signal, and the constant
+multiplier is a volume knob. Turning the volume up doubles every moment's amplitude,
+but it doesn't change *when* the signal rises or falls. Similarly, scaling $f$ by $3$
+scales the *slope* by $3$ at every point — but doesn't change the shape of the slope
+curve.
+
+**Why constants pass through:** the derivative measures how $f(x)$ *changes* as $x$
+moves. If $f(x) = c \cdot g(x)$, then every change in $g$ is amplified by $c$: a small
+nudge in $x$ causes a $c$-times-larger change in $f$ than it would in $g$ alone. So the
+rate of change of $f$ is $c$ times the rate of change of $g$.
+
+**What the number feels like.** At $x = 2$: the derivative of $x^2$ is $4$; the
+derivative of $3x^2$ is $3 \times 4 = 12$. The constant-multiple rule is just
+"scale the answer by the constant."
+
+### What the notation is going to say
+
+The formula will say: "the derivative of a constant times a function equals the same
+constant times the derivative of the function — constants ride along for free."
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $c \cdot f(x)$ | "see times eff of ex" | a function scaled by a constant multiplier | $3 \cdot x^2$ |
+| $c \cdot f'(x)$ | "see times eff prime of ex" | the derivative: constant passes through | $3 \cdot 2x = 6x$ |
+
+### The formal version
+
+$$
+\frac{d}{dx}\bigl[c \cdot f(x)\bigr] = c \cdot f'(x)
+$$
+
+Reading it aloud: "dee by dee ex of see times eff of ex equals see times eff prime of
+ex" — or in everyday words: **"a constant multiplier passes through the derivative
+unchanged."**
+
+Mapping onto the toy ($f(x) = 3x^2$, so $c = 3$ and $f(x) = x^2$, $f'(x) = 2x$):
+$\frac{d}{dx}(3x^2) = 3 \cdot 2x = 6x$. At $x = 2$: $6 \cdot 2 = 12$ ✓.
+
+### Explore it
+
+```{webr}
+#| autorun: true
+# explore-constant-multiple — LIVE: verify constant passes through.
+# PREDICT: slope of 5*x^3 at x = 2? By rule: 5 * (3*x^2) = 15*x^2; at x=2: 15*4 = 60.
+# Write prediction, then run.
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+c_val <- 5   # <-- change the constant multiplier
+n     <- 3   # <-- change the power
+x0    <- 2   # <-- change the evaluation point
+
+f <- function(x) c_val * x^n
+
+by_rule    <- c_val * n * x0^(n - 1)  # constant-multiple + power rule
+by_numeric <- slope_at(f, x0)
+
+c(rule = by_rule, numeric = by_numeric)
+```
+
+---
+
+## Rule 4: The sum (and difference) rule
+
+### A tiny example first
+
+Now combine: $f(x) = 3x^2 + 5x - 7$. The sum rule says: **differentiate each term
+separately and add the results.** Let's apply the rules we have so far:
+
+- $3x^2$: constant-multiple × power rule → $3 \cdot 2x = 6x$
+- $5x$: think of this as $5x^1$; power rule gives $1 \cdot x^0 = 1$, times constant $5$: → $5$
+- $-7$: constant rule → $0$
+
+So $f'(x) = 6x + 5 + 0 = 6x + 5$. At $x = 2$: $6(2) + 5 = 12 + 5 = 17$.
+
+```{r sum-rule-example}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+f <- function(x) 3*x^2 + 5*x - 7
+slope_at(f, 2)    # should be 17 — matches 6*2 + 5 = 17
+```
+
+### Getting a feel for it
+
+**Stacking hills picture.** Imagine two separate hills laid on top of each other. The
+steepness of the combined hill at any point is the sum of the individual steepnesses.
+If hill-1 rises at rate 12 and hill-2 rises at rate 5, the combined terrain rises at
+rate 17.
+
+**Why term-by-term works:** a sum of functions changes by the sum of their individual
+changes. If $f(x) = g(x) + h(x)$, then a tiny nudge in $x$ changes $f$ by the change
+in $g$ plus the change in $h$. There's no interaction between terms — they each
+contribute independently.
+
+**What the numbers feel like.** The $-7$ constant term completely disappears from the
+derivative. This makes intuitive sense: a vertical shift of the curve doesn't change
+its steepness at any point. The slope of $3x^2 + 5x$ and the slope of $3x^2 + 5x - 7$
+are identical everywhere.
+
+### What the notation is going to say
+
+The formula will say: "the derivative of a sum of functions is the sum of the
+individual derivatives — differentiate term by term and add up."
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $f(x) \pm g(x)$ | "eff of ex plus-or-minus gee of ex" | a sum or difference of two functions | $3x^2 + 5x - 7$ |
+| $f'(x) \pm g'(x)$ | "eff prime plus-or-minus gee prime" | derivatives added/subtracted term by term | $6x + 5 - 0 = 6x + 5$ |
+
+### The formal version
+
+$$
+\frac{d}{dx}\bigl[f(x) + g(x)\bigr] = f'(x) + g'(x)
+$$
+
+(The same holds for subtraction: $\frac{d}{dx}\bigl[f(x) - g(x)\bigr] = f'(x) - g'(x)$.)
+
+Reading it aloud: "dee by dee ex of eff plus gee equals eff prime plus gee prime" —
+or in everyday words: **"differentiate each term on its own and add the results."**
+
+Mapping onto the toy ($f(x) = 3x^2 + 5x - 7$ at $x = 2$):
+
+- Term $3x^2$: derivative $6x$; at $x=2$: $12$
+- Term $5x$: derivative $5$; at $x=2$: $5$
+- Term $-7$: derivative $0$; at $x=2$: $0$
+- Total: $12 + 5 + 0 = 17$ ✓
+
+### Explore it
+
+```{webr}
+#| autorun: true
+# explore-sum-rule — LIVE: apply all four rules so far to a multi-term function.
+# PREDICT: slope of 3x^2 + 5x - 7 at x = 4?
+# By rule: 6*4 + 5 = 24 + 5 = 29. Write prediction, then run.
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+f  <- function(x) 3*x^2 + 5*x - 7   # <-- change terms here
+x0 <- 4                               # <-- change the evaluation point
+
+# Apply the rules by hand:
+#   d/dx(3x^2) = 6x  -> 6 * x0
+#   d/dx(5x)   = 5   -> 5
+#   d/dx(-7)   = 0   -> 0
+by_rule    <- 6*x0 + 5 + 0
+by_numeric <- slope_at(f, x0)
+
+c(rule = by_rule, numeric = by_numeric)
+```
+
+---
+
+## Rule 5: The chain rule
+
+### A tiny example first
+
+Take $f(x) = (2x + 1)^3$. The base is not $x$ — it's "$2x + 1$". Think of it as a
+function wrapped inside another function: the **outer** function is "cube this thing"
+($(\cdot)^3$), and the **inner** function is "$2x + 1$."
+
+The chain-rule-lite you already know says: "derivative of (stuff)² is $2 \cdot \text{stuff} \cdot
+\text{stuff}'$." This is the same idea generalised one step: instead of squaring, the
+outer function is a cube. The recipe is:
+
+> **outer derivative** (evaluated at the inner function) **times inner derivative**
+
+Step 1 — outer: derivative of $u^3$ is $3u^2$. Evaluated at the inner function $u = 2x
++ 1$: that's $3(2x + 1)^2$.
+
+Step 2 — inner: derivative of $2x + 1$ is $2$ (constant-multiple + power rule, applied
+to the inner piece alone).
+
+Step 3 — multiply: $f'(x) = 3(2x + 1)^2 \cdot 2 = 6(2x + 1)^2$.
+
+At $x = 1$: $6(2 + 1)^2 = 6 \cdot 9 = 54$.
+
+```{r chain-rule-example}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+f <- function(x) (2*x + 1)^3
+slope_at(f, 1)   # should be 54 — matches 6*(2*1+1)^2 = 6*9 = 54
+```
+
+### Getting a feel for it
+
+**A gear-train picture.** Imagine two gears connected in sequence. The first gear (the
+inner function) turns the axle; the second gear (the outer function) takes that axle as
+its input. How fast does the final output spin? At the rate the first gear spins *times*
+the rate the second gear transforms it. The chain rule is exactly "multiply the gear
+ratios."
+
+(Where the picture bends: gears only turn one way; functions can shrink or reverse as
+well as expand.)
+
+**Why outer × inner?** When $x$ nudges by a tiny amount $\Delta x$:
+- The inner piece $g(x) = 2x + 1$ changes by approximately $g'(x) \cdot \Delta x =
+  2 \Delta x$.
+- The outer piece $f_{\text{out}}(u) = u^3$ then sees an input that changed by
+  $2 \Delta x$, and responds by changing approximately $f_{\text{out}}'(u) \cdot 2
+  \Delta x = 3u^2 \cdot 2 \Delta x$.
+- The total change divided by $\Delta x$ is $3u^2 \cdot 2 = 6(2x+1)^2$ — outer
+  derivative times inner derivative.
+
+**Connecting back to chain-rule-lite.** In the loss-functions module, "stuff" was
+$(y_i - m)$ and the outer function was squaring. The chain-rule-lite rule
+$2(\text{stuff})(\text{stuff})'$ is the chain rule with outer $= (\cdot)^2$, so outer
+derivative $= 2(\cdot)^1$. The general rule here is the same idea with any outer
+function.
+
+**What the number feels like.** At $x = 1$, the slope of $(2x+1)^3$ is $54$ — quite
+steep, because the cube grows fast and the inner function doubles changes. Farther from
+$x = 0$ the inner function is larger, so the outer's derivative is also larger, making
+the overall slope grow rapidly.
+
+### What the notation is going to say
+
+The formula will say: "for a function of a function, the derivative is the outer
+function's derivative (evaluated at the inner piece) times the inner function's
+derivative." The outer and inner each get the rules they already know; the chain rule
+says to multiply those two results together.
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $f(g(x))$ | "eff of gee of ex" | a function applied to another function — composition | $(2x+1)^3$: outer is $(\cdot)^3$, inner is $2x+1$ |
+| $g(x)$ | "gee of ex" | the **inner** function | $g(x) = 2x + 1$ |
+| $g'(x)$ | "gee prime of ex" | the derivative of the inner function | $g'(x) = 2$ |
+| $f'(g(x))$ | "eff prime of gee of ex" | the outer derivative, **evaluated at** the inner function | $3(2x+1)^2$ |
+| $f'(g(x)) \cdot g'(x)$ | "eff prime of gee of ex, times gee prime" | outer derivative times inner derivative | $3(2x+1)^2 \cdot 2 = 6(2x+1)^2$ |
+
+### The formal version
+
+$$
+\frac{d}{dx}\bigl[f(g(x))\bigr] = f'(g(x)) \cdot g'(x)
+$$
+
+Reading it aloud: "dee by dee ex of eff of gee of ex, equals eff prime of gee of ex,
+times gee prime of ex" — or in everyday words: **"outer derivative (evaluated at the
+inner piece) times inner derivative."**
+
+Mapping onto the toy ($f(g(x)) = (2x+1)^3$ at $x = 1$):
+
+- Identify outer: $(\cdot)^3$, so $f'(u) = 3u^2$; evaluated at $u = g(x) = 2x+1$: $3(2x+1)^2$
+- Identify inner: $g(x) = 2x + 1$; its derivative: $g'(x) = 2$
+- Multiply: $3(2x+1)^2 \cdot 2 = 6(2x+1)^2$
+- At $x = 1$: $6(2 \cdot 1 + 1)^2 = 6 \cdot 9 = 54$ ✓
+
+**Realistic stats preview: $f(x) = (x - 3)^2$.** This is exactly the pattern that
+appears in ordinary least-squares (OLS). Outer function: $(\cdot)^2$. Inner function:
+$x - 3$. By the chain rule:
+
+- Outer derivative of $u^2$: $2u$; at inner $u = x - 3$: $2(x - 3)$
+- Inner derivative of $x - 3$: $1$
+- Chain rule: $2(x - 3) \cdot 1 = 2(x - 3)$
+
+```{r ols-preview}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+f <- function(x) (x - 3)^2
+# By rule: f'(x) = 2*(x - 3) * 1 = 2x - 6
+# At x = 5: 2*5 - 6 = 4
+# At x = 3: 2*3 - 6 = 0  (the minimum!)
+
+c(at_x5 = slope_at(f, 5),   # 4 — heading uphill right of the minimum
+  at_x3 = slope_at(f, 3),   # 0 — exactly the minimum
+  at_x1 = slope_at(f, 1))   # -4 — heading downhill left of the minimum
+```
+
+Zero slope at $x = 3$, and the function is $(x-3)^2$ — which has its bottom at $x = 3$.
+The chain rule confirms what the geometry says.
+
+### Explore it
+
+```{webr}
+#| autorun: true
+# explore-chain-rule — LIVE: verify outer × inner derivative.
+# PREDICT: slope of (2x + 1)^3 at x = 2?
+# By chain rule: outer 3*(2x+1)^2, inner 2; product = 6*(2x+1)^2.
+# At x = 2: 6*(5)^2 = 6*25 = 150. Write prediction, then run.
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+# Inner and outer functions
+g        <- function(x) 2*x + 1          # inner: change this to try other inners
+g_prime  <- function(x) 2                # derivative of inner (constant: 2)
+f_outer  <- function(u) u^3              # outer: change this to try other outers
+fp_outer <- function(u) 3 * u^2          # derivative of outer
+
+x0 <- 2   # evaluation point
+
+by_rule    <- fp_outer(g(x0)) * g_prime(x0)     # outer' @ inner, times inner'
+by_numeric <- slope_at(function(x) f_outer(g(x)), x0)
+
+c(rule = by_rule, numeric = by_numeric)   # both 150
+```
+
+```{webr}
+#| autorun: true
+# explore-ols-pattern — LIVE: the (x - a)^2 pattern appears in OLS all the time.
+# PREDICT: at what x-value will the slope of (x - 5)^2 be zero?
+# By chain rule: f'(x) = 2*(x-5)*1 = 2x - 10; set to 0: x = 5. Write it, then run.
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+a <- 5           # the "centre" of the parabola  <-- change this
+f <- function(x) (x - a)^2
+
+# Check slope at several points around a
+xs     <- seq(a - 3, a + 3, by = 1)
+slopes <- sapply(xs, function(x) slope_at(f, x))
+cbind(x = xs, slope = round(slopes, 6))  # slope is 0 at x = a, negative before, positive after
+```
+
+---
+
+## **Optional:** A brief note on the product rule
+
+You now have all the rules this repo's stats work needs. For completeness: there is
+also a **product rule** for differentiating $f(x) \cdot g(x)$ — two functions multiplied
+together. The recipe is:
+
+$$
+\frac{d}{dx}\bigl[f(x) \cdot g(x)\bigr] = f'(x) \cdot g(x) + f(x) \cdot g'(x)
+$$
+
+In everyday words: "first' times second, plus first times second'." It shows up
+occasionally in likelihood derivations, but the chain rule (Rule 5) is far more common
+in applied stats. If you encounter a product of two non-constant functions in a
+derivation, this is the recipe to reach for.
+
+---
+
+## Common traps
+
+**Trap 1: "The chain rule goes on the outside only."** For $(2x + 1)^3$, the temptation
+is to write $f'(x) = 3(2x+1)^2$ and stop — applying the power rule to the outer
+function but forgetting to multiply by the inner derivative. The correct answer is
+$3(2x+1)^2 \cdot 2 = 6(2x+1)^2$. Let's see the error numerically:
+
+```{r chain-rule-trap}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) (2*x + 1)^3
+
+wrong  <- 3 * (2*1 + 1)^2          # forgot the inner derivative: gives 27
+correct <- 3 * (2*1 + 1)^2 * 2     # outer' * inner': gives 54
+measured <- slope_at(f, 1)          # the true slope: 54
+
+c(wrong = wrong, correct = correct, measured = measured)
+# wrong is 27 — off by a factor of 2 (the missing inner derivative)
+```
+
+The "forgot the inner derivative" mistake makes the answer a factor of $g'(x)$ off.
+Always check the inner function for any constant multipliers or terms that survive
+differentiation.
+
+**Trap 2: "The derivative of a sum is the product of the derivatives."** Some learners
+mix up the sum rule and the product rule. For $f(x) = 3x^2 + 5x$, the correct
+derivative is $6x + 5$ (sum rule: add term-by-term). A plausible-but-wrong belief is
+that you'd somehow multiply the derivatives of the two pieces. Numbers refute this:
+
+```{r sum-product-trap}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) 3*x^2 + 5*x
+
+# True slope at x = 2 (by sum rule: 6*2 + 5 = 17):
+measured <- slope_at(f, 2)   # 17
+
+# Wrong: product of the two individual derivatives at x = 2
+#   d/dx(3x^2) = 6x -> 12 at x=2
+#   d/dx(5x)   = 5
+wrong_product <- 6 * 2 * 5   # 60 — wildly off
+
+c(correct = measured, wrong_product_idea = wrong_product)
+# 17 vs 60 — sum rule adds derivatives, doesn't multiply them
+```
+
+The sum rule adds the derivatives of the terms. The product rule (Optional, above)
+handles a *product* of functions — but $3x^2 + 5x$ is a *sum*, not a product.
+
+---
+
+## Check yourself
+
+**1.** Compute $\frac{d}{dx}(4x^3)$ by hand (constant-multiple × power rule). Then
+check your answer numerically at $x = 2$.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to verify your hand calculation
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) 4 * x^3
+x0 <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+By the constant-multiple and power rules: $\frac{d}{dx}(4x^3) = 4 \cdot 3x^2 = 12x^2$.
+At $x = 2$: $12 \cdot 4 = 48$.
+
+```{r check1-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) 4 * x^3
+slope_at(f, 2)   # 48 — matches the rule
+```
+:::
+
+**2.** Find $\frac{d}{dx}(5x^2 - 2x + 9)$ and evaluate at $x = 3$.
+
+::: {.callout-note collapse="true" title="Answer"}
+Apply sum/difference rule, constant-multiple, power, and constant rules term by term:
+
+- $5x^2 \to 5 \cdot 2x = 10x$
+- $-2x \to -2 \cdot 1 = -2$
+- $9 \to 0$ (constant rule)
+
+So $f'(x) = 10x - 2$. At $x = 3$: $10(3) - 2 = 30 - 2 = 28$.
+
+```{r check2-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) 5*x^2 - 2*x + 9
+slope_at(f, 3)   # 28 — matches the rule
+```
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the chain rule
+is for and what its recipe is.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The chain rule handles functions that are composed — where the input to one function is
+itself the output of another, like cubing a whole expression $(2x+1)^3$.
+The recipe is: take the outer function's derivative (evaluated at the inner piece), then
+multiply by the inner function's derivative — because changes in $x$ ripple through the
+inner function first and then get amplified by the outer function's slope.
+:::
+
+---
+
+## What you can now do
+
+- **Apply the power rule** — bring the exponent down as a multiplier and reduce it by
+  one — to any $x^n$ term.
+- **Pass constants through** the derivative: $\frac{d}{dx}(c \cdot f) = c \cdot f'$.
+- **Differentiate a multi-term polynomial** by applying the sum rule: differentiate each
+  term separately and add the results.
+- **Apply the general chain rule** — outer derivative times inner derivative — to
+  composed functions like $(2x+1)^3$ or $(x - a)^2$, extending the chain-rule-lite you
+  already had from the loss-functions module.
+- **Verify any hand-computed derivative numerically** using `slope_at()`, so you can
+  always check your algebra.
+
+If any of these feels shaky, revisit the corresponding section above before continuing
+— the OLS and gradient-descent derivations that use these rules will assume all of them.
+
+## Where this goes next
+
+With these rules in hand, you can now compute the derivative of a loss function
+algebraically — which is exactly what the OLS derivation does. When a stats paper
+writes "take the derivative, set it to zero," you now have the mechanical skills to
+actually do that. Ready for more reps? Do the [practice problems](practice.qmd).

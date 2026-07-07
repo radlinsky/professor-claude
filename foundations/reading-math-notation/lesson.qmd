@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -159,7 +152,8 @@ An accent is a verb applied to the letter under it — it changes what the lette
 | Symbol | How to say it | What it means | In R |
 |---|---|---|---|
 | $\mu, \sigma, \beta, \theta$ | "mew, sigma, beta, THAY-ta" | **Greek lowercase = an unknown truth** you never observe (a *parameter*) | — (you estimate it) |
-| $\bar{x}, s, \hat{\beta}$ | "ex bar, ess, beta hat" | **Latin / hatted = computed from your data** (a *statistic*) | `mean(x)`, `sd(x)` |
+| $\hat{\beta}, \bar{x}$ | "beta hat, ex bar" | **Hatted = estimated from data** — the hat turns any letter (Greek or Latin) into a statistic | `coef(fit)`, `mean(x)` |
+| $s, n$ | "ess, en" | **Bare Latin = statistic or count from your data** (no hat needed) | `sd(x)`, `length(x)` |
 | $\Sigma$ vs $\sigma$ | "big sigma / little sigma" | **case matters:** $\Sigma$ is often a sum *or* a covariance matrix; $\sigma$ is a spread | `sum(...)` / — |
 
 : The rule is really *parameter vs statistic*; "Greek = truth" is a strong guess with
@@ -296,7 +290,7 @@ R is unusually good at teaching notation, because it refuses to hide the operato
 math leaves out. Run and tweak these.
 
 ```{webr}
-#| autorun: true
+#| autorun: false
 # explore-1 — LIVE: juxtaposition means MULTIPLY. Math writes "beta1 x"; R makes you
 # type the star. PREDICT: what does R do with `beta1 * x`? And what would bare
 # `x(2)` do — multiply, or something else? Commit, then run.
@@ -310,7 +304,7 @@ beta1 * x          # 12 — "beta1 x" in a formula is this
 ```
 
 ```{webr}
-#| autorun: true
+#| autorun: false
 # explore-2 — LIVE: the SAME bars |.| mean four different things. Predict each, then
 # run. PREDICT: which of these equals 5?
 abs(-3)                       # |x|  absolute value: distance from 0
@@ -409,8 +403,9 @@ falls out.
 
 - **Say a formula out loud** — name each accent, subscript, operator, and relation —
   and turn it into runnable R by making the hidden operators explicit.
-- **Tell data from unknowns at a glance:** a hat or a Latin letter means "computed from
-  a sample"; a bare Greek letter usually means "true but unobserved."
+- **Tell data from unknowns at a glance:** a hat on any letter — Greek or Latin — signals
+  "estimated from data"; a bare Latin letter ($s$, $n$) is also a statistic; a bare Greek
+  letter ($\beta$, $\sigma$) usually means "true but unobserved."
 - **Read a subscript as an index or a name, a superscript as a power or a label,** using
   position and parentheses as the cue.
 - **Not confuse $\arg\min$ with the minimum,** $\propto$ with $=$, or the four meanings

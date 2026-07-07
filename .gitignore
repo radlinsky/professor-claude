@@ -50,6 +50,7 @@ _site/
 .quarto/
 
 /.quarto/
+_freeze/
 **/*.quarto_ipynb
 # rendered qmd/md previews (source stays as .qmd/.md; HTML is build output)
 **/*_files/
@@ -58,6 +59,8 @@ _site/
 # Stray in-place Quarto render output (a partial `quarto render <file>` leaks these
 # into the source tree; a full render writes to _site/ which is ignored above)
 /site_libs/
+foundations/**/*.html
+courses/**/*.html
 
 # Equivalence harness: heavy reference environments (separate R lib, Python venv,
 # compiled binaries). Regenerable via equivalence/generate/regenerate-all.sh;

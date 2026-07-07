@@ -179,6 +179,10 @@ rules: `.claude/course-authoring/interactive-webr.md`.
   work.
 - **The mastery rule:** move on only when every "What you can now do" bullet feels
   solid. Shaky bullet → redo that section or its practice problems first.
+- **Missed the Module check?** Don't re-grind the same problems — you remember
+  their *answers* by now, not the skill. Ask for a fresh round ("add problems to
+  <module>"), work it, then retake the check in a later session. Passing after
+  another gap is the evidence that counts.
 - **Answers are hidden for a reason.** Commit to an answer (or a prediction) before
   you click — that's the part that makes it stick.
 

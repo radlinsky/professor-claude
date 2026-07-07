@@ -1,7 +1,10 @@
 ---
 title: "Capstone practice — the whole course, mixed"
 subtitle: "No labels saying which tool to use — recalling that is part of the test. Answers hidden; try first."
+engine: knitr
 ---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
 
 ```{r setup}
 #| message: false
@@ -13,6 +16,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 These draw on every module, in mixed order — figuring out *which* idea each problem
 needs is the point, so there are no "uses Module N" hints. Do each honestly before
 opening the answer.
@@ -23,8 +28,9 @@ Three cars: $x = (2, 4, 6)$ mph over the limit, $y = (3, 5, 8)$ tickets that yea
 Score the candidate line "intercept 1, slope 1" by hand — predictions, residuals,
 and its total score. Check in R.
 
-```{r p1-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
 x <- c(2, 4, 6); y <- c(3, 5, 8)
 ```
 
@@ -44,8 +50,9 @@ sum((y - (1 + 1 * x))^2)   # 1
 New data: $x = (1, 2, 3)$, $y = (2, 1, 6)$. Fit the *best* line by hand: compute
 $\bar{x}, \bar{y}, s_{xy}, s_x^2$, then the slope and intercept. Confirm with `lm()`.
 
-```{r p2-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to solve, right here
 x <- c(1, 2, 3); y <- c(2, 1, 6)
 ```
 
@@ -86,8 +93,9 @@ this. It has **exactly one mistake** — find it and give the correct slope.
 > "Covariance is 2, variance of x is 1. The slope is variance over covariance,
 > $s_x^2 / s_{xy} = 1/2 = 0.5$."
 
-```{r p4-starter}
-# Starter — copy this to check the corrected slope
+```{webr}
+#| autorun: false
+# p4-starter — edit and Run to check the corrected slope
 x <- c(1, 2, 3); y <- c(2, 1, 6)
 ```
 
@@ -110,8 +118,9 @@ horsepower coefficient comes out strongly significant ($p < 0.001$), and $R^2 \a
 0.60$. A friend concludes: "significant means horsepower predicts mpg almost
 perfectly." Are they right? Explain.
 
-```{r p5-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
 fit <- lm(mpg ~ hp, data = mtcars)
 ```
 
@@ -149,8 +158,9 @@ in pounds regressed on height in inches for 15 age groups), in journal format:
 Height t value from the table. (c) The intercept is −87.5 lbs — is a 0-inch person
 predicted to weigh negative? What's really going on? (d) Is this a tight fit?
 
-```{r p6-starter}
-# Starter — check your reading against the real fit
+```{webr}
+#| autorun: false
+# p6-starter — edit and Run to check your reading against the real fit
 fit <- lm(weight ~ height, data = women)
 ```
 
@@ -200,7 +210,7 @@ The `cars` regression has $R^2 = 0.65$ and $p \approx 10^{-12}$ for speed. What 
 these two numbers together tell you?
 
 a) Speed's effect is rock-solid and explains nearly all of the variation in stopping distance
-b) The p-value and R² contradict each other; only one can be meaningful at once
+b) The p-value and R² contradict each other, so only one of them can be meaningful at once
 c) Speed's effect is reliable, but about 35% of stopping variation remains unexplained
 :::
 

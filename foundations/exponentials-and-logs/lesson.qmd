@@ -16,13 +16,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -189,7 +182,7 @@ $$
 \end{aligned}
 $$
 
-- Line 1: **a product becomes a sum** — because $e^{p}\cdot e^{q} = e^{p+q}$, so the
+- Line 1: **a product becomes a sum** — because $e^{a}\cdot e^{b} = e^{a+b}$, so the
   exponents (which are the logs) add.
 - Line 2: **a quotient becomes a difference** — same fact with division, so exponents
   subtract. A special case: $\log(1/b) = \log 1 - \log b = -\log b$ (since $\log 1 = 0$).
@@ -235,7 +228,7 @@ points(0, exp(0), pch = 16)     # e^0 = 1
 ```
 
 ```{webr}
-#| autorun: true
+#| autorun: false
 # explore-2 — LIVE: log and exp really are inverses. Feed a number through both.
 # PREDICT: what will `log(exp(z))` and `exp(log(z))` each equal? Guess, then run.
 z <- 7                          # <-- try other POSITIVE numbers

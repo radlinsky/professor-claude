@@ -1,0 +1,207 @@
+---
+title: "Practice: Profile likelihood"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only then open the
+answer.
+
+## Problem 1 — the toy example, new numbers
+
+For $S(a, b) = (a - 2)^2 + (a + b - 6)^2$, profile out $b$ at $a = 2$: find $\hat b$ and the
+profiled score. Then check in R.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+S <- function(a, b) (a - 2)^2 + (a + b - 6)^2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+At $a = 2$: $S = 0 + (2 + b - 6)^2 = (b - 4)^2$, minimised at $\hat b = 4$, giving profiled
+score **0**.
+
+```{r p1-ans}
+S <- function(a, b) (a - 2)^2 + (a + b - 6)^2
+o <- optimize(function(b) S(2, b), c(-10, 10))
+c(b_hat = o$minimum, profiled_score = o$objective)   # 4, 0
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+For $S(a, b) = (a - 3)^2 + (a + b - 5)^2$, profiling out $b$ at $a = 4$:
+
+- Step 1: plug in $a = 4$: $S = (4-3)^2 + (4 + b - 5)^2 = 1 + (b - 1)^2$.
+- Step 2: **your step here** — which $b$ minimises this, and what's the resulting score?
+- Step 3: so $S_{\text{prof}}(4) = 1$.
+
+Fill in step 2.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: $(b - 1)^2$ is smallest when $b = 1$, killing the second term and leaving $1 + 0 = 1$.
+So $\hat b(4) = 1$ and the profiled score is $1$ — matching step 3. The move is: tune the
+nuisance $b$ to zero out the term it appears in.
+
+```{r p2-ans}
+S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
+optimize(function(b) S(4, b), c(-10, 10))   # $minimum ~ 1, $objective ~ 1
+```
+:::
+
+## Problem 3 — the whole profile curve
+
+For $S(a, b) = (a - 3)^2 + (a + b - 5)^2$, compute the profiled score at $a = 0, 1, 2, 3, 4, 5,
+6$ in R, and say where the curve bottoms out.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: build prof(a) and apply it to the grid
+S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
+a_vals <- c(0, 1, 2, 3, 4, 5, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-ans}
+S <- function(a, b) (a - 3)^2 + (a + b - 5)^2
+prof <- function(a) optimize(function(b) S(a, b), c(-20, 20))$objective
+a_vals <- c(0, 1, 2, 3, 4, 5, 6)
+round(sapply(a_vals, prof), 3)
+```
+The profiled scores are $9, 4, 1, 0, 1, 4, 9$ — a U-shape bottoming at **$a = 3$** with score
+$0$. Profiling out $b$ leaves a clean one-knob curve over $a$, and its minimum is the whole
+surface's global minimum.
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants the p-value for a fit statistic that starts as $\chi^2_4$, after profiling out
+**one** nuisance parameter. They wrote — it contains **exactly one mistake**. Find it and fix
+it.
+
+```{webr}
+#| autorun: false
+# p4-starter — this contains exactly one mistake
+stat <- 6
+df <- 4                 # started as chi-square with 4 df
+p <- pchisq(stat, df = df, lower.tail = FALSE)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the **degrees of freedom**: profiling out one nuisance parameter drops $df$ from
+$4$ to $3$. Using $df = 4$ overstates the p-value.
+
+```{r p4-ans}
+pchisq(6, df = 3, lower.tail = FALSE)   # ~0.112 — the correct p-value after profiling
+```
+:::
+
+## Problem 5 — mixing it with optimization *(uses loss-functions-and-optimization's `optimize`)*
+
+You have a fit statistic $S(a, b) = 2(a - 1)^2 + (b - a)^2$. Profile out $b$ **twice** — once by
+hand, once with `optimize` — at $a = 1$, and confirm they agree.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+S <- function(a, b) 2 * (a - 1)^2 + (b - a)^2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+By hand at $a = 1$: $S = 2\cdot 0 + (b - 1)^2 = (b - 1)^2$, minimised at $\hat b = 1$, score
+$0$.
+
+```{r p5-ans}
+S <- function(a, b) 2 * (a - 1)^2 + (b - a)^2
+optimize(function(b) S(1, b), c(-10, 10))   # $minimum ~ 1, $objective ~ 0 — agrees
+```
+The `optimize` call reproduces the hand answer ($\hat b = 1$, score $0$). Profiling is just
+"minimise over the nuisance," which is exactly what `optimize` does — the tool you already know
+from loss-functions-and-optimization.
+:::
+
+## Problem 6 — transfer: read the degrees-of-freedom rule
+
+A test statistic combines $n = 6$ measurements and would be $\chi^2_6$ if a certain slope were
+known. The method instead *estimates* that slope by profiling it out. What are the degrees of
+freedom of the reported statistic, and why?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\chi^2_5$: profiling out the one slope parameter costs one degree of freedom, so $6 - 1 = 5$.
+The estimated slope soaks up one independent piece of the data's surprise, leaving five for the
+statistic. (This is exactly the "$n - 1$ degrees of freedom" you'll meet in the proportional
+colocalisation test, where the profiled parameter is the effect-size ratio.)
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Results are saved in this browser only.
+
+::: {.module-check module="foundations/profile-likelihood" pass="4"}
+
+::: {.quiz-q qid="pl-profiled-score" qtype="numeric" answer="1" tolerance="0"}
+For $S(a, b) = (a - 3)^2 + (a + b - 5)^2$, what is the profiled score $\min_b S(a, b)$ at
+$a = 2$?
+:::
+
+::: {.quiz-q qid="pl-what-is-nuisance" qtype="mc" answer="b"}
+A nuisance parameter is:
+
+a) the parameter you most want to report
+b) a parameter the formula needs but that you don't care about reporting
+c) a parameter fixed at zero
+d) the degrees of freedom of the test
+:::
+
+::: {.quiz-q qid="pl-reoptimise" qtype="mc" answer="c"}
+When profiling, why re-optimise the nuisance parameter at every value of the parameter of
+interest instead of fixing it once?
+
+a) It runs faster
+b) The nuisance is always zero anyway
+c) A single fixed value mis-scores every setting that would have preferred a different nuisance
+d) It changes which parameter is the nuisance
+:::
+
+::: {.quiz-q qid="pl-df-rule" qtype="numeric" answer="3" tolerance="0"}
+A statistic that would be $\chi^2_5$ with all knobs known has how many degrees of freedom after
+you profile out **two** nuisance parameters?
+:::
+
+::: {.quiz-q qid="pl-optimize-interleave" qtype="mc" answer="a"}
+*(uses loss-functions-and-optimization)* In R, `optimize(function(b) S(a, b), c(-10, 10))`
+profiles out $b$ at a fixed $a$ by returning:
+
+a) `$minimum` (the best $b$) and `$objective` (the profiled score there)
+b) the derivative of $S$ with respect to $a$
+c) the full 2-D surface of $S$
+d) the degrees of freedom of the statistic
+:::
+
+:::
+
+::::

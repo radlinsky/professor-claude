@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -272,14 +265,15 @@ uncertainty with a distribution — the posterior. Same data, two framings; this
 teaches the Bayesian one. (We name the contrast, not litigate it — both are standard.)
 
 Here's a continuous posterior you can look at. Start from a **flat prior** (every bias
-equally plausible before data), flip a coin **10 times and see 7 heads**; the posterior
-over $p$ is a bell-ish curve piled up near 0.7:
+equally plausible before data), flip a coin **10 times and see 7 heads**.
+
+**PREDICT:** with 7 heads in 10 flips, roughly where will the posterior curve peak?
+Write it down before you run.
 
 ```{webr}
 #| autorun: true
 #| fig-alt: "A smooth curve over p from 0 to 1, peaking near 0.7, showing the posterior belief about the coin's bias after seeing 7 heads in 10 flips."
 # TRY IT: change heads/flips and re-run — watch the curve shift and narrow.
-# PREDICT: with 7 heads in 10, roughly where will the curve peak? Write it, then run.
 heads <- 7; flips <- 10
 grid  <- seq(0, 1, length.out = 200)
 

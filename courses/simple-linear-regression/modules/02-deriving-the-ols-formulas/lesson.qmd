@@ -1,7 +1,10 @@
 ---
 title: "Deriving the OLS formulas"
 subtitle: "The 'take the derivative, set it to zero' trick — taught, then used for real"
+engine: knitr
 ---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
 
 ```{r setup}
 #| message: false
@@ -25,8 +28,14 @@ sum rules), and each step says which.
 
 **Builds on:** [module 01](../01-least-squares-idea/lesson.qmd) (SSE, argmin),
 [vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd)
-(sum Rules 1–3), and
-[mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd).
+(sum Rules 1–3),
+[derivative as slope](../../../../foundations/derivative-as-slope/lesson.qmd),
+[mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd),
+[loss functions & optimization](../../../../foundations/loss-functions-and-optimization/lesson.qmd)
+(the "differentiate, set to zero, solve" recipe),
+[differentiation rules](../../../../foundations/differentiation-rules/lesson.qmd)
+(power rule, chain rule), and
+[partial derivatives](../../../../foundations/partial-derivatives-and-the-gradient/lesson.qmd).
 
 ## Warm-up: do you remember?
 
@@ -71,17 +80,18 @@ Try a few values by hand: $f(1) = (-2)^2 + 2 = 6$; $f(2) = 1 + 2 = 3$;
 $f(3) = 0 + 2 = 2$; $f(4) = 1 + 2 = 3$; $f(5) = 6$. The scores fall, bottom out at
 $b = 3$, and rise again — a valley with its bottom at 3.
 
-Now the calculus way, no guessing. Rusty-memory refresher from AP Calc: the
-**derivative** of a function is its slope at each point. Walking down into a valley
-the slope is negative, climbing out it's positive — so **at the exact bottom the
-slope is zero**. Find where the derivative equals zero and you've found the bottom.
+Now the calculus way, no guessing. From the
+[loss-functions-and-optimization](../../../../foundations/loss-functions-and-optimization/lesson.qmd)
+foundation: the derivative is the slope of the curve, and at the exact bottom of a
+valley the slope is zero — so differentiate, set to zero, solve.
 
-Two derivative facts are enough today (the derivative "recipes" you once memorized):
+Two rules from
+[differentiation-rules](../../../../foundations/differentiation-rules/lesson.qmd)
+do all the work:
 
-- **Power rule:** the derivative of $b^2$ is $2b$ ("bring the 2 down").
-- **Chain rule, lite:** the derivative of $(\text{stuff})^2$ is
-  $2 \cdot (\text{stuff}) \cdot (\text{derivative of the stuff})$ — square rule
-  first, then multiply by the inside's own derivative.
+- **Power rule:** the derivative of $b^2$ is $2b$.
+- **Chain rule:** the derivative of $(\text{stuff})^2$ is
+  $2 \cdot (\text{stuff}) \cdot (\text{derivative of the stuff})$.
 
 Apply to our $f$: the derivative of $(b-3)^2$ is $2(b-3) \cdot 1$ (the inside
 $b - 3$ has derivative 1), and the $+2$ is a constant — flat, derivative 0. So
@@ -107,10 +117,11 @@ plot(b, f(b), type = "l", lwd = 2, main = "The slope is 0 exactly at the bottom"
 abline(v = 3, col = "firebrick", lty = 2)
 ```
 
-One more idea and we're armed. SSE depends on TWO knobs, $b_0$ and $b_1$. A
-**partial derivative** ($\partial$, "partial") is just: take the derivative with
-respect to one knob *while pretending the other knob is a constant*. A 2-knob
-valley's bottom is where BOTH partial slopes are zero — two equations, two unknowns.
+One more idea and we're armed. SSE depends on TWO knobs, $b_0$ and $b_1$. From
+[partial derivatives](../../../../foundations/partial-derivatives-and-the-gradient/lesson.qmd):
+a partial derivative takes the slope in one direction while holding the other knobs
+still. A 2-knob valley's bottom is where BOTH partial slopes are zero — two
+equations, two unknowns.
 
 ## Getting a feel for it
 
@@ -285,8 +296,9 @@ this pair — now you know why.
 
 ## Explore it
 
-```{r explore-1}
-# The formulas, straight from the derivation — then lm() as the referee.
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the formulas, straight from the derivation — then lm() as the referee.
 # PREDICT: will the by-hand slope (cov/var) match lm()'s slope exactly, or only
 # roughly? Write your guess, then read the two lines of output below.
 x <- c(1, 2, 3, 4)
@@ -299,8 +311,9 @@ c(b0 = b0_hat, b1 = b1_hat)           # 0.5 and 1.4
 coef(lm(y ~ x))                       # lm() agrees exactly
 ```
 
-```{r explore-2}
-# TRY IT: swap in ANY data — the agreement is not a coincidence of the toy
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: swap in ANY data — the agreement is not a coincidence of the toy
 # numbers. mtcars: predict fuel efficiency (mpg) from weight (wt).
 x <- mtcars$wt
 y <- mtcars$mpg
@@ -315,9 +328,10 @@ c(prediction_at_xbar = unname(predict(fit, data.frame(x = mean(x)))),
   ybar               = mean(y))              # identical
 ```
 
-```{r explore-3}
+```{webr}
+#| autorun: true
 #| fig-alt: "SSE valley over slopes with the derivative-derived optimum marked"
-# TRY IT: module 1's valley, revisited — but now the red line is placed by the
+# explore-3 — LIVE: module 1's valley, revisited — but now the red line is placed by the
 # FORMULA, not by search. Change y's noise (sd below) and re-run: the formula
 # tracks the valley bottom perfectly every time.
 # PREDICT: the true slope used to build y is 2. Will the formula's red line land
@@ -379,6 +393,17 @@ intercept?
 $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x} = 30 - 2 \times 10 = 10$. The best
 line must pass through the point of means $(10, 30)$; with slope 2, walking back
 from $x = 10$ to $x = 0$ descends $2 \times 10 = 20$, landing at 10.
+:::
+
+**3.** Explain in two sentences, without formulas, why setting the derivative to zero
+finds the best line.
+
+::: {.callout-note collapse="true" title="Answer"}
+The derivative tells you whether nudging the line's parameters would make the fit
+better or worse: a positive derivative means "this direction makes it worse," a
+negative one means "keep going." At the bottom of the bowl, nudging in any direction
+makes the fit worse, so the derivative is exactly zero there, and that is the one
+spot where no further improvement is possible.
 :::
 
 ## What you can now do

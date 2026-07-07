@@ -4,9 +4,12 @@ description: >
   Add practice problems (or lesson "check yourself" questions) to an EXISTING course
   or foundation module, without rebuilding the course. Use when the user says "add
   problems to <module>", "more practice on X", "write a few exercises for this
-  lesson", or wants extra reps for a concept that already has a lesson. Tie-breaker:
-  ADDING new problems is add-problems; CHANGING existing problems is update-course.
-  For building a whole new course from scratch, use create-course instead.
+  lesson", or wants extra reps for a concept that already has a lesson — including
+  the RELEARNING case: "I failed the module check", "I've memorized the answers,
+  give me fresh problems", "another round of practice" (that case follows
+  problem-authoring.md §Fresh-rep rounds). Tie-breaker: ADDING new problems is
+  add-problems; CHANGING existing problems is update-course. For building a whole
+  new course from scratch, use create-course instead.
 ---
 
 # add-problems
@@ -31,7 +34,13 @@ hidden worked answers, notation reuse — lives in one place; do not reinvent it
 1. **Locate the target.** Find the module the user means (a
    `courses/<slug>/modules/NN-*/` or `foundations/<slug>/` folder). If ambiguous,
    ask which module. Confirm whether they want problems added to `practice.qmd`, new
-   "Check yourself" questions in `lesson.qmd`, or both.
+   "Check yourself" questions in `lesson.qmd`, or both. **Classify the request:**
+   ordinary extension (more coverage of the ramp), or a **relearning round** — the
+   learner missed the Module check or has memorized the existing set. A relearning
+   round follows `problem-authoring.md` §Fresh-rep rounds instead of extending the
+   ramp: ask which quiz items or skills were missed if the user didn't say (target
+   the module's core moves if they don't know), and note that every number and
+   context must differ from every existing round.
 
 2. **Lock the context.** Read that module's `lesson.qmd` to pin down its toy example,
    its exact symbols and pronunciations, and what it teaches. New problems must reuse
@@ -49,8 +58,12 @@ hidden worked answers, notation reuse — lives in one place; do not reinvent it
    against the lesson's already-embedded frozen reference numbers — reuse them, don't
    invent new reference values.
 
-4. **Insert them.** Add practice problems as new numbered `## Problem N` sections
-   (keep any cliffhanger problem last). Add "Check yourself" questions inside the
+4. **Insert them.** Ordinary additions: new numbered `## Problem N` sections
+   (keep any cliffhanger problem last, and everything before the `## Module check`
+   section). A relearning round instead goes in as one `## Extra reps — round N`
+   section immediately **before** `## Module check` (never a new file — see
+   §Fresh-rep rounds for why that breaks CI), problem numbers continuing the file's
+   sequence. Add "Check yourself" questions inside the
    lesson's existing section. `{r}` answer chunks need unique labels; `{webr}` starters
    take no label (name them in a leading comment). **If the target file has no live
    cells yet** (no `engine: knitr` + `_knitr.qmd` include in its header), add both when
@@ -75,6 +88,10 @@ existing module, not restructuring the course.
 ## GATE — do not declare done until all boxes are checked
 
 - [ ] `quarto render` exits green (or failure honestly reported with reason).
+- [ ] Relearning rounds (if any): one `## Extra reps — round N` section sitting
+      immediately before `## Module check`, 3–5 problems per §Fresh-rep rounds, and
+      **no data value reused** from any earlier round or the lesson's toy example
+      (grep the old numbers to confirm).
 - [ ] Review clean: `course-auditor` dispatched and reporting PASS (or self-review
       disclosed when Task/Agent tool unavailable).
 - [ ] Fix → re-render → re-check cycle run to completion — no known defects remain.

@@ -16,6 +16,12 @@ flowchart TD
 
     F1["vectors-and-summation<br/>(x_i, n, Σ, sum rules)"]:::foundation
     F2["mean-variance-covariance<br/>(x̄, s², cov, cor)"]:::foundation
+    F3["derivative-as-slope<br/>(slope of a curve, slope_at)"]:::foundation
+    F4["loss-functions-and-optimization<br/>(loss function, set derivative = 0)"]:::foundation
+    F5["differentiation-rules<br/>(power rule, chain rule)"]:::foundation
+    F6["partial-derivatives-and-the-gradient<br/>(∂f/∂a, one knob at a time)"]:::foundation
+    F7["randomness-samples-and-sampling-distributions<br/>(sampling distribution, standard error)"]:::foundation
+    F8["hypothesis-tests-p-values-and-confidence-intervals<br/>(t statistic, p-value, CI)"]:::foundation
     M1["01 · Lines & the least-squares idea<br/>(β₀, β₁, ŷ, residuals, SSE, argmin)"]
     M2["02 · Deriving the OLS formulas<br/>(the calc tricks + the derivation)"]
     M3["03 · Reading lm() output & papers<br/>(SE, t, p, R², paper tables)"]
@@ -24,8 +30,21 @@ flowchart TD
     F1 --> F2
     F1 --> M1
     F2 --> M1
+    F3 --> F4
+    F1 --> F4
+    F4 --> F5
+    F3 --> F5
+    F3 --> F6
+    F1 --> F6
+    F4 --> F6
     F2 --> M2
+    F5 --> M2
+    F6 --> M2
+    F4 --> M2
     M1 --> M2
+    F2 --> F7
+    F7 --> F8
+    F8 --> M3
     M2 --> M3
     M3 --> M4
 ```
@@ -34,15 +53,27 @@ flowchart TD
 
 1. Foundation: [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) —
    new? take it fully; done before? skim its pronunciation table.
-2. Foundation: [mean-variance-covariance](../../foundations/mean-variance-covariance/lesson.qmd) —
+2. Foundation: [derivative-as-slope](../../foundations/derivative-as-slope/lesson.qmd) —
    same rule.
-3. [01 · Lines and the least-squares idea](modules/01-least-squares-idea/lesson.qmd)
+3. Foundation: [mean-variance-covariance](../../foundations/mean-variance-covariance/lesson.qmd) —
+   same rule.
+4. Foundation: [loss-functions-and-optimization](../../foundations/loss-functions-and-optimization/lesson.qmd) —
+   same rule.
+5. Foundation: [differentiation-rules](../../foundations/differentiation-rules/lesson.qmd) —
+   same rule.
+6. Foundation: [partial-derivatives-and-the-gradient](../../foundations/partial-derivatives-and-the-gradient/lesson.qmd) —
+   same rule.
+7. [01 · Lines and the least-squares idea](modules/01-least-squares-idea/lesson.qmd)
    (+ [practice](modules/01-least-squares-idea/practice.qmd))
-4. [02 · Deriving the OLS formulas](modules/02-deriving-the-ols-formulas/lesson.qmd)
+8. [02 · Deriving the OLS formulas](modules/02-deriving-the-ols-formulas/lesson.qmd)
    (+ [practice](modules/02-deriving-the-ols-formulas/practice.qmd))
-5. [03 · Reading lm() output and papers](modules/03-reading-lm-output-and-papers/lesson.qmd)
+9. Foundation: [randomness-samples-and-sampling-distributions](../../foundations/randomness-samples-and-sampling-distributions/lesson.qmd) —
+   same rule.
+10. Foundation: [hypothesis-tests-p-values-and-confidence-intervals](../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd) —
+   same rule.
+11. [03 · Reading lm() output and papers](modules/03-reading-lm-output-and-papers/lesson.qmd)
    (+ [practice](modules/03-reading-lm-output-and-papers/practice.qmd))
-6. [04 · Capstone — reading a real regression](modules/04-capstone-reading-a-real-regression/lesson.qmd)
+12. [04 · Capstone — reading a real regression](modules/04-capstone-reading-a-real-regression/lesson.qmd)
    (+ [practice](modules/04-capstone-reading-a-real-regression/practice.qmd))
 
 After each lesson, do its practice page before moving on — the problems are the part

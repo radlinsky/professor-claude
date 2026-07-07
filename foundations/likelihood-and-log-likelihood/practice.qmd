@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -181,8 +183,8 @@ The log-likelihood is the log of the product of the per-flip pieces. The log rul
 $\log(ab\cdots) = \log a + \log b + \cdots$ lets you compute it either as one log of the
 whole product, or as the sum of the individual logs — they are the same number:
 
-- (a) $\log(0.6 \times 0.6 \times 0.6 \times 0.4) = \log(0.0864) \approx -2.4489$.
-- (b) $\log 0.6 + \log 0.6 + \log 0.6 + \log 0.4 \approx -2.4489$.
+- (a) $\log(0.6 \times 0.6 \times 0.6 \times 0.4) = \log(0.0864) \approx -2.4488$.
+- (b) $\log 0.6 + \log 0.6 + \log 0.6 + \log 0.4 \approx -2.4488$.
 
 Both are **negative**, because every piece is below 1 and the log of a number below 1 is
 negative. This equality is *why* log-likelihood is a sum — it's the product-to-sum rule
@@ -192,7 +194,7 @@ likelihood.
 ```{r p5-answer}
 pieces <- c(0.6, 0.6, 0.6, 0.4)
 c(log_of_product = log(prod(pieces)),   # (a)
-  sum_of_logs    = sum(log(pieces)))    # (b) -- both ~ -2.4489, identical
+  sum_of_logs    = sum(log(pieces)))    # (b) -- both ~ -2.4488, identical
 ```
 :::
 
@@ -246,7 +248,7 @@ browser only.
 
 ::: {.quiz-q qid="lll-log-likelihood-value" qtype="numeric" answer="-2.079" tolerance="0.001"}
 Three independent flips at $p = 0.5$ give a likelihood of $0.125$. Its log-likelihood is
-$\ln(0.125)$. Compute it, rounded to three decimals.
+$\log(0.125)$. Compute it, rounded to three decimals.
 :::
 
 ::: {.quiz-q qid="lll-combine-multiply" qtype="mc" answer="b"}
@@ -261,16 +263,16 @@ c) Average them: $(0.6 + 0.6 + 0.4)/3$
 ::: {.quiz-q qid="lll-not-prob-of-p" qtype="mc" answer="a"}
 Why is the likelihood $L(p)$ *not* a probability distribution over $p$?
 
-a) $L(p)$ gives the probability of the *data* as $p$ varies, and these values do not sum to $1$ across $p$
-b) Because likelihood values are always negative
-c) Because $p$ is known rather than random
+a) $L(p)$ scores the data's probability at each $p$, and those scores don't have to sum to $1$
+b) Because likelihood values are always negative, so they can never be probabilities
+c) Because $p$ is a fixed known quantity rather than something random or uncertain
 :::
 
 ::: {.quiz-q qid="lll-mle-idea" qtype="mc" answer="c"}
 What is the maximum-likelihood estimate $\hat{p}$?
 
-a) The average of all the likelihood values
-b) The probability that the parameter is correct
+a) The average of all the likelihood values computed across the parameter range
+b) The probability that the chosen parameter value is the correct one given the data
 c) The parameter value that maximizes the likelihood — the top of the curve
 :::
 

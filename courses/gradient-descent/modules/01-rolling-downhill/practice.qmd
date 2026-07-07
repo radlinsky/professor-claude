@@ -15,6 +15,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Use paper or the live cells; only then open the
 answer. A slope-measuring helper you can paste into any starter:
 `slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)`.
@@ -211,7 +213,7 @@ c) Subtraction is what makes each step smaller than the last
 
 ::: {.quiz-q qid="rd-lr-diagnosis" qtype="mc" answer="b"}
 **Starting from $x = 1$ on the lesson's bowl, your iterates are $1$, then $7.12$, then
-$0.75$, each landing farther from $x = 4$ than the last. What is going on?**
+$0.76$, each landing farther from $x = 4$ than the last. What is going on?**
 
 a) The learning rate is too small, so the walk barely crawls forward
 b) The learning rate is too big, so each step overshoots the bottom

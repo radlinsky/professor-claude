@@ -26,6 +26,7 @@ flowchart TD
     F2["probability-and-odds<br/>(p, odds = p/(1−p), log-odds)"]:::foundation
     F3["vectors-and-summation<br/>(x_i, y_i, n, Σ)"]:::foundation
     F4["derivative-as-slope<br/>(measure a slope numerically)"]:::foundation
+    F5["likelihood-and-log-likelihood<br/>(L(θ), log L, MLE)"]:::foundation
 
     C1["course: simple-linear-regression<br/>(the line β₀+β₁x)"]:::priorcourse
     C2["course: gradient-descent<br/>(step along the slope)"]:::priorcourse
@@ -45,6 +46,9 @@ flowchart TD
     F3 --> M3
     F4 --> M3
     C2 --> M3
+    F2 --> F5
+    F1 --> F5
+    F5 --> M3
     M3 --> M4
 ```
 
@@ -62,9 +66,11 @@ flowchart TD
    (+ [practice](modules/01-from-line-to-probability/practice.qmd))
 6. [02 · Odds, log-odds, and the logit link](modules/02-odds-log-odds-and-the-logit/lesson.qmd)
    (+ [practice](modules/02-odds-log-odds-and-the-logit/practice.qmd))
-7. [03 · Likelihood and fitting by gradient ascent](modules/03-likelihood-and-gradient-ascent/lesson.qmd)
+7. Foundation: [likelihood-and-log-likelihood](../../foundations/likelihood-and-log-likelihood/lesson.qmd) —
+   same rule.
+8. [03 · Likelihood and fitting by gradient ascent](modules/03-likelihood-and-gradient-ascent/lesson.qmd)
    (+ [practice](modules/03-likelihood-and-gradient-ascent/practice.qmd))
-8. [04 · Capstone — reading a real logistic regression](modules/04-capstone-reading-a-real-logistic-regression/lesson.qmd)
+9. [04 · Capstone — reading a real logistic regression](modules/04-capstone-reading-a-real-logistic-regression/lesson.qmd)
    (+ [practice](modules/04-capstone-reading-a-real-logistic-regression/practice.qmd))
 
 After each lesson, do its practice page before moving on — the problems are the part

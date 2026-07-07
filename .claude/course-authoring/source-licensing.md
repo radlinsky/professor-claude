@@ -58,8 +58,10 @@ knowledge) has no source to license — record `n/a — no external source` and 
   GPL / LGPL / AGPL, MPL, CC-BY-SA. These are "open" but restrict how re-implemented
   or derived code may be reused, so per issue #12 they are a flag, not auto-OK.
 - **FLAG — restrictive / all-rights-reserved / no license / unknown** → stop and
-  confirm: proprietary, "all rights reserved", any paper with a plain copyright line,
-  or a repo with no license file at all (no license = default all-rights-reserved).
+  confirm: proprietary, "all rights reserved", CC-BY-NC / CC-BY-ND (Creative Commons
+  is not automatically open — NonCommercial and NoDerivatives restrict reuse; only
+  CC0/CC-BY are in the OK list), any paper with a plain copyright line, or a repo
+  with no license file at all (no license = default all-rights-reserved).
 
 ## Blocking rule
 

@@ -1,0 +1,345 @@
+---
+title: "Practice: Differentiation rules"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in the live cells; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+In the lesson we found the derivative of $f(x) = 3x^2 + 5x - 7$ was $f'(x) = 6x + 5$.
+Now differentiate $g(x) = 4x^3 - 2x^2 + x - 10$ by hand (use constant-multiple, power,
+sum/difference, and constant rules). Then check your answer numerically at $x = 2$.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to check your hand calculation
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+g <- function(x) 4*x^3 - 2*x^2 + x - 10
+x0 <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Apply the rules term by term:
+
+- $4x^3$: constant-multiple × power rule → $4 \cdot 3x^2 = 12x^2$
+- $-2x^2$: constant-multiple × power rule → $-2 \cdot 2x = -4x$
+- $x$: power rule ($x = x^1$, exponent 1 → $1 \cdot x^0 = 1$) → $1$
+- $-10$: constant rule → $0$
+
+So $g'(x) = 12x^2 - 4x + 1$. At $x = 2$: $12(4) - 4(2) + 1 = 48 - 8 + 1 = 41$.
+
+```{r p1-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+g <- function(x) 4*x^3 - 2*x^2 + x - 10
+slope_at(g, 2)   # 41 — matches 12*(4) - 4*(2) + 1
+```
+:::
+
+---
+
+## Problem 2 — fill in the missing step
+
+Here is a worked derivation of the slope of $f(x) = (3x - 2)^2$ at $x = 3$, using the
+chain rule. One step is blanked out — supply it.
+
+> **Step 1 — identify outer and inner:**
+> Outer function: $(\cdot)^2$; inner function: $g(x) = 3x - 2$.
+>
+> **Step 2 — outer derivative:**
+> Derivative of $u^2$ is $2u$; evaluated at inner: $2(3x - 2)$.
+>
+> **Step 3 — inner derivative:**
+> `<your step here>`: compute $g'(x)$ = derivative of $3x - 2$.
+>
+> **Step 4 — chain rule: outer × inner:**
+> $f'(x) = 2(3x - 2) \cdot g'(x)$.
+>
+> **Step 5 — evaluate at $x = 3$:**
+> Inner value: $3(3) - 2 = 7$. So $f'(3) = 2(7) \cdot g'(x)$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) (3*x - 2)^2
+x0 <- 3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing step is the **inner derivative**: $g(x) = 3x - 2$, so $g'(x) = 3$
+(constant-multiple × power rule: $3 \cdot 1 \cdot x^0 = 3$).
+
+Completing the chain rule: $f'(x) = 2(3x - 2) \cdot 3 = 6(3x - 2)$.
+At $x = 3$: $6(3 \cdot 3 - 2) = 6 \cdot 7 = 42$.
+
+```{r p2-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) (3*x - 2)^2
+slope_at(f, 3)   # 42 — matches 6*(3*3 - 2) = 6*7 = 42
+```
+:::
+
+---
+
+## Problem 3 — full problem: applying all the rules
+
+The function $h(x) = 2(x - 1)^3 + 4x - 5$ looks complex but it falls apart cleanly.
+Differentiate it by hand, then evaluate $h'(x)$ at $x = 2$.
+
+- The $2(x - 1)^3$ term needs chain rule (outer: $(\cdot)^3$; inner: $x - 1$) plus
+  constant-multiple.
+- The remaining terms need power and constant rules.
+
+Check numerically.
+
+```{webr}
+#| autorun: false
+# p3-starter — edit and Run to check your answer
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+h_fn <- function(x) 2*(x - 1)^3 + 4*x - 5
+x0 <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Break into terms:
+
+**Term $2(x-1)^3$:**
+- Chain rule: outer $(\cdot)^3$ → outer derivative $3(\cdot)^2$; evaluated at inner
+  $x-1$: $3(x-1)^2$
+- Inner $x - 1$ → inner derivative $1$
+- Chain rule product: $3(x-1)^2 \cdot 1 = 3(x-1)^2$
+- Constant-multiple $2$: $2 \cdot 3(x-1)^2 = 6(x-1)^2$
+
+**Term $4x$:** → $4$
+
+**Term $-5$:** → $0$ (constant rule)
+
+So $h'(x) = 6(x-1)^2 + 4$. At $x = 2$: $6(1)^2 + 4 = 6 + 4 = 10$.
+
+```{r p3-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+h_fn <- function(x) 2*(x - 1)^3 + 4*x - 5
+slope_at(h_fn, 2)   # 10 — matches 6*(2-1)^2 + 4 = 6 + 4
+```
+:::
+
+---
+
+## Problem 4 — spot the error
+
+A student differentiates $f(x) = (5x + 2)^2$ and gets $f'(x) = 2(5x + 2)$. Their work
+is shown below — it contains **exactly one mistake**. Find it and write the correct
+answer. Then check numerically at $x = 1$.
+
+> "Outer function is $(\cdot)^2$, so the outer derivative is $2(\cdot)^1 = 2(5x + 2)$.
+> Inner function is $5x + 2$, but its derivative is just 1 because the coefficient
+> doesn't matter. So $f'(x) = 2(5x + 2) \cdot 1 = 2(5x + 2)$."
+
+```{webr}
+#| autorun: false
+# p4-starter — run to see the true slope, then identify the error above
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) (5*x + 2)^2
+x0 <- 1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is in the **inner derivative**. The inner function is $g(x) = 5x + 2$.
+Its derivative is $g'(x) = 5$ (not 1) — the constant-multiple rule gives $5 \cdot 1
+= 5$ for the $5x$ term. The coefficient of $x$ in the inner function absolutely does
+matter.
+
+Correct chain rule: $f'(x) = 2(5x + 2) \cdot 5 = 10(5x + 2)$.
+At $x = 1$: $10(5 + 2) = 10 \cdot 7 = 70$.
+
+```{r p4-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) (5*x + 2)^2
+
+wrong   <- 2 * (5*1 + 2) * 1   # student's answer: 14
+correct <- 2 * (5*1 + 2) * 5   # true: 70
+measured <- slope_at(f, 1)      # 70 — confirms the correct version
+
+c(wrong = wrong, correct = correct, measured = measured)
+```
+
+This is exactly the trap from Common traps: forgetting the inner derivative makes the
+answer off by a factor of $g'(x)$ (here, off by 5).
+:::
+
+---
+
+## Problem 5 — interleaved *(uses derivative-as-slope's numerical tool)*
+
+*(Uses [derivative-as-slope](../derivative-as-slope/lesson.qmd))*
+
+You have the function $f(x) = x^4 - 8x^2 + 7$.
+
+**Part A:** Use the rules from this module to find $f'(x)$ algebraically.
+
+**Part B:** Use `slope_at()` from the derivative-as-slope module to measure the slope
+at $x = -2$, $x = 0$, and $x = 2$. Do the numerical measurements agree with your
+algebraic derivative? What do you notice about the slopes at these three points — and
+what does that tell you about the shape of the function?
+
+```{webr}
+#| autorun: false
+# p5-starter — Part A: work out f'(x) on paper first, then check here
+# Part B: measure the slopes and compare
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) x^4 - 8*x^2 + 7
+xs <- c(-2, 0, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**Part A:** Apply sum rule + constant-multiple + power rule term by term:
+- $x^4$ → $4x^3$
+- $-8x^2$ → $-8 \cdot 2x = -16x$
+- $7$ → $0$
+
+So $f'(x) = 4x^3 - 16x$.
+
+Evaluate by hand: $f'(-2) = 4(-8) - 16(-2) = -32 + 32 = 0$; $f'(0) = 0$;
+$f'(2) = 4(8) - 16(2) = 32 - 32 = 0$.
+
+```{r p5-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) x^4 - 8*x^2 + 7
+
+xs      <- c(-2, 0, 2)
+numeric <- sapply(xs, function(x) slope_at(f, x))   # all ~0
+rule    <- 4*xs^3 - 16*xs                            # all exactly 0
+
+rbind(by_rule = rule, numerical = round(numeric, 6))
+```
+
+**Part B interpretation:** All three slopes are (essentially) zero, which means $x =
+-2$, $x = 0$, and $x = 2$ are all flat spots — local minima or maxima. The function has
+a "W" shape with two valleys and a peak. The derivative tells you *where* those turning
+points are; you'd need to check second derivatives (or just plot it) to distinguish
+the valleys from the peak.
+:::
+
+---
+
+## Problem 6 — transfer: the OLS pattern
+
+*(Preview — a tool from the next derivation you'll encounter)*
+
+The ordinary least-squares loss for fitting a line $y = a + bx$ to data involves
+minimising a sum of squared gaps. For each data point, the squared residual has the
+form $(y_i - a - b x_i)^2$. With $y_i$, $a$, and $x_i$ treated as fixed constants,
+this is a function of the single knob $b$.
+
+**Your task:** write down $\frac{d}{db}(y_i - a - b x_i)^2$ using the chain rule.
+
+Treat $y_i - a - b x_i$ as the inner function (a linear function of $b$), and
+$(\cdot)^2$ as the outer. The derivative will involve $x_i$ (the $x_i$ in the inner
+function).
+
+You don't have enough machinery yet to finish the whole OLS derivation — that's the
+next course's job. But the derivative of this one squared term is the key move.
+
+```{webr}
+#| autorun: false
+# p6-starter — verify your chain-rule answer numerically for one concrete case:
+# set y_i = 5, a = 1, x_i = 2, then measure d/db of (y_i - a - b*x_i)^2 at b = 1
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+y_i <- 5; a <- 1; x_i <- 2
+f_of_b <- function(b) (y_i - a - b * x_i)^2
+b0 <- 1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**By chain rule:**
+- Outer: $(\cdot)^2$; outer derivative: $2(\cdot)$; evaluated at inner: $2(y_i - a - b x_i)$
+- Inner: $y_i - a - b x_i$; derivative with respect to $b$: $-x_i$ (the constant $-x_i$
+  multiplies $b^1$, so the derivative is $-x_i$; the constant terms $y_i - a$ vanish)
+- Chain rule product: $2(y_i - a - b x_i) \cdot (-x_i) = -2 x_i (y_i - a - b x_i)$
+
+At the concrete values ($y_i = 5$, $a = 1$, $x_i = 2$, $b = 1$):
+inner $= 5 - 1 - 1 \cdot 2 = 2$; derivative $= -2 \cdot 2 \cdot 2 = -8$.
+
+```{r p6-answer}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+y_i <- 5; a <- 1; x_i <- 2
+f_of_b <- function(b) (y_i - a - b * x_i)^2
+
+by_rule    <- -2 * x_i * (y_i - a - 1 * x_i)   # at b = 1: -2*2*2 = -8
+by_numeric <- slope_at(f_of_b, 1)               # should also be -8
+
+c(rule = by_rule, numeric = by_numeric)
+```
+
+When you sum these $-2 x_i (y_i - a - b x_i)$ terms over all data points and set the
+sum to zero, that's the equation whose solution gives the OLS slope estimate.
+The chain rule just made the hardest step of that derivation.
+:::
+
+---
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/differentiation-rules" pass="4"}
+
+::: {.quiz-q qid="dr-power-rule-apply" qtype="numeric" answer="12" tolerance="0"}
+By the power rule, $\frac{d}{dx}(x^3) = 3x^2$. What is $3x^2$ evaluated at $x = 2$?
+:::
+
+::: {.quiz-q qid="dr-constant-rule" qtype="mc" answer="c"}
+You differentiate $f(x) = 8$ and get $f'(x) = ?$
+
+a) $8$
+b) $8x$
+c) $0$
+:::
+
+::: {.quiz-q qid="dr-sum-rule-eval" qtype="numeric" answer="17" tolerance="0"}
+Using the sum, constant-multiple, and power rules, what is the derivative of
+$3x^2 + 5x - 7$ evaluated at $x = 2$?
+:::
+
+::: {.quiz-q qid="dr-chain-inner" qtype="mc" answer="b"}
+When applying the chain rule to $f(x) = (4x - 1)^3$, what is the inner derivative
+$g'(x)$ where $g(x) = 4x - 1$?
+
+a) $1$
+b) $4$
+c) $3$
+:::
+
+::: {.quiz-q qid="dr-das-central-slope" qtype="numeric" answer="6" tolerance="0"}
+*(Uses [derivative-as-slope](../derivative-as-slope/lesson.qmd))* Using the power rule,
+the derivative of $x^2$ is $2x$. What does the central-difference formula
+$(f(x+h) - f(x-h))/(2h)$ give for $f(x) = x^2$ at $x = 3$ when you measure it
+numerically? (Recall this lesson used this fact to verify the power rule.)
+:::
+
+:::
+
+::::

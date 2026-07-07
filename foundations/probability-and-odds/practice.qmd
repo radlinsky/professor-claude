@@ -15,6 +15,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Use paper or the live cells; only then open the
 answer. Reminders: odds $= p/(1-p)$, log-odds $= \log(\text{odds})$, and to invert,
 $p = \text{odds}/(1+\text{odds})$.
@@ -160,6 +162,12 @@ Two medical tests are described. Test A: the odds of a true positive are $9$. Te
 the odds are $1.5$. Without converting to probabilities, which test is more likely to
 give a true positive, and roughly how do their probabilities compare (both above $0.5$,
 both below, one each)? Explain in a sentence or two.
+
+```{webr}
+#| autorun: false
+# p6-starter — use p = odds/(1+odds) to verify
+odds_A <- 9; odds_B <- 1.5
+```
 
 ::: {.callout-note collapse="true" title="Answer"}
 Test A is much more likely to give a true positive — odds of $9$ (nine hits per miss)

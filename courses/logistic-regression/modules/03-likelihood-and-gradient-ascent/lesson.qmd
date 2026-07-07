@@ -16,13 +16,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -30,7 +23,9 @@ We have the model's *shape* — a line on the log-odds, bent to a probability by
 sigmoid. What we don't have is the coefficients. In ordinary regression there was a tidy
 formula for them; in logistic regression **there isn't** — no closed form exists. Instead
 we ask a beautifully direct question: *which coefficients make the 0/1 data we actually
-observed most probable?* That "probability of the data" is the **likelihood**; the
+observed most probable?* That "probability of the data" is the **likelihood** — the same
+idea you built in [likelihood-and-log-likelihood](../../../../foundations/likelihood-and-log-likelihood/lesson.qmd),
+now applied to the Bernoulli/logistic case; the
 coefficients that maximize it are the fit. This module builds the likelihood, explains
 why we work with its **log**, and finds the top by **gradient ascent** — your
 [gradient-descent](../../../gradient-descent/syllabus.md) machine with the sign flipped to
@@ -39,6 +34,8 @@ climb *uphill*.
 **Builds on:** [the logit link and sigmoid](../02-odds-log-odds-and-the-logit/lesson.qmd)
 (module 2); the [gradient-descent](../../../gradient-descent/syllabus.md) course (the
 update rule, the gradient over several knobs); and the foundations
+[likelihood-and-log-likelihood](../../../../foundations/likelihood-and-log-likelihood/lesson.qmd)
+(what likelihood is, why we log it),
 [exponentials-and-logs](../../../../foundations/exponentials-and-logs/lesson.qmd)
 (products → sums via the log),
 [vectors-and-summation](../../../../foundations/vectors-and-summation/lesson.qmd) (the

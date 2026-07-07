@@ -64,9 +64,10 @@ set.seed(42)
      - Each answer: collapsed callout, brief worked answer, plus a link back to the
        lesson/section that taught it ("shaky? revisit <link>").
      - If a question hands the learner data to compute with, give a copy-able
-       starter chunk (label warmupN-starter), same rule as practice problems. -->
+       live starter cell, same rule as practice problems (no knitr label — a
+       leading comment, `# warmupN-starter`). -->
 
-Before the new stuff, three quick reps — answers from memory first, then check.
+Before the new stuff, a few quick reps — answers from memory first, then check.
 
 **1.** <recall question from a prerequisite module>
 
@@ -232,9 +233,10 @@ refutation using this lesson's toy numbers.>
      collapsed MODEL answer (a genuinely good two-sentence explanation, not a
      formula reading). Answers in collapsed callouts with the worked step(s), not
      just the result. If a question gives the learner a vector / data frame to
-     compute with, add a small ```{r} starter chunk defining that data right after
-     the question (same copy-able-data rule as the practice set; label
-     checkN-starter). Skip it for scalar-only plug-ins already stated in prose. -->
+     compute with, add a small live ```{webr} starter cell (autorun: false) defining
+     that data right after the question (same copy-able-data rule as the practice
+     set; no knitr label — name it in a leading comment, `# checkN-starter`). Skip
+     it for scalar-only plug-ins already stated in prose. -->
 
 **1.** <question>
 

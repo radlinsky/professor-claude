@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -45,9 +38,11 @@ teach standardizing/scaling data (that is the variance-structure material — we
 point at *why* it matters).
 
 **Builds on:** [vectors & summation](../vectors-and-summation/lesson.qmd) — a distance
-is built from a **dot product**, which is a sum of products ($\sum_i a_i b_i$); and
+is built from a **dot product**, which is a sum of products ($\sum_i a_i b_i$);
 [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd) — data
-with many columns is a matrix, one row per point.
+with many columns is a matrix, one row per point; and
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) — correlation
+distance uses the correlation coefficient $r$.
 
 ## Warm-up: do you remember?
 
@@ -171,8 +166,7 @@ dollars, utterly *drowns out* age — not because income matters more, but becau
 numbers are bigger. Distance takes your columns at face value, so a column with big
 numbers dominates. The fix — rescaling every column to a common footing *before*
 measuring distance — is its own topic (the
-[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) module and the
-variance-structure material build it out); here just carry the warning: **before you
+[variance-structure & standardization](../variance-structure-and-standardization/lesson.qmd) module builds it out); here just carry the warning: **before you
 trust a distance, ask whether the columns are on comparable scales.**
 
 ## What the notation is going to say
@@ -440,7 +434,7 @@ has the larger raw spread dominates the arithmetic. In our people example, chang
 income by \$1,000 moved the distance by 1,000 while a 5-year age change moved it by only
 5, even if age were the more meaningful variable. The numbers, not the importance, did
 that. Rescaling the columns first (the
-[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) module) is how you
+[variance-structure & standardization](../variance-structure-and-standardization/lesson.qmd) module) is how you
 stop a loud-scale column from hijacking every distance.
 
 ## Check yourself

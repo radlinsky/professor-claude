@@ -18,13 +18,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -197,6 +190,7 @@ formula for that probability at all — we'll **simulate** it, generating thousa
 | $n$ | "en" | how many data points (in R: `length(d)`) | $5$ |
 | $\pm$ | "plus-or-minus" | the value both added and subtracted (give-or-take) | $2 \pm 1.41$ |
 | $\sqrt{n}$ | "the square root of n" | in R: `sqrt(n)` | $\sqrt{5} \approx 2.24$ |
+| $\approx$ | "is approximately" | nearly equal — the two sides agree up to rounding | $1.58/\sqrt{5} \approx 0.71$ |
 
 Greek $\alpha$ is the line *we* draw in advance; $p$ is what the data *report back*.
 A hat ($\hat{\theta}$) always means "estimated from data," never a known truth.

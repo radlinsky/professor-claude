@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -216,9 +218,9 @@ b) Dividing by $x$ assumes $x \neq 0$ and drops the solution $x = 0$; factor $x(
 c) You can never divide both sides of an equation by a variable
 :::
 
-::: {.quiz-q qid="amd-two-ab" qtype="numeric" answer="20" tolerance="0"}
-Expand and evaluate $(a + b)^2 - a^2 - b^2$ for $a = 2, b = 5$. (It is the cross term the
-"$a^2 + b^2$" trap drops.)
+::: {.quiz-q qid="amd-reindex" qtype="numeric" answer="12" tolerance="0"}
+For $x = (2, 4, 6)$, evaluate $\sum_{j=2}^{4} x_{j-1}$. (Hint: reindexing shifts the
+counter but picks out the same terms.)
 :::
 
 ::: {.quiz-q qid="amd-complete-square" qtype="mc" answer="c"}

@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -296,6 +289,19 @@ c(RSS = RSS, MSE = MSE, RMSE = RMSE, R2 = R2)   # 4, 0.8, 0.894, 0.92
 
 ```{webr}
 #| autorun: true
+# explore-1b — LIVE: confirm the by-hand formulas match R's built-in lm().
+# Fit a line through the same y values, then check: both paths agree.
+x <- 1:5
+lm_fit   <- lm(y ~ x)
+lm_RSS   <- sum(lm_fit$residuals^2)
+lm_TSS   <- sum((y - mean(y))^2)
+lm_R2    <- summary(lm_fit)$r.squared
+
+c(byhand_R2 = 1 - lm_RSS / lm_TSS, lm_R2 = lm_R2)   # both paths agree
+```
+
+```{webr}
+#| autorun: true
 # explore-2 — LIVE: R2 = 0 is EXACTLY the mean-guesser.
 # PREDICT: this model predicts the mean of y for every point. What is its RSS
 # compared to TSS, and therefore its R2? Write it down, then run.
@@ -406,6 +412,28 @@ cv_rmse <- function(degree) {
 c(line = cv_rmse(1), wiggly = cv_rmse(9))  # 2.433 vs 6.457: the simple line wins
 ```
 
+## The bias–variance trade-off (in words) {#bias-variance}
+
+One last idea ties the whole lesson together, and for this module we keep it entirely in
+words. Every model's expected error on new data splits into two competing pieces:
+
+- **Bias** is error from the model being *too rigid* to capture the real pattern — the
+  underfitting side. Our flat mean-line has high bias: it is systematically wrong because
+  a horizontal line cannot follow a rising trend, no matter what data you feed it.
+- **Variance** here means error from the model being *too sensitive* to the particular
+  data it was trained on — the overfitting side. Our wiggly curve has high variance:
+  reshuffle the points and it would draw a wildly different curve, because it is chasing
+  noise that changes from sample to sample.
+
+The **trade-off**: making a model more flexible lowers bias but raises variance, and
+making it simpler does the reverse. You cannot drive both to zero at once, so the sweet
+spot — the model that generalizes best — is a *balance*, not an extreme. That balance is
+exactly what a low **cross-validation** error points you toward: in our run the flexible
+degree-9 curve had low bias but its variance blew up (CV RMSE 6.457), while the straight
+line balanced the two and won (CV RMSE 2.433). (Depth note: putting a *number* on bias and
+variance separately is beyond this module — here the trade-off is a mental model for
+*why* the middle wins.)
+
 ## Common traps
 
 **Trap 1 — "higher R² (or lower training error) always means a better model."** It is
@@ -463,28 +491,6 @@ model can drive training error to nearly zero by memorizing the noise, so it loo
 on the data it studied yet falls apart on new data — which is why you always check the
 score on a held-out set.
 :::
-
-## The bias–variance trade-off (in words) {#bias-variance}
-
-One last idea ties the whole lesson together, and for this module we keep it entirely in
-words. Every model's expected error on new data splits into two competing pieces:
-
-- **Bias** is error from the model being *too rigid* to capture the real pattern — the
-  underfitting side. Our flat mean-line has high bias: it is systematically wrong because
-  a horizontal line cannot follow a rising trend, no matter what data you feed it.
-- **Variance** here means error from the model being *too sensitive* to the particular
-  data it was trained on — the overfitting side. Our wiggly curve has high variance:
-  reshuffle the points and it would draw a wildly different curve, because it is chasing
-  noise that changes from sample to sample.
-
-The **trade-off**: making a model more flexible lowers bias but raises variance, and
-making it simpler does the reverse. You cannot drive both to zero at once, so the sweet
-spot — the model that generalizes best — is a *balance*, not an extreme. That balance is
-exactly what a low **cross-validation** error points you toward: in our run the flexible
-degree-9 curve had low bias but its variance blew up (CV RMSE 6.457), while the straight
-line balanced the two and won (CV RMSE 2.433). (Depth note: putting a *number* on bias and
-variance separately is beyond this module — here the trade-off is a mental model for
-*why* the middle wins.)
 
 ## What you can now do
 

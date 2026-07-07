@@ -40,6 +40,10 @@ until the auditor reports PASS.
       scalar-only prompts exempt).
 - [ ] Every answer is a fully-worked `collapse="true"` callout.
 - [ ] New problems reuse only notation the lesson already decoded; no new symbols.
+- [ ] If the request was a relearning round (a Module-check miss / memorized set),
+      it follows `problem-authoring.md` §Fresh-rep rounds: one `## Extra reps —
+      round N` section immediately before `## Module check`, and no data value
+      reused from any earlier round or the lesson's toy example.
 - [ ] In a ported module (one that self-checks against an `equivalence/` fixture), a
       solve-it starter reuses the lesson's embedded frozen reference numbers rather than
       inventing new ones.

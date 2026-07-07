@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -25,7 +27,7 @@ then open the answer.
 A new recipe grid $C$ and a price vector $\mathbf{u}$:
 
 $$
-C = \begin{bmatrix} 1 & 2 \\ 3 & 0 \end{bmatrix}, \qquad \mathbf{u} = (4, 5)
+C = \begin{bmatrix} 2 & 1 \\ 0 & 3 \end{bmatrix}, \qquad \mathbf{u} = (3, 2)
 $$
 
 By hand, compute $C\mathbf{u}$ as one dot product per row. Then check with `%*%`.
@@ -33,22 +35,22 @@ By hand, compute $C\mathbf{u}$ as one dot product per row. Then check with `%*%`
 ```{webr}
 #| autorun: false
 # p1-starter — edit and Run to solve, right here
-C <- matrix(c(1, 2,
-              3, 0), nrow = 2, byrow = TRUE)
-u <- c(4, 5)
+C <- matrix(c(2, 1,
+              0, 3), nrow = 2, byrow = TRUE)
+u <- c(3, 2)
 ```
 
 ::: {.callout-note collapse="true" title="Answer"}
-Row 1 dotted with $\mathbf{u}$: $1\times4 + 2\times5 = 4 + 10 = 14$.
-Row 2 dotted with $\mathbf{u}$: $3\times4 + 0\times5 = 12 + 0 = 12$.
-So $C\mathbf{u} = (14, 12)$.
+Row 1 dotted with $\mathbf{u}$: $2\times3 + 1\times2 = 6 + 2 = 8$.
+Row 2 dotted with $\mathbf{u}$: $0\times3 + 3\times2 = 0 + 6 = 6$.
+So $C\mathbf{u} = (8, 6)$.
 
 ```{r p1-answer}
-C <- matrix(c(1, 2,
-              3, 0), nrow = 2, byrow = TRUE)
-u <- c(4, 5)
-C %*% u                              # 14, 12
-c(sum(C[1, ] * u), sum(C[2, ] * u))  # 14, 12 — same, one dot product per row
+C <- matrix(c(2, 1,
+              0, 3), nrow = 2, byrow = TRUE)
+u <- c(3, 2)
+C %*% u                              # 8, 6
+c(sum(C[1, ] * u), sum(C[2, ] * u))  # 8, 6 — same, one dot product per row
 ```
 :::
 
@@ -278,24 +280,24 @@ browser only.
 With $A$ of shape $2 \times 3$ and $B$ of shape $3 \times 2$, what shape is $AB$?
 
 a) $2 \times 2$ — the outer dimensions, once the inner $3$s match
-b) $3 \times 3$
-c) $2 \times 3$
+b) $3 \times 3$ — the inner dimensions give the shape, not the outer ones
+c) $2 \times 3$ — the same shape as $A$, since sizes carry through unchanged
 :::
 
 ::: {.quiz-q qid="mlt-not-commutative" qtype="mc" answer="b"}
 Is matrix multiplication commutative — does $AB = BA$?
 
-a) Yes, just like ordinary numbers
+a) Yes — just like ordinary numbers, order never changes the result
 b) No — order changes the entries and often the shape, so keep the order the paper wrote
-c) Only for square matrices of the same size
+c) Only for square matrices of the same size, because non-square products may not even be defined in both orders
 :::
 
 ::: {.quiz-q qid="mlt-singular-no-inverse" qtype="mc" answer="c"}
 The matrix $\begin{bmatrix} 1 & 2 \\ 2 & 4 \end{bmatrix}$ has row $2$ equal to twice row
 $1$. What about its inverse?
 
-a) It is found by swapping the two diagonal entries
-b) Every square matrix has an inverse, so it does
+a) It is found by swapping the two diagonal entries and negating the off-diagonal ones
+b) Every square matrix has an inverse, so this one does too — just call `solve()` on it
 c) It has none — the matrix is singular (a redundant row), the matrix version of dividing by zero
 :::
 
