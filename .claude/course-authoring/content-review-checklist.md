@@ -152,7 +152,15 @@ re-render, and re-check.
     re-deriving it), that course must appear in the syllabus's *Before you start:
     course(s) this one builds on* section and as a `:::priorcourse` node in the
     roadmap. A silently-assumed course, or a declared prerequisite whose link
-    dangles, is a defect.
+    dangles, is a defect. Additionally, when a lesson's "Builds on" section
+    or warm-up questions claim a specific concept was taught in a named
+    prerequisite (e.g. "dot product from vectors & summation"), open that
+    prerequisite's `lesson.qmd` and verify the concept is actually taught
+    there — not just that the file exists. A cross-reference that names a
+    real module but attributes a concept the module doesn't cover is a defect.
+    Seed bug: three modules claimed vectors-and-summation taught dot products
+    or vector norms; it taught neither — those lived in
+    distance-similarity-and-geometry.
 
 15. **Check-yourself prompts for own words, and practice tests interpretation.**
     The lesson's Check-yourself contains at least one prompt that makes the learner

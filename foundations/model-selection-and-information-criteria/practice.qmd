@@ -21,6 +21,12 @@ open the answer.
 A model has log-likelihood $\log L = -80$ and $k = 3$ parameters, fit on $n = 50$
 observations. Compute its AIC and BIC.
 
+```{webr}
+#| autorun: false
+# p1-starter — plug in the formulas and check
+logL <- -80; k <- 3; n <- 50
+```
+
 ::: {.callout-note collapse="true" title="Answer"}
 $\mathrm{AIC} = -2(-80) + 2\times3 = 160 + 6 = 166$.
 $\mathrm{BIC} = -2(-80) + 3\log(50) = 160 + 3(3.912) = 160 + 11.74 = 171.74$. BIC exceeds

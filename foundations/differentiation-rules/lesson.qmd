@@ -34,10 +34,7 @@ could have measured.
 
 **Builds on:**
 [The derivative, as a slope you can measure](../derivative-as-slope/lesson.qmd) —
-the central-difference tool `slope_at()` and the meaning of $f'(x)$;
-[Loss functions, and finding their bottom](../loss-functions-and-optimization/lesson.qmd)
-— chain-rule-lite ("the derivative of (stuff)² is $2 \cdot \text{stuff} \cdot \text{stuff}'$"),
-which we'll extend into the general chain rule here.
+the central-difference tool `slope_at()` and the meaning of $f'(x)$.
 
 ## Warm-up: do you remember?
 
@@ -55,28 +52,27 @@ by twice the step." In R: `(f(x+h) - f(x-h)) / (2*h)` with a tiny `h` like `1e-5
 Shaky? Revisit [The derivative, as a slope you can measure](../derivative-as-slope/lesson.qmd).
 :::
 
-**2.** In the loss-functions module, you used chain-rule-lite: "the derivative of
-$(y_i - m)^2$ with respect to $m$ is $2(y_i - m) \cdot (-1)$." What is the **general
-pattern** that rule is an example of? State it in words (no formula yet).
+**2.** For the curve $f(x) = x^2$, what is the slope at $x = 0$? What about at $x = -2$?
+What does the sign of the slope tell you?
 
 ::: {.callout-note collapse="true" title="Answer"}
-"The derivative of (stuff) squared is two times (stuff) times the derivative of stuff."
-The inner piece $(y_i - m)$ is the "stuff," and its derivative with respect to $m$ is
-$-1$, so the result is $2(y_i - m)(-1)$. That "outer × inner derivative" move is chain-rule-lite,
-and this module generalises it. Shaky? Revisit
-[Loss functions, and finding their bottom](../loss-functions-and-optimization/lesson.qmd).
+At $x = 0$ the slope is **0** — the very bottom of the bowl, momentarily flat. At
+$x = -2$ the slope is **$-4$** — negative, meaning the curve is heading *downhill* as $x$
+increases. Slope sign tells you direction: positive = uphill, negative = downhill, zero =
+flat. Shaky? Revisit
+[The derivative, as a slope you can measure](../derivative-as-slope/lesson.qmd).
 :::
 
-**3.** At the *bottom* of a U-shaped loss curve, the slope is zero. If you measured the
-slope numerically at the bottom using `slope_at()`, what number would you get (roughly)?
+**3.** Write `slope_at()` from memory — the one-line function that measures the slope of
+any function $f$ at any point $x$ using the central difference.
 
 ::: {.callout-note collapse="true" title="Answer"}
-Roughly **0** (or numerically very close to zero — within rounding noise of `slope_at()`).
-The bottom is the momentarily-flat point, so rise over run there approaches zero.
-This "slope zero = bottom" fact is why the differentiation rules matter: once we can
-compute derivatives *algebraically*, we can set them to zero and solve — without
-measuring at all. Shaky? Revisit
-[Loss functions, and finding their bottom](../loss-functions-and-optimization/lesson.qmd).
+`slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)`
+
+Output one step right minus output one step left, divided by twice the step. The rules
+in this module are shortcuts to the number this tool measures — every time we compute a
+derivative by rule, we'll check it with `slope_at()`. Shaky? Revisit
+[The derivative, as a slope you can measure](../derivative-as-slope/lesson.qmd).
 :::
 
 ---
@@ -435,9 +431,7 @@ Take $f(x) = (2x + 1)^3$. The base is not $x$ — it's "$2x + 1$". Think of it a
 function wrapped inside another function: the **outer** function is "cube this thing"
 ($(\cdot)^3$), and the **inner** function is "$2x + 1$."
 
-The chain-rule-lite you already know says: "derivative of (stuff)² is $2 \cdot \text{stuff} \cdot
-\text{stuff}'$." This is the same idea generalised one step: instead of squaring, the
-outer function is a cube. The recipe is:
+The recipe is:
 
 > **outer derivative** (evaluated at the inner function) **times inner derivative**
 
@@ -478,11 +472,11 @@ well as expand.)
 - The total change divided by $\Delta x$ is $3u^2 \cdot 2 = 6(2x+1)^2$ — outer
   derivative times inner derivative.
 
-**Connecting back to chain-rule-lite.** In the loss-functions module, "stuff" was
-$(y_i - m)$ and the outer function was squaring. The chain-rule-lite rule
-$2(\text{stuff})(\text{stuff})'$ is the chain rule with outer $= (\cdot)^2$, so outer
-derivative $= 2(\cdot)^1$. The general rule here is the same idea with any outer
-function.
+**The squared-error pattern (you'll use this a lot).** A very common case is
+$(\text{stuff})^2$, where the outer function is squaring. The chain rule gives: outer
+derivative of $u^2$ is $2u$, times the inner derivative — so the derivative of
+$(\text{stuff})^2$ is $2 \cdot (\text{stuff}) \cdot (\text{stuff})'$. You'll see this
+every time a loss function has a squared term in it (which is most of them).
 
 **What the number feels like.** At $x = 1$, the slope of $(2x+1)^3$ is $54$ — quite
 steep, because the cube grows fast and the inner function doubles changes. Farther from
@@ -718,8 +712,7 @@ inner function first and then get amplified by the outer function's slope.
 - **Differentiate a multi-term polynomial** by applying the sum rule: differentiate each
   term separately and add the results.
 - **Apply the general chain rule** — outer derivative times inner derivative — to
-  composed functions like $(2x+1)^3$ or $(x - a)^2$, extending the chain-rule-lite you
-  already had from the loss-functions module.
+  composed functions like $(2x+1)^3$ or $(x - a)^2$.
 - **Verify any hand-computed derivative numerically** using `slope_at()`, so you can
   always check your algebra.
 

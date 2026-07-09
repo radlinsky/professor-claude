@@ -36,7 +36,9 @@ write for the gradient as ordinary R you can run.
 **Builds on:** [the derivative as a slope](../derivative-as-slope/lesson.qmd) — we reuse
 its numeric `slope_at()` central-difference tool and the fact that *slope zero means
 momentarily flat*; [vectors & summation](../vectors-and-summation/lesson.qmd) — the
-gradient IS a vector, so we lean on `sum`, indexing, and vector length; and
+gradient IS a vector, so we lean on `sum` and indexing;
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd) — for
+vector length (the norm), which tells us how steep the gradient is; and
 [loss functions & optimization](../loss-functions-and-optimization/lesson.qmd) — for the
 "why we want slopes" framing: a slope is what tells you which way is downhill toward a
 minimum.
@@ -75,7 +77,7 @@ what lets a slope *point you toward* a minimum. See
 [loss functions & optimization](../loss-functions-and-optimization/lesson.qmd).
 :::
 
-**3.** From [vectors & summation](../vectors-and-summation/lesson.qmd): for the vector
+**3.** From [distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd): for the vector
 `v <- c(6, 8)`, what is its **length** (also called its norm) — the everyday "how far from
 the origin" distance? Say the formula in words, then give the value.
 
@@ -89,7 +91,7 @@ v <- c(6, 8)
 "Square each entry, add them, take the square root": $\sqrt{6^2 + 8^2} = \sqrt{36 + 64} =
 \sqrt{100} = 10$. In R: `sqrt(sum(v^2))`. This is the same Pythagorean distance you know;
 we'll use it at the end to ask *how steep* the gradient is. See
-[vectors & summation](../vectors-and-summation/lesson.qmd).
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd).
 :::
 
 ## A tiny example first

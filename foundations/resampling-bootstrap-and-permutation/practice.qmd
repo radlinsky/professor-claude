@@ -263,13 +263,13 @@ A permutation test for a group difference shuffles what?
 
 a) The values within each group
 b) The order of the rows, leaving the groups intact
-c) The group *labels* across the pooled values — because the null is "the label doesn't matter"
+c) The group *labels* across the pooled values — reassigning which group each value belongs to
 :::
 
 ::: {.quiz-q qid="rbp-when-right" qtype="mc" answer="a"}
 When is resampling the right tool?
 
-a) When no clean formula exists for the statistic's uncertainty; be wary with very small $n$ or dependent data
+a) When no clean formula exists for the statistic's uncertainty — though it struggles with very small $n$ or dependent data
 b) Always — it replaces every formula
 c) Only when the data are normally distributed
 :::
