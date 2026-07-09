@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -35,15 +28,21 @@ is **optimization**.
 
 This lesson builds that whole loop from the ground up on tiny, hand-checkable numbers,
 using base R. We'll see a loss as a *function* whose graph is a curve, learn the
-one-line recipe "the bottom of the valley is where the slope is zero," get just enough
-chain-rule to differentiate a squared term, and finish with the R functions that search
-for the bottom when the algebra is too messy — `optimize()` and `optim()`. We stay in
-**one dimension** (one knob to turn); tuning several knobs at once is a later module.
+one-line recipe "the bottom of the valley is where the slope is zero," apply the chain
+rule and sum rule you already know to differentiate a squared-error loss, and finish
+with the R functions that search for the bottom when the algebra is too messy —
+`optimize()` and `optim()`. We stay in **one dimension** (one knob to turn); tuning
+several knobs at once is a later module.
 
 **Builds on:** [the derivative as a slope](../derivative-as-slope/lesson.qmd) — we lean
 hard on "slope zero means momentarily flat," and we reuse its numeric `slope_at()`
-tool; and [vectors & summation](../vectors-and-summation/lesson.qmd) — a loss is
-usually a *sum* over your data points ($\sum$), one penalty per point.
+tool; [differentiation rules](../differentiation-rules/lesson.qmd) — the chain rule
+($2 \cdot \text{stuff} \cdot \text{stuff}'$ for a squared term) and the sum rule (the
+derivative of a sum is the sum of the derivatives); [vectors &
+summation](../vectors-and-summation/lesson.qmd) — a loss is usually a *sum* over your
+data points ($\sum$), one penalty per point; and [mean, variance &
+covariance](../mean-variance-covariance/lesson.qmd) — the warm-up uses squared
+deviations from the mean.
 
 ## Warm-up: do you remember?
 
@@ -75,13 +74,16 @@ engine of this lesson. See
 [the derivative as a slope](../derivative-as-slope/lesson.qmd).
 :::
 
-**3.** In R, `f <- function(m) sum((c(4,6,8) - m)^2)` defines a function of one input
-`m`. Without running it, what does `f(6)` compute — in words?
+**3.** From [mean-variance-covariance](../mean-variance-covariance/lesson.qmd):
+`y <- c(4, 6, 8)`. What does `sum((y - mean(y))^2)` measure — in words? Compute
+it by hand.
 
 ::: {.callout-note collapse="true" title="Answer"}
-"Subtract 6 from each of 4, 6, 8; square each difference; add them up." That's
-$(4-6)^2 + (6-6)^2 + (8-6)^2 = 4 + 0 + 4 = 8$. A function turns an input (`m`) into an
-output (a number) — exactly the mental model this whole lesson rides on.
+It measures the **total squared deviation** from the mean — how spread out the data is
+(unnormalized). The mean is $6$, so the squared deviations are $(4-6)^2 + (6-6)^2 +
+(8-6)^2 = 4 + 0 + 4 = 8$. Divide by $n$ and you have the (population) variance; divide
+by $n-1$ and you have R's `var()`. Shaky? Revisit
+[mean-variance-covariance](../mean-variance-covariance/lesson.qmd).
 :::
 
 ## A tiny example first
@@ -207,17 +209,15 @@ best $m$ is the one where $L'(m) = 0$. This three-word recipe — **differentiat
 zero, solve** — is the standard way to find a minimum by algebra, and it has a name we'll
 reuse everywhere. To run it we need the derivative of $L$.
 
-**Chain rule, lite (just enough to differentiate a square).** Two facts do the whole
-job:
+**Applying the rules you already know.** Two rules from
+[differentiation rules](../differentiation-rules/lesson.qmd) do the whole job:
 
-1. **The derivative of a sum is the sum of the derivatives** — differentiate each
-   $(y_i - m)^2$ term on its own and add the results. (You already used "a sum splits
-   into pieces" in [vectors & summation](../vectors-and-summation/lesson.qmd).)
-2. **The derivative of (stuff)² is 2 · (stuff) · (derivative of stuff).** In symbols,
-   the slope of $(\text{stuff})^2$ with respect to $m$ is $2\,(\text{stuff}) \cdot
-   (\text{stuff})'$. Here "stuff" is $y_i - m$, whose slope with respect to $m$ is $-1$
-   (as $m$ goes up by 1, $y_i - m$ goes *down* by 1). So each term's derivative is
-   $2(y_i - m)(-1) = -2(y_i - m)$.
+1. **The sum rule** — the derivative of a sum is the sum of the derivatives.
+   Differentiate each $(y_i - m)^2$ term on its own and add the results.
+2. **The chain rule on a squared term** — the derivative of $(\text{stuff})^2$ is
+   $2 \cdot (\text{stuff}) \cdot (\text{stuff})'$. Here "stuff" is $y_i - m$, whose
+   derivative with respect to $m$ is $-1$ (as $m$ goes up by 1, $y_i - m$ goes *down*
+   by 1). So each term's derivative is $2(y_i - m)(-1) = -2(y_i - m)$.
 
 Putting the two facts together, one line at a time:
 
@@ -322,10 +322,19 @@ cost ($8$). Mixing them up reports the wrong quantity entirely.
 **Trap 2 — "slope zero always means the lowest point."** Slope zero means *momentarily
 flat* — which is true at a valley bottom, but also at a hill **top** and on a flat
 shelf. "Differentiate, set to zero, solve" finds the flat spots; you still must check
-you landed in a valley, not on a peak. Our squared-error loss is a single clean bowl
-(only one flat spot, and it's the bottom), so we're safe here — but that's a property of
-this loss, not a free guarantee. It's why real optimizers also *search* and compare, as
-`optimize()` does, rather than trusting a single zero-slope point blindly.
+you landed in a valley, not on a peak. Concrete example: try $g(m) = -(m-6)^2$. Its
+derivative is $-2(m-6)$, which is zero at $m = 6$ — but $g(6) = 0$ is the **largest**
+value, not the smallest ($g(4) = -4$ and $g(8) = -4$ are both lower). The zero-slope
+point is a hilltop, not a valley. Our squared-error loss is a single clean bowl (only one
+flat spot, and it's the bottom), so we're safe here — but that's a property of this loss,
+not a free guarantee. It's why real optimizers also *search* and compare, as `optimize()`
+does, rather than trusting a single zero-slope point blindly.
+
+```{r trap2-check}
+# Quick sanity check: g(m) = -(m-6)^2 has slope zero at 6, but that's a MAXIMUM
+g <- function(m) -(m - 6)^2
+optimize(g, c(0, 12), maximum = TRUE)$maximum   # 6 — the peak, not a valley
+```
 
 ## Check yourself
 
@@ -370,9 +379,9 @@ setting the derivative to zero and solving pins down the best setting.
   and "how wrong" on the y-axis, and evaluate it in R as `sum((y - m)^2)`.
 - **Explain and use the recipe "differentiate, set to zero, solve"** to find the setting
   where a loss curve bottoms out, because the slope is zero at the bottom.
-- **Differentiate a squared term** with chain-rule-lite: $(\text{stuff})^2 \to
-  2\,(\text{stuff})\cdot(\text{stuff})'$, and use "the derivative of a sum is the sum of
-  the derivatives."
+- **Differentiate a squared-error loss** by applying the chain rule
+  ($(\text{stuff})^2 \to 2\,(\text{stuff})\cdot(\text{stuff})'$) and the sum rule (the
+  derivative of a sum is the sum of the derivatives).
 - **Tell an argmin from a minimum** — the best *setting* versus the smallest *loss* —
   and report the one the question asks for.
 - **Hand a loss to `optimize()` / `optim()`** and let R search for the bottom when the

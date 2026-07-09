@@ -22,6 +22,10 @@ public-domain method, and only scipy's numeric outputs are transcribed for valid
   day; the forgetting between sittings is what makes the warm-ups work.
 - **The mastery rule:** move on only when every "What you can now do" bullet feels solid.
   Shaky bullet → redo that section or its practice problems first.
+- **Missed the Module check?** Don't re-grind the same problems — you remember
+  their *answers* by now, not the skill. Ask for a fresh round ("add problems to
+  <module>"), work it, then retake the check in a later session. Passing after
+  another gap is the evidence that counts.
 - **Answers are hidden for a reason.** Commit to an answer (or a prediction) before you
   click — that's the part that makes it stick. And these lessons *run in your browser*:
   edit the live cells and re-run them; predicting then running is where the learning is.
@@ -37,6 +41,7 @@ refresher instead.
 | [reading-math-notation](../../foundations/reading-math-notation/lesson.qmd) | The standing first prerequisite — it decodes the accents, Greek letters, subscripts, and operators every other formula uses. New? take it fully; done before? skim its symbol table. |
 | [derivative-as-slope](../../foundations/derivative-as-slope/lesson.qmd) | Gradient descent's compass is the slope of a curve; this teaches how to *measure* one numerically — the tool every module here reuses. |
 | [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) | With more than one knob, the slope becomes a *vector* of slopes (the gradient), and the loss is a *sum* over data points. |
+| [partial-derivatives-and-the-gradient](../../foundations/partial-derivatives-and-the-gradient/lesson.qmd) | Module 2 applies the gradient to *walk* downhill; this foundation teaches what the gradient is and how to measure it numerically. |
 
 ## Course modules
 

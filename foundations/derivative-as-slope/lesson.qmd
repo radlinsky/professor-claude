@@ -16,13 +16,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -148,6 +141,7 @@ and shrinking" we just watched.
 | $2h$ | "two aitch" | the total run from $x-h$ to $x+h$ — twice the step | $0.2$ |
 | $f'(x)$ | "eff prime of ex" | the slope of $f$ at the point $x$ — the derivative | $f'(3) = 6$ |
 | $\approx$ | "approximately equals" | almost equal (our estimate, before $h$ reaches $0$) | $6.1 \approx 6$ |
+| $\to$ | "goes to" or "approaches" | tends toward a value (as the step shrinks, the slope tends toward its true value) | $h \to 0$ |
 
 ## The formal version
 
@@ -182,7 +176,9 @@ f'(x) \;\approx\; \frac{f(x + h) - f(x - h)}{2h}
 $$
 
 Reading it aloud: "eff of ex-plus-aitch minus eff of ex-minus-aitch, all over two
-aitch." Looking symmetrically each way cancels most of the curve's bending, so this
+aitch" — or in everyday words: "output a step to the right minus output a step to
+the left, divided by the total run across both steps." Looking symmetrically each
+way cancels most of the curve's bending, so this
 **central difference** is far more accurate for the same $h$. Check it on our toy at
 $x = 3$ with $h = 0.1$: $(f(3.1) - f(2.9)) / 0.2 = (9.61 - 8.41)/0.2 = 1.2/0.2 = 6$ —
 bang on, no shrinking needed.
@@ -235,6 +231,21 @@ c(at_x0 = slope_at(f, 0),    # bottom of the bowl -> should be 0
   at_xm2 = slope_at(f, -2))  # downhill on the left -> should be -4
 ```
 
+```{webr}
+#| autorun: true
+# explore-3 — LIVE: explicit check — does our numerical tool agree with the
+# known analytical slope of x^2 (which is 2x)?
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+f <- function(x) x^2
+
+# Side by side: numerical measurement vs. the exact formula 2x
+data.frame(
+  x         = c(0, 3, -2),
+  numerical = c(slope_at(f, 0), slope_at(f, 3), slope_at(f, -2)),
+  analytic  = c(2 * 0,          2 * 3,           2 * (-2))
+)
+```
+
 ## Common traps
 
 **Trap: "smaller $h$ is always better — use $h = 10^{-16}$."** It's tempting: the
@@ -253,8 +264,16 @@ c(good_h = central(1e-5),   # ~6, correct
 
 **Trap: "the slope at a point comes from that one point alone."** A single point has a
 *height*, not a *slope* — steepness is inherently about how the height *changes*
-between nearby points. That's why every method here nudges to a second point (or two);
-"the slope at $x$" is really shorthand for "what the nearby rise-over-runs settle on."
+between nearby points. Try it: $f(3) = 9$. That $9$ alone tells you *nothing* about
+steepness — there is no rise and no run to divide. Only once you bring in a second
+point ($f(3.1) = 9.61$) can you form rise/run: $(9.61 - 9)/0.1 = 6.1$. That's why
+every method here nudges to a second point (or two); "the slope at $x$" is really
+shorthand for "what the nearby rise-over-runs settle on."
+
+**Trap: "the central difference divides by $h$."** When you step from $x - h$ to
+$x + h$, the total run is $2h$, not $h$. Dividing by $h$ instead of $2h$ doubles the
+answer: $(f(3.1) - f(2.9))/0.1 = 1.2/0.1 = 12$ — twice the true slope of $6$. The
+fix: the denominator must match the full span, $2h$.
 
 ## Check yourself
 

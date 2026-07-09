@@ -179,6 +179,17 @@ one predictor, "joint" is Module 2's fit with all of them.
 | $\mathrm{VIF}_j$ | "vif sub jay" | variance inflation factor $= 1/(1 - R^2_j)$ | $1/(1-0.9) = 10$ |
 | $\hat\beta$ | "beta hat" | the estimated joint coefficient vector | $(1, 0)$ |
 
+**Carried from [Module 2](../02-least-squares-and-the-normal-equations/lesson.qmd)** (re-used in the formulas below):
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x_1$, $x_2$ | "ex one", "ex two" | the predictor columns | $(-2,-1,1,2)$, $(-1,-1,1,1)$ |
+| $y$ | "why" | the response column | $(-2,-1,1,2)$ |
+| $b_1$, $b_2$ | "bee one", "bee two" | the fitted coefficients we solve for | $1$, $0$ |
+| $X^\top X$ | "ex transpose ex" | grid of dot products among predictor columns | $\left(\begin{smallmatrix}10&6\\6&4\end{smallmatrix}\right)$ |
+| $X^\top y$ | "ex transpose why" | each column's dot product with $y$ | $(10, 6)$ |
+| $\sum$ | "the sum" | add one term per observation | $\sum x_{i2} y_i = 6$ |
+
 ## The formal version
 
 There is no new fitting formula here — "marginal" and "joint" are both just Module 2's
@@ -200,6 +211,15 @@ Mapping onto the toy: regressing $x_2$ on $x_1$ gives $R^2_2 = 0.90$ (since
 $r = 0.9487$ and $0.9487^2 = 0.90$), so $\mathrm{VIF}_2 = 1/(1 - 0.90) = 10$. A common
 rule of thumb flags $\mathrm{VIF} > 10$ as serious collinearity — our toy sits right at
 the line, which is why $x_2$'s joint coefficient was so easily driven to zero.
+
+```{webr}
+#| autorun: true
+# TRY IT: change x2 to be LESS correlated with x1 (e.g. x2 <- c(-1, 1, -1, 1)) and re-run.
+# PREDICT: if x2 moves independently of x1, will R^2_2 be near 0 or near 1? What VIF?
+x1 <- c(-2, -1, 1, 2); x2 <- c(-1, -1, 1, 1)
+R2_2 <- summary(lm(x2 ~ x1 - 1))$r.squared
+c(R2_2 = round(R2_2, 2), VIF_2 = round(1 / (1 - R2_2), 1))
+```
 
 ```{r vif-toy}
 # VIF for the toy, from the definition: regress x2 on x1, read R^2, invert (1 - R^2)
@@ -303,6 +323,7 @@ is that cause for concern by the rule of thumb?
 ```{webr}
 #| autorun: false
 # check1-starter (scalar plug-in — or just do it by hand)
+# PREDICT: R^2_j = 0.75 means 75% of x_j is explained by the others. Will VIF be above or below 10?
 R2j <- 0.75
 ```
 
@@ -351,6 +372,6 @@ and the panel comparison before continuing — the capstone reads all of this of
 The capstone puts every piece together: [reading a multiple regression](../04-capstone-reading-a-multiple-regression/lesson.qmd)
 decodes a full `summary(lm())` on a fresh panel line by line, and connects the
 marginal-vs-joint story to how a statistics text frames it. Beyond this course,
-**variable selection** tackles the natural next question: *which* subset
-of these tangled predictors should the model even keep? Ready for more reps first? Do the
+a natural next question is *which* subset of these tangled predictors the model
+should even keep — that's the world of variable selection. Ready for more reps first? Do the
 [practice problems](practice.qmd).

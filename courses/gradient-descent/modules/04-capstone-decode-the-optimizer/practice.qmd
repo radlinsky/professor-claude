@@ -15,6 +15,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 These draw on every module, in mixed order — figuring out *which* idea each one needs is
 part of the test, so there are no "uses Module N" labels. Two helpers to paste as needed:
 

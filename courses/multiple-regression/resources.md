@@ -58,12 +58,15 @@ The two free textbooks this course is built from are worth bookmarking whole:
 
 ## Module 04 — Capstone: reading a multiple regression
 
-No new concepts, so the best resource is your own R console. Fit and decode
-`summary(lm(...))` on built-in data the way the lesson decodes the indicator panel:
-
-- `lm(mpg ~ wt + hp + disp, data = mtcars)` — several correlated predictors; compute
-  their VIFs and watch coefficients get uncertain.
-- `lm(Fertility ~ ., data = swiss)` — a full multi-predictor summary to read end to end.
-
-For the textbook framing of the whole-model F-test vs individual coefficients, re-read
-[ISLR §3.2.2](https://hastie.su.domains/ISLR2/ISLRv2_corrected_June_2023.pdf).
+- 📖 [ISLR §3.2.2, "Some Important Questions"](https://hastie.su.domains/ISLR2/ISLRv2_corrected_June_2023.pdf)
+  (book, PDF, ~6 pages) — the textbook framing of the three questions the capstone
+  decodes: "Is at least one predictor useful?" (the F-test), "Which predictors matter?"
+  (individual t-tests), and "How good is the fit?" ($R^2$). Read after the lesson to see
+  the same logic on the `Advertising` data.
+- 📺 [StatQuest: How to read the output of a linear model](https://www.youtube.com/watch?v=nk2CQITm_eo)
+  (video, ~12 min) — walks through a `summary(lm())` print-out with the same blocks the
+  capstone decodes (coefficients table, $R^2$, F-test). A second pass after the lesson
+  cements the reading.
+- 🎮 Practice on built-in R data: `summary(lm(mpg ~ wt + hp + disp, data = mtcars))`
+  (correlated predictors; compute their VIFs) and `summary(lm(Fertility ~ ., data = swiss))`
+  (a full multi-predictor table to read end to end).

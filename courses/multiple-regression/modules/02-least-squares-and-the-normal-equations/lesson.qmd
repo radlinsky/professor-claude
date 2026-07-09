@@ -163,6 +163,10 @@ computed as $\left(\begin{smallmatrix}14&7\\7&5\end{smallmatrix}\right)$.
 
 | Symbol | How to say it | What it means | In our toy example |
 |---|---|---|---|
+| $y_i$ | "why sub eye" | the outcome for observation $i$ (in R: `y[i]`) | 5, 4, 12 |
+| $x_{ij}$ | "ex sub eye jay" | the $j$-th predictor value for observation $i$ | $x_{1,2} = 0$ (row 2, column $x_2$) |
+| $n$ | "en" | number of observations (in R: `nrow`) | 3 |
+| $\sum_{i=1}^{n}$ | "the sum from eye equals 1 to en" | add the thing to its right once per observation | $\sum x_{i1}^2 = 1+4+9$ |
 | $\mathbf{X}$ | "the matrix ex" | design matrix: rows = observations, columns = predictors (in R: `cbind(...)`) | the $x_1, x_2$ columns |
 | $\mathbf{y}$ | "the vector why" | the response column | $(5, 4, 12)$ |
 | $\boldsymbol{\beta}$, $b$ | "beta" / "bee" | the coefficient vector we solve for | $(2, 3)$ |

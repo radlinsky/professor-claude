@@ -1,0 +1,370 @@
+---
+title: "Bayes factors and posterior odds"
+subtitle: "Bayes' rule as a multiplication on odds: prior odds times a Bayes factor gives posterior odds"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+You've met Bayes' rule in *probability* form: posterior $\propto$ ("is proportional to") prior $\times$
+likelihood. This lesson rewrites the same rule in a cleaner, more usable currency —
+**odds** — where it becomes a plain multiplication: **posterior odds = prior odds ×
+Bayes factor**. The **Bayes factor** is the star: it is exactly the ratio of the two
+models' evidences (the marginal likelihoods from the previous foundation), and it
+measures *how much the data alone shifts your belief* from one model toward the other,
+with no prior mixed in. This "belief in, evidence multiplier, belief out" shape is the
+backbone of Bayesian model comparison — and of the applied Bayes-factor methods this
+foundation feeds.
+
+We build it on two coin models, then read off the general recipe: turn a probability into
+odds, multiply by the Bayes factor, turn the answer back into a probability.
+
+**Builds on:**
+[marginal likelihood & model evidence](../marginal-likelihood-and-model-evidence/lesson.qmd)
+— a model's evidence $P(D)$ is its likelihood averaged over its prior;
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd) — odds are $p/(1-p)$,
+and you can convert freely between probability and odds; and
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd) — Bayes'
+rule in probability form, posterior $\propto$ prior $\times$ likelihood.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** A probability is $p = 0.75$. What are the corresponding **odds**? State the rule.
+
+::: {.callout-note collapse="true" title="Answer"}
+Odds $= p/(1-p) = 0.75/0.25 = 3$ — "3 to 1 on." The rule: odds are the probability of
+the event divided by the probability of its complement. Shaky? Revisit
+[probability, odds & log-odds](../probability-and-odds/lesson.qmd).
+:::
+
+**2.** In one line: what is a model's **evidence** (marginal likelihood), and how do you
+get it from a likelihood and a prior?
+
+::: {.callout-note collapse="true" title="Answer"}
+A model's evidence is how probable the data is under that model, *averaged over its
+prior* — multiply each parameter value's likelihood by its prior weight and sum (or
+integrate). See
+[marginal likelihood & model evidence](../marginal-likelihood-and-model-evidence/lesson.qmd).
+:::
+
+**3.** Recall Bayes' rule in probability form (posterior $\propto$ prior $\times$
+likelihood). If the prior on a hypothesis is small but the likelihood of the data under
+it is large, does the posterior go up or down relative to the prior?
+
+::: {.callout-note collapse="true" title="Answer"}
+**Up** — a large likelihood pulls the posterior above the prior; the data supports the
+hypothesis, so belief rises. (How *far* up depends on how the rival hypotheses fit too —
+which is exactly what the Bayes factor packages.) See
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd).
+:::
+
+## A tiny example first
+
+You flip a coin **three times** and see **heads, heads, tails** — your fixed data. You
+are weighing two simple models against each other:
+
+- **Model 1 ("fair"):** the coin is fair, $p = 0.5$.
+- **Model 2 ("biased"):** the coin favors heads, $p = 0.6$.
+
+Each model here is a single parameter value, so its **evidence** is just the likelihood
+of the data at that value, $L(p) = p^2(1-p)$:
+
+- Model 1's evidence: $L(0.5) = 0.5^2 \times 0.5 = 0.125$.
+- Model 2's evidence: $L(0.6) = 0.6^2 \times 0.4 = 0.144$.
+
+The **Bayes factor** for Model 2 over Model 1 is the ratio of their evidences:
+
+$$
+\text{BF} = \frac{0.144}{0.125} = 1.152.
+$$
+
+Read it as: "the data made Model 2 about $1.15$ times more probable than Model 1 —
+a mild nudge toward the biased coin."
+
+Now bring in what you believed *before* flipping. Suppose you thought the two models
+equally likely — **prior odds of $1$** (1-to-1). Then:
+
+$$
+\text{posterior odds} = \text{prior odds} \times \text{BF} = 1 \times 1.152 = 1.152.
+$$
+
+Convert that back to a probability for Model 2: an odds of $1.152$ means a probability of
+$1.152/(1 + 1.152) = 0.535$. So after seeing the data your belief in the biased coin rose
+from $50\%$ to about $53.5\%$ — a small shift, because the evidence was weak.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+lik <- function(p) p^2 * (1 - p)          # likelihood of H, H, T at heads-probability p
+
+evidence_1 <- lik(0.5)                     # Model 1 (fair):   0.125
+evidence_2 <- lik(0.6)                     # Model 2 (biased): 0.144
+
+BF <- evidence_2 / evidence_1              # Bayes factor, Model 2 over Model 1
+BF                                          # 1.152
+
+prior_odds     <- 1                         # believed the two models equally likely
+posterior_odds <- prior_odds * BF           # 1.152
+post_prob_2    <- posterior_odds / (1 + posterior_odds)   # back to a probability
+c(BF = BF, posterior_odds = posterior_odds, post_prob_M2 = post_prob_2)  # 0.535
+```
+
+## Getting a feel for it
+
+**The mental picture: a medical test.** Think of a rare disease. Before any test, a
+patient's **prior odds** of having it are tiny (say 1 in 1000). A test result is
+**evidence** — and a good test comes with a number, the *likelihood ratio*: "a positive
+result is 20 times more likely in a sick person than a healthy one." That likelihood
+ratio is *exactly* a Bayes factor. Bayes' rule on odds says: multiply the prior odds by
+that factor to get the **posterior odds**. A single positive test multiplies the odds by
+20 — but $1/1000$ times $20$ is still only about $1$ in $50$, so the patient is *probably*
+still healthy. The Bayes factor tells you *how strong the evidence is*; the prior odds
+tell you *where you started*; the posterior odds combine them. (Where the analogy breaks:
+a medical likelihood ratio compares "disease vs no disease," two fixed states, whereas a
+general Bayes factor can compare two whole models each averaged over its own prior — but
+the multiply-the-odds mechanics are identical.)
+
+**Why odds, and why does the rule become a multiplication?** In probability form, Bayes'
+rule carries an awkward normalizing denominator (the total evidence) so the posterior
+probabilities sum to $1$. Write it as *odds* — one model's belief divided by the other's —
+and that shared denominator **cancels**. What's left is startlingly clean: your
+belief-ratio going in, times the evidence-ratio (the Bayes factor), equals your
+belief-ratio coming out. Multiplication, not a messy fraction. This is why practitioners
+reason in odds and log-odds: updating is just "multiply by the evidence" (or "add the
+log-evidence").
+
+**What the number feels like.** Our Bayes factor was $1.152$ — barely above $1$, which is
+the "no evidence either way" mark. A Bayes factor of $1$ leaves your odds unchanged; above
+$1$ favors Model 2, below $1$ favors Model 1. Rough reading rules of thumb: a factor near
+$3$ is "worth a mention," near $10$ is "strong," near $100$ is "decisive." Our $1.15$ is
+almost nothing — three coin flips just don't carry much evidence — which is why belief
+moved only from $50\%$ to $53.5\%$.
+
+## What the notation is going to say
+
+The formula will say three plain things in a row. First, a **Bayes factor** is one
+model's evidence divided by the other's — the ratio of the two marginal likelihoods you
+learned to compute last time. Second, **posterior odds equal prior odds times that Bayes
+factor** — the belief you carried in, scaled up or down by how the data landed. Third, to
+report a probability rather than odds, convert the posterior odds back with "probability =
+odds over one-plus-odds." Everything traces to the two-coin arithmetic:
+$0.144/0.125 = 1.152$, then $1 \times 1.152$, then $1.152/(1 + 1.152) = 0.535$.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $M_1, M_2$ | "model one, model two" | the two competing models/hypotheses | fair coin ($p{=}0.5$) vs biased ($p{=}0.6$) |
+| $D$ | "dee" | the observed data, held fixed | heads, heads, tails |
+| $P(D \mid M_1)$ | "the probability of the data given model one" | model $M_1$'s **evidence** (marginal likelihood) | $0.125$ |
+| $P(D)$ | "the probability of the data" | the total evidence, $\sum_M P(D\mid M)P(M)$ — the shared denominator that cancels in the odds form | cancels out |
+| $\text{BF}_{21}$ | "the Bayes factor of two over one" | ratio of the two evidences: $P(D\mid M_2)/P(D\mid M_1)$ | $1.152$ |
+| $\dfrac{P(M_2)}{P(M_1)}$ | "prior odds of two over one" | how much you favored $M_2$ over $M_1$ *before* the data | $1$ (equal belief) |
+| $\dfrac{P(M_2\mid D)}{P(M_1\mid D)}$ | "posterior odds of two over one" | how much you favor $M_2$ over $M_1$ *after* the data | $1.152$ |
+| $\propto$ | "is proportional to" | the left side equals the right side times some constant (used here to state Bayes' rule before the constant cancels) | posterior $\propto$ prior $\times$ likelihood |
+| $\pi$ | "pi" (prior probability) | the prior probability of the favored model | $0.5$ here |
+| $\text{PP}$ | "posterior probability" | the posterior probability, recovered from posterior odds | $0.535$ |
+
+The subscript order on $\text{BF}_{21}$ says "how many times more probable the data made
+$M_2$ *relative to* $M_1$" — flip the subscripts and you invert the number
+($\text{BF}_{12} = 1/\text{BF}_{21}$). See
+[reading math notation](../reading-math-notation/lesson.qmd) for subscript conventions.
+
+## The formal version
+
+**The Bayes factor.** One model's evidence over the other's:
+
+$$
+\text{BF}_{21} = \frac{P(D \mid M_2)}{P(D \mid M_1)}.
+$$
+
+Reading it aloud: "the Bayes factor of two over one equals the probability of the data
+given model two, divided by the probability of the data given model one." Everyday words:
+**"how many times better the data fits model 2 than model 1, each model judged by its own
+averaged-over-the-prior evidence."**
+
+Mapping it onto the toy example: $P(D\mid M_2) = 0.144$, $P(D\mid M_1) = 0.125$, so
+$\text{BF}_{21} = 0.144/0.125 = 1.152$.
+
+**Bayes' rule on odds.** Start from Bayes' rule in probability form for each model,
+$P(M \mid D) \propto P(D \mid M)\,P(M)$, and take the ratio of the two models — one algebra
+step per line:
+
+$$
+\begin{aligned}
+\frac{P(M_2 \mid D)}{P(M_1 \mid D)}
+  &= \frac{P(D \mid M_2)\,P(M_2)\,/\,P(D)}{P(D \mid M_1)\,P(M_1)\,/\,P(D)} \\
+  &= \frac{P(D \mid M_2)\,P(M_2)}{P(D \mid M_1)\,P(M_1)} \\
+  &= \underbrace{\frac{P(D \mid M_2)}{P(D \mid M_1)}}_{\text{Bayes factor}}
+     \times \underbrace{\frac{P(M_2)}{P(M_1)}}_{\text{prior odds}}
+\end{aligned}
+$$
+
+- Line 1: **Bayes' rule for each model** — posterior $\propto$ likelihood $\times$ prior,
+  with the *same* denominator $P(D)$ under both (from
+  [priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd)).
+- Line 2: **cancel the common factor** $1/P(D)$ — it appears in numerator and
+  denominator, so it divides out (a cancellation move from
+  [probability, odds & log-odds](../probability-and-odds/lesson.qmd)).
+- Line 3: **regroup the product into two ratios** — separate the evidence-ratio from the
+  prior-belief-ratio.
+
+So, in words: **posterior odds = Bayes factor × prior odds.** Reading it aloud:
+"posterior odds of two over one equals the Bayes factor times the prior odds." Everyday
+words: **"your belief-ratio after the data is your belief-ratio before, scaled by how much
+better the data fit one model than the other."**
+
+Sanity-check against the hand numbers: $\text{BF}_{21} = 1.152$ and prior odds $= 1$, so
+posterior odds $= 1.152 \times 1 = 1.152$ — matching the toy computation above.
+
+**Back to a probability.** Posterior odds convert to a posterior probability the same way
+any odds do (from [probability, odds & log-odds](../probability-and-odds/lesson.qmd)):
+
+$$
+\text{PP} = \frac{\text{posterior odds}}{1 + \text{posterior odds}}.
+$$
+
+Reading it aloud: "the posterior probability equals the posterior odds over one plus the
+posterior odds." Everyday words: **"turn the odds back into a probability."** For the toy:
+$1.152/(1 + 1.152) = 0.535$ — the biased coin's probability rose from $0.5$ to $0.535$.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the whole update, from evidences to a posterior probability.
+# TRY IT: change prior_odds. PREDICT: with prior_odds = 3 (you favored the biased coin
+# 3-to-1), what will the posterior probability be -- bigger or smaller than 0.535? Guess, run.
+lik <- function(p) p^2 * (1 - p)
+BF  <- lik(0.6) / lik(0.5)                    # 1.152 -- evidence ratio, biased over fair
+
+prior_odds     <- 1                            # try 3 (favor biased 3-to-1), or 1/3
+posterior_odds <- prior_odds * BF              # Bayes' rule on odds: just a multiply
+PP             <- posterior_odds / (1 + posterior_odds)
+c(BF = round(BF, 3), posterior_odds = round(posterior_odds, 3), PP = round(PP, 3))
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: the medical-test intuition. A strong Bayes factor still can't
+# overcome tiny prior odds in one step.
+# PREDICT: rare disease (1 in 1000), a test with Bayes factor 20 comes back positive.
+# Is the patient now probably sick? Commit to yes/no, then run.
+prior_prob <- 1 / 1000
+prior_odds <- prior_prob / (1 - prior_prob)    # about 0.001
+BF <- 20                                        # a strong single piece of evidence
+
+posterior_odds <- prior_odds * BF               # multiply the odds
+PP <- posterior_odds / (1 + posterior_odds)
+c(prior_prob = prior_prob, posterior_prob = round(PP, 4))   # ~0.0196 -- still ~2%!
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "A curve of posterior probability against the Bayes factor on a logarithmic x-axis, starting from prior odds of 1: it passes through 0.5 at a Bayes factor of 1, rises toward 1 for large factors, and falls toward 0 for small factors. Dashed reference lines mark Bayes factor 1 (no evidence) and the resulting 0.5 probability."
+# explore-3 — LIVE: SEE how the Bayes factor moves belief, starting from even odds.
+# TRY IT: change prior_odds from 1 to 0.1 and watch the whole curve shift down.
+prior_odds <- 1
+BF_grid <- 10^seq(-2, 3, length.out = 300)       # Bayes factors from 0.01 to 1000
+PP <- (prior_odds * BF_grid) / (1 + prior_odds * BF_grid)
+
+plot(BF_grid, PP, type = "l", lwd = 2, log = "x",
+     xlab = "Bayes factor (log scale)", ylab = "posterior probability",
+     main = "Evidence moves belief (starting from even odds)")
+abline(v = 1, lty = 2, col = "grey50"); abline(h = 0.5, lty = 2, col = "grey50")
+```
+
+## Common traps
+
+**Trap 1 — "the Bayes factor is the posterior probability that Model 2 is true."** No —
+the Bayes factor is only the *evidence ratio*; it ignores your prior. Our $\text{BF} =
+1.152$ is **not** "a $115\%$ chance" (probabilities can't exceed 1) and not even a
+probability at all. To get a probability you must combine it with prior odds and convert:
+$1 \times 1.152 \to 0.535$. Skip the prior and you've answered a different question.
+
+**Trap 2 — "a big Bayes factor means the hypothesis is probably true."** Tempting, but a
+strong factor can still leave a hypothesis unlikely if it started implausible. The medical
+example proves it: a Bayes factor of $20$ (strong!) applied to prior odds of $1/1000$
+gives posterior odds of only $0.02$ — about a $2\%$ chance, still very unlikely. Evidence
+*multiplies* your starting odds; it doesn't reset them.
+
+## Check yourself
+
+**1.** Two point models for some data have evidences $P(D\mid M_2) = 0.30$ and
+$P(D\mid M_1) = 0.10$. Compute $\text{BF}_{21}$. If your prior odds for $M_2$ over $M_1$
+were $2$, what are the posterior odds, and the posterior probability of $M_2$?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+evidence_2 <- 0.30
+evidence_1 <- 0.10
+prior_odds <- 2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\text{BF}_{21} = 0.30/0.10 = 3$. Posterior odds $= \text{prior odds} \times \text{BF} =
+2 \times 3 = 6$. Posterior probability $= 6/(1+6) = 6/7 \approx 0.857$. In R:
+`(2 * 3) / (1 + 2 * 3)` gives `0.857`.
+:::
+
+**2.** True or false: if the Bayes factor $\text{BF}_{21}$ equals exactly $1$, the data
+have left your beliefs about $M_2$ vs $M_1$ unchanged. Explain in one line.
+
+::: {.callout-note collapse="true" title="Answer"}
+**True.** Posterior odds $= 1 \times \text{prior odds} = \text{prior odds}$ — multiplying
+by $1$ changes nothing, so the data provided no evidence either way. A Bayes factor of $1$
+is the "no information" mark.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what a Bayes factor is
+and why posterior odds are just prior odds times that factor.
+
+::: {.callout-note collapse="true" title="A model answer"}
+A Bayes factor is the ratio of how well the data fit two competing models — each model
+judged by its own evidence — so it measures the strength of the data as a multiplier on
+your beliefs, with no prior baked in. Posterior odds are prior odds times the Bayes factor
+because, when you write Bayes' rule as a ratio of the two models, the shared normalizing
+constant cancels and updating collapses to "start with your belief-ratio, multiply by the
+evidence-ratio."
+:::
+
+## What you can now do
+
+- **Compute a Bayes factor** as the ratio of two models' evidences (marginal likelihoods).
+- **Update beliefs on the odds scale** — multiply prior odds by the Bayes factor to get
+  posterior odds — and explain why the update is a multiplication.
+- **Convert between probability, odds, and posterior probability** so you can start from a
+  prior probability and report a posterior probability.
+- **Read a Bayes factor's strength** and avoid mistaking it for a posterior probability or
+  ignoring the prior it must be combined with.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — every method that turns
+evidence into a probability of a hypothesis leans on all of these.
+
+## Where this goes next
+
+This "prior odds × Bayes factor = posterior odds" machine is the engine of Bayesian model
+comparison. A closed-form Bayes-factor method takes an estimated effect and its standard
+error, computes the Bayes factor for "there is an effect" versus "there is none" in closed
+form (using the normal-marginal result from
+[marginal likelihood & model evidence](../marginal-likelihood-and-model-evidence/lesson.qmd)),
+then runs it through exactly this machine to get a posterior probability of an effect —
+which is what the applied courses that build on this foundation do. Ready for more reps?
+Do the [practice problems](practice.qmd).

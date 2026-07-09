@@ -1,7 +1,10 @@
 ---
 title: "Practice: Vectors, subscripts, and the big Σ"
 subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
 ---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
 
 ```{r setup}
 #| message: false
@@ -13,6 +16,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -22,8 +27,9 @@ You measured 4 mushrooms: 3 cm, 1 cm, 4 cm, 2 cm. Using the notation
 $x = (3, 1, 4, 2)$: what are $n$, $x_2$, and $\sum_{i=1}^{n} x_i$? Do it on paper
 first, then check in R.
 
-```{r p1-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p1-starter — copy this to begin
 x <- c(3, 1, 4, 2)
 ```
 
@@ -40,63 +46,82 @@ sum(x)      # the big sigma = 10
 ```
 :::
 
-## Problem 2 — read it aloud, then compute
+## Problem 2 — faded worked example
 
-For the same $x = (3, 1, 4, 2)$, compute by hand:
-$$\sum_{i=1}^{4} (x_i - 1)$$
-Then re-do it the lazy way using Rule 1 (split the sum) and Rule 3 (sum of a
-constant), without touching the individual values again.
-
-```{r p2-starter}
-# Starter — copy this to begin
-x <- c(3, 1, 4, 2)
-```
-
-::: {.callout-note collapse="true" title="Answer"}
-Read aloud: "the sum, from i equals 1 to 4, of x-sub-i minus one."
-
-By hand, item by item: $(3-1) + (1-1) + (4-1) + (2-1) = 2 + 0 + 3 + 1 = 6$.
-
-The lazy way — one algebraic step per line:
+For $x = (3, 1, 4, 2)$, simplify $\sum_{i=1}^{4} (x_i - 3)$ using the sum rules.
+A solution is partially worked below — one core step is left blank. Fill it in, then
+verify in R.
 
 $$
 \begin{aligned}
-\sum_{i=1}^{4} (x_i - 1) &= \sum_{i=1}^{4} x_i - \sum_{i=1}^{4} 1 \\
-&= 10 - 4 \times 1 = 6
+\sum_{i=1}^{4} (x_i - 3)
+  &= \sum_{i=1}^{4} x_i - \sum_{i=1}^{4} 3 \\
+  &= \langle\text{your step here}\rangle \\
+  &= -2
 \end{aligned}
 $$
 
-- Line 1: split the sum (Rule 1, with $y_i = -1$).
-- Line 2: we already know $\sum x_i = 10$; summing the constant 1 four times is
-  $4 \times 1$ (Rule 3).
+*Which rule turns line 2 into line 3? Apply it.*
 
-Same answer, no re-adding. This "subtract a constant from every value" pattern is
-exactly what happens with deviations from the mean in the next module.
-:::
-
-## Problem 3 — spot the trap
-
-Without computing anything: which is bigger for $x = (3, 1, 4, 2)$,
-$\sum x_i^2$ or $\left(\sum x_i\right)^2$? Then verify in R.
-
-```{r p3-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p2-starter — copy this to begin
 x <- c(3, 1, 4, 2)
 ```
 
 ::: {.callout-note collapse="true" title="Answer"}
-Add-then-square is bigger here: $\left(\sum x_i\right)^2 = 10^2 = 100$, while
-square-then-add is $9 + 1 + 16 + 4 = 30$. (With all-positive values, add-then-square
-always wins because the cross-terms pile up.)
+The blank step applies Rule 3 (summing a constant $n$ times gives $n \cdot c$) and
+substitutes the known value of $\sum x_i$ from Problem 1:
+
+$$
+\begin{aligned}
+\sum_{i=1}^{4} (x_i - 3)
+  &= \sum_{i=1}^{4} x_i - \sum_{i=1}^{4} 3 \quad\text{(Rule 1 — split the sum)}\\
+  &= 10 - 4 \times 3 \quad\text{(Rule 3 — sum of constant; }\sum x_i = 10\text{)}\\
+  &= 10 - 12 = -2
+\end{aligned}
+$$
+
+```{r p2-answer}
+x <- c(3, 1, 4, 2)
+sum(x - 3)         # -2 — same answer
+```
+
+The pattern "subtract a constant from every value" recurs constantly; Rule 1 + Rule 3
+always collapse it to $\sum x_i - nc$.
+:::
+
+## Problem 3 — spot the error
+
+A student computed $\sum_{i=1}^{4} x_i^2$ for $x = (3, 1, 4, 2)$ and wrote:
+
+> "I added up all the values first: $3 + 1 + 4 + 2 = 10$, then squared: $10^2 = 100$.
+> So $\sum x_i^2 = 100$."
+
+This contains **exactly one mistake**. Find it, name which trap it falls into, and
+give the correct value. Then verify both numbers in R.
+
+```{webr}
+#| autorun: false
+# p3-starter — copy this to begin
+x <- c(3, 1, 4, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the order of operations: the student computed $\left(\sum x_i\right)^2$
+(add first, then square) but called it $\sum x_i^2$ (which means square first, then
+add). This is Trap 1 from the lesson — the exponent sits *on* $x_i$, so the Σ must
+reach only to $x_i^2$, not to the whole sum.
+
+Correct value: $3^2 + 1^2 + 4^2 + 2^2 = 9 + 1 + 16 + 4 = 30$.
+
+The student's answer of 100 is $\left(\sum x_i\right)^2$, a different expression.
 
 ```{r p3-answer}
 x <- c(3, 1, 4, 2)
-sum(x^2)    # 30
-sum(x)^2    # 100
+sum(x^2)    # 30  ← correct: square each term, THEN add
+sum(x)^2    # 100 ← the student's expression: add first, THEN square
 ```
-
-Papers rely on you noticing which one is written. Misreading this single
-parenthesis is one of the most common formula-reading errors.
 :::
 
 ## Problem 4 — the rules on real-sized data (in R)
@@ -105,8 +130,9 @@ Starter below. Show numerically that
 $\sum_{i=1}^{n} (5 x_i + 2) = 5 \sum_{i=1}^{n} x_i + 2n$ for this data, and say
 which rule justifies each move.
 
-```{r p4-starter}
-# Starter data — your job: verify the identity above two ways
+```{webr}
+#| autorun: false
+# p4-starter — your job: verify the identity above two ways
 set.seed(42)
 x <- round(rnorm(100, mean = 50, sd = 10))
 n <- length(x)
@@ -142,7 +168,71 @@ $$
 - Line 3: summing the constant 2, n times, is 2n (Rule 3).
 :::
 
-## Problem 5 — a gentle cliffhanger
+## Problem 5 — interleaved *(uses reading-math-notation)*
+
+Read the following expression aloud using the pronunciation rules from
+[reading math notation](../reading-math-notation/lesson.qmd), then compute it for
+$x = (5, 2, 8, 1)$:
+
+$$\sum_{i=1}^{4} (x_i - x_2)$$
+
+Do it on paper first: identify what $x_2$ means (it's a subscript, not a power),
+substitute the values, and add up the result. Then verify in R.
+
+```{webr}
+#| autorun: false
+# p5-starter — copy this to begin
+x <- c(5, 2, 8, 1)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Read aloud: "the sum, from i equals 1 to 4, of x-sub-i minus x-sub-two."
+
+$x_2 = 2$ (the second position in the list — a subscript marks a position, not a
+power). Substituting:
+
+$(5-2) + (2-2) + (8-2) + (1-2) = 3 + 0 + 6 + (-1) = 8$.
+
+Or use Rule 1 + Rule 3 (treating $x_2 = 2$ as the constant $c$):
+$\sum x_i - 4 \times x_2 = 16 - 4 \times 2 = 8$.
+
+```{r p5-answer}
+x <- c(5, 2, 8, 1)
+sum(x - x[2])   # 8
+```
+
+The key reading skill: $x_2$ inside the Σ is the *fixed* second value (read once,
+not re-evaluated each iteration), while $x_i$ is the *running* value that changes
+with each step of the loop.
+:::
+
+## Problem 6 — dot product by hand and in R
+
+For `a <- c(4, 2, 1)` and `b <- c(3, 5, 2)`, compute the dot product
+$\mathbf{a} \cdot \mathbf{b}$ by hand (multiply pair-by-pair, then add). Then verify
+in R.
+
+```{webr}
+#| autorun: false
+# p6-starter — compute the dot product
+a <- c(4, 2, 1)
+b <- c(3, 5, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$4 \times 3 + 2 \times 5 + 1 \times 2 = 12 + 10 + 2 = 24$.
+
+```{r p6-answer}
+a <- c(4, 2, 1)
+b <- c(3, 5, 2)
+sum(a * b)   # 24
+```
+
+The dot product is just `sum(a * b)` — the Σ notation $\sum_{i=1}^{n} a_i b_i$
+written in R.
+:::
+
+## Problem 7 — a gentle cliffhanger
 
 For $x = (3, 1, 4, 2)$ the average is $10/4 = 2.5$. Compute
 $\sum_{i=1}^{4} (x_i - 2.5)$ — the total of the "distances from the average". Notice
@@ -150,8 +240,9 @@ anything? (You can't fully explain it yet — the next module,
 [mean, variance & covariance](../mean-variance-covariance/lesson.qmd), is exactly
 about why this happens.)
 
-```{r p5-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p7-starter — copy this to begin
 x <- c(3, 1, 4, 2)
 ```
 
@@ -162,7 +253,7 @@ It's exactly zero — and that's no accident: deviations from the mean ALWAYS su
 zero (the overshoots and undershoots cancel perfectly). That's why variance squares
 the deviations before adding them, which is where the next lesson picks up.
 
-```{r p5-answer}
+```{r p7-answer}
 x <- c(3, 1, 4, 2)
 sum(x - mean(x))   # 0 (up to tiny floating-point dust)
 ```
@@ -181,8 +272,8 @@ browser only.
 
 ::: {.module-check module="foundations/vectors-and-summation" pass="4"}
 
-::: {.quiz-q qid="vs-square-then-add" qtype="numeric" answer="29" tolerance="0"}
-For $x = (2, 3, 4)$, what is $\sum_{i=1}^{3} x_i^2$?
+::: {.quiz-q qid="vs-constant-factor" qtype="numeric" answer="40" tolerance="0"}
+Using a sum rule, what is $\sum_{i=1}^{3} 4\,x_i$ for $x = (2, 5, 3)$?
 :::
 
 ::: {.quiz-q qid="vs-sum-then-square" qtype="mc" answer="b"}
@@ -201,8 +292,9 @@ b) Added to every term: $\sum (x_i + c)$, so $c$ is added $n$ times
 c) Multiplied by the sum: $c \sum x_i$
 :::
 
-::: {.quiz-q qid="vs-summed-constant" qtype="numeric" answer="15" tolerance="0"}
-Using the sum rule for a constant, what is $\sum_{i=1}^{5} 3$?
+::: {.quiz-q qid="vs-dot-product" qtype="numeric" answer="23" tolerance="0"}
+For $\mathbf{a} = (3, 2)$ and $\mathbf{b} = (5, 4)$, what is the dot product
+$\mathbf{a} \cdot \mathbf{b}$?
 :::
 
 ::: {.quiz-q qid="vs-subscript-index" qtype="numeric" answer="4" tolerance="0"}

@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -214,6 +216,11 @@ wrong?
 a) Nothing — $x = 1$ is the only solution
 b) Dividing by $x$ assumes $x \neq 0$ and drops the solution $x = 0$; factor $x(x-1) = 0$ instead
 c) You can never divide both sides of an equation by a variable
+:::
+
+::: {.quiz-q qid="amd-reindex" qtype="numeric" answer="12" tolerance="0"}
+For $x = (2, 4, 6)$, evaluate $\sum_{j=2}^{4} x_{j-1}$. (Hint: reindexing shifts the
+counter but picks out the same terms.)
 :::
 
 ::: {.quiz-q qid="amd-two-ab" qtype="numeric" answer="20" tolerance="0"}

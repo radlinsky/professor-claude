@@ -145,17 +145,20 @@ new file reality (skip-checked even for edits that "shouldn't" need it).
 
 1. `quarto render` from the **repo root** until green — every baked `{r}` chunk
    executes (live `{webr}` cells are emitted for the browser, not run at build; their
-   in-browser execution is a manual/CI check — `interactive-webr.md`). (No quarto/R
-   available? Run the changed R via `Rscript` and say plainly in your report that a
-   full render was not possible.)
+   in-browser execution is a manual/CI check — `interactive-webr.md`). If any changed
+   file contains an `#| autorun: true` `{webr}` cell, also run
+   `Rscript scripts/check-webr-cells.R` (the native proxy CI runs) until green. (No
+   quarto/R available? Run the changed R via `Rscript` and say plainly in your report
+   that a full render was not possible.)
 2. If you added/changed any URL: WebFetch-verify it now
    (`resource-curation.md` rules — never write an unverified URL).
 3. If a setup chunk gained a package: `Rscript -e 'renv::snapshot()'`.
 4. Re-check one rendered page's answer callouts are still collapsed if you touched
    callouts.
 
-**GATE 5:** ☐ Render green (or honestly reported). ☐ Touched URLs verified.
-☐ renv.lock snapshotted if packages changed.
+**GATE 5:** ☐ Render green (or honestly reported). ☐ `check-webr-cells.R` green when
+autorun cells changed. ☐ Touched URLs verified. ☐ renv.lock snapshotted if packages
+changed.
 
 ---
 

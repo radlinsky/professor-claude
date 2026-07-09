@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -61,10 +63,10 @@ Here is a worked test — but the **core step is blanked**. Fill in ONLY the bla
 turning the estimate and SE into the test statistic.
 
 Five measurements give estimate $\hat{\theta} = 3$ and (already computed for you)
-$\mathrm{SE} = 0.71$. Testing against the null value 0:
+$\mathrm{SE} \approx 0.7071$. Testing against the null value 0:
 
 > Step 1 (given): the estimate is $\hat{\theta} = 3$ and its standard error is
-> $\mathrm{SE} = 0.71$.
+> $\mathrm{SE} \approx 0.7071$.
 > Step 2: **`<your step here>`** — combine the estimate and its SE into the test
 > statistic $t$.
 > Step 3 (given): that $t$ is far past 2, and `t.test` returns $p \approx 0.013 < 0.05$,
@@ -73,14 +75,14 @@ $\mathrm{SE} = 0.71$. Testing against the null value 0:
 ```{webr}
 #| autorun: false
 # p2-starter — edit and Run to check your statistic
-d <- c(4, 2, 5, 1, 3)   # this data has mean 3 and SE ~0.71
+d <- c(4, 2, 5, 1, 3)   # this data has mean 3 and SE ~0.7071
 ```
 
 ::: {.callout-note collapse="true" title="Answer"}
 The blanked step is the heart of the test — **distance from the null in noise units**:
 
 $$
-t = \frac{\hat{\theta}}{\mathrm{SE}} = \frac{3}{0.71} \approx 4.24
+t = \frac{\hat{\theta}}{\mathrm{SE}} = \frac{3}{0.7071} \approx 4.24
 $$
 
 That's the move: divide the estimate by its own SE to measure it in standard-error
@@ -254,7 +256,7 @@ A test statistic is built as:
 
 a) The estimate minus the null value
 b) The p-value times the sample size
-c) The estimate divided by its standard error — distance from the null in noise units
+c) The estimate divided by its standard error
 :::
 
 ::: {.quiz-q qid="ht-type-i-error" qtype="mc" answer="a"}

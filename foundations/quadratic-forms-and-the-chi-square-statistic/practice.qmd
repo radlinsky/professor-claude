@@ -1,0 +1,218 @@
+---
+title: "Practice: Quadratic forms & the chi-square statistic"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only then open
+the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Deviations $\mathbf{x} = (6, 2)$, with variances $9$ and $4$ and no co-movement. Compute the
+standardised squared distance by hand, then check in R.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+x <- c(6, 2)
+v <- c(9, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Term by term: $6^2/9 = 36/9 = 4$ and $2^2/4 = 4/4 = 1$; add to get $4 + 1 = 5$.
+
+```{r p1-ans}
+x <- c(6, 2); v <- c(9, 4)
+sum(x^2 / v)   # 5
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+For $\mathbf{x} = (3, 4)$ and the diagonal covariance
+$V = \begin{bmatrix} 9 & 0 \\ 0 & 4 \end{bmatrix}$, someone computes $\mathbf{x}^\top V^{-1}\mathbf{x}$:
+
+- Step 1: $V^{-1} = \begin{bmatrix} 1/9 & 0 \\ 0 & 1/4 \end{bmatrix}$ (flip each diagonal entry).
+- Step 2: **your step here** — compute $V^{-1}\mathbf{x}$.
+- Step 3: dot $\mathbf{x}$ with the step-2 result: $3\cdot\tfrac13 + 4\cdot 1 = 5$.
+
+Fill in step 2.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+x <- c(3, 4)
+V <- matrix(c(9, 0, 0, 4), nrow = 2, byrow = TRUE)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$V^{-1}\mathbf{x} = (3/9,\ 4/4) = (1/3,\ 1)$ — multiply each deviation by the matching
+reciprocal variance. That's the "divide each deviation by its variance" move; dotting it back
+against $\mathbf{x}$ then squares-and-adds.
+
+```{r p2-ans}
+x <- c(3, 4); V <- matrix(c(9,0,0,4), nrow = 2, byrow = TRUE)
+solve(V) %*% x           # (1/3, 1)
+as.numeric(t(x) %*% solve(V) %*% x)   # 5
+```
+:::
+
+## Problem 3 — a covariance with co-movement
+
+Now the two measurements co-move. For $\mathbf{x} = (3, 4)$ and
+$V = \begin{bmatrix} 9 & 3 \\ 3 & 4 \end{bmatrix}$, compute $\mathbf{x}^\top V^{-1}\mathbf{x}$
+in R, and say whether it is bigger or smaller than the no-co-movement answer of $5$.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: compute t(x) %*% solve(V) %*% x
+x <- c(3, 4)
+V <- matrix(c(9, 3, 3, 4), nrow = 2, byrow = TRUE)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-ans}
+x <- c(3, 4); V <- matrix(c(9,3,3,4), nrow = 2, byrow = TRUE)
+as.numeric(t(x) %*% solve(V) %*% x)
+```
+The result is $4$ — **smaller** than $5$. When two measurements are positively correlated and
+both drift in the same (positive) direction, some of that joint drift is "expected together":
+the inverse-covariance sandwich discounts the shared movement instead of double-counting it, so
+the standardised distance comes out lower than the no-co-movement $5$.
+:::
+
+## Problem 4 — spot the error
+
+A colleague wants the p-value for a statistic of $10$ built from a **length-4** deviation
+vector. They wrote — it contains **exactly one mistake**. Find it and fix it.
+
+```{webr}
+#| autorun: false
+# p4-starter — this contains exactly one mistake
+stat <- 10
+n_observations <- 500     # the study had 500 rows
+p <- pchisq(stat, df = n_observations, lower.tail = FALSE)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the **degrees of freedom**: `df` must be the *length of the sandwiched vector*
+(here $4$), not the number of observations (500). With `df = 500`, a statistic of 10 looks
+almost impossibly small (p ≈ 1); with the correct `df = 4` it is genuinely surprising.
+
+```{r p4-ans}
+pchisq(10, df = 4, lower.tail = FALSE)   # ~0.040 — the correct p-value
+```
+:::
+
+## Problem 5 — mixing it with standardization *(uses variance-structure-and-standardization's covariance matrix)*
+
+You are handed two effect estimates with deviations $\mathbf{x} = (2, -1)$, standard errors
+$(2, 1)$, and a correlation of $0.5$ between them. First **build the covariance matrix** from
+the standard errors and correlation (the standardization move: $V_{ii} = \text{se}_i^2$,
+$V_{12} = \text{se}_1\,\text{se}_2\,\rho$), then compute the standardised squared distance.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+x  <- c(2, -1)
+se <- c(2, 1)
+rho <- 0.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Diagonal: $\text{se}_1^2 = 4$, $\text{se}_2^2 = 1$. Off-diagonal:
+$\text{se}_1\,\text{se}_2\,\rho = 2\cdot 1\cdot 0.5 = 1$. So
+$V = \begin{bmatrix} 4 & 1 \\ 1 & 1 \end{bmatrix}$.
+
+```{r p5-ans}
+x <- c(2, -1); se <- c(2, 1); rho <- 0.5
+V <- matrix(c(se[1]^2,          se[1]*se[2]*rho,
+              se[1]*se[2]*rho,  se[2]^2), nrow = 2, byrow = TRUE)
+V
+as.numeric(t(x) %*% solve(V) %*% x)
+```
+The standardised squared distance is $4$. Building $V$ from standard errors and a correlation
+is exactly the covariance-matrix construction you'll meet again as $V = (\sigma\sigma^\top)\odot\Sigma$
+in a later course.
+:::
+
+## Problem 6 — transfer: read a statistic back as a sentence
+
+A goodness-of-fit test reports a chi-square statistic of $2.1$ on $3$ degrees of freedom.
+Without computing anything precisely, is the data surprising under the null, and what does that
+say about the model?
+
+::: {.callout-note collapse="true" title="Answer"}
+A chi-square with $3$ degrees of freedom has an average of $3$ under pure noise, so a statistic
+of $2.1$ is *below* average — completely unremarkable. In one sentence: "the data are no
+further from what the model predicts than random noise would put them, so there is no evidence
+the model is wrong." (Numerically, `pchisq(2.1, 3, lower.tail = FALSE)` ≈ $0.55$, a large
+p-value — no reason to reject.)
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**, once the
+material isn't fresh. A pass then is real evidence you've retained it. Five questions, graded on
+the page; 4/5 or better means this module is solid. Results are saved in this browser only.
+
+::: {.module-check module="foundations/quadratic-forms-and-the-chi-square-statistic" pass="4"}
+
+::: {.quiz-q qid="qfcs-standardised-distance" qtype="numeric" answer="5" tolerance="0"}
+For deviations $\mathbf{x} = (4, 3)$ with variances $8$ and $3$ and no co-movement, what is the
+standardised squared distance $\sum x_i^2 / v_i$?
+:::
+
+::: {.quiz-q qid="qfcs-df-meaning" qtype="mc" answer="c"}
+In $\mathbf{x}^\top V^{-1}\mathbf{x}$, the degrees of freedom of the resulting chi-square is:
+
+a) the number of observations in the study
+b) the number of nonzero entries of $\mathbf{x}$
+c) the length of the vector $\mathbf{x}$
+d) always 1
+:::
+
+::: {.quiz-q qid="qfcs-raw-vs-standardised" qtype="mc" answer="b"}
+Why divide each squared deviation by its variance instead of just squaring and adding the raw
+deviations?
+
+a) It makes the arithmetic easier to carry out by hand
+b) So noisy measurements count for less than precise ones
+c) It guarantees the result is always a whole number
+d) Raw squared deviations can be negative and this fixes it
+:::
+
+::: {.quiz-q qid="qfcs-pvalue-direction" qtype="mc" answer="a"}
+Holding the degrees of freedom fixed, a **larger** value of the chi-square statistic gives:
+
+a) a smaller p-value (more surprising under pure noise)
+b) a larger p-value (less surprising under pure noise)
+c) the same p-value
+d) an undefined p-value
+:::
+
+::: {.quiz-q qid="qfcs-cov-build" qtype="numeric" answer="1" tolerance="0"}
+*(uses variance-structure-and-standardization)* Two estimates have standard errors $2$ and $1$
+and correlation $0.5$. What is the off-diagonal entry of their covariance matrix,
+$\text{se}_1\,\text{se}_2\,\rho$?
+:::
+
+:::
+
+::::

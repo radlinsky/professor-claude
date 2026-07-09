@@ -16,6 +16,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Each **Starter** cell is live: edit it and press
 Run to solve right here in the page (WebR boots on the first run — give it a moment).
 Try honestly first; the worked answer's output stays baked in, so it's there the moment

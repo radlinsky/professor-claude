@@ -1,4 +1,4 @@
 ShortName: The derivative as a slope
 Concepts: The derivative as the slope of a curve; measuring it numerically (central difference); rate of change; reading a slope's sign and steepness
 BuildsOn: —
-UsedBy: [gradient-descent](../courses/gradient-descent/syllabus.md), [logistic-regression](../courses/logistic-regression/syllabus.md)
+UsedBy: [simple-linear-regression](../courses/simple-linear-regression/syllabus.md), [gradient-descent](../courses/gradient-descent/syllabus.md), [logistic-regression](../courses/logistic-regression/syllabus.md)

@@ -1,4 +1,4 @@
 ShortName: Hypothesis tests, p-values & CIs
 Concepts: Null vs alternative (the boring default vs "something's going on"), the test statistic as estimate ÷ SE (distance from the null in noise units), the p-value SIMULATED as "chance of a result this extreme if the null were true", reject/fail-to-reject at the 0.05 convention (one- vs two-sided), Type I/II error as false alarm vs missed signal, a confidence interval as estimate ± ~2·SE with "CI excludes the null $\iff$ $p<0.05$", and reading the Estimate/SE/statistic/p columns of any model table
 BuildsOn: [randomness-samples-and-sampling-distributions](randomness-samples-and-sampling-distributions/lesson.qmd), [probability-and-odds](probability-and-odds/lesson.qmd)
-UsedBy: —
+UsedBy: [simple-linear-regression](../courses/simple-linear-regression/syllabus.md)

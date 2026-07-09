@@ -1,0 +1,4 @@
+ShortName: Integration & area under a curve
+Concepts: The integral as area under a curve (rectangle approximation → refinement); the fundamental theorem (derivatives and integrals undo each other); antiderivative rules (reverse power rule, constant multiple, sum); definite vs indefinite integrals; `integrate()` as the numerical area tool; area under a density = probability (the density/CDF connection)
+BuildsOn: [differentiation-rules](differentiation-rules/lesson.qmd), [derivative-as-slope](derivative-as-slope/lesson.qmd)
+UsedBy: —

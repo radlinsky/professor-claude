@@ -1,0 +1,266 @@
+---
+title: "Practice: Marginal likelihood and model evidence"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Same coin data (heads, heads, tails), so $L(p) = p^2(1-p)$. This time your prior puts
+**equal weight $1/3$** on $p = 0.3$, $p = 0.5$, and $p = 0.7$. Compute the marginal
+likelihood of the data by hand, then check in R.
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+lik   <- function(p) p^2 * (1 - p)
+p     <- c(0.3, 0.5, 0.7)
+prior <- c(1/3, 1/3, 1/3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Likelihood at each value: $L(0.3) = 0.3^2 \times 0.7 = 0.09 \times 0.7 = 0.063$;
+$L(0.5) = 0.5^2 \times 0.5 = 0.125$; $L(0.7) = 0.7^2 \times 0.3 = 0.49 \times 0.3 =
+0.147$. Weighted average (equal $1/3$ weights): $\tfrac13(0.063 + 0.125 + 0.147) =
+\tfrac13(0.335) = 0.1117$.
+
+```{r p1-answer}
+lik   <- function(p) p^2 * (1 - p)
+p     <- c(0.3, 0.5, 0.7)
+prior <- c(1/3, 1/3, 1/3)
+sum(prior * lik(p))          # 0.11167 -- the marginal likelihood
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+Same data and $L(p) = p^2(1-p)$, but now an **unequal** prior: weight $0.2$ on $p = 0.4$,
+$0.5$ on $p = 0.6$, and $0.3$ on $p = 0.8$. Here is the worked solution with the core
+step blanked out — supply only that step.
+
+- Step 1 (shown): likelihoods are $L(0.4) = 0.096$, $L(0.6) = 0.144$, $L(0.8) = 0.128$.
+- Step 2 (**your step here**): combine these into the marginal likelihood using the
+  prior weights. Write the exact arithmetic.
+- Step 3 (shown): the marginal likelihood is $0.1296$.
+
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the blank
+lik   <- function(p) p^2 * (1 - p)
+p     <- c(0.4, 0.6, 0.8)
+prior <- c(0.2, 0.5, 0.3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The missing move is the **prior-weighted sum**: multiply each likelihood by its prior
+weight and add.
+
+$$
+0.2(0.096) + 0.5(0.144) + 0.3(0.128) = 0.0192 + 0.072 + 0.0384 = 0.1296.
+$$
+
+That's the move that turns a curve of likelihoods into one number for the model — each
+value counts in proportion to how much you believed it beforehand.
+
+```{r p2-answer}
+lik   <- function(p) p^2 * (1 - p)
+p     <- c(0.4, 0.6, 0.8)
+prior <- c(0.2, 0.5, 0.3)
+sum(prior * lik(p))          # 0.1296
+```
+:::
+
+## Problem 3 — the normal closed form
+
+An estimate $\hat\theta = 0.10$ has variance $V = 0.04$. You put a normal prior $N(0, W)$
+on the true value with $W = 0.05$. (a) What is the variance of the marginal
+(prior-predictive) distribution of $\hat\theta$? (b) Using the closed form, what is the
+marginal density at $\hat\theta = 0.10$? Confirm it matches a brute-force integral in R.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: compute the marginal variance, then the closed-form density
+theta_hat <- 0.10
+V <- 0.04
+W <- 0.05
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) Variances add: the marginal variance is $V + W = 0.04 + 0.05 = 0.09$ (so the marginal
+is $N(0, 0.09)$, standard deviation $\sqrt{0.09} = 0.3$).
+
+(b) The marginal density is the height of that $N(0, 0.09)$ curve at $0.10$:
+`dnorm(0.10, 0, sqrt(0.09))` $\approx 1.258$.
+
+```{r p3-answer}
+theta_hat <- 0.10; V <- 0.04; W <- 0.05
+
+closed <- dnorm(theta_hat, 0, sqrt(V + W))         # closed form: N(0, V+W)
+
+integrand <- function(theta) dnorm(theta_hat, theta, sqrt(V)) * dnorm(theta, 0, sqrt(W))
+brute <- integrate(integrand, -Inf, Inf)$value      # brute-force average over the prior
+
+c(closed_form = closed, brute_force = brute)         # equal -- variances add
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague computes the marginal spread when combining an estimate with variance
+$V = 0.0025$ and a prior with variance $W = 0.04$. They write — it contains **exactly one
+mistake** — find it and fix it.
+
+> "The estimate's standard deviation is $\sqrt{0.0025} = 0.05$ and the prior's is
+> $\sqrt{0.04} = 0.2$. So the marginal standard deviation is $0.05 + 0.2 = 0.25$, and the
+> marginal is $N(0, 0.25^2)$."
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is **adding the standard deviations**. It is the *variances* that add, not the
+standard deviations. The correct marginal variance is $V + W = 0.0025 + 0.04 = 0.0425$, so
+the marginal standard deviation is $\sqrt{0.0425} \approx 0.206$ — not $0.25$. The
+colleague's $0.25$ overstates the spread (it corresponds to a variance of $0.0625$, which
+is bigger than the true $0.0425$).
+
+```{r p4-answer}
+V <- 0.0025; W <- 0.04
+c(correct_var = V + W, correct_sd = sqrt(V + W),   # 0.0425, 0.206
+  wrong_sd = sqrt(V) + sqrt(W))                     # 0.25 -- the error
+```
+:::
+
+## Problem 5 — mixing it with priors & posteriors *(uses priors-posteriors-and-updating's normalization)*
+
+For the coin data ($L(p) = p^2(1-p)$) with equal prior $1/3$ on $p = 0.4, 0.6, 0.8$,
+the marginal likelihood is $0.1227$ (from the lesson). Now go one step further and compute
+the **posterior** weight on each $p$ — that is, prior $\times$ likelihood, then normalized
+so the three posterior weights sum to $1$. Notice the marginal likelihood is exactly the
+normalizing denominator.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+lik   <- function(p) p^2 * (1 - p)
+p     <- c(0.4, 0.6, 0.8)
+prior <- c(1/3, 1/3, 1/3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Posterior $\propto$ prior $\times$ likelihood (from
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd)). The
+unnormalized weights are $\tfrac13(0.096), \tfrac13(0.144), \tfrac13(0.128) = 0.032,
+0.048, 0.0427$; their sum is $0.1227$ — the marginal likelihood. Dividing each by that
+sum gives the posterior weights $0.261, 0.391, 0.348$.
+
+```{r p5-answer}
+lik   <- function(p) p^2 * (1 - p)
+p     <- c(0.4, 0.6, 0.8); prior <- c(1/3, 1/3, 1/3)
+
+unnorm    <- prior * lik(p)              # prior x likelihood
+marginal  <- sum(unnorm)                 # 0.1227 -- the normalizing denominator
+posterior <- unnorm / marginal           # normalized to sum to 1
+round(posterior, 4)                       # 0.2609, 0.3913, 0.3478
+```
+The marginal likelihood is not just a model score — it is precisely the denominator that
+turns "prior $\times$ likelihood" into a proper posterior distribution.
+:::
+
+## Problem 6 — transfer
+
+You are comparing **two models** for the same coin data (heads, heads, tails). Model A
+believes only $p = 0.6$ (all prior weight there). Model B spreads its belief equally over
+$p = 0.2, 0.6, 0.9$. Compute each model's marginal likelihood, and say which model
+the data favors — and give a one-sentence intuition for why.
+
+```{webr}
+#| autorun: false
+# p6-starter — edit and Run to solve, right here
+lik <- function(p) p^2 * (1 - p)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Model A's marginal is just $L(0.6) = 0.144$ (all weight on one value). Model B's is
+$\tfrac13\big(L(0.2) + L(0.6) + L(0.9)\big) = \tfrac13(0.032 + 0.144 + 0.081) =
+\tfrac13(0.257) = 0.0857$. **Model A wins** ($0.144 > 0.0857$).
+
+```{r p6-answer}
+lik <- function(p) p^2 * (1 - p)
+A <- lik(0.6)                                  # all weight on p = 0.6
+B <- mean(lik(c(0.2, 0.6, 0.9)))               # equal weight on three values
+c(model_A = A, model_B = round(B, 4))          # 0.144 vs 0.0857
+```
+Intuition: Model A bet its whole prior on a value that fits the data well, so its average
+is that good fit. Model B diluted its belief with values that fit poorly ($p = 0.2$ makes
+two heads unlikely), so averaging drags its evidence down — the honesty penalty for a
+vaguer model.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/marginal-likelihood-and-model-evidence" pass="4"}
+
+::: {.quiz-q qid="mlme-what-marginal" qtype="mc" answer="c"}
+What does the marginal likelihood (model evidence) $P(D)$ measure?
+
+a) The single parameter value that makes the data most probable given the model
+b) The probability that the parameter equals its best value
+c) How probable the data is, averaged over the prior's parameter weights
+d) The largest likelihood any parameter value can achieve
+:::
+
+::: {.quiz-q qid="mlme-discrete-numeric" qtype="numeric" answer="0.1345" tolerance="0.001"}
+For coin data with $L(p) = p^2(1-p)$ and a prior putting equal weight $0.5$ on $p = 0.5$
+and $p = 0.6$, compute the marginal likelihood. Round to four decimals.
+:::
+
+::: {.quiz-q qid="mlme-variances-add" qtype="numeric" answer="0.09" tolerance="0.0001"}
+An estimate has variance $V = 0.02$; the prior on the true value is $N(0, W)$ with
+$W = 0.07$. What is the variance of the marginal (prior-predictive) distribution of the
+estimate?
+:::
+
+::: {.quiz-q qid="mlme-why-average" qtype="mc" answer="b"}
+Why average the likelihood over the prior instead of just taking the maximum likelihood?
+
+a) Averaging always gives a larger number, which favors the true model
+b) Maximizing flatters complex models, so averaging is fairer
+c) The maximum likelihood cannot be computed for continuous parameters
+:::
+
+::: {.quiz-q qid="mlme-normal-closedform" qtype="mc" answer="a"}
+*(Interleaved — uses distributions & densities.)* An estimate is normal with variance $V$
+around the true value, and the prior on the true value is $N(0, W)$. What is the marginal
+(prior-predictive) distribution of the estimate?
+
+a) Normal, $N(0, V + W)$ — the variances add
+b) Normal, $N(0, V \times W)$ — the variances multiply
+c) Normal, $N(0, \sqrt{V} + \sqrt{W})$ — the standard deviations add
+:::
+
+:::
+
+::::

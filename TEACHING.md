@@ -153,6 +153,10 @@ Practice sets ramp from imitation to transfer:
 Full mechanics (starter chunks, answer format, chunk labels) live in
 `.claude/course-authoring/problem-authoring.md`.
 
+This ramp is for **first encoding**. Relearning sets added after a Module-check miss
+(or once the original set is memorized) drop the scaffolds and use the abbreviated
+**fresh-rep round** format instead — `problem-authoring.md` §Fresh-rep rounds.
+
 ## Module check
 
 Each module's `practice.qmd` ends with a **Module check**: five closed-answer
@@ -163,8 +167,31 @@ because the spacing is the point (taking it while the lesson is fresh only measu
 short-term fluency). It gives
 the mastery rule the one thing self-report can't: an objective signal. **≥4/5 = the module is solid**,
 and that pass is the learner's evidence for flipping their Status column to `done`.
-A miss is a prescription, not a verdict: revisit what the wrong items point at, then
-retake in a **later session** — passing after another gap is the durable evidence.
+
+**The timing protocol** (why each thing sits where it does): the practice set runs in
+the **same sitting** as its lesson — feedback lands while the attempt is fresh, which
+is what formative practice is for. The Module check waits **at least a day** — the
+forgetting in the gap is what makes the retrieval effortful enough to strengthen
+memory, and a same-day score only measures short-term fluency. The capstone re-tests
+everything **weeks later**. The sequence deliberately expands: useful gaps scale with
+how long you want to remember (roughly 10–20% of the retention interval), so
+same-day → next-day → end-of-course is the cheap approximation of that curve.
+
+**A miss is a prescription, not a verdict.** The relearning loop:
+
+1. **Diagnose** from the missed items — re-open the lesson section each one points
+   at, but only to find *what* went wrong. Re-reading is diagnosis, not treatment.
+2. **Fresh reps, not re-grinding.** Practice the missed skills on a **fresh-rep
+   round**: new parallel problems — same constructions, different numbers and
+   contexts (format: `.claude/course-authoring/problem-authoring.md` §Fresh-rep
+   rounds; the add-problems skill writes them). Re-solving the original set proves
+   little once its answers are remembered — recalling an answer is not retrieving
+   the procedure, and it is *varied* retrieval that transfers.
+3. **Retake in a later session** — passing after another gap is the durable evidence.
+
+Optional but research-backed: even after a pass, one more retake about a week later
+buys disproportionate durability (successive relearning) — worth it for material a
+later course leans on.
 
 - **Cumulative:** 3–4 items test this module; 1–2 are interleaved from earlier modules
   of the course (or a foundation's `Builds on` modules), each labeled in its question

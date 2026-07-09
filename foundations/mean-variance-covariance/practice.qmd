@@ -1,7 +1,10 @@
 ---
 title: "Practice: The mean, variance & covariance"
 subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
 ---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
 
 ```{r setup}
 #| message: false
@@ -13,6 +16,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -21,8 +26,9 @@ then open the answer.
 Four mushrooms weigh $x = (3, 1, 4, 2)$ grams. By hand: find $\bar{x}$, the four
 deviations, and $s_x^2$. Check with `mean()` and `var()`.
 
-```{r p1-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p1-starter — Starter: copy this to begin
 x <- c(3, 1, 4, 2)
 ```
 
@@ -56,8 +62,9 @@ the last line.
 > $\sum (x_i - \bar{x})(y_i - \bar{y}) = \underline{\phantom{00}}$
 > Finally divide by $n - 1 = 2$: $\;s_{xy} = \underline{\phantom{00}}$.
 
-```{r p2-starter}
-# Starter — copy this to check your two blanks
+```{webr}
+#| autorun: false
+# p2-starter — Starter: copy this to check your two blanks
 x <- c(1, 3, 5)
 y <- c(2, 2, 8)
 ```
@@ -108,6 +115,11 @@ c. shoe size & R programming skill
 
 Then verify (b) in R with the built-in `mtcars` data (`wt` and `mpg`).
 
+```{webr}
+#| autorun: false
+# p4-starter — check your prediction for (b)
+```
+
 ::: {.callout-note collapse="true" title="Answer"}
 a. Positive — above-average studiers tend to score above average (deviations share
    a sign, products positive).
@@ -131,8 +143,9 @@ A colleague computes the variance of $x = (4, 8, 12)$ like this. It contains
 > "Mean is $(4 + 8 + 12)/3 = 8$. Deviations $-4, 0, 4$; squared $16, 0, 16$; they
 > sum to $32$. There are $n = 3$ values, so the variance is $32 / 3 \approx 10.67$."
 
-```{r p5-starter}
-# Starter — copy this to check the corrected answer
+```{webr}
+#| autorun: false
+# p5-starter — Starter: copy this to check the corrected answer
 x <- c(4, 8, 12)
 ```
 
@@ -150,21 +163,52 @@ var(x)                            # 16 — R agrees (it uses n - 1)
 ```
 :::
 
-## Problem 6 — the formula IS the function (in R)
+## Problem 6 — interleaved *(uses vectors & summation's sum rules)*
+
+For $x = (5, 10, 15)$: expand $\sum_{i=1}^{3}(x_i - \bar{x})^2$ step by step
+using sum rules from [vectors & summation](../vectors-and-summation/lesson.qmd).
+First find $\bar{x}$, then write out each $(x_i - \bar{x})^2$ term, sum them, and
+finally divide by $n - 1$ to get $s_x^2$. Check with `var()`.
+
+```{webr}
+#| autorun: false
+# p6-interleaved — Starter
+x <- c(5, 10, 15)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\bar{x} = (5 + 10 + 15)/3 = 10$.
+
+Deviations: $5 - 10 = -5$, $10 - 10 = 0$, $15 - 10 = 5$.
+
+Expanding the sum term by term (writing out $\sum_{i=1}^{3}$ as three addends):
+$$\sum_{i=1}^{3}(x_i - \bar{x})^2 = (-5)^2 + (0)^2 + (5)^2 = 25 + 0 + 25 = 50$$
+
+Divide by $n - 1 = 2$: $s_x^2 = 50 / 2 = 25$.
+
+```{r p6-interleaved-answer}
+x <- c(5, 10, 15)
+sum((x - mean(x))^2) / (length(x) - 1)   # 25
+var(x)                                    # 25 — same
+```
+:::
+
+## Problem 7 — the formula IS the function (in R)
 
 Starter below. Compute the covariance of `x` and `y` **without** `cov()` — build it
 straight from the formula $s_{xy} = \frac{1}{n-1}\sum (x_i - \bar{x})(y_i - \bar{y})$
 — then confirm against `cov(x, y)`.
 
-```{r p6-starter}
-# Starter data — your job: covariance by hand, then check with cov()
+```{webr}
+#| autorun: false
+# p7-starter — Starter data: your job is covariance by hand, then check with cov()
 set.seed(42)
 x <- rnorm(500, mean = 10, sd = 2)
 y <- 3 * x + rnorm(500, sd = 5)
 ```
 
 ::: {.callout-note collapse="true" title="Answer"}
-```{r p6-answer}
+```{r p7-answer}
 set.seed(42)
 x <- rnorm(500, mean = 10, sd = 2)
 y <- 3 * x + rnorm(500, sd = 5)
@@ -181,15 +225,192 @@ If you can write this line, you can *read* the covariance formula in any paper �
 they are the same statement in two languages.
 :::
 
-## Problem 7 — a gentle cliffhanger
+## Problem 8 — name that formula
+
+Each line below describes a computation. For each one, name the summary it computes:
+**mean**, **variance**, **standard deviation**, **covariance**, or **correlation**.
+No calculation needed — just pattern-match the recipe to the right name.
+
+a. "Add all the values, divide by $n$."
+b. "For each observation, subtract the mean, square the result, add those squared
+   numbers up, divide by $n - 1$."
+c. "For each observation, multiply that observation's x-deviation by its y-deviation,
+   add those products, divide by $n - 1$."
+d. "Compute (c), then divide the result by the standard deviation of x times the
+   standard deviation of y."
+e. "Compute (b), then take the square root."
+
+::: {.callout-note collapse="true" title="Answer"}
+a. **Mean** ($\bar{x} = \frac{1}{n}\sum x_i$) — add and divide by count.
+
+b. **Variance** ($s_x^2 = \frac{1}{n-1}\sum (x_i - \bar{x})^2$) — squared
+   deviations, averaged with $n - 1$.
+
+c. **Covariance** ($s_{xy} = \frac{1}{n-1}\sum (x_i - \bar{x})(y_i - \bar{y})$) —
+   the key difference from variance is that you multiply *paired* deviations from
+   two variables instead of squaring one variable's deviations.
+
+d. **Correlation** ($r = s_{xy} / (s_x \cdot s_y)$) — covariance divided by both
+   standard deviations, which cancels the units and forces the result into [−1, 1].
+
+e. **Standard deviation** ($s_x = \sqrt{s_x^2}$) — the square root of variance,
+   back in the original units so you can feel it as a distance.
+
+The two easiest to mix up are variance and covariance: both divide by $n - 1$, but
+variance *squares* one variable's deviations while covariance *multiplies* two
+variables' deviations. If you see $(x_i - \bar{x})^2$, it's variance; if you see
+$(x_i - \bar{x})(y_i - \bar{y})$, it's covariance.
+:::
+
+## Problem 9 — all five summaries, one dataset
+
+Three days of temperature ($x$, in Celsius) and ice-cream sales ($y$, in dozens):
+$x = (2, 5, 8)$, $y = (6, 4, 5)$. Compute all five summaries by hand: $\bar{x}$,
+$\bar{y}$, $s_x^2$, $s_{xy}$, and $r$. (You will need $s_x$ and $s_y$ along the
+way.) Then check every one in R.
+
+This is the exercise that proves you can tell the formulas apart when they sit next
+to each other — same data, five different recipes.
+
+```{webr}
+#| autorun: false
+# p9-starter — copy this to begin
+x <- c(2, 5, 8)
+y <- c(6, 4, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**Means.** $\bar{x} = (2 + 5 + 8)/3 = 15/3 = 5$.
+$\bar{y} = (6 + 4 + 5)/3 = 15/3 = 5$.
+
+**Deviations.** $x - \bar{x}$: $-3, 0, 3$. $\;y - \bar{y}$: $1, -1, 0$.
+
+**Variance of x.** Square the x-deviations: $9, 0, 9$. Sum: $18$. Divide by
+$n - 1 = 2$: $s_x^2 = 9$. So $s_x = \sqrt{9} = 3$.
+
+**Variance of y.** Square the y-deviations: $1, 1, 0$. Sum: $2$. Divide by $2$:
+$s_y^2 = 1$. So $s_y = 1$.
+
+**Covariance.** Multiply *paired* deviations (this is where it differs from
+variance — paired products, not squares): $(-3)(1) = -3$, $(0)(-1) = 0$,
+$(3)(0) = 0$. Sum: $-3$. Divide by $2$: $s_{xy} = -1.5$. Negative — warmer days
+do not consistently bring more sales in this tiny dataset.
+
+**Correlation.** $r = s_{xy}/(s_x \cdot s_y) = -1.5/(3 \times 1) = -0.5$.
+
+```{r p9-answer}
+x <- c(2, 5, 8); y <- c(6, 4, 5)
+
+mean(x)          # 5
+mean(y)          # 5
+var(x)           # 9
+var(y)           # 1
+sd(x)            # 3
+sd(y)            # 1
+cov(x, y)        # -1.5
+cor(x, y)        # -0.5
+```
+
+The discrimination test: variance squared one variable's deviations ($9, 0, 9$);
+covariance multiplied two variables' deviations ($-3, 0, 0$). Same data, different
+operation, different answer.
+:::
+
+## Problem 10 — read the R, name the summary
+
+Each R expression below computes one of the five summaries (mean, variance, SD,
+covariance, correlation). Name which summary each line computes, and say which
+single built-in R function would give the same answer.
+
+a. `sum(x) / length(x)`
+b. `sum((x - mean(x))^2) / (length(x) - 1)`
+c. `sum((x - mean(x)) * (y - mean(y))) / (length(x) - 1)`
+d. `sqrt(sum((x - mean(x))^2) / (length(x) - 1))`
+e. `cov(x, y) / (sd(x) * sd(y))`
+
+::: {.callout-note collapse="true" title="Answer"}
+a. **Mean** — adds all x values, divides by how many. Built-in: `mean(x)`.
+
+b. **Variance** — squared deviations, summed, divided by $n - 1$. Built-in:
+   `var(x)`. The giveaway is `^2` applied to one variable's deviations.
+
+c. **Covariance** — paired deviations multiplied (`*` between two variables'
+   deviations), summed, divided by $n - 1$. Built-in: `cov(x, y)`. The giveaway
+   is `(x - mean(x)) * (y - mean(y))` — two different variables, multiplied, not
+   squared.
+
+d. **Standard deviation** — the same thing as (b), wrapped in `sqrt()`. Built-in:
+   `sd(x)`. Whenever you see `sqrt(variance)`, it's the SD.
+
+e. **Correlation** — covariance divided by both standard deviations. Built-in:
+   `cor(x, y)`. The division by `sd(x) * sd(y)` cancels the units and squeezes the
+   result into [−1, 1].
+
+The pair to watch: (b) vs (c). The *only* difference is `^2` (squaring one
+variable's deviations = variance) vs `* (y - mean(y))` (multiplying two
+variables' deviations = covariance). That one substitution is the entire difference
+between "how spread out is x" and "do x and y move together."
+:::
+
+## Problem 11 — spot the wrong formula
+
+A student is asked to compute the **covariance** of $x = (3, 6, 9)$ and
+$y = (2, 5, 2)$. Their work contains **exactly one mistake** — find it and give the
+correct answer.
+
+> "Means: $\bar{x} = 6$, $\bar{y} = 3$. Deviations: $x - \bar{x} = (-3, 0, 3)$
+> and $y - \bar{y} = (-1, 2, -1)$.
+> Now I square the x-deviations: $(-3)^2 + 0^2 + 3^2 = 9 + 0 + 9 = 18$.
+> Divide by $n - 1 = 2$: covariance $= 18 / 2 = 9$."
+
+```{webr}
+#| autorun: false
+# p11-starter — copy this to check the corrected answer
+x <- c(3, 6, 9)
+y <- c(2, 5, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The student *squared the x-deviations* instead of *multiplying the paired
+deviations from x and y*. They computed the **variance** of x (which is indeed 9),
+not the **covariance** of x and y.
+
+The covariance formula uses $(x_i - \bar{x})(y_i - \bar{y})$, not
+$(x_i - \bar{x})^2$. The correct paired products are:
+
+$(-3)(-1) = 3$, $\;(0)(2) = 0$, $\;(3)(-1) = -3$.
+
+Sum: $3 + 0 + (-3) = 0$. Divide by $n - 1 = 2$: $s_{xy} = 0$.
+
+The covariance is zero — there is no linear pattern between x and y here. The
+student's answer of 9 was the variance of x, a completely different question.
+
+```{r p11-answer}
+x <- c(3, 6, 9); y <- c(2, 5, 2)
+var(x)              # 9 — what the student actually computed (variance of x)
+cov(x, y)           # 0 — what they were asked for (covariance of x and y)
+```
+
+This is the most common formula mix-up: variance squares one variable's deviations,
+covariance multiplies two variables' deviations. Watch for $(x_i - \bar{x})^2$ vs
+$(x_i - \bar{x})(y_i - \bar{y})$ — they look similar, but they answer
+different questions.
+:::
+
+## Problem 12 — a gentle cliffhanger
 
 Using the `mtcars` variables again: compute `cov(mtcars$wt, mtcars$mpg) /
 var(mtcars$wt)`. Keep that number. Then run `coef(lm(mpg ~ wt, data = mtcars))` and
 compare. (Explaining WHY those match is the whole point of the
 [simple-linear-regression course](../../courses/simple-linear-regression/syllabus.md).)
 
+```{webr}
+#| autorun: false
+# p12-starter — compute the ratio, then the regression slope, and compare
+```
+
 ::: {.callout-note collapse="true" title="Answer"}
-```{r p7-answer}
+```{r p12-answer}
 cov(mtcars$wt, mtcars$mpg) / var(mtcars$wt)   # -5.344
 coef(lm(mpg ~ wt, data = mtcars))             # slope: -5.344
 ```
@@ -235,7 +456,7 @@ c) The variance comes out negative
 Rescaling $y$ from liters to milliliters multiplies the covariance by $1000$, though the
 relationship is unchanged. What does this say about judging strength by covariance size?
 
-a) Size is unreliable — covariance carries the variables' units; the *sign* is the trustworthy part, and correlation gives a comparable size
+a) Covariance size is unreliable; the sign is the trustworthy part
 b) A bigger covariance always means a stronger relationship
 c) The relationship genuinely became $1000$ times stronger
 :::

@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -274,6 +276,15 @@ A model that fits every wiggle in the training data — memorizing its noise —
 a) Underfitting — it missed the trend
 b) Perfectly calibrated
 c) Overfitting — it memorized noise, so it generalizes poorly
+:::
+
+::: {.quiz-q qid="mfev-loss-minimize" qtype="mc" answer="b"}
+(From loss functions & optimization.) A fitting method adjusts parameters to do what to
+its loss function on the training data?
+
+a) Maximize it
+b) Minimize it
+c) Set it to 1
 :::
 
 ::: {.quiz-q qid="mfev-rss" qtype="numeric" answer="9" tolerance="0"}

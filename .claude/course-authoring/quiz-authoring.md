@@ -22,6 +22,14 @@ rule is what makes the retrieval effortful enough to count (spacing — Rawson &
 successive-relearning work). The grader supplies the feedback half of that loop:
 per-item right/wrong plus the correct answer revealed on a miss, immediately.
 
+What a miss triggers — diagnose, **fresh reps** (a new parallel problem round via the
+add-problems skill, per `problem-authoring.md` §Fresh-rep rounds), retake in a later
+session — is TEACHING.md §Module check's relearning loop; don't restate it here. If
+after several retakes the learner can recite the quiz *answers* from memory rather than
+re-derive them, replacing items is an **update-course** job: the replacement tests the
+same concept on different numbers, and since the answer's meaning changes it gets a
+**new qid** (the stable-qid rule below).
+
 | | Check yourself | Practice set | **Module check** | Capstone |
 |---|---|---|---|---|
 | Role | formative | formative | **summative-lite** | cumulative final |
@@ -49,13 +57,13 @@ Container: `.module-check` with `module=` (the repo-relative module dir) and `pa
 MC options are a plain lettered markdown list (`a) …`, **max 4**); `answer` is the
 letter. The rendered `<ol type="a">` becomes radios; without JS it stays a list.
 
-Copy-able example:
-
 The whole thing is wrapped in a **collapsed `.callout-tip`** whose title tells the
 learner to wait at least a day — the spacing is the point (testing while the lesson is
 fresh only measures short-term fluency), so the quiz reads as a deferred checkpoint,
 not more practice. Use `::::`
 for the callout so it nests unambiguously around the `:::` quiz divs.
+
+Copy-able example:
 
 ````markdown
 ## Module check

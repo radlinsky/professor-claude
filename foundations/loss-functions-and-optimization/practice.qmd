@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -49,7 +51,7 @@ mean(y)      # 5 -> the loss-minimizing setting (argmin)
 
 Here is the derivative of the loss $L(m) = \sum_{i=1}^{n}(y_i - m)^2$ worked out — but
 the **core step is blanked**. Fill in ONLY the blanked line: differentiate one squared
-term $(y_i - m)^2$ with chain-rule-lite.
+term $(y_i - m)^2$ using the chain rule.
 
 > Start by pushing the derivative inside the sum (derivative of a sum = sum of
 > derivatives): $L'(m) = \sum_i \frac{d}{dm}(y_i - m)^2$.
@@ -254,7 +256,7 @@ c) No — the slope is never exactly zero at a minimum
 :::
 
 ::: {.quiz-q qid="lfo-derivative-squared" qtype="mc" answer="c"}
-By chain-rule-lite, the derivative of $(y - m)^2$ with respect to $m$ is:
+By the chain rule, the derivative of $(y - m)^2$ with respect to $m$ is:
 
 a) $2(y - m)$
 b) $(y - m)$

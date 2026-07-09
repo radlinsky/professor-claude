@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -72,8 +74,11 @@ The blanked step is the subtraction — a slice's area is (area left of the top)
 
 $$
 P(45 < X < 55) = \texttt{pnorm(55, 50, 5)} - \texttt{pnorm(45, 50, 5)} = 0.841 - 0.159
-= 0.683.
+= 0.682.
 $$
+
+(The exact R result is $0.6827 \approx 0.683$; the tiny gap comes from rounding the
+intermediate values.)
 
 That is why you never read one `pnorm` as a slice probability — a single `pnorm` is
 everything to the *left*, so you must subtract off the part below the lower edge.
@@ -240,7 +245,7 @@ b) The probability of landing exactly on $33$
 c) The height of the curve at $33$
 :::
 
-::: {.quiz-q qid="dd-slice-prob" qtype="numeric" answer="0.682" tolerance="0.001"}
+::: {.quiz-q qid="dd-slice-prob" qtype="numeric" answer="0.682" tolerance="0.0015"}
 For a normal, $P(X < 33) = 0.841$ and $P(X < 27) = 0.159$. What is the slice probability
 $P(27 < X < 33)$? Round to three decimals.
 :::

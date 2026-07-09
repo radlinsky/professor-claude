@@ -15,25 +15,19 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
 Last module we rolled downhill on a curve with a single knob $x$. Real problems have
 *several* knobs — a line to fit has an intercept *and* a slope, a model can have dozens
-of parameters. This module makes the leap to a function of **two** inputs and shows that
-the recipe barely changes: measure a slope *in each direction*, bundle those slopes into
-a little vector called the **gradient**, and step against the whole bundle. That's the
-version that scales to everything later.
+of parameters. You already know from the foundation what the gradient is (the vector of
+partial slopes) and how to measure it numerically. This module puts it to work: we take
+the gradient you built in the foundation and turn it into a **descent step** — the same
+"step against the slope" idea from Module 1, now applied to every knob at once.
 
-**Builds on:** [rolling downhill (Module 1)](../01-rolling-downhill/lesson.qmd) and
-[vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd).
+**Builds on:** [rolling downhill (Module 1)](../01-rolling-downhill/lesson.qmd),
+[partial derivatives & the gradient](../../../../foundations/partial-derivatives-and-the-gradient/lesson.qmd),
+and [vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd).
 
 ## Warm-up: do you remember?
 
@@ -48,21 +42,22 @@ and we want to go *downhill* — the opposite way. See
 [Module 1](../01-rolling-downhill/lesson.qmd).
 :::
 
-**2.** *(vectors & summation)* In R, for `v <- c(2, 5)`, what are `v[1]` and `v[2]`, and
-what does "a vector" mean in one phrase?
+**2.** *(partial-derivatives-and-the-gradient)* For $f(a,b) = a^2 + b^2$ at the point
+$(3, 2)$, what is the gradient $\nabla f$, and which direction does it point?
 
 ::: {.callout-note collapse="true" title="Answer"}
-`v[1]` is `2`, `v[2]` is `5`. A vector is just *a list of numbers held together* — here,
-two of them. See [vectors & summation](../../../../foundations/vectors-and-summation/lesson.qmd).
+$\nabla f(3,2) = (6, 4)$ — the vector of partial slopes. It points in the
+steepest-*uphill* direction; its negative $(-6, -4)$ points steepest-downhill. See
+[partial derivatives & the gradient](../../../../foundations/partial-derivatives-and-the-gradient/lesson.qmd).
 :::
 
-**3.** *(derivative-as-slope)* How would you measure the slope of a function in the
-direction of *one* input while holding everything else fixed?
+**3.** *(partial-derivatives-and-the-gradient)* How do you measure the gradient
+numerically in R? What does the tool do, in one sentence?
 
 ::: {.callout-note collapse="true" title="Answer"}
-Nudge *only that input* up and down by a small $h$, leave the others alone, and take
-rise over run: $(f(\text{nudged up}) - f(\text{nudged down}))/(2h)$. That "nudge one at a
-time" idea is the whole trick this module needs.
+Run one central-difference `slope_at()` per coordinate (nudge only that coordinate,
+hold the rest fixed), and collect the results into a vector with `sapply`. See
+[partial derivatives & the gradient](../../../../foundations/partial-derivatives-and-the-gradient/lesson.qmd).
 :::
 
 ## A tiny example first
@@ -115,25 +110,17 @@ v - 0.1 * gradient(f, v)  # one downhill step -> about (0.4, 1.0)
 
 ## Getting a feel for it
 
-**Standing on a hillside.** On a one-dimensional curve there were only two ways to
-move — left or right. On a two-input surface you're standing on an actual hillside and
-can face any compass direction. The gradient is an arrow, lying flat on the ground, that
-points in the direction of **steepest uphill**, and its length says how steep that is.
-Water (and gradient descent) runs in exactly the opposite direction: $-\nabla f$, the
-steepest way *down*. Each descent step reads that arrow and takes a scaled hop against
-it. (Where the picture bends: the gradient points steepest-uphill *right where you
-stand*; a step away, the hillside has turned, so you must re-measure — which is why it's
-a loop, not one leap.)
+**The gradient as your compass, from Module 1 to many knobs.** You already know from the
+[foundation](../../../../foundations/partial-derivatives-and-the-gradient/lesson.qmd)
+that the gradient is an arrow pointing steepest-uphill, and its negative points steepest-
+downhill. Module 1 said "step against the slope" with one knob. Now the slope is a
+*vector* of slopes (the gradient), and "step against it" means stepping against the
+whole vector at once, nudging every knob simultaneously. Each descent step reads the
+gradient arrow and takes a scaled hop in the opposite direction. (The gradient is only
+accurate *right where you stand*; a step away the surface has turned, so you must
+re-measure — which is why it's a loop, not one leap.)
 
-**Why one slope per direction, measured separately?** Because "how steep is it here?"
-has a different answer depending on which way you walk. Walking east might be a gentle
-climb while walking north is a cliff. Holding all but one input fixed and nudging just
-that one isolates "the steepness if I walk purely along this axis" — and it's a
-remarkable, convenient fact that once you know the steepness along each axis separately,
-you know the steepest direction overall: it's just the vector of those per-axis slopes.
-So we never have to search over all compass directions; we measure two numbers.
-
-**What the gradient feels like.** At $(0,0)$ our gradient was $(-4, -10)$: the $b$
+**What the steps feel like.** At $(0,0)$ our gradient was $(-4, -10)$: the $b$
 direction is steeper (magnitude 10) than the $a$ direction (magnitude 4), so the first
 steps move $b$ faster than $a$. As each knob nears its target the matching slope shrinks
 toward zero, so that knob's steps taper — the same self-slowing you saw in one dimension,
@@ -155,8 +142,10 @@ $-4$ and the $-10$ handled together.
 | $f(a, b)$ | "eff of ay, bee" | a function of two inputs — a surface with a knob for each | $(a-2)^2 + (b-5)^2$ |
 | $\mathbf{v}$ | "vee" | the position, held as a vector of the inputs (in R: `c(a, b)`) | starts at `c(0, 0)` |
 | $\dfrac{\partial f}{\partial a}$ | "the partial of eff with respect to ay" | the slope in the $a$ direction, holding $b$ fixed | $-4$ at $(0,0)$ |
+| $\dfrac{\partial f}{\partial b}$ | "the partial of eff with respect to bee" | the slope in the $b$ direction, holding $a$ fixed | $-10$ at $(0,0)$ |
 | $\nabla f$ | "grad eff" (or "del eff") | the **gradient**: the vector of all the partial slopes | $(-4, -10)$ at $(0,0)$ |
 | $\alpha$ | "alpha" | the learning rate (same as Module 1) | $0.1$ |
+| $\mathbf{v}_t$ | "vee sub tee" | the current position after $t$ steps | starts at `c(0, 0)` |
 | $\mathbf{v}_{t+1}$ | "vee sub tee plus one" | the position after the next step | $(0.4, 1.0)$ |
 
 (The $\partial$ ("partial") is just a $d$ for "a slope, but only along this one direction
@@ -257,6 +246,12 @@ it nudges **both at once**, a little each step, using the current slopes. Tuning
 fully then the other can take many more passes and, on tilted surfaces, get stuck
 ping-ponging. The gradient's whole point is to move in all directions *simultaneously*
 in the right proportions.
+
+**Trap: "to measure the slope in the $a$ direction, nudge both $a$ and $b$."** A
+partial slope holds *every other input fixed* and nudges only the one you're asking
+about. Nudging all inputs at once measures a diagonal slope — a mix of all the
+partials added together — not the slope in any single direction. In code: `f(v + h)`
+adds $h$ to every coordinate; the correct version changes only `v[i]`.
 
 **Trap: "the negative gradient points straight at the minimum."** On our first, round
 bowl it very nearly does — but that's luck of symmetry. On the *stretched* bowl in

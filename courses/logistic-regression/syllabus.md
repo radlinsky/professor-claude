@@ -50,6 +50,7 @@ table as a refresher instead.
 | [probability-and-odds](../../foundations/probability-and-odds/lesson.qmd) | Logistic regression predicts a *probability*, and the quantity it models linearly is the *log-odds*. This teaches probability, odds, and the odds↔probability conversion. |
 | [vectors-and-summation](../../foundations/vectors-and-summation/lesson.qmd) | The log-likelihood is a $\Sigma$ over every data point; you'll read $x_i$, $y_i$, $n$ throughout. |
 | [derivative-as-slope](../../foundations/derivative-as-slope/lesson.qmd) | Fitting is gradient ascent — the "slope of the log-likelihood surface" is the compass. This teaches how to measure a slope numerically. |
+| [likelihood-and-log-likelihood](../../foundations/likelihood-and-log-likelihood/lesson.qmd) | Module 3 builds the Bernoulli likelihood and maximizes its log. You need the general idea of likelihood-as-product and why we take the log first. |
 
 ## Course modules
 

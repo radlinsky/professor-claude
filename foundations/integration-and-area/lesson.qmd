@@ -1,0 +1,773 @@
+---
+title: "Integration and area under a curve"
+subtitle: "What's the total accumulated amount? Measure it with rectangles, then with R's integrate() — and discover why probability IS area"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only — the live cells below re-state their own data. Base R only.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+The derivative asked: *how fast is this changing right now?* This module asks the
+mirror question: *how much has accumulated over this whole stretch?* That accumulated
+total is the **integral** — the area under a curve between two points.
+
+The same "area under a curve" picture appears in two places that matter deeply in
+statistics: computing the probability that a quantity falls in some range (probability
+IS area under a density), and measuring total exposure in pharmacokinetics, risk, or
+signal processing. Once you can measure area numerically and connect it to
+antiderivatives, those ideas become genuinely readable.
+
+**Builds on:**
+[The derivative as a slope](../derivative-as-slope/lesson.qmd) — the slope idea and
+the `slope_at()` measuring tool;
+[Differentiation rules](../differentiation-rules/lesson.qmd) — the power rule,
+constant-multiple rule, and sum rule whose reverses this lesson teaches.
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — answers from memory first, then check.
+
+**1.** What is the derivative of $f(x) = x^3$? (State the power rule in words, then
+apply it.)
+
+::: {.callout-note collapse="true" title="Answer"}
+The power rule: "bring the exponent down as a multiplier, then reduce the exponent by
+one." For $x^3$: bring 3 down to get $3x^2$, reduce the exponent to get $f'(x) = 3x^2$.
+Shaky? Revisit [Differentiation rules](../differentiation-rules/lesson.qmd).
+:::
+
+**2.** For the function $f(x) = x^2$, the `slope_at()` tool from the derivative lesson
+gives `slope_at(f, 0)` = 0. What does that zero tell you about the curve at $x = 0$?
+
+::: {.callout-note collapse="true" title="Answer"}
+The curve is momentarily flat at $x = 0$ — the slope is zero, meaning the parabola
+is neither rising nor falling right there. That's the very bottom of the bowl. See
+[The derivative as a slope](../derivative-as-slope/lesson.qmd) §Getting a feel for it.
+:::
+
+**3.** If a function has a negative derivative at $x = 5$, what does that tell you
+about the curve at that point?
+
+::: {.callout-note collapse="true" title="Answer"}
+A negative derivative means the curve is falling (sloping downward) at $x = 5$ — as
+you move to the right, the function's value is decreasing. The steeper the negative
+slope, the faster it's dropping. See
+[The derivative as a slope](../derivative-as-slope/lesson.qmd) §Getting a feel for it.
+:::
+
+## Concept 1: Area as accumulated rectangles
+
+### A tiny example first
+
+Imagine you're driving, and your speedometer reads a steady **2 metres per second**
+for the first 3 seconds, then **4 metres per second** for the next 3 seconds. How far
+have you gone?
+
+That's easy: $2 \times 3 + 4 \times 3 = 6 + 12 = 18$ metres. You just computed an
+**area** — the area of two rectangles on a speed-time graph.
+
+Now a harder version: your speed varies continuously. Speed is $f(t) = t$ at time $t$
+(so you start slow and accelerate steadily). How far do you travel from $t = 0$ to
+$t = 3$?
+
+The speed-time graph is a straight line rising from $0$ to $3$. The area underneath
+it is a triangle: base $3$, height $3$, area $= \frac{1}{2} \times 3 \times 3 = 4.5$
+metres.
+
+But what if the curve weren't a tidy triangle? The rectangle trick still works — we
+just need more, thinner rectangles.
+
+Let's use $f(x) = x^2$ from $x = 0$ to $x = 3$ as our running example. Chop the
+interval into 3 equal strips of width 1. For each strip, use the function's value at
+its left edge as the rectangle's height:
+
+- Strip 1: $x = 0$, height $= f(0) = 0$, width $= 1$, area $= 0$.
+- Strip 2: $x = 1$, height $= f(1) = 1$, width $= 1$, area $= 1$.
+- Strip 3: $x = 2$, height $= f(2) = 4$, width $= 1$, area $= 4$.
+
+Total estimate: $0 + 1 + 4 = 5$. The actual area (we'll verify this shortly) is
+exactly $9$. Fat rectangles miss a lot — but watch what happens as we use more of them:
+
+```{r toy-rectangles}
+# f(x) = x^2, area from 0 to 3
+f <- function(x) x^2
+
+# Left-endpoint Riemann sum with n rectangles
+riemann_left <- function(f, a, b, n) {
+  width  <- (b - a) / n                  # each rectangle's width
+  lefts  <- a + (0:(n-1)) * width        # left edges of the n strips
+  sum(f(lefts) * width)                  # sum of height * width for each strip
+}
+
+# Watch the estimate settle as n grows
+sapply(c(3, 10, 100, 1000, 10000), function(n) riemann_left(f, 0, 3, n))
+# 5, 7.695, 8.865, ..., marching toward 9
+```
+
+### Getting a feel for it
+
+**A bathtub filling up.** The curve $f(x)$ is how fast the water level is rising at
+each moment $x$. The area under the curve from $a$ to $b$ is the total water added
+between times $a$ and $b$. A big spike in the curve (fast flow) contributes a lot of
+area; a flat stretch near zero contributes almost nothing. (Where this picture bends:
+real bathtubs can't be drained mid-fill; here the "flow rate" can be negative, which
+would mean draining — and the area below the x-axis counts as negative accumulated
+total.)
+
+**Why chop into rectangles?** A rectangle's area is "height times width" — the
+simplest area formula there is. We can compute it for any function, on any interval,
+no matter how complicated the curve. The trick is that as the rectangles get thinner,
+each one hugs the curve more tightly, and the accumulated error shrinks. In the
+shrinking-step spirit of the derivative lesson: "zoom in until the curved piece looks
+flat, then measure."
+
+**What the area's value feels like.** Our area of $9$ for $f(x) = x^2$ from $0$ to
+$3$ is "the total amount accumulated under a curve that grows from $0$ to $9$." Change
+the upper limit from $3$ to $4$ and the area jumps (you're adding a taller, wider
+strip). Change the function to something smaller — say $f(x) = x$ — and the area
+shrinks (the curve is lower everywhere). The area grows when the curve is taller or
+when the interval is wider.
+
+### What the notation is going to say
+
+The formula coming up says: "add up infinitely many infinitely thin rectangles, each
+with height $f(x)$ and width $dx$ (an infinitely thin slice of $x$), running from
+$a$ to $b$." That infinite sum is written with a stylized S — the integral sign — and
+the $dx$ at the end is the "thin slice" notation. In our toy example the formula
+says: "add up $f(x) \cdot dx$ from $0$ to $3$", which is the limit our rectangle sums
+were approaching.
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\int_a^b$ | "the integral from a to b" | the total area under the curve between $a$ and $b$ (in R: `integrate(f, a, b)`) | $a = 0$, $b = 3$ |
+| $f(x)$ | "eff of ex" | the height of the curve at position $x$ | $f(x) = x^2$ |
+| $dx$ | "dee-ex" | an infinitely thin slice of width in the $x$ direction — the limit of a rectangle's width shrinking to zero | the width of one rectangle, shrunk past any finite number |
+| $\int_a^b f(x)\,dx$ | "the integral from a to b of f of x dee-ex" | the accumulated area under $f$ between $a$ and $b$ | $\int_0^3 x^2\,dx = 9$ |
+| $a$, $b$ | "lower limit, upper limit" | the two endpoints of the interval being measured | $0$ and $3$ |
+
+### The formal version
+
+$$
+\int_a^b f(x)\,dx
+$$
+
+Reading it aloud: "the integral from $a$ to $b$ of $f$ of $x$ dee-ex" — or in
+everyday words: **"the total accumulated amount under the curve $f$ between $x = a$
+and $x = b$."**
+
+The key mapping onto our toy example:
+
+- $f(x) = x^2$ is the curve whose area we're measuring.
+- $a = 0$, $b = 3$ are the endpoints.
+- The integral equals $9$: the total area of infinitely many infinitely thin rectangles
+  stacked under the parabola from $x = 0$ to $x = 3$.
+
+R's `integrate()` does this numerically — the same shrinking-rectangles logic,
+done very cleverly and very precisely:
+
+```{r formal-integrate}
+f <- function(x) x^2
+
+# R measures the area numerically — analogous to slope_at() for derivatives
+result <- integrate(f, lower = 0, upper = 3)
+result          # 9 with a small error estimate (essentially 0 here)
+result$value    # extract the area number: 9
+```
+
+### Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The parabola f(x) = x squared from x = 0 to x = 3, with filled rectangles showing a left-Riemann sum approximation; the title shows the current rectangle count and area estimate."
+# explore-1 — LIVE: watch the rectangle estimate improve as you add more strips.
+# PREDICT: with n = 3 rectangles the estimate is 5. What do you think n = 30 gives?
+# Write a number, then change n and re-run.
+f <- function(x) x^2
+n <- 3                                     # <-- increase me (try 10, 30, 100)
+
+a <- 0; b <- 3
+width  <- (b - a) / n
+lefts  <- a + (0:(n-1)) * width
+area   <- sum(f(lefts) * width)
+
+# Draw the rectangles
+x_seq <- seq(a, b, length.out = 300)
+plot(x_seq, f(x_seq), type = "l", lwd = 2, xlab = "x", ylab = "f(x) = x^2",
+     main = sprintf("n = %d rectangles  ->  area estimate = %.4f  (true = 9)", n, area))
+rect(lefts, 0, lefts + width, f(lefts),
+     col = adjustcolor("steelblue", 0.4), border = "steelblue")
+```
+
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: R's integrate() as the area-measuring tool.
+# Compare it with riemann_left() — both compute area, one is exact.
+# PREDICT: how close is the rectangle estimate with n = 50?
+f_sq <- function(x) x^2
+
+riemann_left <- function(f, a, b, n) {
+  width  <- (b - a) / n
+  lefts  <- a + (0:(n-1)) * width
+  sum(f(lefts) * width)
+}
+
+# Area under x^2 from 0 to 3: true answer is 9
+c(riemann_n50  = riemann_left(f_sq, 0, 3, 50),
+  integrate    = integrate(f_sq, lower = 0, upper = 3)$value)
+```
+
+---
+
+## Concept 2: Antiderivatives — undoing the derivative
+
+### A tiny example first
+
+From the [differentiation rules](../differentiation-rules/lesson.qmd) lesson you know
+that the derivative of $x^3$ is $3x^2$. Run that connection backwards: if the
+derivative of $x^3$ is $3x^2$, then $x^3$ is an **antiderivative** of $3x^2$.
+
+Let's check with numbers. If $F(x) = x^3$, is $F'(x) = 3x^2$?
+
+- At $x = 2$: the slope of $x^3$ should be $3 \times 2^2 = 12$. Measure it:
+  $(F(2.01) - F(1.99))/(0.02) = (8.120601 - 7.880599)/0.02 \approx 12$. Check.
+
+So the antiderivative of $3x^2$ is $x^3$ — and the remarkable thing is that the
+definite integral of $3x^2$ from $0$ to $3$ equals exactly $F(3) - F(0) = 27 - 0 = 27$.
+
+Meanwhile, the antiderivative of $x^2$ is $x^3/3$ (since $(x^3/3)' = x^2$). So the
+area under $x^2$ from $0$ to $3$ is $(3^3/3) - (0^3/3) = 9 - 0 = 9$ — exactly what
+our rectangles were marching toward.
+
+```{r antideriv-check}
+f <- function(x) x^2
+F <- function(x) x^3 / 3   # the antiderivative: (x^3/3)' = x^2
+
+# The area equals F(3) - F(0)
+F(3) - F(0)   # 9
+
+# Confirm with integrate()
+integrate(f, 0, 3)$value   # also 9 — they match
+```
+
+### Getting a feel for it
+
+**The reverse gear.** Differentiation has a reverse gear: just as subtraction undoes
+addition, the antiderivative undoes the derivative. If you start with a curve and
+differentiate it, you get its slope function. If you start with a slope function and
+antidifferentiate, you get back the original curve. The derivative lesson went "from
+$F$ to $f$"; this lesson goes "from $f$ back to $F$."
+
+**Why does the antiderivative give the area?** This is the fundamental surprise of
+calculus, and here's the intuition: think of $F(x)$ as "area accumulated under $f$
+from some starting point up to $x$." As you push the right edge $x$ a tiny bit
+further — by $dx$ — you add a thin rectangle of height $f(x)$ and width $dx$. So
+$F$ is growing at a rate of $f(x)$. That's exactly what "the derivative of $F$ is
+$f$" means. Running the logic backwards: find any $F$ whose derivative is $f$, and
+$F(b) - F(a)$ gives you the accumulated area from $a$ to $b$. (Where this picture
+bends: it only works when $f$ is continuous — no jumps, no gaps. For the functions in
+this repo, that's always true.)
+
+**What an antiderivative feels like.** The antiderivative is always a *family* of
+curves — not a single function. $x^3/3$, $x^3/3 + 5$, and $x^3/3 - \pi$ all
+differentiate back to $x^2$. They differ only in their starting height — the "$+ C$"
+you'll see in the notation. For a *definite* area (between two fixed points), that
+constant cancels out in $F(b) - F(a)$, so it doesn't matter which family member you
+use.
+
+### What the notation is going to say
+
+Two kinds of integral are coming. The **definite integral** $\int_a^b f(x)\,dx$ has
+two specific endpoints and gives a number (the area). The **indefinite integral**
+$\int f(x)\,dx$ (no limits) asks for the whole family of antiderivatives — the answer
+is a function, not a number, and it always includes a "$+ C$" to acknowledge that
+the constant is free.
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $F(x)$ | "big eff of ex" | an antiderivative of $f$: the function whose derivative is $f$ | $F(x) = x^3/3$ is an antiderivative of $f(x) = x^2$ |
+| $F'(x)$ | "big eff prime of ex" | the derivative of $F$ — should equal $f(x)$ | $F'(x) = x^2 = f(x)$ ✓ |
+| $\int f(x)\,dx$ | "the indefinite integral of f of x dee-ex" | the family of all antiderivatives of $f$ (a function + C) | $\int x^2\,dx = x^3/3 + C$ |
+| $C$ | "the constant of integration" | an unknown constant added to any antiderivative — represents "where you started counting" | any real number; cancels in $F(b) - F(a)$ |
+| $\Big[F(x)\Big]_a^b$ | "big eff of ex, evaluated from a to b" | shorthand for $F(b) - F(a)$ | $\Big[x^3/3\Big]_0^3 = 9 - 0 = 9$ |
+
+### The formal version
+
+The **Fundamental Theorem of Calculus** in one line (the useful half):
+
+$$
+\int_a^b f(x)\,dx = F(b) - F(a)
+$$
+
+where $F$ is any antiderivative of $f$ (any function whose derivative is $f$).
+
+Reading it aloud: "the integral from $a$ to $b$ of $f$ of $x$ dee-ex equals $F$ of
+$b$ minus $F$ of $a$" — or in everyday words: **"the area under $f$ from $a$ to $b$
+is found by evaluating the antiderivative at the two endpoints and subtracting."**
+
+Mapping onto the toy:
+
+- $f(x) = x^2$, so we need $F$ with $F'(x) = x^2$.
+- The reverse power rule (next concept) gives $F(x) = x^3/3$.
+- $F(3) - F(0) = 27/3 - 0 = 9$ — matches our rectangle sums and `integrate()`.
+
+**Verification:** plug the numbers in both ways:
+
+```{r fundamental-theorem}
+f <- function(x) x^2
+F <- function(x) x^3 / 3      # antiderivative: (x^3/3)' = x^2
+
+# The Fundamental Theorem: definite integral = F(b) - F(a)
+F(3) - F(0)                   # 9
+
+# Cross-check with R's numerical integrator
+integrate(f, lower = 0, upper = 3)$value   # 9 — both methods agree
+```
+
+### Explore it
+
+```{webr}
+#| autorun: true
+# explore-3 — LIVE: verify that differentiating the antiderivative gives back f.
+# The derivative of F(x) = x^3/3 should equal f(x) = x^2 at every point.
+# PREDICT: what should slope_at(F, 2) return? (Hint: f(2) = ?)  Write your answer first.
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+F <- function(x) x^3 / 3    # antiderivative of x^2
+f <- function(x) x^2        # the original function
+
+# slope of F at several points -- should equal f(x) at each
+xs <- c(0, 1, 2, 3)
+rbind(
+  slope_of_F = sapply(xs, function(x) slope_at(F, x)),   # F'(x)
+  f_value    = f(xs)                                      # f(x)
+)
+# Both rows should match -- F'(x) = f(x), that's what "antiderivative" means
+```
+
+---
+
+## Concept 3: The reverse power rule
+
+### A tiny example first
+
+Every derivative rule runs backwards. The power rule says: $\frac{d}{dx} x^n = n
+x^{n-1}$. So if the derivative gives $x^n$, the antiderivative of $x^n$ must be the
+function whose derivative *produces* $x^n$.
+
+Working backwards from $\frac{d}{dx} x^{n+1} = (n+1)\,x^n$: the antiderivative of
+$x^n$ is $\frac{x^{n+1}}{n+1}$ (we divided both sides by $n+1$ to "undo" the
+multiplication). Let's verify three small cases:
+
+- $n = 1$: antiderivative of $x$ is $x^2/2$. Check: $\frac{d}{dx}(x^2/2) = 2x/2 = x$ ✓
+- $n = 2$: antiderivative of $x^2$ is $x^3/3$. Check: $\frac{d}{dx}(x^3/3) = 3x^2/3 = x^2$ ✓
+- $n = 3$: antiderivative of $x^3$ is $x^4/4$. Check: $\frac{d}{dx}(x^4/4) = 4x^3/4 = x^3$ ✓
+
+```{r power-rule-check}
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+# Antiderivative of x^2 is x^3/3: verify its slope equals x^2 everywhere
+F2 <- function(x) x^3 / 3
+c(at_x1 = slope_at(F2, 1),   # should be 1^2 = 1
+  at_x2 = slope_at(F2, 2),   # should be 2^2 = 4
+  at_x3 = slope_at(F2, 3))   # should be 3^2 = 9
+```
+
+### Getting a feel for it
+
+**"Undo the power rule" with one arithmetic step.** The derivative rule says "bring
+the exponent down, reduce the exponent by 1." The antiderivative rule says "raise the
+exponent by 1, divide by the new exponent." Both rules are mirror operations —
+one adds to the exponent while the other subtracts, one multiplies while the other
+divides.
+
+**Why divide by $(n+1)$?** Because differentiating $x^{n+1}$ brings $(n+1)$ down as a
+multiplier. To end up back at plain $x^n$ — no extra coefficient — we pre-divide by
+$(n+1)$ so the multiplication cancels out. It's the same reason you divide by $n$
+when undoing a multiplication by $n$.
+
+**What the $+C$ feels like.** The derivative of any constant is zero, so constants
+are "invisible" to differentiation. When you antidifferentiate, you can't know what
+constant was there originally — it could be $0$, $5$, $-3.7$, anything. The $+C$
+says: "I know the shape of the antiderivative, but not where it sits vertically." For
+a definite integral the two endpoints pin down the answer and the $C$ cancels, so it
+disappears. For the indefinite integral you keep the $C$ as a reminder.
+
+### What the notation is going to say
+
+The reverse power rule says: the indefinite integral of $x^n$ is $x^{n+1}/(n+1)$,
+plus a constant $C$. Two helper rules mirror the derivative rules: the constant
+multiple rule (a multiplier in front of $f$ stays in front after integration), and the
+sum rule (an integral of a sum is the sum of integrals). Together they let you
+integrate any polynomial term by term.
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x^n$ | "ex to the n" | the input raised to the power $n$ | $x^2$ (so $n = 2$) |
+| $n+1$ | "n plus one" | the new exponent after raising by 1 | $3$ (when $n = 2$) |
+| $\frac{x^{n+1}}{n+1}$ | "ex to the n-plus-one, over n-plus-one" | the antiderivative of $x^n$ | $x^3/3$ |
+| $+ C$ | "plus C" | the constant of integration — any real number | disappears in $F(b) - F(a)$ |
+| $k$ | "kay" | a constant multiplier in front of $f$ | e.g. $3$ in $3x^2$ |
+| $\frac{d}{dx}$ | "dee by dee ex" | the derivative with respect to x — gives the slope of what follows | $\frac{d}{dx}(x^3/3) = x^2$ |
+| $k\,F(x)$ | "kay times big eff of ex" | antiderivative of $k\,f(x)$ (constant multiple rule) | antiderivative of $3x^2$ is $3 \cdot (x^3/3) = x^3$ |
+| $g(x)$ | "gee of ex" | a second function (any function besides $f$) | e.g., $g(x) = 2x$ |
+
+### The formal version
+
+**Reverse power rule:**
+
+$$
+\int x^n\,dx = \frac{x^{n+1}}{n+1} + C \qquad (n \neq -1)
+$$
+
+Reading it aloud: "the indefinite integral of $x$ to the $n$ dee-ex equals $x$ to
+the $(n+1)$, divided by $(n+1)$, plus $C$" — or in everyday words: **"raise the
+exponent by one, then divide by that new exponent, and add a free constant."**
+
+**Constant multiple rule:**
+
+$$
+\int k\,f(x)\,dx = k \int f(x)\,dx
+$$
+
+A constant in front of $f$ passes through the integral unchanged — same as with
+derivatives. So $\int 3x^2\,dx = 3 \cdot \int x^2\,dx = 3 \cdot (x^3/3 + C) = x^3 + C$.
+
+**Sum rule:**
+
+$$
+\int \bigl(f(x) + g(x)\bigr)\,dx = \int f(x)\,dx + \int g(x)\,dx
+$$
+
+An integral of a sum splits into the sum of integrals — again, the same pattern as
+derivatives. So you can integrate a polynomial term by term.
+
+**Toy verification.** For $f(x) = x^2$: $n = 2$, so the antiderivative is
+$x^{2+1}/(2+1) = x^3/3$. Then $\int_0^3 x^2\,dx = [x^3/3]_0^3 = 27/3 - 0 = 9$.
+
+```{r reverse-power-rule}
+# Antiderivative of x^2: apply the reverse power rule by hand -> x^3/3
+F <- function(x) x^3 / 3
+
+# Definite integral 0 to 3
+F(3) - F(0)   # 9
+
+# Sum-rule example: antiderivative of 2x + 3x^2 is x^2 + x^3
+G <- function(x) x^2 + x^3     # antiderivative of 2x + 3x^2
+g <- function(x) 2*x + 3*x^2   # the function
+
+G(2) - G(0)                     # 4 + 8 = 12
+integrate(g, 0, 2)$value        # 12 -- matches
+```
+
+### Explore it
+
+```{webr}
+#| autorun: false
+# explore-4 — LIVE: apply the reverse power rule and check with integrate().
+# For f(x) = x^4, what is the antiderivative? Fill in the blank, then verify.
+# PREDICT: what should integrate(f, 0, 2)$value return once you have the right F?
+f <- function(x) x^4
+
+# Write the antiderivative using the reverse power rule: x^(n+1)/(n+1)
+# n = 4, so n+1 = 5 -> F(x) = ???
+F <- function(x) stop("apply the reverse power rule here")   # <-- replace stop() with your answer
+
+# Fundamental theorem check
+by_antideriv <- F(2) - F(0)
+by_integrate <- integrate(f, 0, 2)$value
+c(by_antideriv = by_antideriv, by_integrate = by_integrate)   # should match
+```
+
+---
+
+## Concept 4: Definite vs. indefinite integrals, and the density/area connection
+
+### A tiny example first
+
+**Definite integral:** $\int_0^3 x^2\,dx = 9$. A number. No $C$. The two limits pin
+down one specific area.
+
+**Indefinite integral:** $\int x^2\,dx = x^3/3 + C$. A family of functions. The
+$+ C$ is essential — without it you're claiming there's only one antiderivative, but
+there are infinitely many.
+
+Now here's the payoff: `dnorm(x)` in R gives the height of the normal density curve
+at $x$ — the bell curve. And the probability that a standard-normal value falls
+between $a$ and $b$ is precisely the area under `dnorm` between $a$ and $b$:
+
+$$
+P(a \leq X \leq b) = \int_a^b \texttt{dnorm}(x)\,dx
+$$
+
+Let's check this for the range $0$ to $1$:
+
+```{r density-area}
+# pnorm gives the "area to the left": P(X <= b) for a standard normal
+pnorm(1) - pnorm(0)              # about 0.3413
+
+# integrate() with dnorm gives the same area directly
+integrate(dnorm, lower = 0, upper = 1)$value   # also about 0.3413
+```
+
+They match — probability *is* area under the density.
+
+### Getting a feel for it
+
+**Definite integral = a number.** You're asking "how much area is packed under the
+curve between these two fences?" The answer is one real number, pinned down by the
+two endpoints. Move a fence and the area changes. This is `pnorm(b) - pnorm(a)` — a
+probability.
+
+**Indefinite integral = a family of curves.** You're asking "what family of functions
+has $f$ as its derivative?" The answer is a template — "$F(x)$ plus any constant" —
+because the constant shifts the antiderivative up or down without changing its slope.
+Think of it as a silhouette: many curves have the same silhouette (same shape, different
+elevations). The $+C$ acknowledges that we only know the shape.
+
+**Why probability = area under the density.** The density curve $\texttt{dnorm}(x)$
+tells you how tightly probability is packed at each value of $x$ — it's a probability
+per unit of $x$. Multiply "probability per unit length" by "a thin slice of length
+$dx$" and you get a tiny probability. Integrate (add up all the slices between $a$ and
+$b$) and you get the total probability in that range. This is exactly what
+`pnorm(b) - pnorm(a)` computes — it's the same sum, just done analytically.
+
+**The antiderivative of dnorm is pnorm.** That's what `pnorm` literally is: the
+cumulative area under the normal density from $-\infty$ up to $x$. So
+`pnorm(b) - pnorm(a)` is exactly $F(b) - F(a)$ from the Fundamental Theorem, with
+$F = \texttt{pnorm}$ and $f = \texttt{dnorm}$.
+
+### What the notation is going to say
+
+For a continuous random variable $X$ with density $f_X(x)$, the probability of
+landing in the interval $[a, b]$ is $\int_a^b f_X(x)\,dx$ — the integral of the
+density over that range. The cumulative distribution function (CDF) $F_X(x)$, which
+gives $P(X \leq x)$, is the antiderivative of the density. So `pnorm` and `dnorm` are
+just one particular $F$ and $f$ in this notation.
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our density example |
+|---|---|---|---|
+| $f_X(x)$ | "eff sub ex of ex" | the probability density function (pdf) of random variable $X$ | `dnorm(x)` for a standard normal |
+| $F_X(x)$ | "big eff sub ex of ex" | the cumulative distribution function (CDF): $P(X \leq x)$ | `pnorm(x)` |
+| $P(a \leq X \leq b)$ | "the probability that X is between a and b" | the probability the random variable falls in that range | `pnorm(1) - pnorm(0)` ≈ 0.341 |
+| $X \sim N(0, 1)$ | "X is distributed standard normal" | $X$ follows a standard-normal distribution: mean 0, standard deviation 1 | our test variable |
+
+### The formal version
+
+For a continuous random variable $X$ with density $f_X$:
+
+$$
+P(a \leq X \leq b) = \int_a^b f_X(x)\,dx = F_X(b) - F_X(a)
+$$
+
+Reading it aloud: "the probability that $X$ falls between $a$ and $b$ equals the
+integral from $a$ to $b$ of the density function dee-ex, which equals the CDF at $b$
+minus the CDF at $a$" — or in everyday words: **"probability is the area under the
+density between the two boundary values."**
+
+For the standard normal, $F_X = \texttt{pnorm}$ and $f_X = \texttt{dnorm}$:
+
+```{r density-formal}
+# All three ways to get P(0 <= X <= 1) for a standard normal:
+
+# 1. Using pnorm (the CDF, i.e. the antiderivative)
+pnorm(1) - pnorm(0)
+
+# 2. Numerical integration of the density
+integrate(dnorm, lower = 0, upper = 1)$value
+
+# 3. The Fundamental Theorem view: F(b) - F(a) with F = pnorm
+pnorm(1) - pnorm(0)   # same as #1 -- pnorm IS the antiderivative of dnorm
+```
+
+### Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "The standard normal density curve with the region between x = 0 and x = 1 shaded in blue; the shaded area equals approximately 0.341, the probability that a standard normal falls in that range."
+# explore-5 — LIVE: see probability as a shaded area under the bell curve.
+# PREDICT: what fraction of the total bell curve area do you think lies between 0 and 1?
+# (Hint: the whole bell curve has total area 1, and its mean is at 0.)
+# TRY IT: change a and b to shade a different region. What does pnorm give for it?
+a <- 0
+b <- 1
+
+x_seq <- seq(-3.5, 3.5, length.out = 400)
+y_seq <- dnorm(x_seq)
+
+plot(x_seq, y_seq, type = "l", lwd = 2, xlab = "x", ylab = "dnorm(x)",
+     main = sprintf("P(%.1f ≤ X ≤ %.1f) = area = %.4f", a, b,
+                    pnorm(b) - pnorm(a)))
+# Shade the region between a and b
+x_shade <- x_seq[x_seq >= a & x_seq <= b]
+y_shade <- dnorm(x_shade)
+polygon(c(a, x_shade, b), c(0, y_shade, 0),
+        col = adjustcolor("steelblue", 0.5), border = NA)
+abline(v = c(a, b), lty = 2, col = "steelblue")
+```
+
+```{webr}
+#| autorun: true
+# explore-6 — LIVE: pnorm IS the antiderivative of dnorm — the Fundamental Theorem live.
+# The slope of pnorm at any x should equal dnorm(x): F'(x) = f(x).
+# PREDICT: what should slope_at(pnorm, 0) return? (Check: dnorm(0) = ?)
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+
+xs <- c(-1, 0, 1, 2)
+rbind(
+  slope_of_pnorm = sapply(xs, function(x) slope_at(pnorm, x)),   # F'(x)
+  dnorm_value    = dnorm(xs)                                       # f(x)
+)
+# Both rows match: pnorm' = dnorm, confirming pnorm is an antiderivative of dnorm
+```
+
+---
+
+## Common traps
+
+**Trap 1: "The indefinite integral is the same as the definite integral."** These are
+two different things. The definite integral $\int_0^3 x^2\,dx = 9$ is a single number
+— area under the curve on a specific interval. The indefinite integral $\int x^2\,dx =
+x^3/3 + C$ is an entire family of functions. The confusion is tempting because you
+use the antiderivative *to compute* the definite integral, so they look related — and
+they are, but the results are different types. Numbers: $\int_0^3 x^2\,dx = 9$ (a
+number). Function: $\int x^2\,dx = x^3/3 + C$ (a function family). Omitting the $+C$
+from an indefinite integral loses information — the answer is incomplete.
+
+**Trap 2: "Raise the exponent — done!"** The reverse power rule has TWO moves: raise
+the exponent by one AND divide by the new exponent. Forgetting the division is the
+most common antiderivative mistake. For $x^2$: the antiderivative is $x^3/3$, not
+$x^3$. Check: if $F(x) = x^3/3$ then $F'(x) = 3x^2/3 = x^2$ ✓. If you wrote $x^3$
+then $F'(x) = 3x^2$ — off by a factor of 3.
+
+```{r trap2-check-power}
+# Quick sanity: does the antiderivative's derivative give back the original?
+slope_at <- function(f, x, h = 1e-5) (f(x + h) - f(x - h)) / (2 * h)
+F_wrong   <- function(x) x^3       # forgot to divide
+F_correct <- function(x) x^3 / 3   # divided by 3
+c(wrong_deriv = slope_at(F_wrong, 2), correct_deriv = slope_at(F_correct, 2), target = 2^2)
+```
+
+**Trap 3: "The height of the density at $x$ is the probability of $X = x$."** The
+density `dnorm(0)` = 0.399 is not a probability — it can be greater than 1 for narrow
+distributions, and a single point has probability zero. The probability lives in the
+*area*: a thin slice of width $dx$ at $x$ has probability $\approx \texttt{dnorm}(x)
+\times dx$, and you add up slices with an integral. Verify with numbers: `dnorm(0)`
+$\approx 0.399$, but `pnorm(0.001) - pnorm(0)` $\approx 0.000399$ — the probability
+of the tiny range $[0, 0.001]$ is 0.399 times the width $0.001$, not $0.399$ itself.
+
+```{r trap2-check}
+# dnorm at 0: this is a density height, NOT a probability
+dnorm(0)   # ~0.399 -- larger than many probabilities, but valid for a density
+
+# Probability of a TINY range: density * width
+dnorm(0) * 0.001            # ~0.000399 -- a genuine probability (very small range)
+pnorm(0.001) - pnorm(0)     # same thing via the CDF -- agrees
+```
+
+---
+
+## Check yourself
+
+**1.** Using the reverse power rule, find the antiderivative of $f(x) = x^4$. Then
+use it to compute $\int_0^2 x^4\,dx$ by hand (just plug in the endpoints and
+subtract), and verify with R.
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to verify your hand answer
+f <- function(x) x^4
+# Write the antiderivative F here, then compute F(2) - F(0)
+F <- function(x) stop("apply the reverse power rule here")   # <-- replace stop() with your answer
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Reverse power rule: $n = 4$, so antiderivative is $x^{4+1}/(4+1) = x^5/5$.
+
+$$
+\int_0^2 x^4\,dx = \left[\frac{x^5}{5}\right]_0^2 = \frac{32}{5} - 0 = 6.4
+$$
+
+```{r check1-answer}
+F <- function(x) x^5 / 5
+F(2) - F(0)                              # 6.4
+
+integrate(function(x) x^4, 0, 2)$value  # also 6.4 -- matches
+```
+:::
+
+**2.** A standard normal variable $X$ has `pnorm(b) - pnorm(a)` = `pnorm(-1) - pnorm(-2)`.
+What does that number mean in plain English, and is it bigger or smaller than
+`pnorm(0) - pnorm(-1)`?
+
+::: {.callout-note collapse="true" title="Answer"}
+`pnorm(-1) - pnorm(-2)` is the probability that a standard normal value falls between
+$-2$ and $-1$ — that is, between two and one standard deviation below the mean. The
+bell curve is lower there (narrower density) than between $-1$ and $0$, so this area
+is smaller. Numerically: `pnorm(-1) - pnorm(-2)` $\approx 0.136$ while
+`pnorm(0) - pnorm(-1)` $\approx 0.341$ — yes, smaller.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why `pnorm(b) -
+pnorm(a)` gives the probability that a standard normal variable falls between $a$ and
+$b$, and what the integral has to do with it.
+
+::: {.callout-note collapse="true" title="A model answer"}
+`pnorm` is the antiderivative of `dnorm`, so `pnorm(b) - pnorm(a)` is exactly the
+Fundamental Theorem's $F(b) - F(a)$, which equals $\int_a^b \texttt{dnorm}(x)\,dx$.
+That integral is the area under the density curve between $a$ and $b$, and for a
+continuous distribution the probability of landing in a range is defined as that area.
+:::
+
+---
+
+## What you can now do
+
+- **Estimate the area under any curve numerically** using left-endpoint rectangles,
+  and confirm with R's `integrate()` — the area-measuring tool that mirrors
+  `slope_at()` for derivatives.
+- **Compute a definite integral by hand** using the Fundamental Theorem: find the
+  antiderivative $F$, evaluate $F(b) - F(a)$, and verify with `integrate()`.
+- **Apply the reverse power rule**: $\int x^n\,dx = x^{n+1}/(n+1) + C$, and use the
+  constant-multiple and sum rules to integrate any polynomial term by term.
+- **Distinguish definite from indefinite integrals**: a definite integral is a number
+  (area on a specific interval); an indefinite integral is a function family (the
+  antiderivative $+ C$).
+- **Connect probability to area**: read `pnorm(b) - pnorm(a)` as a definite integral
+  of `dnorm`, and explain why density height is not a probability but density times
+  width is.
+
+If any of these feels shaky, revisit the corresponding concept section before
+continuing — the density/area connection is foundational for anything that computes
+probabilities from a distribution.
+
+## Where this goes next
+
+The density/area connection appears everywhere in applied statistics: computing
+p-values, credible intervals, and likelihood contributions all reduce to "find this
+area under a curve." The next natural step is
+[Distributions and densities](../distributions-and-densities/lesson.qmd), which builds
+the full toolkit for working with the normal distribution and its family. You'll also
+use integration later when building intuition for likelihood functions in
+[Likelihood and log-likelihood](../likelihood-and-log-likelihood/lesson.qmd).
+
+Ready for more reps? Do the [practice problems](practice.qmd).

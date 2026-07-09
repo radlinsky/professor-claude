@@ -1,7 +1,10 @@
 ---
 title: "Practice: Reading lm() output and papers"
 subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
 ---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
 
 ```{r setup}
 #| message: false
@@ -13,6 +16,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -23,8 +28,9 @@ $y = 1 + 2x$ at $x = (1, 2, 3, 4, 5)$. Write down the harvest $y$, then compute 
 season's slope estimate by hand (covariance over variance — the deviations of $x$
 are $(-2, -1, 0, 1, 2)$ and $\mathrm{Var}(x) = 2.5$). Check in R.
 
-```{r p1-starter}
-# Starter — copy this to begin (build y from the true line plus the luck)
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
 x <- c(1, 2, 3, 4, 5); luck <- c(1, 0, -1, 0, 1)
 ```
 
@@ -55,8 +61,9 @@ in ONLY that line, then finish the t value.
 > $\mathrm{SE}(\hat{\beta}_1) = \underline{\phantom{000}}$.
 > Then the t value $= \hat{\beta}_1 / \mathrm{SE}(\hat{\beta}_1) = \underline{\phantom{000}}$.
 
-```{r p2-starter}
-# Starter — copy this to check the two blanks
+```{webr}
+#| autorun: false
+# p2-starter — edit and Run to check the two blanks
 x <- c(1, 2, 3, 4, 5); sigma_hat <- 2; b1 <- 3
 ```
 
@@ -114,8 +121,9 @@ numbers in it; (b) rebuild the slope's t value from Estimate and Std. Error;
 (c) state what `Pr(>|t|)` for `wt` claims, in one sentence with no jargon.
 **Predict first:** before running, will the slope be positive or negative?
 
-```{r p4-starter}
-# Starter — the model: fuel efficiency as a function of car weight
+```{webr}
+#| autorun: false
+# p4-starter — edit and Run to decode the output
 fit <- lm(mpg ~ wt, data = mtcars)
 summary(fit)
 ```
@@ -130,6 +138,7 @@ is predicted to get about 5.3 fewer miles per gallon.
 bounce-lengths below zero.
 
 ```{r p4-answer}
+fit <- lm(mpg ~ wt, data = mtcars)
 est <- coef(summary(fit))["wt", ]
 unname(est["Estimate"] / est["Std. Error"])   # -9.559, matches the t value column
 ```
@@ -148,8 +157,9 @@ $\hat{\beta}_0 = \bar{y} - \hat{\beta}_1\bar{x}$); (b) compute its SSE (Module 1
 (c) form $R^2 = 1 - \mathrm{SSE}/\sum(y_i-\bar{y})^2$ (this module). **Predict first:**
 with only three not-very-linear points, do you expect $R^2$ near 1 or well below it?
 
-```{r p5-starter}
-# Starter — copy this to begin
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
 x <- c(1, 2, 3); y <- c(2, 4, 3)
 ```
 
@@ -187,8 +197,9 @@ correct interpretation.
 > 0.00000001% chance that weight has no effect on mpg — we're 99.99999999% sure the
 > effect is real."
 
-```{r p6-starter}
-# Starter — copy this to inspect the actual output
+```{webr}
+#| autorun: false
+# p6-starter — edit and Run to inspect the actual output
 fit <- lm(mpg ~ wt, data = mtcars)
 summary(fit)$coefficients
 ```

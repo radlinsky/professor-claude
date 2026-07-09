@@ -41,6 +41,9 @@ TEMPLATE INSTRUCTIONS (delete all HTML comments when filling in):
 - Use the same symbols + pronunciations as the lesson. No new notation here.
 - Capstone modules use the cumulative format from course-structure.md §Capstone
   instead of this ramp.
+- LATER RELEARNING ROUNDS (not authored at build): if the learner misses the Module
+  check, the add-problems skill appends "## Extra reps — round N" sections here,
+  always BEFORE the Module check (problem-authoring.md §Fresh-rep rounds).
 -->
 
 ```{r setup}
@@ -54,6 +57,8 @@ if (length(to_install) > 0) install.packages(to_install)
 invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
+
+{{< include /includes/practice-timing.qmd >}}
 
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
@@ -164,8 +169,10 @@ x <- c(...)
 
 This is a checkpoint, not more practice — come back to it **at least a day from now**,
 once the material isn't fresh. A pass then is real evidence you've retained it. Five
-questions, graded on the page; 4/5 or better means this module is solid. Results are
-saved in this browser only.
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
 
 ::: {.module-check module="<courses/<course>/modules/NN-slug or foundations/slug>" pass="4"}
 

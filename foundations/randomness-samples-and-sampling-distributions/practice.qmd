@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them in an R session (this module lives on
 simulation); only then open the answer. Use `set.seed(42)` so your numbers match ours.
 

@@ -11,6 +11,8 @@ engine: knitr
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only then
 open the answer.
 
@@ -172,7 +174,7 @@ c) Yes — the data must be re-collected
 In a collinear model, a predictor has the largest coefficient yet a true effect of zero.
 How did that happen?
 
-a) It is highly correlated with the real driver and borrowed its glory; coefficient size alone is unreliable here
+a) It is correlated with the real driver and borrowed its glory in the joint fit
 b) Large coefficients are always the true drivers
 c) Its units are smaller than the others'
 :::
@@ -182,7 +184,7 @@ A VIF above the rule-of-thumb value of $10$ tells you:
 
 a) The predictor's coefficient is definitely zero
 b) The whole model must be discarded
-c) That predictor is badly collinear, so its individual coefficient is unreliable — though prediction can stay fine
+c) That predictor is badly collinear, so its coefficient is unreliable
 :::
 
 ::: {.quiz-q qid="mvj-collinear-singular" qtype="mc" answer="a"}

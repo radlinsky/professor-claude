@@ -17,13 +17,6 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
-::: {.callout-tip title="This lesson runs in your browser" collapse="true"}
-The code cells below with a **Run** button are live — powered by WebR (R compiled to
-WebAssembly), they run right here on your phone or laptop, no install needed. Edit any
-of them and re-run. The first run downloads a small R engine, so give it a few seconds.
-Cells without a Run button are ordinary listings whose output was computed when the
-page was built.
-:::
 
 ## Where we're going
 
@@ -208,6 +201,46 @@ These three rules are the entire toolkit behind most "then it follows that…" s
 in methods sections. When a later lesson says "split the sum (Rule 1)", it means
 exactly this.
 
+### The dot product — a named sum of products
+
+One sum-of-products pattern shows up so often it earns a name: take two same-length
+lists, multiply them pair by pair, and add up the results. That's the **dot product**.
+
+A tiny example first. You have prices `a <- c(2, 3, 1)` (dollars per item) and
+quantities `b <- c(4, 1, 5)` (items bought). How much did you spend?
+$2\times4 + 3\times1 + 1\times5 = 8 + 3 + 5 = 16$ dollars. That is the dot product
+of `a` and `b`.
+
+In R it's one line: `sum(a * b)`. The `a * b` multiplies element-by-element (giving
+`c(8, 3, 5)`), then `sum()` adds them up — exactly what Σ says to do.
+
+In notation, the dot product of $\mathbf{a}$ and $\mathbf{b}$ is written
+$\mathbf{a} \cdot \mathbf{b}$ (read "a dot b"):
+
+| Symbol | How to say it | What it means | In our example |
+|---|---|---|---|
+| $a_i$ | "a sub i" | the i-th value of the first list (in R: `a[i]`) | $a_1 = 2,\; a_2 = 3,\; a_3 = 1$ |
+| $b_i$ | "b sub i" | the i-th value of the second list (in R: `b[i]`) | $b_1 = 4,\; b_2 = 1,\; b_3 = 5$ |
+| $\mathbf{a} \cdot \mathbf{b}$ | "a dot b" | the dot product: multiply pair-by-pair, then add (in R: `sum(a * b)`) | $16$ |
+
+$$
+\mathbf{a} \cdot \mathbf{b} = \sum_{i=1}^{n} a_i\, b_i
+$$
+
+"Walk both lists in step; at each position multiply the two values; keep a running
+total." It is a sum — nothing more — so every sum rule you just learned applies to it.
+
+```{r dot-product-example}
+a <- c(2, 3, 1)   # prices
+b <- c(4, 1, 5)   # quantities
+sum(a * b)         # 16 — the dot product: total spend
+```
+
+You'll see $\mathbf{a} \cdot \mathbf{b}$ throughout later modules: matrix
+multiplication is one dot product per row, distance is the norm of a gap vector, and
+projection uses a dot product divided by a length. All of them reduce to this single
+`sum(a * b)`.
+
 ## Explore it
 
 ```{webr}
@@ -241,6 +274,16 @@ c_const <- 3.7
 all.equal(sum(x + y), sum(x) + sum(y))          # Rule 1
 all.equal(sum(c_const * x), c_const * sum(x))   # Rule 2
 all.equal(sum(rep(c_const, n)), n * c_const)    # Rule 3
+```
+
+```{webr}
+#| autorun: true
+# explore-3 — LIVE: the dot product. Try changing one entry of a to 0.
+# PREDICT: if you zero out a[2], does the dot product go up, down, or stay
+# the same compared to the original? Commit, then edit a and run.
+a <- c(2, 3, 1)
+b <- c(4, 1, 5)
+sum(a * b)   # the dot product — multiply pair-by-pair, then add
 ```
 
 ## Common traps
@@ -287,6 +330,34 @@ $12^2 = 144$ (`sum(x)^2`). The Σ only applies to what's written directly to its
 right — parentheses change the order of operations, exactly like in R.
 :::
 
+**3.** For `a <- c(3, 2)` and `b <- c(5, 4)`, compute the dot product
+$\mathbf{a} \cdot \mathbf{b}$ by hand, then say what R expression gives the same
+answer.
+
+```{webr}
+#| autorun: false
+# check3-starter — write your answer, then Run to verify.
+a <- c(3, 2)
+b <- c(5, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Multiply pair-by-pair: $3 \times 5 + 2 \times 4 = 15 + 8 = 23$. In R:
+`sum(a * b)` = 23.
+:::
+
+**4.** In two sentences, explain to a colleague what the big Σ means and why it is
+written with a counter $i$ and an upper bound $n$ instead of just listing the numbers.
+Don't use a formula — use words only.
+
+::: {.callout-note collapse="true" title="Model answer"}
+The big Σ is shorthand for "walk through a list from the first item to the last,
+adding each one to a running total as you go" — it is exactly a `for` loop frozen
+into a single symbol. The counter $i$ and the bound $n$ are there because they let
+one compact recipe describe adding up any list, whether it has 3 values or 3 million,
+without having to write out every term.
+:::
+
 ## What you can now do
 
 - **Read a Σ expression aloud** — name its counter, its start-and-stop bounds, and
@@ -297,6 +368,8 @@ right — parentheses change the order of operations, exactly like in R.
   (Rule 2), and turn a summed constant into $n\,c$ (Rule 3) — to reshape an expression.
 - **Spot how far a Σ reaches**: only to the first $+$ or $-$ at its level, unless
   parentheses pull more underneath it.
+- **Compute a dot product** — multiply two same-length vectors pair-by-pair and add:
+  $\mathbf{a} \cdot \mathbf{b} = \sum a_i b_i$ = `sum(a * b)` in R.
 
 If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it)
 and [The formal version](#the-formal-version) before continuing — every later formula
@@ -306,5 +379,9 @@ in statistics is built from these moves.
 
 With Σ in hand you can read the formulas for the mean, variance, and covariance —
 that's the next module: [mean, variance & covariance](../mean-variance-covariance/lesson.qmd).
-And Rules 1–3 are precisely the moves used to derive regression's formulas later.
+Rules 1–3 are precisely the moves used to derive regression's formulas later. The dot
+product shows up next in [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd)
+(matrix multiplication is one dot product per row) and in
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd)
+(projection is a dot product divided by a length).
 Ready for more reps? Do the [practice problems](practice.qmd).

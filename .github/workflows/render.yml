@@ -52,6 +52,13 @@ jobs:
         with:
           version: '1.9.38'
 
+      - name: Restore frozen computations
+        uses: actions/cache@v4
+        with:
+          path: _freeze
+          key: quarto-freeze-${{ hashFiles('**/*.qmd', 'renv.lock', '_quarto.yml') }}
+          restore-keys: quarto-freeze-
+
       - name: Render site
         run: quarto render
 

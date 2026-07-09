@@ -1,0 +1,8 @@
+ShortName: Profile likelihood
+Concepts: Nuisance parameters (needed by a formula but not reported); profiling one parameter out
+ by optimising over it (maximise a likelihood, or minimise a fit statistic) at every value of the
+ parameter of interest; why the nuisance is re-optimised at each point and the profile reaches the
+ same global optimum; the degrees-of-freedom rule — each profiled parameter drops the $\chi^2$ df
+ by one; `optimize` as the profiling engine in R
+BuildsOn: [likelihood-and-log-likelihood](likelihood-and-log-likelihood/lesson.qmd), [loss-functions-and-optimization](loss-functions-and-optimization/lesson.qmd)
+UsedBy: —

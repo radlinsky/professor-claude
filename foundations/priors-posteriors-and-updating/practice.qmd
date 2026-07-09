@@ -17,6 +17,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Do them on paper or in an R session; only
 then open the answer.
 
@@ -266,8 +268,8 @@ c) Likelihood $\div$ prior
 With little data, is it safe to ignore the prior and treat the posterior as just the
 likelihood?
 
-a) No — with little data the prior pulls hard; the same likelihood can flip the conclusion under a different prior
-b) Yes — the prior never matters
+a) No — with little data the prior pulls hard and can flip the conclusion
+b) Yes — the prior washes out and the likelihood determines the conclusion
 c) Yes — the prior only rescales and changes nothing
 :::
 
@@ -285,12 +287,12 @@ $P(\text{cat} \mid \text{dog})$? Round to two decimals.
 :::
 
 ::: {.quiz-q qid="ppu-likelihood-ratio" qtype="mc" answer="a"}
-(From likelihood & log-likelihood.) Bayes multiplies the prior by the likelihood. If the
-data are $4\times$ more likely under "biased" than under "fair", that $4$ is called the:
+(From likelihood & log-likelihood.) If the data are $4\times$ more likely under "biased"
+than under "fair," what is that ratio of likelihoods called?
 
 a) Likelihood ratio — how strongly the data favor one hypothesis over the other
-b) Prior odds
-c) Posterior probability
+b) Prior odds — the initial belief ratio before any data arrive
+c) Posterior probability — the updated belief after seeing the data
 :::
 
 :::

@@ -52,7 +52,8 @@ professor_claude/
 │   ├── gen-indexes.R          # regenerates the foundation blocks of _quarto.yml + foundations/README.md
 │   │                          #   from each module's meta.dcf (--check = CI drift guard)
 │   ├── check-indexes.R        # index-check CI: foundation↔course links, Used-by, Builds-on (+lesson sync), Status
-│   └── check-teaching-lint.R  # index-check CI: banned condescension words + missing fig-alt on figure chunks
+│   ├── check-teaching-lint.R  # index-check CI: banned condescension words + missing fig-alt on figure chunks
+│   └── check-webr-cells.R     # render CI: executes every autorun {webr} cell natively (proxy for in-browser)
 ├── docs/                      # decision records (e.g., webr-decision.md)
 ├── foundations/               # SHARED, recyclable prerequisite modules
 │   ├── README.md              # index: module, concepts, used-by, learner status (table body GENERATED)

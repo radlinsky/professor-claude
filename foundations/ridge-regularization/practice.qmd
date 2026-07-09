@@ -1,0 +1,196 @@
+---
+title: "Practice: Ridge regularization"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+## Problem 1 — 1-D ridge by hand, new numbers
+
+One predictor with $\sum x_i y_i = 60$ and $\sum x_i^2 = 20$. Using
+$b(\lambda) = \dfrac{\sum x_i y_i}{\sum x_i^2 + \lambda}$, compute the ridge slope at
+$\lambda = 0$, $\lambda = 20$, and $\lambda = 40$.
+
+```{webr}
+#| autorun: false
+# p1-starter
+Sxy <- 60; Sxx <- 20
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$b(0) = 60/20 = 3$ (OLS); $b(20) = 60/40 = 1.5$; $b(40) = 60/60 = 1$. Each rise in
+$\lambda$ shrinks the slope toward 0.
+:::
+
+## Problem 2 — fill in the missing step
+
+Derive the 1-D ridge slope: minimize $\text{cost}(b) = \sum_i (y_i - b x_i)^2 + \lambda b^2$.
+
+- Step 1: $\dfrac{d\,\text{cost}}{db} = \sum_i 2(y_i - b x_i)(-x_i) + 2\lambda b$.
+- Step 2: **your step here** — set the derivative to 0 and solve for $b$.
+- Step 3: $b = \dfrac{\sum_i x_i y_i}{\sum_i x_i^2 + \lambda}$.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: set to 0 and divide by 2: $-\sum_i x_i y_i + b\sum_i x_i^2 + \lambda b = 0$, so
+$b(\sum_i x_i^2 + \lambda) = \sum_i x_i y_i$, giving Step 3. The $\lambda b$ from the
+penalty is what adds $\lambda$ to the denominator — the shrinkage.
+:::
+
+## Problem 3 — watch the shrinkage in R
+
+For the two-predictor standardized data below, compute the ridge coefficients at
+$\lambda = 0$, $\lambda = 5$, and $\lambda = 100$ using the matrix form
+$(X^\top X + \lambda I)^{-1} X^\top y$. Confirm they shrink toward 0.
+
+```{webr}
+#| autorun: false
+# p3-starter — fill in the ridge solve for each lambda
+# PREDICT: lambda = 0 gives OLS; lambda = 100 gives coefficients near 0.
+set.seed(5); n <- 50
+x1 <- scale(rnorm(n)); x2 <- scale(rnorm(n))
+y  <- as.numeric(scale(1.5 * x1 - 0.8 * x2 + rnorm(n)))
+X  <- cbind(x1, x2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Each larger $\lambda$ pulls both coefficients toward 0; $\lambda = 0$ reproduces OLS.
+
+```{r}
+set.seed(5); n <- 50
+x1 <- scale(rnorm(n)); x2 <- scale(rnorm(n))
+y  <- as.numeric(scale(1.5 * x1 - 0.8 * x2 + rnorm(n))); X <- cbind(x1, x2)
+ridge <- function(l) as.numeric(solve(t(X) %*% X + l * diag(2), t(X) %*% y))
+sapply(c(0, 5, 100), ridge)      # columns: lambda 0, 5, 100 — magnitudes shrink
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague says: *"I used ridge with a big $\lambda$ and some coefficients are still not
+zero — ridge must be broken as a variable selector, since it's supposed to drop useless
+predictors."* This contains **exactly one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: expecting **ridge** to zero out predictors. Ridge shrinks coefficients
+*toward* zero but essentially never *to* exactly zero, so it does **not** select variables
+— every predictor stays. The tool that drives coefficients to exactly zero (and so
+selects) is the **lasso** ($\ell_1$ penalty, $\sum_j|\beta_j|$). Ridge is behaving
+correctly; it was the wrong tool for the colleague's goal.
+:::
+
+## Problem 5 — mixing it with loss functions *(uses loss-functions-and-optimization's "minimize a cost")*
+
+Ridge minimizes fit + penalty. For $x = (2, 4)$, $y = (2, 4)$ (true slope 1), and
+$\lambda = 4$, evaluate the penalized cost $\text{cost}(b) = \sum_i (y_i - b x_i)^2 + \lambda b^2$
+at $b = 1$ and at $b = 0.5$, and say which the minimizer prefers between them.
+
+```{webr}
+#| autorun: false
+# p5-starter
+x <- c(2, 4); y <- c(2, 4); lambda <- 4
+cost <- function(b) sum((y - b * x)^2) + lambda * b^2
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+At $b = 1$: fit $= (2-2)^2 + (4-4)^2 = 0$, penalty $= 4\cdot1 = 4$, cost $= 4$. At
+$b = 0.5$: fit $= (2-1)^2 + (4-2)^2 = 1 + 4 = 5$, penalty $= 4\cdot0.25 = 1$, cost $= 6$.
+So between these two, the minimizer prefers $b = 1$ (cost 4 < 6). (The true ridge optimum
+here is $b = \sum xy/(\sum x^2 + \lambda) = 20/(20+4) \approx 0.83$ — between OLS's 1 and 0.)
+:::
+
+## Problem 6 — transfer: ridge rescues a singular fit
+
+Two predictors are *identical*: $x_2 = x_1$. Then $X^\top X$ is singular and OLS
+(`solve(t(X) %*% X, ...)`) fails. Predict what happens if you instead solve
+$(X^\top X + \lambda I)^{-1}X^\top y$ with $\lambda = 0.1$. *(This is exactly the trick
+the next course uses on a near-collinear correlation matrix.)*
+
+```{webr}
+#| autorun: false
+# p6-starter — PREDICT: OLS errors; does the ridge version return an answer?
+set.seed(1); n <- 30
+x1 <- rnorm(n); x2 <- x1                 # identical columns -> X'X singular
+y  <- x1 + rnorm(n); X <- cbind(x1, x2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Plain OLS errors ("system is computationally singular") because $X^\top X$ can't be
+inverted. Adding $\lambda I$ (here $0.1$ down the diagonal) makes $X^\top X + \lambda I$
+invertible, so the ridge solve **returns coefficients** — it splits the shared effect
+between the two identical columns instead of failing. Adding a positive $\lambda$ to the
+diagonal guarantees invertibility for any $\lambda > 0$, which is why ridge stabilizes
+near-collinear (and even exactly-collinear) problems.
+
+```{r}
+set.seed(1); n <- 30; x1 <- rnorm(n); x2 <- x1; y <- x1 + rnorm(n); X <- cbind(x1, x2)
+solve(t(X) %*% X + 0.1 * diag(2), t(X) %*% y)   # returns an answer; plain solve() would error
+```
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/ridge-regularization" pass="4"}
+
+::: {.quiz-q qid="rr-penalized-rss" qtype="mc" answer="b"}
+Ridge regression minimizes which objective?
+
+a) The fit term (RSS) alone
+b) RSS plus a penalty $\lambda \sum_j \beta_j^2$
+c) RSS divided by $\lambda$
+:::
+
+::: {.quiz-q qid="rr-lambda-shrinks" qtype="mc" answer="c"}
+As $\lambda$ grows large, what happens to the coefficients?
+
+a) They are thrown away, deleted from the model
+b) They grow without bound
+c) They shrink toward zero but stay in the model
+:::
+
+::: {.quiz-q qid="rr-vs-lasso" qtype="mc" answer="a"}
+Does ridge do variable selection — zeroing out useless predictors?
+
+a) No — ridge shrinks toward but not to zero; lasso selects
+b) Yes — ridge sets useless coefficients to exactly zero
+c) Yes — ridge and lasso are the same method
+:::
+
+::: {.quiz-q qid="rr-invertibility" qtype="mc" answer="b"}
+Besides shrinking coefficients, what does ridge's $+\lambda I$ term guarantee?
+
+a) That $R^2$ always reaches $1$
+b) That $(X^\top X + \lambda I)$ is invertible for any $\lambda > 0$
+c) That all coefficients become equal
+:::
+
+::: {.quiz-q qid="rr-standardize-first" qtype="mc" answer="a"}
+(From variance structure & standardization.) Why standardize the predictors before ridge?
+
+a) So the penalty treats every coefficient on a comparable scale
+b) So the intercept becomes exactly zero
+c) It is optional — standardization changes nothing for ridge
+:::
+
+:::
+
+::::

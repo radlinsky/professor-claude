@@ -15,6 +15,8 @@ invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
+{{< include /includes/practice-timing.qmd >}}
+
 Work these in order — they get harder. Use paper or the live cells; only then open the
 answer. Reminders: the logit link is $\log\!\big(\tfrac{p}{1-p}\big) = \beta_0 + \beta_1
 x$; the odds ratio is $e^{\beta_1}$; and to get $p$ from a log-odds $\ell$,

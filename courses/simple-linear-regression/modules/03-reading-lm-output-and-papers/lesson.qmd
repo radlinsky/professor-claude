@@ -1,7 +1,10 @@
 ---
 title: "Reading lm() output — and the same model in papers"
 subtitle: "Decode every number summary() prints, then recognize it in a journal table"
+engine: knitr
 ---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
 
 ```{r setup}
 #| message: false
@@ -22,9 +25,13 @@ academic paper: a model equation with $\varepsilon_i$, and a coefficient table w
 parentheses and stars. After this, a regression table in a paper is something you
 *read*, not skip.
 
-**Builds on:** [module 02](../02-deriving-the-ols-formulas/lesson.qmd) — plus the
-Greek/Latin/hat letter code from
-[mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd).
+**Builds on:** [module 02](../02-deriving-the-ols-formulas/lesson.qmd),
+[mean, variance & covariance](../../../../foundations/mean-variance-covariance/lesson.qmd)
+(the Greek/Latin/hat letter code),
+[randomness & sampling distributions](../../../../foundations/randomness-samples-and-sampling-distributions/lesson.qmd)
+(why estimates bounce across samples), and
+[hypothesis tests & p-values](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+(the null-hypothesis testing framework).
 
 ## Warm-up: do you remember?
 
@@ -64,7 +71,9 @@ misses. See [module 1](../01-least-squares-idea/lesson.qmd).
 ## A tiny example first
 
 The new idea behind ALL the remaining columns is: **your estimate would have come
-out differently with different data.** Let's *see* that.
+out differently with different data.** You built this idea in the
+[randomness & sampling distributions](../../../../foundations/randomness-samples-and-sampling-distributions/lesson.qmd)
+foundation — statistics bounce across samples. Here we see it for regression slopes.
 
 Pretend, just for this game, that we secretly know the truth: tomatoes really
 follow $y = 1 + 2x + \text{noise}$ — intercept 1, slope 2, plus random luck each
@@ -127,7 +136,9 @@ from your single draw.
 
 Papers describe this exact game in one line: "each y is the line plus a random
 error; the errors are independent draws centered on zero." Then every column of the
-output answers a question about the lottery: *how big is the bounce?* (standard
+output answers a question about the lottery — applying the
+[hypothesis-testing framework](../../../../foundations/hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd)
+to regression: *how big is the bounce?* (standard
 error), *how many bounce-lengths from zero is my estimate?* (t value), *if the true
 slope were zero, how often would luck alone produce an estimate this far out?*
 (p-value), and *how much of y's variation does the line soak up?* ($R^2$).
@@ -141,6 +152,8 @@ here too — season 1's data $x = (1,2,3,4,5)$, $y = (4,4,7,10,10)$ as the ancho
 |---|---|---|---|
 | $x_i$ | "ex sub eye" | the i-th predictor value — fertilizer scoops (in R: `x[i]`) | 1, 2, 3, 4, 5 |
 | $y_i$ | "why sub eye" | the i-th observed outcome — a season's harvest (in R: `y[i]`) | 4, 4, 7, 10, 10 |
+| $n$ | "en" | the number of data points (in R: `length(x)`) | 5 |
+| $\bar{x}$ | "ex bar" | the mean of the x values (in R: `mean(x)`) | 3 |
 | $\bar{y}$ | "why bar" | the mean of the y values (in R: `mean(y)`) | 7 |
 | $\beta_0, \beta_1$ | "beta zero, beta one" | the TRUE (unknown) intercept and slope — no hats | 1 and 2 in our game |
 | $\hat{\beta}_0, \hat{\beta}_1$ | "beta-zero hat, beta-one hat" | the fitted estimates from one sample ($s_{xy}/s_x^2$, module 2) | season 1: 1.6 and 1.8 |
@@ -156,11 +169,11 @@ New in this lesson:
 | $\sim$ | "is distributed as" | the left side follows the distribution on the right | $\varepsilon_i \sim N(0, \sigma^2)$ |
 | $N(0, \sigma^2)$ | "normal with mean zero and variance sigma-squared" | a bell curve centered at 0 with spread $\sigma$ | luck averaging out to 0 |
 | $\sigma$ | "sigma" | the true typical error size (unknown) | 1-ish in our game |
-| $\hat{\sigma}$ | "sigma hat" (R: `Residual standard error`) | the estimate of $\sigma$ from the residuals | ≈ 0.79 below |
-| $\mathrm{SE}(\hat{\beta}_1)$ | "the standard error of beta-one hat" | the typical bounce of the slope estimate across hypothetical re-runs | ≈ 0.25 below |
-| $t$ | "the t value" | estimate ÷ its standard error: how many bounce-lengths from zero | ≈ 7.7 below |
-| $p$ or $\Pr(>\|t\|)$ | "the p-value" | if the true coefficient were 0, the chance of an estimate ≥ this many bounce-lengths out | ≈ 0.005 below |
-| $R^2$ | "R squared" | the fraction of y's variance the line explains, from 0 to 1 | ≈ 0.95 below |
+| $\hat{\sigma}$ | "sigma hat" (R: `Residual standard error`) | the estimate of $\sigma$ from the residuals | $\sqrt{3.6/3} \approx 1.10$ |
+| $\mathrm{SE}(\hat{\beta}_1)$ | "the standard error of beta-one hat" | the typical bounce of the slope estimate across hypothetical re-runs | $1.10/\sqrt{10} \approx 0.35$ |
+| $t$ | "the t value" | estimate ÷ its standard error: how many bounce-lengths from zero | $1.8/0.35 \approx 5.2$ |
+| $p$ or $\Pr(>\|t\|)$ | "the p-value" | if the true coefficient were 0, the chance of an estimate ≥ this many bounce-lengths out | ≈ 0.014 (from season 1's fit) |
+| $R^2$ | "R squared" | the fraction of y's variance the line explains, from 0 to 1 | $1 - 3.6/36 = 0.90$ |
 | $H_0$ | "the null hypothesis" | the boring default being tested — here "true slope is 0" | "fertilizer does nothing" |
 
 ## The formal version
@@ -223,8 +236,9 @@ its parenthesis and you've reconstructed the t value yourself.
 
 ## Explore it
 
-```{r explore-1}
-# TRY IT: the full decode, on data where WE set the truth. Change the true slope
+```{webr}
+#| autorun: true
+# explore-1 — LIVE: the full decode, on data where WE set the truth. Change the true slope
 # or sigma and re-run — watch every column respond.
 # PREDICT: the true slope is 2. Will the Estimate row read exactly 2.000? Guess,
 # then find the slope line in the summary() output below.
@@ -237,8 +251,9 @@ fit <- lm(y ~ x)
 summary(fit)
 ```
 
-```{r explore-2}
-# Rebuild each printed number from raw ingredients — nothing is magic:
+```{webr}
+#| autorun: true
+# explore-2 — LIVE: rebuild each printed number from raw ingredients — nothing is magic:
 est   <- coef(fit)[2]                          # beta-one hat: cov/var
 resid <- y - fitted(fit)                       # the leftovers e_i
 sigma_hat <- sqrt(sum(resid^2) / (n - 2))      # residual standard error*
@@ -251,9 +266,10 @@ round(c(estimate = unname(est), SE = se, t = unname(tval), R2 = r2), 4)
 # (*n - 2 because two parameters were estimated; same story as var()'s n - 1.)
 ```
 
-```{r explore-3}
+```{webr}
+#| autorun: true
 #| fig-alt: "Histogram of slope estimates across 2000 simulated re-runs, with width matching the standard error"
-# TRY IT: is SE really "the typical bounce"? Run the lottery 2000 times and
+# explore-3 — LIVE: is SE really "the typical bounce"? Run the lottery 2000 times and
 # check. Increase sd or decrease n — the histogram widens and SE tracks it.
 # PREDICT: will the spread (SD) of the 2000 re-run slopes come out close to the SE
 # computed from the SINGLE sample above? Guess, then compare the two numbers in
