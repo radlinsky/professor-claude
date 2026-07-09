@@ -206,7 +206,33 @@ not re-evaluated each iteration), while $x_i$ is the *running* value that change
 with each step of the loop.
 :::
 
-## Problem 6 — a gentle cliffhanger
+## Problem 6 — dot product by hand and in R
+
+For `a <- c(4, 2, 1)` and `b <- c(3, 5, 2)`, compute the dot product
+$\mathbf{a} \cdot \mathbf{b}$ by hand (multiply pair-by-pair, then add). Then verify
+in R.
+
+```{webr}
+#| autorun: false
+# p6-starter — compute the dot product
+a <- c(4, 2, 1)
+b <- c(3, 5, 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$4 \times 3 + 2 \times 5 + 1 \times 2 = 12 + 10 + 2 = 24$.
+
+```{r p6-answer}
+a <- c(4, 2, 1)
+b <- c(3, 5, 2)
+sum(a * b)   # 24
+```
+
+The dot product is just `sum(a * b)` — the Σ notation $\sum_{i=1}^{n} a_i b_i$
+written in R.
+:::
+
+## Problem 7 — a gentle cliffhanger
 
 For $x = (3, 1, 4, 2)$ the average is $10/4 = 2.5$. Compute
 $\sum_{i=1}^{4} (x_i - 2.5)$ — the total of the "distances from the average". Notice
@@ -216,7 +242,7 @@ about why this happens.)
 
 ```{webr}
 #| autorun: false
-# p6-starter — copy this to begin
+# p7-starter — copy this to begin
 x <- c(3, 1, 4, 2)
 ```
 
@@ -227,7 +253,7 @@ It's exactly zero — and that's no accident: deviations from the mean ALWAYS su
 zero (the overshoots and undershoots cancel perfectly). That's why variance squares
 the deviations before adding them, which is where the next lesson picks up.
 
-```{r p6-answer}
+```{r p7-answer}
 x <- c(3, 1, 4, 2)
 sum(x - mean(x))   # 0 (up to tiny floating-point dust)
 ```
@@ -246,8 +272,8 @@ browser only.
 
 ::: {.module-check module="foundations/vectors-and-summation" pass="4"}
 
-::: {.quiz-q qid="vs-square-then-add" qtype="numeric" answer="29" tolerance="0"}
-For $x = (2, 3, 4)$, what is $\sum_{i=1}^{3} x_i^2$?
+::: {.quiz-q qid="vs-constant-factor" qtype="numeric" answer="40" tolerance="0"}
+Using a sum rule, what is $\sum_{i=1}^{3} 4\,x_i$ for $x = (2, 5, 3)$?
 :::
 
 ::: {.quiz-q qid="vs-sum-then-square" qtype="mc" answer="b"}
@@ -266,8 +292,9 @@ b) Added to every term: $\sum (x_i + c)$, so $c$ is added $n$ times
 c) Multiplied by the sum: $c \sum x_i$
 :::
 
-::: {.quiz-q qid="vs-summed-constant" qtype="numeric" answer="15" tolerance="0"}
-Using the sum rule for a constant, what is $\sum_{i=1}^{5} 3$?
+::: {.quiz-q qid="vs-dot-product" qtype="numeric" answer="23" tolerance="0"}
+For $\mathbf{a} = (3, 2)$ and $\mathbf{b} = (5, 4)$, what is the dot product
+$\mathbf{a} \cdot \mathbf{b}$?
 :::
 
 ::: {.quiz-q qid="vs-subscript-index" qtype="numeric" answer="4" tolerance="0"}

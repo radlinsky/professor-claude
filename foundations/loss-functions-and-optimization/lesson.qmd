@@ -28,17 +28,21 @@ is **optimization**.
 
 This lesson builds that whole loop from the ground up on tiny, hand-checkable numbers,
 using base R. We'll see a loss as a *function* whose graph is a curve, learn the
-one-line recipe "the bottom of the valley is where the slope is zero," get just enough
-chain-rule to differentiate a squared term, and finish with the R functions that search
-for the bottom when the algebra is too messy — `optimize()` and `optim()`. We stay in
-**one dimension** (one knob to turn); tuning several knobs at once is a later module.
+one-line recipe "the bottom of the valley is where the slope is zero," apply the chain
+rule and sum rule you already know to differentiate a squared-error loss, and finish
+with the R functions that search for the bottom when the algebra is too messy —
+`optimize()` and `optim()`. We stay in **one dimension** (one knob to turn); tuning
+several knobs at once is a later module.
 
 **Builds on:** [the derivative as a slope](../derivative-as-slope/lesson.qmd) — we lean
 hard on "slope zero means momentarily flat," and we reuse its numeric `slope_at()`
-tool; and [vectors & summation](../vectors-and-summation/lesson.qmd) — a loss is
-usually a *sum* over your data points ($\sum$), one penalty per point; and
-[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) — the warm-up
-uses squared deviations from the mean.
+tool; [differentiation rules](../differentiation-rules/lesson.qmd) — the chain rule
+($2 \cdot \text{stuff} \cdot \text{stuff}'$ for a squared term) and the sum rule (the
+derivative of a sum is the sum of the derivatives); [vectors &
+summation](../vectors-and-summation/lesson.qmd) — a loss is usually a *sum* over your
+data points ($\sum$), one penalty per point; and [mean, variance &
+covariance](../mean-variance-covariance/lesson.qmd) — the warm-up uses squared
+deviations from the mean.
 
 ## Warm-up: do you remember?
 
@@ -205,17 +209,15 @@ best $m$ is the one where $L'(m) = 0$. This three-word recipe — **differentiat
 zero, solve** — is the standard way to find a minimum by algebra, and it has a name we'll
 reuse everywhere. To run it we need the derivative of $L$.
 
-**Chain rule, lite (just enough to differentiate a square).** Two facts do the whole
-job:
+**Applying the rules you already know.** Two rules from
+[differentiation rules](../differentiation-rules/lesson.qmd) do the whole job:
 
-1. **The derivative of a sum is the sum of the derivatives** — differentiate each
-   $(y_i - m)^2$ term on its own and add the results. (You already used "a sum splits
-   into pieces" in [vectors & summation](../vectors-and-summation/lesson.qmd).)
-2. **The derivative of (stuff)² is 2 · (stuff) · (derivative of stuff).** In symbols,
-   the slope of $(\text{stuff})^2$ with respect to $m$ is $2\,(\text{stuff}) \cdot
-   (\text{stuff})'$. Here "stuff" is $y_i - m$, whose slope with respect to $m$ is $-1$
-   (as $m$ goes up by 1, $y_i - m$ goes *down* by 1). So each term's derivative is
-   $2(y_i - m)(-1) = -2(y_i - m)$.
+1. **The sum rule** — the derivative of a sum is the sum of the derivatives.
+   Differentiate each $(y_i - m)^2$ term on its own and add the results.
+2. **The chain rule on a squared term** — the derivative of $(\text{stuff})^2$ is
+   $2 \cdot (\text{stuff}) \cdot (\text{stuff})'$. Here "stuff" is $y_i - m$, whose
+   derivative with respect to $m$ is $-1$ (as $m$ goes up by 1, $y_i - m$ goes *down*
+   by 1). So each term's derivative is $2(y_i - m)(-1) = -2(y_i - m)$.
 
 Putting the two facts together, one line at a time:
 
@@ -377,9 +379,9 @@ setting the derivative to zero and solving pins down the best setting.
   and "how wrong" on the y-axis, and evaluate it in R as `sum((y - m)^2)`.
 - **Explain and use the recipe "differentiate, set to zero, solve"** to find the setting
   where a loss curve bottoms out, because the slope is zero at the bottom.
-- **Differentiate a squared term** with chain-rule-lite: $(\text{stuff})^2 \to
-  2\,(\text{stuff})\cdot(\text{stuff})'$, and use "the derivative of a sum is the sum of
-  the derivatives."
+- **Differentiate a squared-error loss** by applying the chain rule
+  ($(\text{stuff})^2 \to 2\,(\text{stuff})\cdot(\text{stuff})'$) and the sum rule (the
+  derivative of a sum is the sum of the derivatives).
 - **Tell an argmin from a minimum** — the best *setting* versus the smallest *loss* —
   and report the one the question asks for.
 - **Hand a loss to `optimize()` / `optim()`** and let R search for the bottom when the

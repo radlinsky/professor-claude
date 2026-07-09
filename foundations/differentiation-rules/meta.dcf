@@ -1,4 +1,4 @@
 ShortName: Differentiation rules & recipes
 Concepts: The mechanical rules for computing derivatives by hand: constant rule, power rule ($nx^{n-1}$), constant multiple, sum/difference, and the general chain rule ($f'(g(x)) \cdot g'(x)$); each rule verified numerically with `slope_at()`; product rule noted briefly
-BuildsOn: [derivative-as-slope](derivative-as-slope/lesson.qmd), [loss-functions-and-optimization](loss-functions-and-optimization/lesson.qmd)
+BuildsOn: [derivative-as-slope](derivative-as-slope/lesson.qmd)
 UsedBy: [simple-linear-regression](../courses/simple-linear-regression/syllabus.md)
