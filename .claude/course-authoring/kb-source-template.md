@@ -4,14 +4,18 @@ title: "<Firstauthor (Year) — Short title>"
 
 <!-- Copy of .claude/course-authoring/kb-source-template.md. Rules:
      knowledge-base.md + citations.md + source-licensing.md.
-     The chapter table IS the resume mechanism for extract-knowledge —
-     update a row to `done` the moment its chapter is finished, before
+     The record is created by the survey-source skill (license, big ideas,
+     chapter map, relevance proposal, goal) and then driven by extract-knowledge:
+     the chapter table IS the resume mechanism — update a row the moment its
+     chapter (or, for long chapters, its page slice) is finished, before
      starting the next one. -->
 
 **File:** source-papers/<YYYY-firstauthor-shortname>.pdf
 **Bib key:** <firstauthoryearshortname>
 **Source license:** <SPDX id or short description> — <OK | flagged, confirmed by human YYYY-MM-DD | n/a — no external source>
-**Extraction scope:** <full book | chapters relevant to: <stated goal>>
+**Extraction goal:** <which courses/foundations this extraction serves — from the
+Relevance proposal decision; or "encyclopedic — user explicitly chose full source";
+or "undecided — survey only" while no goal has been picked>
 
 ## Bibliographic record
 
@@ -30,10 +34,26 @@ not chapter titles. [@key]
 |---|---|---|---|---|
 | 1 — <title> | pp. 1–24 | pending | — | — |
 
-Status is exactly one of: `pending` · `in progress` · `done` · `skipped (<reason>)`.
-Concepts extracted: comma-separated `knowledge/concepts/` slugs and/or
-`glossary: <term>` entries. Confidence notes: anything extracted with doubt
+Status starts with exactly one of `pending` · `in progress` · `done` ·
+`skipped (<reason>)`, with an optional parenthesized qualifier after the base word:
+`in progress (pp. X–Y done)` (sub-chapter resume point for long chapters) and
+`done (partial — pp. X–Y unreadable)` (gaps logged in Open questions) are the two
+defined qualifiers. Concepts extracted: comma-separated `knowledge/concepts/` slugs
+and/or `glossary: <term>` entries. Confidence notes: anything extracted with doubt
 (garbled equations, ambiguous claims) — details go in Open questions below.
+
+## Relevance proposal
+
+Filled by the survey-source skill from `courses/README.md` + `foundations/README.md`:
+what each part of the source could feed, so the user can pick the extraction goal
+from an informed menu. "No clear match" is an honest entry.
+
+| Chapter/section | Relevant to (existing) | New opportunity |
+|---|---|---|
+| 1 — <title> | [<course-or-foundation>](../../<path>) — <why, one line> | <new course/foundation the source suggests, capability-phrased — or —> |
+
+**Decision (YYYY-MM-DD):** <the user's chosen goal, verbatim — mirrored in the
+`**Extraction goal:**` line above>
 
 ## Extraction log
 

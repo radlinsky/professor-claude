@@ -1,5 +1,6 @@
 ---
 title: "<Concept name>"
+topic: <one slug from .claude/course-authoring/topics.dcf>
 ---
 
 <!-- Copy of .claude/course-authoring/kb-concept-template.md. Rules:

@@ -146,11 +146,19 @@ continuation line of a long `Concepts:` value:
 
 ```text
 ShortName: Matrices & linear transforms
+Topic: linear-algebra
 Concepts: A matrix as a grid/stack of rows, matrix × vector as one dot product per
  row, the transpose and why it appears, and the inverse as "undo"
 BuildsOn: [vectors-and-summation](vectors-and-summation/lesson.qmd)
 UsedBy: —
 ```
+
+`Topic:` is exactly one slug from the controlled vocabulary in
+`.claude/course-authoring/topics.dcf` — write it for every NEW module. Topic-grouped
+sidebars/indexes and `--check` enforcement are implemented by issue #125; until that
+lands the generator ignores the field (harmless), but writing it now saves the
+migration pass later. When torn between two topics, pick the one the module's
+`BuildsOn` parents live in.
 
 Do not create a `_quarto.yml` inside a course or foundation folder — a nested one
 makes Quarto run R from that subfolder, where renv is not active, and rendering fails

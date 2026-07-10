@@ -14,9 +14,11 @@ rebuild it, or clone/analyze any repo:
 - `port-library` Phase P1 — for the library/paper/repo being rebuilt (highest risk:
   it re-implements real code). Resolve the upstream license *before* extracting the
   algorithm.
-- `extract-knowledge` Phase 1 (Intake) — for the PDF being ingested into the
-  knowledge base. Extraction paraphrases into published site pages, so the gate
-  applies before any body chapter is read.
+- `survey-source` Step 1 (Locate & license) — for any PDF headed toward the
+  knowledge base; the survey is the intake gate for extraction. Extraction
+  paraphrases into published site pages, so the check runs before any body
+  chapter is read. `extract-knowledge` does not re-run it — see the
+  re-gate rule under §Blocking rule.
 
 A concept with no external artifact (e.g. "teach me the Kalman filter" from general
 knowledge) has no source to license — record `n/a — no external source` and proceed.
@@ -77,6 +79,26 @@ and the detected license, e.g.:
 > continue.
 
 Wait for explicit human confirmation before continuing.
+
+**Recorded verdicts are not re-gated.** A `knowledge/sources/<slug>.md` record
+whose `**Source license:**` line already carries a verdict — including
+`flagged, confirmed by human YYYY-MM-DD` — was confirmed when the record was
+created (survey-source's interactive gate); downstream skills and autonomous
+agents (`extract-knowledge`, `knowledge-extractor`) proceed on it without
+re-prompting. This is the whole point of recording the verdict — the human
+confirms once, at intake. Two sanity rules before trusting a recorded verdict:
+
+- **A verdict must be internally consistent with §Classify.** An "OK" that names
+  a FLAG-class license (`GPL-3.0 — OK`, `all rights reserved — OK`, `CC-BY-NC —
+  OK`) is malformed — "OK" is not a classification the writer gets to assert
+  against the lists above. Treat it as unconfirmed.
+- **A FLAG-class verdict without the confirmation token is malformed.**
+
+A malformed line blocks and is fixed IN PLACE: re-run the detection steps above,
+rewrite the `**Source license:**` line, and get human confirmation where the
+check demands it. (Do not route the fix through survey-source — it never redoes
+an existing record.) The CI backstop (`license-check.yml`) also fails a
+restrictive-named verdict that lacks the confirmation token.
 
 ## Record the verdict
 

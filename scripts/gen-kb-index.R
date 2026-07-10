@@ -79,11 +79,14 @@ strip_fences <- function(lines) {
 }
 
 # All bib keys cited in a file: every @key inside a [ ... ] citation bracket.
+# Case-TOLERANT key pattern, matching check-indexes.R check 8 — the lowercase-only
+# CONTRACT (citations.md) is enforced there, not silently hidden here: an
+# uppercase key must show up in the index so the CI failure is explainable.
 cited_keys <- function(path) {
   txt <- paste(strip_fences(read_lines(path)), collapse = "\n")
   brackets <- regmatches(txt, gregexpr("\\[@[^]]*\\]", txt))[[1]]
   if (!length(brackets)) return(character(0))
-  keys <- unlist(regmatches(brackets, gregexpr("@[a-z][a-z0-9]*", brackets)))
+  keys <- unlist(regmatches(brackets, gregexpr("@[a-zA-Z][a-zA-Z0-9]*", brackets)))
   sort(unique(sub("^@", "", keys)))
 }
 
@@ -114,10 +117,17 @@ extraction_state <- function(path) {
     cells <- trimws(strsplit(sub("^\\|", "", sub("\\|\\s*$", "", r)), "|", fixed = TRUE)[[1]])
     if (length(cells) < 5) next
     st <- cells[3]
-    if (st == "done") counts["done"] <- counts["done"] + 1L
-    else if (st == "in progress") counts["in progress"] <- counts["in progress"] + 1L
-    else if (st == "pending") counts["pending"] <- counts["pending"] + 1L
-    else if (grepl("^skipped", st)) counts["skipped"] <- counts["skipped"] + 1L
+    # Every status is the base word optionally followed by a parenthesized
+    # qualifier — `done (partial — pp. X-Y unreadable)`, `in progress (pp. X-Y
+    # done)`, `skipped (<reason>)` (kb-source-template.md status vocabulary).
+    # Bound the match to exactly base-word-or-qualifier so malformed values
+    # ("done-invalid") stay uncounted. Test "in progress" before "done" so its
+    # qualifier's trailing "done" can't confuse.
+    status_is <- function(base) grepl(paste0("^", base, "($|[[:space:]]*\\()"), st)
+    if (status_is("in progress")) counts["in progress"] <- counts["in progress"] + 1L
+    else if (status_is("done")) counts["done"] <- counts["done"] + 1L
+    else if (status_is("pending")) counts["pending"] <- counts["pending"] + 1L
+    else if (status_is("skipped")) counts["skipped"] <- counts["skipped"] + 1L
   }
   if (!sum(counts)) return("no chapter map")
   parts <- sprintf("%d %s", counts[counts > 0L], names(counts)[counts > 0L])

@@ -304,6 +304,14 @@ bib_keys <- character(0)
 if (file.exists(BIB)) {
   m <- regmatches(read_lines(BIB), regexpr("^@\\w+\\{[^,]+,", read_lines(BIB)))
   bib_keys <- trimws(sub(",$", "", sub("^@\\w+\\{", "", m)))
+  # Key contract (citations.md): all-lowercase alphanumeric, letter-first. Enforced
+  # here so a mixed-case key can't be citable in CI yet invisible to the (contract-
+  # assuming) index generator's Sources column.
+  for (k in bib_keys) {
+    if (!grepl("^[a-z][a-z0-9]*$", k)) {
+      err(BIB, sprintf("bib key '%s' violates the key convention (lowercase alphanumeric, letter-first — citations.md)", k))
+    }
+  }
 } else if (length(concept_pages) || length(source_pages)) {
   err(BIB, "knowledge pages exist but the bibliography file is missing")
 }
