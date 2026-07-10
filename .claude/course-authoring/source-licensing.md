@@ -85,9 +85,20 @@ whose `**Source license:**` line already carries a verdict — including
 `flagged, confirmed by human YYYY-MM-DD` — was confirmed when the record was
 created (survey-source's interactive gate); downstream skills and autonomous
 agents (`extract-knowledge`, `knowledge-extractor`) proceed on it without
-re-prompting. A FLAG verdict *lacking* the confirmation token is malformed and
-blocks: send it back through the survey. This is the whole point of recording the
-verdict — the human confirms once, at intake.
+re-prompting. This is the whole point of recording the verdict — the human
+confirms once, at intake. Two sanity rules before trusting a recorded verdict:
+
+- **A verdict must be internally consistent with §Classify.** An "OK" that names
+  a FLAG-class license (`GPL-3.0 — OK`, `all rights reserved — OK`, `CC-BY-NC —
+  OK`) is malformed — "OK" is not a classification the writer gets to assert
+  against the lists above. Treat it as unconfirmed.
+- **A FLAG-class verdict without the confirmation token is malformed.**
+
+A malformed line blocks and is fixed IN PLACE: re-run the detection steps above,
+rewrite the `**Source license:**` line, and get human confirmation where the
+check demands it. (Do not route the fix through survey-source — it never redoes
+an existing record.) The CI backstop (`license-check.yml`) also fails a
+restrictive-named verdict that lacks the confirmation token.
 
 ## Record the verdict
 

@@ -13,7 +13,6 @@ title: "<Firstauthor (Year) — Short title>"
 **File:** source-papers/<YYYY-firstauthor-shortname>.pdf
 **Bib key:** <firstauthoryearshortname>
 **Source license:** <SPDX id or short description> — <OK | flagged, confirmed by human YYYY-MM-DD | n/a — no external source>
-**Extraction scope:** <full book | chapters relevant to the goal — see the skipped rows>
 **Extraction goal:** <which courses/foundations this extraction serves — from the
 Relevance proposal decision; or "encyclopedic — user explicitly chose full source";
 or "undecided — survey only" while no goal has been picked>

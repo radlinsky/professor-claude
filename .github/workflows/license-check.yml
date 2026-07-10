@@ -40,9 +40,12 @@ jobs:
               *)
                 echo "OK  $f — $verdict" ;;
             esac
-            # flagged / restrictive verdicts must carry the human-confirmation token
+            # Flagged / restrictive verdicts must carry the human-confirmation token.
+            # The license-name patterns catch a malformed "OK" asserted against a
+            # FLAG-class license (e.g. "GPL-3.0 — OK", "all rights reserved — OK") —
+            # keep the list in sync with source-licensing.md §Classify.
             case "$verdict" in
-              *[Ff]lag*|*[Rr]estrict*)
+              *[Ff]lag*|*[Rr]estrict*|*GPL*|*MPL*|*CC-BY-SA*|*CC-BY-NC*|*CC-BY-ND*|*"ll rights reserved"*|*[Pp]roprietar*)
                 case "$verdict" in
                   *"confirmed by human"*) ;;
                   *) echo "::error file=$f::flagged/restrictive verdict lacks 'confirmed by human YYYY-MM-DD' (got: '$verdict')"

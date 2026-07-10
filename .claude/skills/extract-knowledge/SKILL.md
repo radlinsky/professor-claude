@@ -49,12 +49,16 @@ record.
    - **Record missing, or goal `undecided — survey only`** → execute the
      **survey-source skill now** (`.claude/skills/survey-source/SKILL.md` — its
      steps and GATEs, including the blocking goal decision; do not duplicate or
-     paraphrase its text), then return here.
-2. **License re-gate rule:** a verdict already recorded in the record — including
-   `flagged, confirmed by human YYYY-MM-DD` — is NOT re-gated; the confirmation
-   happened at survey time. Only a record with a FLAG verdict lacking the
-   confirmation token blocks (that record is malformed — send it back through
-   survey-source Step 1).
+     paraphrase its text), then return here. (The autonomous `knowledge-extractor`
+     agent cannot ask: it stops before the decision and delivers the proposal —
+     see its definition.)
+2. **License re-gate rule:** follow `source-licensing.md` §Recorded verdicts are
+   not re-gated — a properly recorded verdict proceeds without re-prompting. A
+   MALFORMED verdict line (a FLAG-class license without the confirmation token,
+   or an "OK" naming a license on the FLAG lists) blocks: re-run the license
+   check per `source-licensing.md` and correct the record's `**Source license:**`
+   line in place (human confirmation where the check demands it) — do NOT route
+   through survey-source, which never redoes an existing record.
 3. From the record, order the `pending` chapters for extraction **by dependency,
    not page order**: foundational chapters first (if chapter 8 builds on chapter
    3, extract 3 first — its concept pages become merge targets for 8's material,
@@ -72,7 +76,9 @@ state read — nothing done twice. ☐ Extraction order noted, foundational-firs
 
 **Goal:** the source's knowledge, merged into `knowledge/`, chapter by chapter.
 
-For each `pending` chapter, in the Phase-1 order:
+For each `pending` **or `in progress`** chapter, in the Phase-1 order — an
+`in progress (pp. X–Y done)` row is an interrupted chapter: resume it FIRST,
+starting from the page after Y (never re-extract the done range):
 
 1. Set its state row to `in progress`.
 2. Read the chapter's pages in ≤20-page Read slices. **Long chapters (> ~30
@@ -133,11 +139,12 @@ pinpoint. ☐ Garbled/unreadable material logged, not guessed.
    citation resolution, concept links, and the cited-page floor.
 
 **BATCH MODE variant:** if your invoking prompt says `BATCH MODE`, do step 1 only
-(re-reading `references.bib` immediately before any edit) and SKIP steps 2–4
-entirely — the invoking session runs gen-kb-index.R, quarto render, and
-check-indexes.R once after ALL extractors finish. (check-indexes cannot pass
-mid-batch: its check 7 fails on pages not yet registered until the parent runs the
-generator.) Declare the skipped steps in your report.
+(shared-file discipline: `.claude/agents/knowledge-extractor.md` §Parallel/batch
+operation) and SKIP steps 2–4 entirely — the invoking session runs gen-kb-index.R,
+quarto render, and check-indexes.R once after ALL extractors finish.
+(check-indexes cannot pass mid-batch: its check 7 fails on pages not yet
+registered until the parent runs the generator.) Declare the skipped steps in
+your report.
 
 **GATE 3:** ☐ Bib entry present; key matches the filename transform. ☐ Interactive:
 gen-kb-index `--check` exits 0, render green (or honestly reported), check-indexes

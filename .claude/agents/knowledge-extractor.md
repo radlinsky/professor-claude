@@ -19,16 +19,17 @@ no user interaction. What would be a blocking question in the interactive skill 
 for you, a clean early stop with an honest report:
 
 - **No source record, or its `**Extraction goal:**` is `undecided`** → execute the
-  survey-source skill's steps (license gate, front/back-matter read, record
-  scaffold, relevance proposal) but NOT its decision step: leave the goal
+  survey-source skill's steps EXCEPT the decision step (Step 5): license gate,
+  front/back-matter read, record scaffold, relevance proposal, AND Step 6
+  (BibTeX entry + gen-kb-index.R + checks — skipping it would leave the record's
+  declared key unresolvable and fail check 8). Leave the goal
   `undecided — survey only`, deliver the proposal as your final report
   (`Mode: survey-only`), and stop. The user picks a goal and re-invokes you; the
   record is the handoff. Never silently decide scope — for any source, paper or
   textbook alike.
 - **License FLAG with no recorded confirmation** → stop with the warning
-  (source-licensing.md format). A record already carrying
-  `flagged, confirmed by human YYYY-MM-DD` was confirmed at survey time — proceed
-  without re-asking.
+  (`source-licensing.md` — its §Recorded verdicts rule governs what counts as
+  already-confirmed vs malformed; don't restate it, follow it).
 - **Ambiguous PDF filename** (it determines the slug and BibTeX key) → stop and ask.
 
 Everything else is a judgment call you resolve yourself and record for the final
@@ -85,7 +86,12 @@ you and the parent session owns the shared finalization:
   `knowledge-base.md`, never skip and never overwrite.
 - **Re-read shared files before every edit.** `knowledge/glossary.md` and
   `knowledge/references.bib`: read the current state immediately before each
-  write, and re-check the bib key isn't already present.
+  write, and re-check the bib key isn't already present. On an Edit conflict
+  (the file changed under you since reading), re-read and re-apply your change
+  on top of the new state — NEVER fall back to a whole-file Write on a shared
+  file; the conflict-then-retry loop is what keeps concurrent appends safe.
+  (In practice batch bib writes are rare: Phase A surveys already created every
+  record and bib entry before extractors launch.)
 - **Skip repo-wide finalization.** No `quarto render`, no `gen-kb-index.R`, no
   `check-indexes.R` (skill Phase 3 BATCH MODE variant — check-indexes cannot pass
   before the parent regenerates the indexes). The parent runs all three once
@@ -93,7 +99,7 @@ you and the parent session owns the shared finalization:
 
 ## Final report format (your last message)
 
-```
+```text
 Source: knowledge/sources/<slug>.md  —  bib key <key>, license <verdict>
 Mode: survey-only (proposal delivered — awaiting goal) | interactive | batch (render/index deferred to parent)
 Goal: <the record's extraction goal>

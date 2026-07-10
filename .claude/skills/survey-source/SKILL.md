@@ -10,8 +10,9 @@ description: >
   user says "survey <pdf>", "what's in this source", "which courses would <pdf>
   help", "triage source-papers/…", or "propose what to extract from <pdf>".
   Tie-breaker: this skill NEVER reads body chapters and writes ONLY the source
-  record + bibliography entry — full extraction is extract-knowledge (which runs
-  this skill automatically when no record exists); building a course is
+  record, the bibliography entry, and the generated index blocks (via
+  gen-kb-index.R) — full extraction is extract-knowledge (which runs this skill
+  automatically when no record exists); building a course is
   create-course/port-library.
 ---
 
@@ -44,12 +45,17 @@ Work the 7 steps in order; each has a GATE.
    for explicit human confirmation. This applies to every source — paper or
    textbook, no exceptions.
 3. If `knowledge/sources/<slug>.md` already exists, the survey was already done —
-   never redo it. Two cases:
-   - goal still `undecided — survey only` → jump straight to Step 5 (the
-     proposal already exists; only the decision is missing);
+   never redo completed work. Three cases:
+   - goal still `undecided — survey only` (or the line is absent — records
+     predating the goal contract count as undecided) → jump to Step 5. **Legacy
+     backfill:** if the record lacks a `## Relevance proposal` section, run
+     Step 4 first to build it from the record's existing chapter map — do not
+     re-read the PDF;
    - goal decided → report the record's proposal, goal, and state, and stop
      (changing a decided goal is editing the Decision line + skipped rows —
      offer it, don't assume it).
+   - malformed `**Source license:**` line → that is fixed IN PLACE by re-running
+     the license check (`source-licensing.md`), not by re-surveying.
 
 **GATE 1:** ☐ Filename convention holds. ☐ License verdict determined (FLAG →
 human confirmed). ☐ Existing record detected and reported instead of re-surveyed.

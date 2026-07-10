@@ -20,8 +20,9 @@ knowledge/
 
 Templates: `kb-concept-template.md` and `kb-source-template.md` in this directory —
 copy them, never improvise the section structure. Pages are plain `.md` with a
-YAML `title:` line only (they render on the site; Quarto's built-in search makes
-the KB browsable). After creating, renaming, or deleting any KB page, run
+YAML `title:` line — concept pages additionally carry a `topic:` line (§Writing
+rules; glossary and source records do not). They render on the site; Quarto's
+built-in search makes the KB browsable. After creating, renaming, or deleting any KB page, run
 `Rscript scripts/gen-kb-index.R` from the repo root; `--check` is the CI drift
 guard. Never hand-edit inside its sentinel blocks.
 

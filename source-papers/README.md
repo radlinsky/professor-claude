@@ -17,7 +17,7 @@ could feed, so you can decide what's worth extracting:
 
 (Extraction always starts from that survey's record and is resumable — a big
 textbook is ingested chapter by chapter across sessions, and "resume extraction
-of 2018-boyd-vmls" picks up where it left off. Afterwards, "run a gap check"
+of 2018-boyd-vmls" picks up where it left off. Afterward, "run a gap check"
 reports which existing courses could use the new knowledge.)
 
 ## Naming convention
