@@ -31,8 +31,9 @@ names the skill that would fix it; the user decides.
 ### Step 1 — Scope
 
 Whole repo by default; a single course or foundation module if the user names one.
-If the KB is empty (no `knowledge/concepts/` pages), say so and stop — there is
-nothing to audit against.
+If the KB is empty (no `knowledge/concepts/` pages), write the report file with
+zero findings and an explicit "KB empty — nothing to audit against" status line,
+then finish (skip Steps 2–3).
 
 ### Step 2 — Coverage diff (what the KB knows that nothing teaches)
 
@@ -66,7 +67,9 @@ For each lesson/practice page in scope whose topic has a KB concept page, compar
 ### Step 4 — Report
 
 Write ONE file: `docs/gap-reports/YYYY-MM-DD-<scope>.md` (`<scope>` = `repo` or the
-course/foundation slug; create the directory if needed). Format:
+course/foundation slug; create the directory if needed). If the path already exists
+(same-day rerun), append a `-N` suffix (`-2`, `-3`, …) — never overwrite a previous
+report. Format:
 
 ```markdown
 # Knowledge gap report — <scope> — YYYY-MM-DD

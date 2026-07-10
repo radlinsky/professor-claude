@@ -73,10 +73,10 @@ on. Phases P1–P3 are this skill's job; P4 runs the `create-course` pipeline.
    from-scratch rebuild must be **base R** so it runs in the browser regardless.
 
 **GATE P1:** ☐ Source license checked (upstream resolved before reading the code);
-any flag confirmed by the human; verdict noted for the syllabus. ☐ The algorithm is
-written as concrete numbered steps. ☐ You know which validation tier the source
-supports, and why. ☐ You know what (if anything) the real reference needs to run, and
-in which language.
+any flag confirmed by the human; verdict noted for the syllabus. ☐ KB consulted, or
+absence/emptiness recorded. ☐ The algorithm is written as concrete numbered steps.
+☐ You know which validation tier the source supports, and why. ☐ You know what (if
+anything) the real reference needs to run, and in which language.
 
 ---
 

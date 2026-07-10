@@ -56,7 +56,7 @@ page_title <- function(path) {
   lines <- read_lines(path)
   if (!length(lines) || lines[1] != "---") die("%s: missing YAML frontmatter (must open with ---)", path)
   close_i <- which(lines[-1] == "---")[1]
-  if (is.na(close_i)) die("%s: unterminated YAML frontmatter", path)
+  if (!length(close_i) || is.na(close_i)) die("%s: unterminated YAML frontmatter", path)
   fm <- lines[2:close_i]
   ti <- grep("^title:", fm, value = TRUE)
   if (length(ti) != 1L) die("%s: expected exactly one single-line `title:` in frontmatter", path)

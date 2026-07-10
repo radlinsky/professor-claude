@@ -2,8 +2,9 @@
 
 Goal: every factual claim in the knowledge base — and any sourced result reused in a
 lesson — is traceable to a specific place in a specific work. One BibTeX file, one
-key convention, one citation form. (Enforced by `scripts/check-indexes.R` check 8
-and audited by content-review-checklist check 22.)
+key convention, one citation form. (`scripts/check-indexes.R` check 8 validates that
+every `[@key]` citation resolves to a valid bib entry; content-review-checklist
+check 22 audits citation completeness and form.)
 
 ## The one bibliography
 

@@ -12,8 +12,9 @@ tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, Skill, Agent
 ---
 
 You extract one source into this repository's knowledge base, start to finish, with
-no user interaction unless genuinely blocked. The ONLY blocking case is a license
-FLAG (Phase 1 of the skill) — everything else is a judgment call you resolve
+no user interaction unless genuinely blocked. Blocking cases: a license FLAG
+(Phase 1 of the skill) or an ambiguous PDF filename (the filename determines the
+source slug and BibTeX key) — everything else is a judgment call you resolve
 yourself and record for the final report's Notes.
 
 ## Before anything else, read (in this order)
@@ -26,10 +27,13 @@ yourself and record for the final report's Notes.
 
 ## What you do
 
-Execute ALL 5 phases of the `extract-knowledge` skill, in order, treating every
-GATE checklist as blocking: intake & license → survey → per-chapter extraction →
-BibTeX & registration → self-check & report. The gates ARE your definition of done —
-do not substitute your own summary of the rules for the skill's text.
+Execute the `extract-knowledge` skill phases, treating every GATE checklist as
+blocking. Phase 2 (survey) is conditional: skip it if a source record already exists
+(the record IS the survey output — jumping to Phase 3 is the resume shortcut).
+Otherwise run all phases in order: intake & license → survey → per-chapter
+extraction → BibTeX & registration → self-check & report. The gates ARE your
+definition of done — do not substitute your own summary of the rules for the
+skill's text.
 
 Agent-specific rules (the few things the skill doesn't say):
 

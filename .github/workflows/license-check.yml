@@ -42,10 +42,10 @@ jobs:
             esac
             # flagged / restrictive verdicts must carry the human-confirmation token
             case "$verdict" in
-              *[Ff]lag*)
+              *[Ff]lag*|*[Rr]estrict*)
                 case "$verdict" in
                   *"confirmed by human"*) ;;
-                  *) echo "::error file=$f::flagged verdict lacks 'confirmed by human YYYY-MM-DD' (got: '$verdict')"
+                  *) echo "::error file=$f::flagged/restrictive verdict lacks 'confirmed by human YYYY-MM-DD' (got: '$verdict')"
                      fail=1 ;;
                 esac ;;
             esac

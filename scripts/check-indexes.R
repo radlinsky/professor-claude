@@ -303,7 +303,7 @@ before <- checkpoint()
 bib_keys <- character(0)
 if (file.exists(BIB)) {
   m <- regmatches(read_lines(BIB), regexpr("^@\\w+\\{[^,]+,", read_lines(BIB)))
-  bib_keys <- sub(",$", "", sub("^@\\w+\\{", "", m))
+  bib_keys <- trimws(sub(",$", "", sub("^@\\w+\\{", "", m)))
 } else if (length(concept_pages) || length(source_pages)) {
   err(BIB, "knowledge pages exist but the bibliography file is missing")
 }
@@ -353,7 +353,9 @@ before <- checkpoint()
 concept_slugs_kb <- sub("\\.md$", "", basename(concept_pages))
 for (f in kb_scan_files) {
   lines <- read_lines(f)
+  prose <- code_mask(lines)
   for (i in seq_along(lines)) {
+    if (!prose[i]) next
     # any path spelling of a concept page, from any tree
     hits <- regmatches(lines[i], gregexpr("knowledge/concepts/[a-z0-9-]+\\.md", lines[i]))[[1]]
     # sibling links inside concept pages themselves: [text](<slug>.md)

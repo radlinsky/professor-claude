@@ -62,8 +62,8 @@ do not "come back to it later".
    before quoting any formula or mining any seed. Flag anything not clearly open and
    get explicit human confirmation before continuing; note the verdict for the
    syllabus (`**Source license:**` line).
-7. **Consult the knowledge base** (skip silently if `knowledge/` has no concept
-   pages). Open `knowledge/README.md`; for every target-list item with a
+7. **Consult the knowledge base** (if `knowledge/` has no concept pages, note the
+   KB as absent/empty and move on). Open `knowledge/README.md`; for every target-list item with a
    `knowledge/concepts/` page, read that page now and mine it: misconceptions →
    Common-traps candidates, teaching insights/analogies → intuition sections,
    notation variants → pronunciation tables, Prerequisites links → Phase 2 edges.
