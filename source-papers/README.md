@@ -9,10 +9,16 @@ or to extract it into the knowledge base without building a course:
 
 > Extract `source-papers/2018-boyd-vmls.pdf` into the knowledge base
 
-(Extraction is resumable — a big textbook is ingested chapter by chapter across
-sessions, and "resume extraction of 2018-boyd-vmls" picks up where it left off.
-Afterwards, "run a gap check" reports which existing courses could use the new
-knowledge.)
+Not sure what a PDF is good for yet? Ask for a survey first — it reads just the
+table of contents/abstract and proposes which courses or foundations the source
+could feed, so you can decide what's worth extracting:
+
+> Survey `source-papers/2018-boyd-vmls.pdf` — which courses would it help?
+
+(Extraction always starts from that survey's record and is resumable — a big
+textbook is ingested chapter by chapter across sessions, and "resume extraction
+of 2018-boyd-vmls" picks up where it left off. Afterwards, "run a gap check"
+reports which existing courses could use the new knowledge.)
 
 ## Naming convention
 

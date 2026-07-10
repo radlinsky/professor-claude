@@ -114,8 +114,12 @@ extraction_state <- function(path) {
     cells <- trimws(strsplit(sub("^\\|", "", sub("\\|\\s*$", "", r)), "|", fixed = TRUE)[[1]])
     if (length(cells) < 5) next
     st <- cells[3]
-    if (st == "done") counts["done"] <- counts["done"] + 1L
-    else if (st == "in progress") counts["in progress"] <- counts["in progress"] + 1L
+    # done / in progress take an optional parenthesized qualifier after the base
+    # word — `done (partial — pp. X-Y unreadable)`, `in progress (pp. X-Y done)` —
+    # so prefix-match them like skipped (kb-source-template.md status vocabulary).
+    # Order matters: test "in progress" before its "done" qualifier can confuse.
+    if (grepl("^in progress", st)) counts["in progress"] <- counts["in progress"] + 1L
+    else if (grepl("^done", st)) counts["done"] <- counts["done"] + 1L
     else if (st == "pending") counts["pending"] <- counts["pending"] + 1L
     else if (grepl("^skipped", st)) counts["skipped"] <- counts["skipped"] + 1L
   }

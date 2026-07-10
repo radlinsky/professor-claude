@@ -79,6 +79,12 @@ with a link to that page. Demotion never happens automatically.
 
 ## Writing rules
 
+- **One topic per concept page** — the frontmatter carries
+  `topic: <slug from .claude/course-authoring/topics.dcf>` (the controlled
+  vocabulary shared with foundations' `meta.dcf` `Topic:` field). Topic-grouped
+  indexes and enforcement land with issue #125; write the line now on every new
+  page. Glossary and source records do NOT get topics (a source spans many; a
+  glossary is alphabetical by design).
 - **Paper-agnostic prose** — the same rule as foundations. The *page text* is
   neutral field knowledge; which source said what lives in the citations and, when
   they conflict, in the "Source disagreements" section.
@@ -106,6 +112,12 @@ with a link to that page. Demotion never happens automatically.
    and one is fringe, say so — with a citation for why.
 5. **Prerequisite edges** — union across sources; an edge only one source implies
    is still an edge.
+
+When several extractors run in parallel (batch extraction), the same protocol
+applies plus the check-before-create rule in `.claude/agents/knowledge-extractor.md`
+§Parallel/batch operation: re-check the file on disk immediately before creating
+any page or row — a sibling agent may have created it since you planned; existing
+means merge, never skip or overwrite.
 
 ## What the KB is NOT
 

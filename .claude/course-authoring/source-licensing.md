@@ -14,9 +14,11 @@ rebuild it, or clone/analyze any repo:
 - `port-library` Phase P1 — for the library/paper/repo being rebuilt (highest risk:
   it re-implements real code). Resolve the upstream license *before* extracting the
   algorithm.
-- `extract-knowledge` Phase 1 (Intake) — for the PDF being ingested into the
-  knowledge base. Extraction paraphrases into published site pages, so the gate
-  applies before any body chapter is read.
+- `survey-source` Step 1 (Locate & license) — for any PDF headed toward the
+  knowledge base; the survey is the intake gate for extraction. Extraction
+  paraphrases into published site pages, so the check runs before any body
+  chapter is read. `extract-knowledge` does not re-run it — see the
+  re-gate rule under §Blocking rule.
 
 A concept with no external artifact (e.g. "teach me the Kalman filter" from general
 knowledge) has no source to license — record `n/a — no external source` and proceed.
@@ -77,6 +79,15 @@ and the detected license, e.g.:
 > continue.
 
 Wait for explicit human confirmation before continuing.
+
+**Recorded verdicts are not re-gated.** A `knowledge/sources/<slug>.md` record
+whose `**Source license:**` line already carries a verdict — including
+`flagged, confirmed by human YYYY-MM-DD` — was confirmed when the record was
+created (survey-source's interactive gate); downstream skills and autonomous
+agents (`extract-knowledge`, `knowledge-extractor`) proceed on it without
+re-prompting. A FLAG verdict *lacking* the confirmation token is malformed and
+blocks: send it back through the survey. This is the whole point of recording the
+verdict — the human confirms once, at intake.
 
 ## Record the verdict
 

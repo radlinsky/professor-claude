@@ -1,0 +1,44 @@
+# topics.dcf — the controlled topic vocabulary for foundations and knowledge concepts.
+#
+# ONE topic per foundation module (meta.dcf `Topic:`) and per knowledge concept
+# page (frontmatter `topic:`). RECORD ORDER IN THIS FILE = DISPLAY ORDER everywhere
+# topics are grouped (sidebar sections, README index tables) — order the records
+# curriculum-logically, early material first.
+#
+# Format: read.dcf records separated by blank lines. Fields:
+#   Slug:        kebab-case id used in meta.dcf / frontmatter (stable once assigned)
+#   DisplayName: human label for sidebar sections and index tables
+# NOTE for loaders: base R's read.dcf has NO comment support — strip `^#` lines
+# first: read.dcf(textConnection(grep("^#", readLines(f), value=TRUE, invert=TRUE)))
+#
+# Add/rename topics here, never inline in a module. Renaming a Slug means updating
+# every module/page that carries it (grep first). Keep the list small (~6-10) — a
+# topic with one module in it forever is a concept, not a topic.
+#
+# Grouping/enforcement is implemented by issue #125 (gen-indexes.R + gen-kb-index.R
+# group by topic and fail --check on a topic not listed here). Until that lands,
+# this file is the contract new modules already write against.
+#
+# This vocabulary ships as an EXAMPLE (like learner-profile.md) — forkers replace
+# the records with their own domain's areas; keep the format.
+
+Slug: arithmetic-and-algebra
+DisplayName: Arithmetic & algebra
+
+Slug: calculus
+DisplayName: Calculus
+
+Slug: linear-algebra
+DisplayName: Linear algebra
+
+Slug: probability
+DisplayName: Probability
+
+Slug: statistical-inference
+DisplayName: Statistical inference
+
+Slug: regression-and-models
+DisplayName: Regression & models
+
+Slug: computing-and-r
+DisplayName: Computing & R

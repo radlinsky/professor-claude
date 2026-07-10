@@ -164,7 +164,8 @@ Follow the exact file formats in `.claude/course-authoring/course-structure.md`.
    `/_quarto.yml`** (render list + a sidebar section) — see
    `.claude/course-authoring/course-structure.md`. Do NOT create a per-course
    `_quarto.yml`. For each `new-foundation` module, do NOT hand-add rows: write
-   `foundations/<slug>/meta.dcf` (`ShortName`, `Concepts`, `BuildsOn`, `UsedBy`) and
+   `foundations/<slug>/meta.dcf` (`ShortName`, `Topic` — one slug from
+   `.claude/course-authoring/topics.dcf` — `Concepts`, `BuildsOn`, `UsedBy`) and
    run `Rscript scripts/gen-indexes.R`, which regenerates the foundation render list +
    sidebar and the `foundations/README.md` table row (sorted by slug, between the
    generated markers).

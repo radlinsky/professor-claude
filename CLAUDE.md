@@ -46,7 +46,10 @@ professor_claude/
 │       ├── update-course/SKILL.md     # safely modify/extend EXISTING material
 │       ├── add-problems/SKILL.md      # add problems to an EXISTING module
 │       ├── port-library/SKILL.md      # rebuild a real library/paper into a course
-│       ├── extract-knowledge/SKILL.md # ingest a PDF into knowledge/ (resumable per chapter)
+│       ├── survey-source/SKILL.md     # lightweight PDF triage: license + TOC + relevance
+│       │                              #   proposal → user picks the extraction goal
+│       ├── extract-knowledge/SKILL.md # ingest a PDF into knowledge/ (resumable per chapter;
+│       │                              #   chains to survey-source when no record exists)
 │       └── knowledge-gap-check/SKILL.md # report-only audit of courses vs the knowledge base
 ├── equivalence/               # fixture harness proving port-library rebuilds match the
 │                              #   original (fixtures/, generate/, reimplementations/,
@@ -94,7 +97,8 @@ professor_claude/
 | Change ANYTHING in existing material (fix, improve, extend, add a module/section) | **`update-course` skill** — never edit course content ad hoc |
 | Only add practice problems / check-yourself questions to an existing module | **`add-problems` skill**, or the **`problem-creator` agent** (ADDING new problems; CHANGING existing problems is update-course) |
 | Grade material against the contract (after a build/update, or on demand) | **`course-auditor` agent** (read-only) (its findings are fixed via the update-course skill — the auditor never edits) |
-| Extract a textbook/paper PDF into the knowledge base (cited, searchable encyclopedia — no course built) | **`extract-knowledge` skill**; or the **`knowledge-extractor` agent** for a one-shot run (resumable chapter by chapter — big textbooks span sessions) |
+| Figure out what a PDF is good for — which courses/foundations it would feed — before extracting anything | **`survey-source` skill** (lightweight: license + TOC/abstract + relevance proposal; writes the source record; the extraction skills chain to it automatically when no record exists) |
+| Extract a textbook/paper PDF into the knowledge base (cited, searchable encyclopedia — no course built) | **`extract-knowledge` skill**; or the **`knowledge-extractor` agent** for a one-shot run (resumable chapter by chapter — big textbooks span sessions). SEVERAL PDFs at once → the skill's §Batch extraction: survey each with the user, then parallel BATCH-MODE agents, then one gen/render/check pass |
 | Audit existing courses/foundations against the knowledge base (what to improve now that a source is extracted) | **`knowledge-gap-check` skill** (report-only; each finding names its fixer skill — update-course / add-problems / create-course) |
 
 Everything the skills need (templates, notation glossary, problem-authoring
@@ -132,6 +136,11 @@ overwrite them.
 - **Citations:** one BibTeX file (`knowledge/references.bib`), bracketed `[@key]`
   citations only — the contract is `.claude/course-authoring/citations.md`. CI
   (check-indexes.R check 8) fails any citation that doesn't resolve.
+- **Topics:** every NEW foundation module (`meta.dcf` `Topic:`) and knowledge
+  concept page (frontmatter `topic:`) carries one slug from the controlled
+  vocabulary `.claude/course-authoring/topics.dcf` (record order there = display
+  order). Topic-grouped sidebars/indexes + enforcement are issue #125; write the
+  field now regardless.
 - **R packages:** the setup chunk in each template auto-installs into renv. If you
   added a package, run `Rscript -e 'renv::snapshot()'` before finishing so
   `renv.lock` stays true.

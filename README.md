@@ -82,11 +82,12 @@ a written request (`logistic-regression`, from
 |---|---|
 | `foundations/` | Shared, reusable building-block modules (learn once, reuse across courses) |
 | `courses/` | One folder per generated course (each ends in a cumulative capstone module) |
-| `source-papers/` | Where you drop papers to build courses from |
+| `source-papers/` | Where you drop papers/textbooks to build courses or the knowledge base from |
 | `source-materials/` | Non-paper course inputs (seed notebooks, written course requests) |
+| `knowledge/` | The citable knowledge base: concept pages, glossary, source records, `references.bib` |
 | `TEACHING.md` | The teaching contract every lesson/practice file follows |
-| `.claude/skills/` | Procedures: `create-course`, `update-course`, `add-problems` |
-| `.claude/agents/` | Agents: `course-creator`, `problem-creator`, `course-auditor` |
+| `.claude/skills/` | Procedures: `create-course`, `update-course`, `add-problems`, `port-library`, `survey-source`, `extract-knowledge`, `knowledge-gap-check` |
+| `.claude/agents/` | Agents: `course-creator`, `problem-creator`, `course-auditor`, `knowledge-extractor` |
 | `.claude/course-authoring/` | Shared templates, notation glossary, review checklist |
 | `CLAUDE.md` | Repo rules every Claude session follows |
 

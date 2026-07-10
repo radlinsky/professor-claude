@@ -125,7 +125,8 @@ Check on every change; act when files were added/renamed/removed:
   `course-structure.md`). The foundation render list + sidebar blocks are GENERATED —
   never hand-edit between the `# >>> generated` markers.
 - Foundation index/registration: a new foundation module gets a
-  `foundations/<slug>/meta.dcf` (`ShortName`, `Concepts`, `BuildsOn`, `UsedBy`); a
+  `foundations/<slug>/meta.dcf` (`ShortName`, `Topic` — one slug from
+  `.claude/course-authoring/topics.dcf` — `Concepts`, `BuildsOn`, `UsedBy`); a
   foundation whose "Used by" or "Concepts"/"Builds on" changed gets its `meta.dcf`
   edited. Then run `Rscript scripts/gen-indexes.R`, which regenerates the
   `foundations/README.md` table (Status preserved; new rows default `not started`) and
