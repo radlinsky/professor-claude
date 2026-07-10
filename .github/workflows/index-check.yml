@@ -16,19 +16,23 @@ on:
     paths:
       - 'foundations/**'
       - 'courses/**'
+      - 'knowledge/**'
       - '_quarto.yml'
       - 'scripts/check-indexes.R'
       - 'scripts/check-teaching-lint.R'
       - 'scripts/gen-indexes.R'
+      - 'scripts/gen-kb-index.R'
       - '.github/workflows/index-check.yml'
   pull_request:
     paths:
       - 'foundations/**'
       - 'courses/**'
+      - 'knowledge/**'
       - '_quarto.yml'
       - 'scripts/check-indexes.R'
       - 'scripts/check-teaching-lint.R'
       - 'scripts/gen-indexes.R'
+      - 'scripts/gen-kb-index.R'
       - '.github/workflows/index-check.yml'
 
 # Keep only the latest run per ref; drop superseded ones.
@@ -56,6 +60,12 @@ jobs:
         # markers) or added a foundation module without regenerating. Fix: run
         # `Rscript scripts/gen-indexes.R` and commit the result.
         run: Rscript scripts/gen-indexes.R --check
+
+      - name: Generated-index drift check (knowledge blocks match knowledge/ pages)
+        # Same contract for the knowledge base: fails if a PR hand-edited a knowledge
+        # sentinel block or changed knowledge/ pages without regenerating. Fix: run
+        # `Rscript scripts/gen-kb-index.R` and commit the result.
+        run: Rscript scripts/gen-kb-index.R --check
 
       - name: Index-consistency check (foundation<->course links, Used-by, Status)
         run: Rscript scripts/check-indexes.R

@@ -63,7 +63,11 @@ pushing.
 1. `project: render:` — the flat list of files to render (no nesting; independent
    of the sidebar).
 2. `website: sidebar: contents:` — under a `section:` for the course (or the
-   `"Foundations"` section for a new foundation module), in learning order. **Each
+   `"Foundations"` section for a new foundation module), in learning order. Insert a
+   new course's `section:` AFTER the existing course sections but BEFORE the
+   `# >>> generated: knowledge sidebar` markers at the bottom of `contents:` — that
+   region (the "Knowledge base" section) is machine-owned by
+   `Rscript scripts/gen-kb-index.R`, same rule as the foundation markers. **Each
    module is its own nested `section:`** that groups the module's lesson and
    practice one level below it, so practice reads as part of its module rather than
    a peer of the whole course. The lesson/practice are `text:`/`href:` entries

@@ -5,6 +5,11 @@ Goal: give the learner 2–4 REAL, working, well-matched external resources per 
 posts/interactive demos). A dead or hallucinated link destroys trust in the whole
 course. Follow this procedure exactly. (Audited by content-review-checklist check 19.)
 
+Division of labor with citations: `resources.md` is learner-facing curation ("watch
+this video after the lesson"); scholarly provenance ("this claim comes from here")
+is `knowledge/references.bib` + bracketed `[@key]` citations per
+`.claude/course-authoring/citations.md`. One work may legitimately appear in both.
+
 ## Non-negotiable rules
 
 1. **Every URL must be WebFetch-verified in the current session** before it is

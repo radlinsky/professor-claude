@@ -2,9 +2,10 @@ name: license-check
 
 # Backstop for issue #12: every course must record a source-license verdict so
 # copyrighted / non-open material can't be built on silently. The real check is the
-# intake gate in the create-course / port-library skills (a human confirms flags);
-# this only asserts, mechanically, that each course syllabus carries a non-empty
-# `**Source license:**` line — catching any build that reached a PR without one.
+# intake gate in the create-course / port-library / extract-knowledge skills (a human
+# confirms flags); this only asserts, mechanically, that each course syllabus and each
+# knowledge source record carries a non-empty `**Source license:**` line — catching
+# any build that reached a PR without one.
 # See .claude/course-authoring/source-licensing.md.
 
 on:
@@ -12,10 +13,12 @@ on:
     branches: [main, develop]
     paths:
       - 'courses/**/syllabus.md'
+      - 'knowledge/sources/**'
       - '.github/workflows/license-check.yml'
   pull_request:
     paths:
       - 'courses/**/syllabus.md'
+      - 'knowledge/sources/**'
       - '.github/workflows/license-check.yml'
 
 jobs:
@@ -24,10 +27,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Every course syllabus records a source-license verdict
+      - name: Every course syllabus and knowledge source records a source-license verdict
         run: |
           fail=0
-          for f in courses/*/syllabus.md; do
+          for f in courses/*/syllabus.md knowledge/sources/*.md; do
             [ -e "$f" ] || continue
             verdict=$(grep -m1 '^\*\*Source license:\*\*' "$f" | sed 's/^\*\*Source license:\*\* *//')
             case "$verdict" in
@@ -39,10 +42,10 @@ jobs:
             esac
             # flagged / restrictive verdicts must carry the human-confirmation token
             case "$verdict" in
-              *[Ff]lag*)
+              *[Ff]lag*|*[Rr]estrict*)
                 case "$verdict" in
                   *"confirmed by human"*) ;;
-                  *) echo "::error file=$f::flagged verdict lacks 'confirmed by human YYYY-MM-DD' (got: '$verdict')"
+                  *) echo "::error file=$f::flagged/restrictive verdict lacks 'confirmed by human YYYY-MM-DD' (got: '$verdict')"
                      fail=1 ;;
                 esac ;;
             esac
