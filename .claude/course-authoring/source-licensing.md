@@ -14,6 +14,9 @@ rebuild it, or clone/analyze any repo:
 - `port-library` Phase P1 — for the library/paper/repo being rebuilt (highest risk:
   it re-implements real code). Resolve the upstream license *before* extracting the
   algorithm.
+- `extract-knowledge` Phase 1 (Intake) — for the PDF being ingested into the
+  knowledge base. Extraction paraphrases into published site pages, so the gate
+  applies before any body chapter is read.
 
 A concept with no external artifact (e.g. "teach me the Kalman filter" from general
 knowledge) has no source to license — record `n/a — no external source` and proceed.
@@ -78,7 +81,10 @@ Wait for explicit human confirmation before continuing.
 ## Record the verdict
 
 So a cleared source is not re-prompted on the next build, write one line into the
-course `syllabus.md`, right after the `**Source:**` line:
+course `syllabus.md`, right after the `**Source:**` line — and, for a source
+ingested into the knowledge base, the SAME line into its
+`knowledge/sources/<slug>.md` record (the kb-source-template has the slot;
+`license-check.yml` checks both locations):
 
 ```markdown
 **Source license:** <SPDX id or short description> — <OK | flagged, confirmed by human YYYY-MM-DD | n/a — no external source>

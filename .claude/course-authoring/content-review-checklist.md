@@ -226,6 +226,30 @@ re-render, and re-check.
     `loss-functions-and-optimization` and `partial-derivatives-and-the-gradient`
     already covered those exact concepts.
 
+22. **Citations resolve and follow the contract.**
+    Contract: `.claude/course-authoring/citations.md`. For every `[@key ...]`
+    citation in the audited files (and, when auditing knowledge pages, the whole
+    page): the key resolves to an entry in `knowledge/references.bib`; the form is
+    bracketed with a pinpoint where one is claimable (`[@key, §3.2]`, never bare
+    `@key` in prose); and any VERBATIM quote or formula from a source whose
+    `knowledge/sources/` record carries a FLAG verdict without the
+    `confirmed by human YYYY-MM-DD` token is a defect (paraphrase-with-citation is
+    fine; verbatim needs clearance — `source-licensing.md`). A dangling key, a bare
+    `@key`, or an uncleared verbatim quote is a defect. Skip this check entirely if
+    `knowledge/` does not exist.
+
+23. **No contradiction with the knowledge base.**
+    For each concept the audited lesson teaches that HAS a `knowledge/concepts/`
+    page (check `knowledge/README.md`), compare the lesson's claims against the
+    page's cited claims: definitions, key results, notation conventions, and
+    trap/misconception statements. A lesson claim that contradicts a cited KB claim
+    is a defect — quote both sides (if the KB side's citation looks wrong, report
+    that instead of assuming the lesson is at fault). A concept ABSENT from the KB
+    is NOT a defect: the knowledge base is incremental, and absence means "not
+    extracted yet". Deliberate simplification at this learner's level is not a
+    contradiction — flag only claims a source refutes. Skip this check entirely if
+    `knowledge/` does not exist or has no concept pages.
+
 ## Reporting
 
 List each defect as: file path, exact offending quote, why it is wrong, minimal fix.

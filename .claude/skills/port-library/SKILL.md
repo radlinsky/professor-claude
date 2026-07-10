@@ -50,6 +50,11 @@ on. Phases P1–P3 are this skill's job; P4 runs the `create-course` pipeline.
    (`gh api repos/{owner}/{repo}/license`, CRAN `DESCRIPTION`, PyPI metadata) *before*
    you read the implementation to rebuild it. Flag anything not clearly open and get
    explicit human confirmation before continuing; note the verdict for the syllabus.
+1.6. **Consult the knowledge base** (skip silently if `knowledge/` has no concept
+   pages): check `knowledge/README.md` for concept pages covering the method's
+   ingredients — their Prerequisites edges, misconceptions, and notation variants
+   feed the create-course phases you'll run in P4, and any sourced result reused in
+   a lesson is cited per `.claude/course-authoring/citations.md`.
 2. Write the algorithm as a **numbered list of update steps** in your own words — the
    thing the course will rebuild. Be concrete: each step is an assignment or an update
    rule, not a paragraph.
@@ -68,10 +73,10 @@ on. Phases P1–P3 are this skill's job; P4 runs the `create-course` pipeline.
    from-scratch rebuild must be **base R** so it runs in the browser regardless.
 
 **GATE P1:** ☐ Source license checked (upstream resolved before reading the code);
-any flag confirmed by the human; verdict noted for the syllabus. ☐ The algorithm is
-written as concrete numbered steps. ☐ You know which validation tier the source
-supports, and why. ☐ You know what (if anything) the real reference needs to run, and
-in which language.
+any flag confirmed by the human; verdict noted for the syllabus. ☐ KB consulted, or
+absence/emptiness recorded. ☐ The algorithm is written as concrete numbered steps.
+☐ You know which validation tier the source supports, and why. ☐ You know what (if
+anything) the real reference needs to run, and in which language.
 
 ---
 
