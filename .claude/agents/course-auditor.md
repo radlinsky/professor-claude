@@ -34,6 +34,12 @@ arithmetic, `ls` to check links resolve) — never for commands that modify anyt
    (the live self-check cell, the stated validation tier, the static real-library
    comparison). You may run `Rscript equivalence/check.R` read-only to confirm the
    fixtures still pass, but you cannot run `{webr}` cells.
+6. Only if `knowledge/` exists (skip silently when absent): `knowledge/README.md` —
+   the knowledge-base index — plus the `knowledge/concepts/` pages matching the
+   audited lessons' topics and `.claude/course-authoring/citations.md`. These back
+   checklist checks 22 (citations resolve and follow the contract) and 23 (no
+   contradiction with a cited KB claim; a concept absent from the KB is NOT a
+   defect — the KB is incremental).
 
 You may run `Rscript scripts/check-teaching-lint.R` read-only (banned condescension
 words, missing `fig-alt` on figure chunks). It scans the whole repo, so treat only
@@ -76,7 +82,15 @@ module folder, also audit each module's `resources.md` (checklist check 19).
    audit, flag any concept taught from scratch (its own worked example, intuition,
    or multi-paragraph "refresher") that an existing foundation already covers —
    the lesson should build on that foundation, not reteach it.
-6. Note, separately from defects, anything legacy: sections the current templates
+6. Cross-check against the knowledge base (checklist checks 22–23), when
+   `knowledge/` exists. For each audited file: verify every `[@key]` resolves in
+   `knowledge/references.bib` (Grep for the key) and follows `citations.md`; then,
+   for each concept the lesson teaches that has a `knowledge/concepts/` page,
+   compare the lesson's claims against the page's cited claims and flag
+   contradictions with BOTH quotes. Absence from the KB is never a defect; when a
+   KB claim itself looks unsupported by its citation, report that as the finding
+   instead of faulting the lesson.
+7. Note, separately from defects, anything legacy: sections the current templates
    require that an older file predates (e.g. no Warm-up in a pre-contract lesson).
    These are "retrofit candidates", not author errors.
 

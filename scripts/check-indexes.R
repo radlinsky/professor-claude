@@ -18,8 +18,14 @@
 #   4. every Mermaid :::foundation node label starts with a real foundation slug
 #   5. each foundation's README "Builds on" cell matches its lesson.qmd "Builds on:" line
 #   6. Used-by <-> syllabus-prereq bidirectionality (reading-math-notation special-cased)
-#   7. every *.qmd/*.md page on disk under foundations/ and courses/ (except README.md)
-#      appears in _quarto.yml's render list (same rule as render.yml's bash guard)
+#   7. every *.qmd/*.md page on disk under foundations/, courses/ and knowledge/
+#      (except README.md) appears in _quarto.yml's render list (same rule as
+#      render.yml's bash guard)
+#   8. every [@key] citation under knowledge/, courses/, foundations/ resolves to an
+#      entry in knowledge/references.bib, and every knowledge/sources/<slug>.md
+#      declares the Bib key its filename implies (see citations.md)
+#   9. every knowledge/concepts/<slug>.md link resolves to a real concept page
+#  10. every knowledge/concepts/ page carries at least one citation
 #
 # Run from the repo root: Rscript scripts/check-indexes.R
 
@@ -254,26 +260,134 @@ passed(before, "Used-by and syllabus prereqs are consistent")
 
 ## ---- Check 7: every on-disk page is registered in _quarto.yml render list -----------
 # Same rule as render.yml 'Check every page is registered' — keep in sync.
-cat("\n== Check 7: every foundations/ & courses/ page is in the _quarto.yml render list ==\n")
+cat("\n== Check 7: every foundations/, courses/ & knowledge/ page is in the _quarto.yml render list ==\n")
 before <- checkpoint()
-# On-disk pages: every *.qmd/*.md under foundations/ and courses/ except README.md
-# (README.md files are GitHub-facing repo indexes, not rendered site pages).
-disk_pages <- list.files(c("foundations", "courses"), pattern = "\\.(qmd|md)$",
+# On-disk pages: every *.qmd/*.md under foundations/, courses/ and knowledge/ except
+# README.md (README.md files are GitHub-facing repo indexes, not rendered site pages).
+disk_pages <- list.files(c("foundations", "courses", "knowledge"), pattern = "\\.(qmd|md)$",
                          recursive = TRUE, full.names = TRUE)
 disk_pages <- disk_pages[basename(disk_pages) != "README.md"]
 # Registered pages: extract the path token right after "- ", exactly as render.yml's
-# `grep -oP '(?<=- )(foundations|courses)/\S+\.(qmd|md)'` does. The lookbehind excludes
-# sidebar `href:` lines, and `\S+` stops at whitespace so a trailing YAML comment after
-# the path is tolerated (matching CI). PCRE lookbehind needs perl = TRUE.
+# `grep -oP '(?<=- )(foundations|courses|knowledge)/\S+\.(qmd|md)'` does. The lookbehind
+# excludes sidebar `href:` lines, and `\S+` stops at whitespace so a trailing YAML comment
+# after the path is tolerated (matching CI). PCRE lookbehind needs perl = TRUE.
 quarto_lines <- read_lines("_quarto.yml")
 registered <- unique(regmatches(quarto_lines,
-  regexpr("(?<=- )(foundations|courses)/\\S+\\.(qmd|md)", quarto_lines, perl = TRUE)))
+  regexpr("(?<=- )(foundations|courses|knowledge)/\\S+\\.(qmd|md)", quarto_lines, perl = TRUE)))
 for (p in disk_pages) {
   if (!(p %in% registered)) {
     err("_quarto.yml", sprintf("page '%s' exists on disk but is not in the render list", p))
   }
 }
 passed(before, "every on-disk page is registered in _quarto.yml")
+
+## ---- Checks 8-10: knowledge-base integrity (citations.md + knowledge-base.md) --------
+# Shared helpers. Fenced code blocks are excluded so `[@key]` examples in code listings
+# never count as citations (same rule as scripts/gen-kb-index.R).
+BIB <- "knowledge/references.bib"
+code_mask <- function(lines) {                               # TRUE = prose line
+  fenced <- FALSE
+  vapply(lines, function(l) {
+    if (grepl("^\\s*(```|~~~)", l)) { fenced <<- !fenced; return(FALSE) }
+    !fenced
+  }, logical(1), USE.NAMES = FALSE)
+}
+kb_scan_files <- list.files(c("knowledge", "foundations", "courses"),
+                            pattern = "\\.(qmd|md)$", recursive = TRUE, full.names = TRUE)
+concept_pages <- list.files("knowledge/concepts", pattern = "\\.md$", full.names = TRUE)
+source_pages  <- list.files("knowledge/sources",  pattern = "\\.md$", full.names = TRUE)
+
+## ---- Check 8: every [@key] citation resolves in knowledge/references.bib -------------
+cat("\n== Check 8: [@key] citations resolve in knowledge/references.bib ==\n")
+before <- checkpoint()
+bib_keys <- character(0)
+if (file.exists(BIB)) {
+  m <- regmatches(read_lines(BIB), regexpr("^@\\w+\\{[^,]+,", read_lines(BIB)))
+  bib_keys <- sub(",$", "", sub("^@\\w+\\{", "", m))
+} else if (length(concept_pages) || length(source_pages)) {
+  err(BIB, "knowledge pages exist but the bibliography file is missing")
+}
+for (f in kb_scan_files) {
+  lines <- read_lines(f)
+  prose <- code_mask(lines)
+  for (i in seq_along(lines)) {
+    if (!prose[i]) next
+    brackets <- regmatches(lines[i], gregexpr("\\[@[^]]*\\]", lines[i]))[[1]]
+    for (b in brackets) {
+      keys <- sub("^@", "", unlist(regmatches(b, gregexpr("@[a-zA-Z][a-zA-Z0-9]*", b))))
+      for (k in keys) {
+        if (!(k %in% bib_keys)) {
+          err(f, sprintf("citation [@%s] has no entry in %s", k, BIB), i)
+        }
+      }
+    }
+  }
+}
+# Each source record's declared Bib key must exist in the .bib AND match the key its
+# filename implies: YYYY-firstauthor-shortname -> firstauthorYYYYshortname (citations.md).
+for (f in source_pages) {
+  slug <- sub("\\.md$", "", basename(f))
+  lines <- read_lines(f)
+  ki <- grep("^\\*\\*Bib key:\\*\\*", lines)
+  if (!length(ki)) { err(f, "source record is missing its '**Bib key:**' line"); next }
+  declared <- trimws(sub("^\\*\\*Bib key:\\*\\*", "", lines[ki[1]]))
+  if (!(declared %in% bib_keys)) {
+    err(f, sprintf("declared Bib key '%s' has no entry in %s", declared, BIB), ki[1])
+  }
+  if (grepl("^\\d{4}-[a-z]+-[a-z0-9-]+$", slug)) {
+    p <- strsplit(slug, "-")[[1]]
+    expected <- paste0(p[2], p[1], paste(p[-(1:2)], collapse = ""))
+    if (declared != expected) {
+      err(f, sprintf("Bib key '%s' does not match the key implied by the filename ('%s' -> '%s')",
+                     declared, slug, expected), ki[1])
+    }
+  } else {
+    err(f, sprintf("source record filename '%s' is not YYYY-firstauthor-shortname", slug))
+  }
+}
+passed(before, "all citations resolve and source-record bib keys are consistent")
+
+## ---- Check 9: knowledge/concepts/ links resolve ---------------------------------------
+cat("\n== Check 9: knowledge concept links resolve ==\n")
+before <- checkpoint()
+concept_slugs_kb <- sub("\\.md$", "", basename(concept_pages))
+for (f in kb_scan_files) {
+  lines <- read_lines(f)
+  for (i in seq_along(lines)) {
+    # any path spelling of a concept page, from any tree
+    hits <- regmatches(lines[i], gregexpr("knowledge/concepts/[a-z0-9-]+\\.md", lines[i]))[[1]]
+    # sibling links inside concept pages themselves: [text](<slug>.md)
+    # (length guards: paste0 recycles a zero-length vector as "", minting a phantom hit)
+    if (dirname(f) == "knowledge/concepts") {
+      rel <- regmatches(lines[i], gregexpr("\\]\\([a-z0-9-]+\\.md\\)", lines[i]))[[1]]
+      if (length(rel)) hits <- c(hits, paste0("knowledge/concepts/", sub("^\\]\\(", "", sub("\\)$", "", rel))))
+    }
+    # links from knowledge/ root pages: [text](concepts/<slug>.md)
+    if (f %in% c("knowledge/glossary.md", "knowledge/README.md")) {
+      rel <- regmatches(lines[i], gregexpr("\\]\\(concepts/[a-z0-9-]+\\.md\\)", lines[i]))[[1]]
+      if (length(rel)) hits <- c(hits, paste0("knowledge/", sub("^\\]\\(", "", sub("\\)$", "", rel))))
+    }
+    for (h in unique(hits)) {
+      slug <- sub("\\.md$", "", basename(h))
+      if (!(slug %in% concept_slugs_kb)) {
+        err(f, sprintf("links to knowledge concept '%s' which does not exist", slug), i)
+      }
+    }
+  }
+}
+passed(before, "all knowledge concept links resolve")
+
+## ---- Check 10: every concept page carries at least one citation -----------------------
+cat("\n== Check 10: every knowledge concept page is cited ==\n")
+before <- checkpoint()
+for (f in concept_pages) {
+  lines <- read_lines(f)
+  prose_lines <- lines[code_mask(lines)]
+  if (!any(grepl("\\[@[a-zA-Z]", prose_lines))) {
+    err(f, "concept page has no [@key] citation (every claim must be cited — knowledge-base.md)")
+  }
+}
+passed(before, "every knowledge concept page carries a citation")
 
 ## ---- done ---------------------------------------------------------------------------
 cat("\n")

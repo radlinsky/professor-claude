@@ -59,8 +59,10 @@ _freeze/
 # Stray in-place Quarto render output (a partial `quarto render <file>` leaks these
 # into the source tree; a full render writes to _site/ which is ignored above)
 /site_libs/
+/index.html
 foundations/**/*.html
 courses/**/*.html
+knowledge/**/*.html
 
 # Equivalence harness: heavy reference environments (separate R lib, Python venv,
 # compiled binaries). Regenerable via equivalence/generate/regenerate-all.sh;

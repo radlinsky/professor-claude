@@ -62,12 +62,22 @@ do not "come back to it later".
    before quoting any formula or mining any seed. Flag anything not clearly open and
    get explicit human confirmation before continuing; note the verdict for the
    syllabus (`**Source license:**` line).
+7. **Consult the knowledge base** (skip silently if `knowledge/` has no concept
+   pages). Open `knowledge/README.md`; for every target-list item with a
+   `knowledge/concepts/` page, read that page now and mine it: misconceptions →
+   Common-traps candidates, teaching insights/analogies → intuition sections,
+   notation variants → pronunciation tables, Prerequisites links → Phase 2 edges.
+   Cite `[@key]` per `.claude/course-authoring/citations.md` wherever a lesson
+   reuses a sourced result. If the input is a paper NOT yet in
+   `knowledge/sources/`, offer the user an extract-knowledge pass first — it makes
+   this and every future build richer — but it is optional, never a gate.
 
 **GATE 1:** ☐ You can state, in one sentence, what the learner will be able to do
 after the course (e.g., "read section 3.2 of the paper and explain every symbol in
 equations 4–7"). ☐ You have the explicit target list. ☐ If a COURSE-REQUEST exists,
 its constraints and seeds are captured in your notes. ☐ Source license checked; any
-flag confirmed by the human; verdict noted for the syllabus.
+flag confirmed by the human; verdict noted for the syllabus. ☐ Knowledge base
+consulted (or noted absent/empty).
 
 ---
 
@@ -81,6 +91,9 @@ baseline up to the target.
    from — nothing below it needs teaching, nothing above it may be assumed.
 2. For EACH item on the target list, walk backwards, asking: *"What must you already
    understand to get this?"* Recurse until every chain bottoms out at the baseline.
+   Where a target has a `knowledge/concepts/` page (Phase 1 step 7), walk its
+   Prerequisites links alongside your own decomposition — the KB records edges the
+   sources considered load-bearing; a KB edge you'd have missed is a real edge.
    - Formal notation itself counts as a prerequisite (e.g., Σ notation, subscripts,
      conditional-probability notation, matrix notation).
    - Every algebra/calculus manipulation used by a derivation is its own explicit

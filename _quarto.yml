@@ -142,6 +142,8 @@ project:
     - courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/lesson.qmd
     - courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/practice.qmd
     - courses/multiple-regression/resources.md
+    # >>> generated: knowledge render list (scripts/gen-kb-index.R) — do not edit by hand
+    # <<< generated: knowledge render list
 
 website:
   title: "Professor Claude"
@@ -525,6 +527,8 @@ website:
                 href: courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/practice.qmd
           - text: "Resources"
             href: courses/multiple-regression/resources.md
+      # >>> generated: knowledge sidebar (scripts/gen-kb-index.R) — do not edit by hand
+      # <<< generated: knowledge sidebar
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that
 # lessons can host runnable in-browser WebR chunks with a single, uniform theme.
@@ -548,3 +552,10 @@ format:
 execute:
   freeze: auto
   warning: false
+
+# Scholarly citations: ONE project-wide BibTeX file, owned by the knowledge base.
+# Pages with no [@key] citations render exactly as before; pages that cite get a
+# References section appended automatically. Convention + where citations may
+# appear: .claude/course-authoring/citations.md
+bibliography: knowledge/references.bib
+link-citations: true

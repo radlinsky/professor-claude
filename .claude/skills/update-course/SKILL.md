@@ -71,6 +71,13 @@ change together:
    deliberately shared repo-wide).
 4. **Cross-references** — links from syllabus, roadmap, other modules' "Builds on"/
    "Where this goes next", and README index rows that describe the content.
+5. **Knowledge base** (skip if `knowledge/` has no concept pages) — grep
+   `knowledge/` for the concept, number, or claim you are changing. If your fix
+   CONTRADICTS a cited KB claim, verify the KB side's citation before proceeding:
+   the KB wins only if its citation actually supports it — otherwise flag both to
+   the user (the KB entry may need an extract-knowledge re-verification). Lessons
+   citing `[@key]`s follow `.claude/course-authoring/citations.md`; a lesson edit
+   must not orphan or misattribute a citation.
 
 **GATE 2:** ☐ A written list of every file that must change together, with why.
 ☐ No planned slug change without user approval.
@@ -132,6 +139,10 @@ Check on every change; act when files were added/renamed/removed:
 - If a changed or added module newly links a foundation module, append this course to
   that foundation's `UsedBy` field in its `meta.dcf` and re-run the generator (never
   touch Status).
+- If the edit touched anything under `knowledge/` (a concept page, glossary row, or
+  source record), run `Rscript scripts/gen-kb-index.R` and verify with
+  `Rscript scripts/gen-kb-index.R --check` (exit 0) — its blocks in `_quarto.yml`
+  and `knowledge/README.md` are generated, same rule as the foundation blocks.
 
 **GATE 4:** ☐ `_quarto.yml`, both READMEs, syllabus, and roadmap all agree with the
 new file reality (skip-checked even for edits that "shouldn't" need it).
