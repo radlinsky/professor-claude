@@ -4,11 +4,12 @@
 # The foundation render list + sidebar in the root `_quarto.yml` and the foundation
 # table in `foundations/README.md` used to be hand-edited on every new module, so
 # parallel PRs collided at the same append point. This script makes those three
-# regions GENERATED, SORTED BY SLUG, from per-module metadata (foundations/<slug>/
-# meta.dcf). Different modules then touch non-adjacent lines and git auto-merges.
+# regions GENERATED from per-module metadata (foundations/<slug>/meta.dcf), grouped
+# by topic (topics.dcf file order), then sorted by slug within each topic.
 #
 # Source of truth per module: foundations/<slug>/meta.dcf (base-R read.dcf format):
 #   ShortName: sidebar section label
+#   Topic:     slug from .claude/course-authoring/topics.dcf (required)
 #   Concepts:  README "Concepts covered" cell (continuation lines indented 1 space)
 #   BuildsOn:  README "Builds on" cell, verbatim (or "—" for a root)
 #   UsedBy:    README "Used by" cell, verbatim (or "—" if none)
@@ -28,10 +29,11 @@
 args <- commandArgs(trailingOnly = TRUE)
 check_mode <- "--check" %in% args
 
-QUARTO   <- "_quarto.yml"
-README   <- "foundations/README.md"
+QUARTO     <- "_quarto.yml"
+README     <- "foundations/README.md"
+TOPICS_DCF <- ".claude/course-authoring/topics.dcf"
 
-REQUIRED_FIELDS <- c("ShortName", "Concepts", "BuildsOn", "UsedBy")
+REQUIRED_FIELDS <- c("ShortName", "Topic", "Concepts", "BuildsOn", "UsedBy")
 
 # ---- marker strings (must match what the files carry) --------------------------------
 M_RENDER_OPEN  <- "    # >>> generated: foundation render list (scripts/gen-indexes.R) — do not edit by hand"
@@ -46,6 +48,15 @@ M_TABLE_CLOSE <- "<!-- <<< generated: foundation table -->"
 # equal under identical() in --check mode, and writes stay deterministic.
 read_lines  <- function(path) enc2utf8(readLines(path, warn = FALSE))
 die <- function(...) { cat("gen-indexes: ", sprintf(...), "\n", sep = ""); quit(status = 1L) }
+
+# ---- load topic vocabulary (file order = display order) ---------------------------------
+if (!file.exists(TOPICS_DCF)) die("topic vocabulary missing: %s", TOPICS_DCF)
+topics_raw <- grep("^#", readLines(TOPICS_DCF, warn = FALSE), value = TRUE, invert = TRUE)
+topics_dcf <- read.dcf(textConnection(topics_raw))
+topic_slugs <- trimws(topics_dcf[, "Slug"])
+topic_names <- trimws(topics_dcf[, "DisplayName"])
+names(topic_names) <- topic_slugs
+if (!length(topic_slugs)) die("no topics found in %s", TOPICS_DCF)
 
 # ---- discover slugs = foundations/ subdirs holding a lesson.qmd, sorted ascending ----
 found_dirs <- list.dirs("foundations", full.names = FALSE, recursive = FALSE)
@@ -77,13 +88,24 @@ for (s in slugs) {
       die("%s is missing required field '%s'", mf, f)
     }
   }
+  topic <- trimws(d[1, "Topic"])
+  if (!(topic %in% topic_slugs))
+    die("%s: Topic '%s' is not in the vocabulary (%s)", mf, topic, TOPICS_DCF)
   meta[[s]] <- list(
     ShortName = trimws(d[1, "ShortName"]),
+    Topic     = topic,
     Concepts  = trimws(d[1, "Concepts"]),
     BuildsOn  = trimws(d[1, "BuildsOn"]),
     UsedBy    = trimws(d[1, "UsedBy"])
   )
 }
+
+# ---- order slugs: topic-major (topics.dcf file order), alpha within each topic --------
+ordered_slugs <- unlist(lapply(topic_slugs, function(t) {
+  sort(slugs[vapply(slugs, function(s) meta[[s]]$Topic == t, logical(1))])
+}))
+if (!setequal(ordered_slugs, slugs))
+  die("topic ordering lost slugs — check for unknown topics")
 
 # ---- helper: locate a marked region, return the index range BETWEEN the markers ------
 # Returns list(open=i, close=j) of the marker line indices; body is (open+1):(close-1).
@@ -106,7 +128,7 @@ splice <- function(lines, reg, body) {
 
 # ---- preserve Status: parse current README table body for each slug's Status cell ----
 # The README table body is between the table markers. Each row:
-#   | [<slug>](<slug>/lesson.qmd) | Concepts | Builds on | Used by | Status |
+#   | [<slug>](<slug>/lesson.qmd) | Topic | Concepts | Builds on | Used by | Status |
 current_status <- function() {
   lines <- read_lines(README)
   reg <- find_region(lines, M_TABLE_OPEN, M_TABLE_CLOSE, README)
@@ -116,9 +138,9 @@ current_status <- function() {
     if (!grepl("^\\|", r)) next
     cells <- strsplit(sub("^\\|", "", sub("\\|\\s*$", "", r)), "\\|", fixed = FALSE)[[1]]
     cells <- trimws(cells)
-    if (length(cells) < 5) next
+    if (length(cells) < 4) next
     slug <- sub("^.*\\[([a-z0-9-]+)\\].*$", "\\1", cells[1])
-    st[[slug]] <- cells[length(cells)]   # Status is the last cell
+    st[[slug]] <- cells[length(cells)]   # Status is always the last cell
   }
   st
 }
@@ -143,29 +165,39 @@ yaml_dq <- function(v) {
   gsub('"', '\\"', v, fixed = TRUE)
 }
 
-# ---- build the three generated bodies (sorted by slug) -------------------------------
-table_body <- vapply(slugs, function(s) {
+# ---- build the three generated bodies (topic-major, alpha within topic) ---------------
+table_body <- vapply(ordered_slugs, function(s) {
   m <- meta[[s]]
-  sprintf("| [%s](%s/lesson.qmd) | %s | %s | %s | %s |",
-          s, s, md_cell(m$Concepts), md_cell(m$BuildsOn), md_cell(m$UsedBy), status_for(s))
+  sprintf("| [%s](%s/lesson.qmd) | %s | %s | %s | %s | %s |",
+          s, s, md_cell(topic_names[m$Topic]),
+          md_cell(m$Concepts), md_cell(m$BuildsOn), md_cell(m$UsedBy), status_for(s))
 }, character(1))
 
-render_body <- unlist(lapply(slugs, function(s) c(
+render_body <- unlist(lapply(ordered_slugs, function(s) c(
   sprintf("    - foundations/%s/lesson.qmd", s),
   sprintf("    - foundations/%s/practice.qmd", s),
   sprintf("    - foundations/%s/resources.md", s)
 )), use.names = FALSE)
 
-sidebar_body <- unlist(lapply(slugs, function(s) c(
-  sprintf('          - section: "%s"', yaml_dq(meta[[s]]$ShortName)),
-  "            contents:",
-  '              - text: "Lesson"',
-  sprintf("                href: foundations/%s/lesson.qmd", s),
-  '              - text: "Practice"',
-  sprintf("                href: foundations/%s/practice.qmd", s),
-  '              - text: "Resources"',
-  sprintf("                href: foundations/%s/resources.md", s)
-)), use.names = FALSE)
+sidebar_body <- unlist(lapply(topic_slugs, function(t) {
+  t_slugs <- sort(ordered_slugs[vapply(ordered_slugs,
+    function(s) meta[[s]]$Topic == t, logical(1))])
+  if (!length(t_slugs)) return(character(0))
+  c(
+    sprintf('          - section: "%s"', yaml_dq(topic_names[t])),
+    "            contents:",
+    unlist(lapply(t_slugs, function(s) c(
+      sprintf('              - section: "%s"', yaml_dq(meta[[s]]$ShortName)),
+      "                contents:",
+      '                  - text: "Lesson"',
+      sprintf("                    href: foundations/%s/lesson.qmd", s),
+      '                  - text: "Practice"',
+      sprintf("                    href: foundations/%s/practice.qmd", s),
+      '                  - text: "Resources"',
+      sprintf("                    href: foundations/%s/resources.md", s)
+    )), use.names = FALSE)
+  )
+}), use.names = FALSE)
 
 # ---- assemble new file contents ------------------------------------------------------
 regen_readme <- function() {

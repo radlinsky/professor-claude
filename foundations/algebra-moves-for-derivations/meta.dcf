@@ -1,4 +1,5 @@
 ShortName: Algebra moves for derivations
+Topic: arithmetic-and-algebra
 Concepts: Expanding and factoring $(a+b)^2$ (two directions of one move), collecting like terms / regrouping to isolate, clean substitution, dividing both sides / cancelling a common factor (and why never by a possibly-zero factor), two more sum moves beyond the basic three (splitting a term-by-term sum, reindexing/shifting the counter), completing the square by name, and reading a multi-line derivation as one named move per line
 BuildsOn: [vectors-and-summation](vectors-and-summation/lesson.qmd), [reading-math-notation](reading-math-notation/lesson.qmd)
 UsedBy: —

@@ -1,4 +1,5 @@
 ShortName: Quadratic forms & the chi-square statistic
+Topic: linear-algebra
 Concepts: A quadratic form $\mathbf{x}^\top A\,\mathbf{x}$ as "sandwich a matrix between a
  vector and itself to get one number"; the standardised squared distance
  $\mathbf{x}^\top V^{-1}\mathbf{x}$ (Mahalanobis distance) that divides out spread and

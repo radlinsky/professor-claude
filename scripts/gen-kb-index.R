@@ -24,8 +24,9 @@
 args <- commandArgs(trailingOnly = TRUE)
 check_mode <- "--check" %in% args
 
-QUARTO <- "_quarto.yml"
-README <- "knowledge/README.md"
+QUARTO     <- "_quarto.yml"
+README     <- "knowledge/README.md"
+TOPICS_DCF <- ".claude/course-authoring/topics.dcf"
 
 # ---- marker strings (must match what the files carry) --------------------------------
 M_RENDER_OPEN  <- "    # >>> generated: knowledge render list (scripts/gen-kb-index.R) — do not edit by hand"
@@ -39,6 +40,15 @@ M_SOURCES_CLOSE <- "<!-- <<< generated: knowledge sources table -->"
 
 read_lines <- function(path) enc2utf8(readLines(path, warn = FALSE))
 die <- function(...) { cat("gen-kb-index: ", sprintf(...), "\n", sep = ""); quit(status = 1L) }
+
+# ---- load topic vocabulary (file order = display order) ---------------------------------
+if (!file.exists(TOPICS_DCF)) die("topic vocabulary missing: %s", TOPICS_DCF)
+topics_raw <- grep("^#", readLines(TOPICS_DCF, warn = FALSE), value = TRUE, invert = TRUE)
+topics_dcf <- read.dcf(textConnection(topics_raw))
+topic_slugs <- trimws(topics_dcf[, "Slug"])
+topic_names <- trimws(topics_dcf[, "DisplayName"])
+names(topic_names) <- topic_slugs
+if (!length(topic_slugs)) die("no topics found in %s", TOPICS_DCF)
 
 # ---- discover pages -------------------------------------------------------------------
 kb_slugs <- function(dir) {
@@ -64,6 +74,23 @@ page_title <- function(path) {
   t <- sub('^"(.*)"$', "\\1", t)
   t <- sub("^'(.*)'$", "\\1", t)
   if (!nzchar(t)) die("%s: empty title", path)
+  t
+}
+
+# YAML `topic:` from frontmatter. Validated against the topic vocabulary.
+page_topic <- function(path) {
+  lines <- read_lines(path)
+  if (!length(lines) || lines[1] != "---") die("%s: missing YAML frontmatter", path)
+  close_i <- which(lines[-1] == "---")[1]
+  if (!length(close_i) || is.na(close_i)) die("%s: unterminated YAML frontmatter", path)
+  fm <- lines[2:close_i]
+  ti <- grep("^topic:", fm, value = TRUE)
+  if (length(ti) != 1L) die("%s: expected exactly one `topic:` in frontmatter", path)
+  t <- trimws(sub("^topic:", "", ti))
+  t <- sub('^"(.*)"$', "\\1", t)
+  t <- sub("^'(.*)'$", "\\1", t)
+  if (!nzchar(t)) die("%s: empty topic", path)
+  if (!(t %in% topic_slugs)) die("%s: topic '%s' is not in the vocabulary (%s)", path, t, TOPICS_DCF)
   t
 }
 
@@ -148,7 +175,8 @@ yaml_dq <- function(v) {
 # ---- collect page metadata -------------------------------------------------------------
 concepts <- lapply(concept_slugs, function(s) {
   path <- file.path("knowledge/concepts", paste0(s, ".md"))
-  list(slug = s, title = page_title(path), keys = cited_keys(path), refs = referencing_files(s))
+  list(slug = s, title = page_title(path), topic = page_topic(path),
+       keys = cited_keys(path), refs = referencing_files(s))
 })
 sources <- lapply(source_slugs, function(s) {
   path <- file.path("knowledge/sources", paste0(s, ".md"))
@@ -159,16 +187,23 @@ sources <- lapply(source_slugs, function(s) {
 })
 glossary_title <- if (has_glossary) page_title("knowledge/glossary.md") else NULL
 
+# ---- order concepts: topic-major (topics.dcf file order), alpha within topic -----------
+if (length(concepts)) {
+  concept_topics <- vapply(concepts, function(c) c$topic, character(1))
+  concept_order <- order(match(concept_topics, topic_slugs),
+                         vapply(concepts, function(c) c$slug, character(1)))
+  concepts <- concepts[concept_order]
+}
+
 # ---- build the generated bodies ---------------------------------------------------------
-# Render list: glossary first, then concepts, then sources.
+# Render list: glossary first, then concepts (topic-major), then sources.
 render_body <- c(
   if (has_glossary) "    - knowledge/glossary.md",
   vapply(concepts, function(c) sprintf("    - knowledge/concepts/%s.md", c$slug), character(1)),
   vapply(sources,  function(s) sprintf("    - knowledge/sources/%s.md",  s$slug), character(1))
 )
 
-# Sidebar: ONE "Knowledge base" section (emitted only when the KB has pages, so an
-# empty KB contributes zero lines and no empty section).
+# Sidebar: ONE "Knowledge base" section with concepts grouped by topic.
 sidebar_body <- if (!length(render_body)) character(0) else c(
   '      - section: "Knowledge base"',
   "        contents:",
@@ -176,10 +211,18 @@ sidebar_body <- if (!length(render_body)) character(0) else c(
     '          - text: "Glossary"',
     "            href: knowledge/glossary.md"
   ),
-  unlist(lapply(concepts, function(c) c(
-    sprintf('          - text: "%s"', yaml_dq(c$title)),
-    sprintf("            href: knowledge/concepts/%s.md", c$slug)
-  )), use.names = FALSE),
+  unlist(lapply(topic_slugs, function(t) {
+    in_topic <- Filter(function(c) c$topic == t, concepts)
+    if (!length(in_topic)) return(character(0))
+    c(
+      sprintf('          - section: "%s"', yaml_dq(topic_names[t])),
+      "            contents:",
+      unlist(lapply(in_topic, function(c) c(
+        sprintf('              - text: "%s"', yaml_dq(c$title)),
+        sprintf("                href: knowledge/concepts/%s.md", c$slug)
+      )), use.names = FALSE)
+    )
+  }), use.names = FALSE),
   if (length(sources)) c(
     '          - section: "Sources"',
     "            contents:",
@@ -195,7 +238,8 @@ concepts_body <- vapply(concepts, function(c) {
   refs <- if (length(c$refs)) {
     paste(sprintf("[%s](../%s)", c$refs, c$refs), collapse = ", ")
   } else "—"
-  sprintf("| [%s](concepts/%s.md) | %s | %s |", c$slug, c$slug, md_cell(keys), refs)
+  sprintf("| [%s](concepts/%s.md) | %s | %s | %s |",
+          c$slug, c$slug, md_cell(topic_names[c$topic]), md_cell(keys), refs)
 }, character(1))
 
 sources_body <- vapply(sources, function(s) {

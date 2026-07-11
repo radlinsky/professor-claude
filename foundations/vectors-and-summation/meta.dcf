@@ -1,4 +1,5 @@
 ShortName: Vectors, subscripts & Σ
+Topic: linear-algebra
 Concepts: What a vector is (an R vector!), subscript/index notation ($x_i$), summation notation ($\Sigma$), rules for manipulating sums, the dot product ($\mathbf{a} \cdot \mathbf{b} = \sum a_i b_i$, in R: `sum(a * b)`)
 BuildsOn: [reading-math-notation](reading-math-notation/lesson.qmd) (soft — for the symbols)
 UsedBy: [simple-linear-regression](../courses/simple-linear-regression/syllabus.md), [gradient-descent](../courses/gradient-descent/syllabus.md), [logistic-regression](../courses/logistic-regression/syllabus.md)

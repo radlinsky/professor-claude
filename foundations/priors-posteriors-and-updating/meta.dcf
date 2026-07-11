@@ -1,4 +1,5 @@
 ShortName: Priors, posteriors & updating
+Topic: probability
 Concepts: Conditional probability $P(A\mid B)$ from a count table and independence, the Bayes flip (turning $P(\text{data}\mid\theta)$ into $P(\theta\mid\text{data})$), prior/likelihood/posterior with posterior $\propto$ prior $\times$ likelihood, a distribution over a parameter vs the frequentist fixed-parameter view, the credible interval, and MCMC as the idea of a machine that draws samples from the posterior
 BuildsOn: [probability-and-odds](probability-and-odds/lesson.qmd), [likelihood-and-log-likelihood](likelihood-and-log-likelihood/lesson.qmd), [randomness-samples-and-sampling-distributions](randomness-samples-and-sampling-distributions/lesson.qmd)
 UsedBy: —

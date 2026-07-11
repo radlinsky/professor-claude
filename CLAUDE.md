@@ -136,11 +136,11 @@ overwrite them.
 - **Citations:** one BibTeX file (`knowledge/references.bib`), bracketed `[@key]`
   citations only — the contract is `.claude/course-authoring/citations.md`. CI
   (check-indexes.R check 8) fails any citation that doesn't resolve.
-- **Topics:** every NEW foundation module (`meta.dcf` `Topic:`) and knowledge
+- **Topics:** every foundation module (`meta.dcf` `Topic:`) and knowledge
   concept page (frontmatter `topic:`) carries one slug from the controlled
   vocabulary `.claude/course-authoring/topics.dcf` (record order there = display
-  order). Topic-grouped sidebars/indexes + enforcement are issue #125; write the
-  field now regardless.
+  order). Both generators (`gen-indexes.R`, `gen-kb-index.R`) group by topic and
+  fail `--check` on a missing or invalid topic.
 - **R packages:** the setup chunk in each template auto-installs into renv. If you
   added a package, run `Rscript -e 'renv::snapshot()'` before finishing so
   `renv.lock` stays true.
