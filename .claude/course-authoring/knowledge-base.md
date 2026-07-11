@@ -83,8 +83,8 @@ with a link to that page. Demotion never happens automatically.
 - **One topic per concept page** — the frontmatter carries
   `topic: <slug from .claude/course-authoring/topics.dcf>` (the controlled
   vocabulary shared with foundations' `meta.dcf` `Topic:` field). Topic-grouped
-  indexes and enforcement land with issue #125; write the line now on every new
-  page. Glossary and source records do NOT get topics (a source spans many; a
+  indexes and `--check` enforcement are live (gen-kb-index.R validates and groups
+  by topic). Every concept page must carry the line. Glossary and source records do NOT get topics (a source spans many; a
   glossary is alphabetical by design).
 - **Paper-agnostic prose** — the same rule as foundations. The *page text* is
   neutral field knowledge; which source said what lives in the citations and, when

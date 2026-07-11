@@ -151,7 +151,7 @@ website:
   site-url: https://radlinsky.github.io/professor-claude/
   sidebar:
     style: docked
-    collapse-level: 1
+    collapse-level: 2
     contents:
       - text: "Welcome"
         href: index.qmd

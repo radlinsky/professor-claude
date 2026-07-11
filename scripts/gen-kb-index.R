@@ -49,6 +49,9 @@ topic_slugs <- trimws(topics_dcf[, "Slug"])
 topic_names <- trimws(topics_dcf[, "DisplayName"])
 names(topic_names) <- topic_slugs
 if (!length(topic_slugs)) die("no topics found in %s", TOPICS_DCF)
+if (anyDuplicated(topic_slugs))
+  die("duplicate topic slug(s) in %s: %s", TOPICS_DCF,
+      paste(unique(topic_slugs[duplicated(topic_slugs)]), collapse = ", "))
 
 # ---- discover pages -------------------------------------------------------------------
 kb_slugs <- function(dir) {
