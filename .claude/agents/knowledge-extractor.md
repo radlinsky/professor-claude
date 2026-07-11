@@ -19,7 +19,7 @@ no user interaction. What would be a blocking question in the interactive skill 
 for you, a clean early stop with an honest report:
 
 - **No source record, or its `**Extraction goal:**` is `undecided`** → execute the
-  survey-source skill's steps EXCEPT the decision step (Step 5): license gate,
+  survey-source skill's steps EXCEPT the extraction-goal decision: license gate,
   front/back-matter read, record scaffold, relevance proposal, AND Step 6
   (BibTeX entry + gen-kb-index.R + checks — skipping it would leave the record's
   declared key unresolvable and fail check 8). Leave the goal
