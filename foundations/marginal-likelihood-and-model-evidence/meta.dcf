@@ -1,4 +1,5 @@
 ShortName: Marginal likelihood & model evidence
+Topic: statistical-inference
 Concepts: Averaging a likelihood over a prior to score a whole model — the marginal likelihood / model evidence / prior-predictive probability $P(D) = \sum_\theta P(D\mid\theta)P(\theta)$ (discrete) and $\int L(\theta)P(\theta)\,d\theta$ (continuous), why averaging (not maximizing) is the honest model judge, the normal closed form that averaging an estimate $N(\cdot,V)$ over a prior $N(0,W)$ gives the marginal $N(0,V+W)$ (variances add, not standard deviations), and the marginal as the normalizing denominator of a posterior
 BuildsOn: [likelihood-and-log-likelihood](likelihood-and-log-likelihood/lesson.qmd), [priors-posteriors-and-updating](priors-posteriors-and-updating/lesson.qmd), [distributions-and-densities](distributions-and-densities/lesson.qmd)
 UsedBy: —

@@ -11,7 +11,8 @@ description: >
   help", "triage source-papers/…", or "propose what to extract from <pdf>".
   Tie-breaker: this skill NEVER reads body chapters and writes ONLY the source
   record, the bibliography entry, and the generated index blocks (via
-  gen-kb-index.R) — full extraction is extract-knowledge (which runs this skill
+  gen-kb-index.R), and at most renames the PDF in source-papers/ to the naming
+  convention — full extraction is extract-knowledge (which runs this skill
   automatically when no record exists); building a course is
   create-course/port-library.
 ---

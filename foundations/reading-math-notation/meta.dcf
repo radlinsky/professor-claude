@@ -1,4 +1,5 @@
 ShortName: Reading math notation
+Topic: arithmetic-and-algebra
 Concepts: The unwritten reading conventions: accents as operators ($\bar{x}$, $\hat{\beta}$, $\tilde{x}$), Greek-vs-Latin (parameter vs statistic), subscript-vs-superscript roles, implied multiplication, the relation zoo ($=$, $:=$, $\approx$, $\propto$, $\in$), operators ($\mathbb{E}$, $\mathrm{Var}$, $P(\cdot\mid\cdot)$, $\arg\min$), and overloaded $\lvert\cdot\rvert$
 BuildsOn: —
 UsedBy: all courses (standing first prerequisite — see course-structure.md §Syllabus)

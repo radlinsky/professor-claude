@@ -1,4 +1,5 @@
 ShortName: Profile likelihood
+Topic: statistical-inference
 Concepts: Nuisance parameters (needed by a formula but not reported); profiling one parameter out
  by optimising over it (maximise a likelihood, or minimise a fit statistic) at every value of the
  parameter of interest; why the nuisance is re-optimised at each point and the profile reaches the

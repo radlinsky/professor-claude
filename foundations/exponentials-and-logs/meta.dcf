@@ -1,4 +1,5 @@
 ShortName: Exponentials and logs
+Topic: arithmetic-and-algebra
 Concepts: The constant $e$ and $e^x$, the natural log ($\log$), the undo pair ($\log(e^x)=x$, $e^{\log y}=y$), and the log rules (product→sum, quotient→difference, power→multiplier)
 BuildsOn: —
 UsedBy: [logistic-regression](../courses/logistic-regression/syllabus.md)

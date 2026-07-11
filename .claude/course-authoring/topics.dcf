@@ -15,9 +15,8 @@
 # every module/page that carries it (grep first). Keep the list small (~6-10) — a
 # topic with one module in it forever is a concept, not a topic.
 #
-# Grouping/enforcement is implemented by issue #125 (gen-indexes.R + gen-kb-index.R
-# group by topic and fail --check on a topic not listed here). Until that lands,
-# this file is the contract new modules already write against.
+# Grouping/enforcement is live: gen-indexes.R and gen-kb-index.R group by topic
+# and fail --check for topics not listed here.
 #
 # This vocabulary ships as an EXAMPLE (like learner-profile.md) — forkers replace
 # the records with their own domain's areas; keep the format.

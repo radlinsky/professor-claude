@@ -77,7 +77,7 @@ cell_foundation_slugs <- function(cell) {
 }
 
 found_readme <- read_lines("foundations/README.md")
-found_rows <- Filter(function(x) length(x$cells) >= 5 && grepl("/lesson\\.qmd", x$cells[[1]]),
+found_rows <- Filter(function(x) length(x$cells) >= 6 && grepl("/lesson\\.qmd", x$cells[[1]]),
                      table_rows(found_readme))
 
 ## ---- Check 0: the index files this script relies on must exist ---------------------
@@ -114,7 +114,7 @@ before <- checkpoint()
 row_slugs <- vapply(found_rows, function(x) cell_foundation_slugs(x$cells[[1]])[1], character(1))
 for (x in found_rows) {
   self <- cell_foundation_slugs(x$cells[[1]])[1]
-  for (b in cell_foundation_slugs(x$cells[[3]])) {          # column 3 = "Builds on"
+  for (b in cell_foundation_slugs(x$cells[[4]])) {          # column 4 = "Builds on" (after Topic)
     if (!(b %in% row_slugs)) {
       err("foundations/README.md",
           sprintf("row '%s' Builds-on '%s' has no row in the table", self, b), x$line)
@@ -137,7 +137,7 @@ check_status <- function(path, rows, status_idx) {
     }
   }
 }
-check_status("foundations/README.md", found_rows, 5)         # ...| Builds on | Used by | Status |
+check_status("foundations/README.md", found_rows, 6)         # ...| Topic | ... | Used by | Status |
 course_rows <- Filter(function(x) length(x$cells) >= 6 && grepl("/syllabus\\.md", x$cells[[1]]),
                       table_rows(read_lines("courses/README.md")))
 check_status("courses/README.md", course_rows, 6)           # ...| Foundation prerequisites | Status |
@@ -182,7 +182,7 @@ lesson_builds_on <- function(slug) {
 for (x in found_rows) {
   self <- cell_foundation_slugs(x$cells[[1]])[1]
   if (is.na(self)) next
-  readme_deps <- sort(cell_foundation_slugs(x$cells[[3]]))
+  readme_deps <- sort(cell_foundation_slugs(x$cells[[4]]))
   lb <- lesson_builds_on(self)
   lesson_deps <- sort(lb$slugs)
   if (!identical(readme_deps, lesson_deps)) {
@@ -203,7 +203,7 @@ RMN <- "reading-math-notation"
 usedby <- list(); usedby_line <- list()
 for (x in found_rows) {
   self <- cell_foundation_slugs(x$cells[[1]])[1]
-  hits <- regmatches(x$cells[[4]], gregexpr("courses/([a-z0-9-]+)/", x$cells[[4]]))[[1]]
+  hits <- regmatches(x$cells[[5]], gregexpr("courses/([a-z0-9-]+)/", x$cells[[5]]))[[1]]
   usedby[[self]] <- unique(sub("^courses/([a-z0-9-]+)/$", "\\1", hits))
   usedby_line[[self]] <- x$line
 }

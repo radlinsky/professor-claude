@@ -46,10 +46,9 @@ record.
      not `undecided`** → read its chapter table and extraction log and proceed to
      Phase 2. This is also the resume path — chapters already `done`/`skipped`
      are never redone.
-   - **Record missing, or goal `undecided — survey only`** → execute the
-     **survey-source skill now** (`.claude/skills/survey-source/SKILL.md` — its
-     steps and GATEs, including the blocking goal decision; do not duplicate or
-     paraphrase its text), then return here. (The autonomous `knowledge-extractor`
+   - **Record missing, or goal `undecided — survey only`** → invoke the
+     **survey-source skill now** (via the Skill tool — its steps and GATEs,
+     including the blocking goal decision, run in full), then return here. (The autonomous `knowledge-extractor`
      agent cannot ask: it stops before the decision and delivers the proposal —
      see its definition.)
 2. **License re-gate rule:** follow `source-licensing.md` §Recorded verdicts are
@@ -184,7 +183,7 @@ per-agent side of this):
 **Phase A — survey everything, decide once.**
 
 1. Run the survey-source skill on EACH PDF (its license gate runs here, with the
-   user), but hold Step 5: collect all N relevance proposals first, then present
+   user), but hold the extraction-goal decision: collect all N relevance proposals first, then present
    ONE combined decision menu and let the user assign each source its extraction
    goal (or "skip for now"). Write every decision into its record. Surveys are
    sequential in the parent session — records and bib entries all exist before

@@ -1,4 +1,5 @@
 ShortName: Model selection & information criteria
+Topic: regression-and-models
 Concepts: Why training RSS/R² can't choose model size (they only improve as predictors are added), the $2^p$ subset-search explosion, forward/backward stepwise as greedy shortcuts that can miss the best subset, and scoring fit-plus-complexity with AIC ($-2\log L + 2k$) and BIC ($-2\log L + k\log n$) — why BIC's penalty grows with $n$ and picks smaller models; R's AIC(), BIC(), step()
 BuildsOn: [model-fit-error-and-validation](model-fit-error-and-validation/lesson.qmd), [likelihood-and-log-likelihood](likelihood-and-log-likelihood/lesson.qmd)
 UsedBy: —

@@ -1,4 +1,5 @@
 ShortName: Model fit, error & validation
+Topic: regression-and-models
 Concepts: The residual ($y-\hat{y}$) and error summaries RSS/MSE/RMSE, R² as "better than guessing the mean" (with deviance named as its likelihood cousin), overfitting vs underfitting, train/test split and k-fold cross-validation in base R, and the bias–variance trade-off in words
 BuildsOn: [mean-variance-covariance](mean-variance-covariance/lesson.qmd), [loss-functions-and-optimization](loss-functions-and-optimization/lesson.qmd)
 UsedBy: —

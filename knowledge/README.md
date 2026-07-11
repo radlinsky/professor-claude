@@ -23,8 +23,8 @@ fully machine-owned.
 
 ## Concepts
 
-| Concept | Sources | Referenced by |
-|---|---|---|
+| Concept | Topic | Sources | Referenced by |
+|---|---|---|---|
 <!-- >>> generated: knowledge concepts table (scripts/gen-kb-index.R) — do not edit by hand -->
 <!-- <<< generated: knowledge concepts table -->
 
