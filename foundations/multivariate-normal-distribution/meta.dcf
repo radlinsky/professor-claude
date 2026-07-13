@@ -1,0 +1,15 @@
+ShortName: Multivariate normal distribution
+Topic: probability
+Concepts: extending the bell curve to multiple dimensions,
+ the multivariate normal density formula,
+ the covariance matrix as the shape of the data cloud (stretch and rotate),
+ Mahalanobis distance (how many standard deviations away in all directions at once),
+ marginal distributions of a multivariate normal are univariate normal,
+ conditional distributions of a multivariate normal,
+ generating multivariate normal samples in R
+BuildsOn: [distributions-and-densities](distributions-and-densities/lesson.qmd),
+ [mean-variance-covariance](mean-variance-covariance/lesson.qmd),
+ [variance-structure-and-standardization](variance-structure-and-standardization/lesson.qmd),
+ [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd),
+ [quadratic-forms-and-the-chi-square-statistic](quadratic-forms-and-the-chi-square-statistic/lesson.qmd)
+UsedBy: —

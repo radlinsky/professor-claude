@@ -1,0 +1,7 @@
+ShortName: PCA & SVD
+Topic: linear-algebra
+Concepts: the covariance matrix in matrix form ($S = X_c^\top X_c / (n-1)$), eigenvalues and eigenvectors ($S\mathbf{v} = \lambda\mathbf{v}$), variance of a projection onto a direction, PCA as eigenvectors of S ordered by eigenvalue, SVD decomposition ($X = U\Sigma V^\top$) and its connection to PCA, scree plots and choosing the number of components, prcomp() and eigen() in R
+BuildsOn: [distance-similarity-and-geometry](distance-similarity-and-geometry/lesson.qmd),
+ [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd),
+ [variance-structure-and-standardization](variance-structure-and-standardization/lesson.qmd)
+UsedBy: —

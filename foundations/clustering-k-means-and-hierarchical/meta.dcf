@@ -1,0 +1,13 @@
+ShortName: Clustering (k-means & hierarchical)
+Topic: linear-algebra
+Concepts: k-means clustering (assign to nearest centroid and update centroids),
+ initialization sensitivity (random starts),
+ within-cluster sum of squares (WCSS),
+ hierarchical agglomerative clustering,
+ linkage types (single, complete, average, Ward's),
+ dendrograms and cutting them,
+ choosing k (elbow method),
+ kmeans() hclust() and cutree() in R
+BuildsOn: [distance-similarity-and-geometry](distance-similarity-and-geometry/lesson.qmd),
+ [mean-variance-covariance](mean-variance-covariance/lesson.qmd)
+UsedBy: —

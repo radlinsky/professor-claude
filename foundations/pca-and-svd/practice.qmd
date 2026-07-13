@@ -1,0 +1,423 @@
+---
+title: "Practice: PCA and SVD"
+subtitle: "Answers are hidden -- try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order -- they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 -- the toy example, new numbers
+
+Four students took two tests. Center the data, compute the covariance matrix, find the
+eigenvectors with `eigen()`, and project the centered data onto PC1.
+
+```{webr}
+#| autorun: false
+# p1-starter -- edit and Run to solve, right here
+math    <- c(70, 80, 90, 100)
+english <- c(60, 75, 85, 80)
+X <- cbind(math, english)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+
+```{r p1-answer}
+math    <- c(70, 80, 90, 100)
+english <- c(60, 75, 85, 80)
+X <- cbind(math, english)
+
+# Step 1: center the data (subtract column means)
+col_means <- colMeans(X)
+col_means                          # math = 85, english = 75
+
+X_c <- scale(X, center = TRUE, scale = FALSE)
+X_c
+
+# Step 2: covariance matrix
+S <- cov(X)
+S
+
+# Step 3: eigendecomposition
+e <- eigen(S)
+e$values          # two eigenvalues
+e$vectors         # two eigenvectors (columns)
+
+# Step 4: verify Sv = lambda*v for the first eigenvector
+v1 <- e$vectors[, 1]
+S %*% v1
+e$values[1] * v1   # should match
+
+# Step 5: project centered data onto PC1
+scores_pc1 <- X_c %*% v1
+scores_pc1
+
+# Step 6: the variance of these scores should equal eigenvalue 1
+var(as.vector(scores_pc1))
+e$values[1]   # matches
+```
+
+The covariance matrix is `cov(X)`. The first eigenvalue is the larger one, and its
+eigenvector is PC1. Projecting centered data onto PC1 gives each student a single
+score, and the variance of those scores equals the first eigenvalue -- confirming the
+core PCA relationship.
+:::
+
+## Problem 2 -- fill in the missing step
+
+You have centered data `X_c` and its covariance matrix `S`. The worked solution for
+finding how much variance PC1 captures is:
+
+1. Compute the covariance matrix: `S <- cov(X)`
+2. **Your step here:** use R to get the eigenvalues and eigenvectors of `S`.
+3. Proportion of variance explained by PC1: `e$values[1] / sum(e$values)`
+
+Fill in step 2: what R function call produces `e$values` and `e$vectors`?
+
+```{webr}
+#| autorun: false
+# p2-starter -- fill in the blank, then Run to check
+math    <- c(70, 80, 90, 100)
+english <- c(60, 75, 85, 80)
+X <- cbind(math, english)
+S <- cov(X)
+
+# YOUR STEP HERE: compute eigenvalues and eigenvectors of S
+# e <- ???
+
+# Then check:
+# e$values[1] / sum(e$values)   # proportion explained by PC1
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+
+```{r p2-answer}
+math    <- c(70, 80, 90, 100)
+english <- c(60, 75, 85, 80)
+X <- cbind(math, english)
+S <- cov(X)
+
+# The missing step: eigendecompose the covariance matrix
+e <- eigen(S)
+
+# Now the proportion:
+e$values[1] / sum(e$values)
+```
+
+The missing step is `e <- eigen(S)`. The `eigen()` function takes a square matrix and
+returns `$values` (eigenvalues) and `$vectors` (eigenvectors as columns). Dividing the
+first eigenvalue by the sum of all eigenvalues gives the proportion of total variance
+captured by PC1.
+:::
+
+
+## Problem 3 -- full PCA with prcomp()
+
+A dataset has 6 observations and 3 variables. Run `prcomp()`, interpret the rotation
+matrix and `sdev`, and make a scree plot.
+
+```{webr}
+#| autorun: false
+# p3-starter -- your job: run PCA, interpret the output, make a scree plot
+X <- matrix(c(
+  10, 20, 5,
+  12, 22, 6,
+  14, 18, 7,
+  16, 24, 4,
+  18, 26, 8,
+  20, 28, 3
+), nrow = 6, byrow = TRUE)
+colnames(X) <- c("A", "B", "C")
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+
+```{r p3-answer}
+#| fig-alt: "Scree plot with three bars showing percent variance explained by each of three principal components"
+X <- matrix(c(
+  10, 20, 5,
+  12, 22, 6,
+  14, 18, 7,
+  16, 24, 4,
+  18, 26, 8,
+  20, 28, 3
+), nrow = 6, byrow = TRUE)
+colnames(X) <- c("A", "B", "C")
+
+# Run PCA
+pc <- prcomp(X)
+
+# The rotation matrix: each column shows how much each variable contributes to that PC
+round(pc$rotation, 3)
+
+# Eigenvalues (variance along each PC) = sdev^2
+pc$sdev^2
+
+# Proportion of variance explained
+prop <- pc$sdev^2 / sum(pc$sdev^2)
+round(prop * 100, 1)   # percentages
+
+# Cumulative proportion
+round(cumsum(prop) * 100, 1)
+
+# Scree plot
+barplot(prop * 100, names.arg = paste0("PC", 1:3),
+        ylab = "% of variance explained",
+        main = "Scree plot", col = "steelblue", border = NA)
+```
+
+Reading the output: `pc$rotation` shows the PC directions. Each column is an
+eigenvector telling you the linear combination of original variables that defines that
+PC. `pc$sdev^2` gives the eigenvalue (variance) for each PC. The scree plot shows how
+much variance each PC captures -- if the first two capture most of it, you could
+summarize these 3 columns with just 2 numbers per row.
+:::
+
+
+## Problem 4 -- spot the error
+
+A colleague ran PCA on data where column A is height in millimeters (range
+1,500--1,900) and column B is a test score (range 0--100). They report: "PC1
+explains 98.6% of the variance, so column B is unimportant and can be dropped."
+
+This conclusion contains **exactly one mistake**. Find it and explain the fix.
+
+```{webr}
+#| autorun: false
+# p4-starter -- the colleague's data, to check your reasoning in R
+height_mm <- c(1520, 1600, 1650, 1700, 1780, 1850, 1900)
+score     <- c(35, 60, 72, 55, 88, 45, 66)
+X <- cbind(height_mm, score)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is the conclusion "column B is unimportant." PC1 explains 98.6% of the
+variance because column A's raw variance (about 18,729) is roughly *sixty times
+larger* than column B's (about 306) -- the millimeter column's spread swamps
+everything else. This is the scale-domination trap, not evidence that B is
+uninformative.
+
+```{r p4-answer}
+height_mm <- c(1520, 1600, 1650, 1700, 1780, 1850, 1900)
+score     <- c(35, 60, 72, 55, 88, 45, 66)
+X <- cbind(height_mm, score)
+
+# The raw variances: about 18729 vs about 306 -- a ~61x gap
+var(height_mm)
+var(score)
+
+# Raw PCA: PC1 explains 98.6% -- a pure scale artifact
+p_raw <- prcomp(X)
+round(p_raw$sdev^2 / sum(p_raw$sdev^2) * 100, 1)
+
+# Scaled PCA: the split becomes 67.7% / 32.3% -- column B carries real information
+p_scaled <- prcomp(X, scale. = TRUE)
+round(p_scaled$sdev^2 / sum(p_scaled$sdev^2) * 100, 1)
+```
+
+The fix: run `prcomp(X, scale. = TRUE)` to standardize both columns to mean 0 and
+standard deviation 1 before computing PCs. After scaling, both columns start on equal
+footing and PC1's share drops from 98.6% to 67.7% -- the "column B is unimportant"
+story evaporates. This is exactly the lesson's Trap 2.
+:::
+
+
+## Problem 5 -- mixing it with variance-structure-and-standardization *(uses variance-structure's covariance vs. correlation matrix)*
+
+Compute the covariance matrix and the correlation matrix of the data below. Run PCA on
+both the raw data (`prcomp(X)`) and the scaled data (`prcomp(X, scale. = TRUE)`). Why
+do the PC directions differ?
+
+```{webr}
+#| autorun: false
+# p5-starter -- edit and Run to solve, right here
+temp   <- c(15, 20, 25, 30, 35)       # temperature in Celsius
+sales  <- c(200, 350, 400, 600, 750)  # ice cream sales in dollars
+X <- cbind(temp, sales)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+
+```{r p5-answer}
+temp   <- c(15, 20, 25, 30, 35)
+sales  <- c(200, 350, 400, 600, 750)
+X <- cbind(temp, sales)
+
+# Covariance matrix (raw units)
+cov(X)
+
+# Correlation matrix (standardized units, all on [-1, 1])
+cor(X)
+
+# PCA on raw data (uses covariance matrix)
+pc_raw <- prcomp(X)
+round(pc_raw$rotation, 3)
+round(pc_raw$sdev^2 / sum(pc_raw$sdev^2) * 100, 1)
+
+# PCA on scaled data (uses correlation matrix)
+pc_scaled <- prcomp(X, scale. = TRUE)
+round(pc_scaled$rotation, 3)
+round(pc_scaled$sdev^2 / sum(pc_scaled$sdev^2) * 100, 1)
+```
+
+The PC directions differ because the raw covariance matrix is dominated by `sales`
+(variance in the tens of thousands) while `temp` (variance = 62.5) is tiny by
+comparison. Raw PCA points PC1 almost entirely along `sales`. After scaling, both
+columns have variance 1, so the PCA reflects their *correlation pattern* rather than
+their raw scales. `prcomp(X, scale. = TRUE)` is PCA on the correlation matrix, which
+is the covariance matrix of the standardized columns --
+this connects the standardizing idea from
+[variance structure](../variance-structure-and-standardization/lesson.qmd)
+to PCA.
+:::
+
+
+## Problem 6 -- transfer: PCA in genetics
+
+A genetics paper says: "We included the first 5 PCs as covariates to correct for
+population stratification." Explain in your own words: (a) what those PCs are, (b)
+what information they capture, and (c) why including them helps.
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) The 5 PCs are the first five principal components from running PCA on the genotype
+data -- a matrix where each row is a person and each column is a genetic variant. Each
+PC is a direction (a linear combination of all the genetic variants) that captures a
+large share of the overall genetic variation across people.
+
+(b) The top PCs of genotype data tend to capture **population structure** -- systematic
+differences in genetic ancestry between groups of people (e.g., people with mostly
+European ancestry cluster apart from people with mostly East Asian ancestry). These
+ancestry-driven patterns usually account for the most variance in the genotype matrix,
+so they show up as the leading PCs.
+
+(c) If ancestry is correlated with both the trait you are studying *and* the genetic
+variants you are testing, it confounds the analysis -- you might find a variant that
+looks associated with the trait when it is really just associated with ancestry.
+Including the first few PCs as covariates absorbs the ancestry-driven variation, so the
+remaining signal reflects genuine variant-trait associations rather than population
+structure.
+:::
+
+
+## Problem 7 -- transfer: reading a real PCA (USArrests)
+
+The `USArrests` dataset ships with base R: 50 states, 4 variables -- `Murder`,
+`Assault`, and `Rape` (arrests per 100,000 residents) and `UrbanPop` (percent of the
+population living in urban areas). This is the textbook example from
+[@james2021introductionstatisticallearning, pp. 498--501].
+
+Run `prcomp(USArrests, scale. = TRUE)` and look at the `rotation` matrix (why
+`scale. = TRUE` matters here: the variables are on wildly different scales --
+Problem 4 showed what happens otherwise).
+
+(a) Which variables load together on PC1, and which variable dominates PC2? Name, in
+plain words, what direction each of PC1 and PC2 measures.
+
+(b) PREDICT before you look at any scores: where would a **high-crime, mostly rural**
+state sit in the PC1--PC2 score plot (which sign on each axis)? Then check your
+prediction against `pu$x["Mississippi", ]` (Mississippi: high crime, only 44% urban).
+
+```{webr}
+#| autorun: false
+# p7-starter -- USArrests ships with base R; nothing to retype
+head(USArrests)
+pu <- prcomp(USArrests, scale. = TRUE)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+
+```{r p7-answer}
+pu <- prcomp(USArrests, scale. = TRUE)
+
+# (a) The loadings
+round(pu$rotation, 3)
+
+# Share of variance: PC1 62%, PC2 24.7% -- together 86.8%
+round(pu$sdev^2 / sum(pu$sdev^2) * 100, 1)
+
+# (b) Check the prediction for a high-crime, rural state
+round(pu$x["Mississippi", 1:2], 2)
+```
+
+(a) On PC1, the three crime variables load together and with the same sign --
+`Murder` $-0.536$, `Assault` $-0.583$, `Rape` $-0.543$ -- while `UrbanPop`
+contributes much less ($-0.278$). On PC2, `UrbanPop` dominates ($0.873$) and the
+crime variables are secondary. In words: **PC1 is an overall-crime direction** (one
+number summarizing how much serious crime a state has) and **PC2 is an urbanization
+direction** (how urban the state is, mostly separate from its crime level)
+[@james2021introductionstatisticallearning, pp. 498--501].
+
+(b) The crime variables load *negatively* on PC1 here, so high crime means a
+**negative PC1 score**; `UrbanPop` loads *positively* on PC2, so rural means a
+**negative PC2 score**. A high-crime rural state should land in the
+negative-PC1, negative-PC2 corner -- and Mississippi does: its scores are
+PC1 $= -0.99$, PC2 $= -2.37$. (Remember the lesson's sign-flip note: another
+machine may flip the signs of a whole column, which flips the scores with it --
+the *corner* changes name, but the interpretation is identical.)
+:::
+
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice -- come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** --
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/pca-and-svd" pass="4"}
+
+::: {.quiz-q qid="pca-eigenvalue-meaning" qtype="mc" answer="c"}
+What does the eigenvalue of a principal component tell you?
+
+a) The number of original variables that contribute to that particular PC
+b) The correlation between that PC and the original data matrix
+c) The variance of the data projected onto that PC's direction
+d) The percentage of observations captured by that PC
+:::
+
+::: {.quiz-q qid="pca-ortho-check" qtype="numeric" answer="0" tolerance="0"}
+Two eigenvectors of a covariance matrix are $\mathbf{v}_1 = (0.6, 0.8)$ and $\mathbf{v}_2 = (-0.8, 0.6)$. What is their dot product?
+:::
+
+::: {.quiz-q qid="pca-prop-var" qtype="numeric" answer="80" tolerance="1"}
+A PCA gives eigenvalues 40, 8, and 2. What percentage of the total variance does PC1 explain? (Enter a whole number.)
+:::
+
+::: {.quiz-q qid="pca-scale-trap" qtype="mc" answer="b"}
+You run PCA on a dataset where column A is in meters and column B is in millimeters. PC1 explains 99.8% of the variance. What is the most likely explanation?
+
+a) Column A carries nearly all the real information in the dataset, so column B adds nothing
+b) Column B's larger raw numbers dominate the variance, so PCA aligns along B
+c) The two columns are nearly uncorrelated with each other, so one PC is enough to summarize both
+d) The data genuinely varies along only one direction in variable space, so one PC suffices
+:::
+
+::: {.quiz-q qid="pca-interleave-covmat" qtype="mc" answer="d"}
+*(From [variance structure & standardization](../variance-structure-and-standardization/lesson.qmd).)* A 3-by-3 covariance matrix has diagonal entries 100, 25, and 4. What does the entry 100 represent?
+
+a) The correlation between column 1 and column 2
+b) The mean of column 1
+c) The covariance between columns 1 and 3
+d) The variance of column 1
+:::
+
+:::
+
+::::

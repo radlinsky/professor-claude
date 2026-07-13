@@ -1,0 +1,508 @@
+---
+title: "Classification evaluation"
+subtitle: "When your model predicts categories, a single error number hides the mistakes that matter"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+You already know how to check whether a model overfits (train/test split,
+cross-validation). But when the model predicts *categories* --- sick or healthy,
+spam or not --- a single error number hides critical information. A model that calls
+everyone "healthy" is 95% accurate if only 5% are sick, but it misses every sick
+person. This module teaches you to read a confusion matrix, understand the trade-offs
+between different error types, and use an ROC curve to compare classifiers.
+
+**Builds on:** [probability-and-odds](../probability-and-odds/lesson.qmd)
+(probabilities as rates and proportions) and
+[model-fit-error-and-validation](../model-fit-error-and-validation/lesson.qmd)
+(soft --- the idea of grading predictions against truth).
+
+
+## Warm-up: do you remember?
+
+Before the new stuff, a few quick reps --- answers from memory first, then check.
+
+**1.** *(probability-and-odds)* If $P(\text{disease}) = 0.05$, what is
+$P(\text{no disease})$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$P(\text{no disease}) = 1 - 0.05 = 0.95$. The complement rule: if only two outcomes
+exist, their probabilities add to 1. Taught in
+[probability-and-odds](../probability-and-odds/lesson.qmd); revisit if shaky.
+:::
+
+**2.** *(model-fit-error-and-validation)* In one sentence, why do we grade a model on
+held-out data, not training data?
+
+::: {.callout-note collapse="true" title="Answer"}
+A model can memorize its training data (overfit), scoring perfectly on data it already
+saw while performing badly on new data. Held-out data reveals how well the model
+*generalizes*. See
+[model-fit-error-and-validation](../model-fit-error-and-validation/lesson.qmd);
+revisit if shaky.
+:::
+
+
+## A tiny example first
+
+Eight patients visit a clinic. A model predicts whether each one is **sick** or
+**healthy**. We also know the truth (say, from a follow-up test). Here is every
+patient, side by side:
+
+| Patient | Model says | Truth   |
+|---------|-----------|---------|
+| 1       | sick      | sick    |
+| 2       | sick      | sick    |
+| 3       | sick      | healthy |
+| 4       | healthy   | sick    |
+| 5       | healthy   | healthy |
+| 6       | healthy   | healthy |
+| 7       | healthy   | healthy |
+| 8       | sick      | sick    |
+
+Now count the four kinds of outcome:
+
+- **True Positive (TP):** the model said "sick" AND the patient really is sick.
+  Patients 1, 2, 8. That is **3** TPs.
+- **False Positive (FP):** the model said "sick" BUT the patient is actually healthy.
+  Patient 3. That is **1** FP.
+- **False Negative (FN):** the model said "healthy" BUT the patient is actually sick.
+  Patient 4. That is **1** FN.
+- **True Negative (TN):** the model said "healthy" AND the patient really is healthy.
+  Patients 5, 6, 7. That is **3** TNs.
+
+We can arrange these four counts in a 2-by-2 table called the **confusion matrix**
+[@james2021introductionstatisticallearning, pp. 148--149]:
+
+|                    | Actually sick | Actually healthy |
+|--------------------|:------------:|:----------------:|
+| **Predicted sick**     | TP = 3       | FP = 1           |
+| **Predicted healthy**  | FN = 1       | TN = 3           |
+
+From these four numbers we can compute three rates, all by hand:
+
+**Accuracy** --- "of all 8 predictions, how many were correct?" Add the correct ones:
+3 (TP) + 3 (TN) = 6. Divide by the total number of patients: 6 / 8 = **0.75**. Six
+out of eight correct. Sounds decent, but watch what happens when we zoom in on each
+class separately.
+
+**Sensitivity** --- "of the patients who are truly sick, how many did the model
+catch?" There are 4 truly sick patients (3 TP + 1 FN). The model caught 3 of them:
+3 / 4 = **0.75**.
+
+**Specificity** --- "of the patients who are truly healthy, how many did the model
+correctly call healthy?" There are 4 truly healthy patients (3 TN + 1 FP). The model
+got 3 of those right: 3 / 4 = **0.75**.
+
+The same thing in R, so you can check every step:
+
+```{r toy-example}
+# The raw predictions and truth for 8 patients
+predicted <- c("sick", "sick", "sick", "healthy",
+               "healthy", "healthy", "healthy", "sick")
+actual    <- c("sick", "sick", "healthy", "sick",
+               "healthy", "healthy", "healthy", "sick")
+
+# Count the four cells of the confusion matrix
+TP <- sum(predicted == "sick"    & actual == "sick")      # 3
+FP <- sum(predicted == "sick"    & actual == "healthy")   # 1
+FN <- sum(predicted == "healthy" & actual == "sick")      # 1
+TN <- sum(predicted == "healthy" & actual == "healthy")   # 3
+
+# Accuracy: correct / total
+accuracy <- (TP + TN) / (TP + FP + TN + FN)              # 0.75
+
+# Sensitivity: caught sick / truly sick
+sensitivity <- TP / (TP + FN)                             # 0.75
+
+# Specificity: correctly cleared / truly healthy
+specificity <- TN / (TN + FP)                             # 0.75
+
+c(TP = TP, FP = FP, FN = FN, TN = TN)
+c(accuracy = accuracy, sensitivity = sensitivity, specificity = specificity)
+```
+
+
+## Getting a feel for it
+
+**A fire alarm.** Think of a fire alarm: its job is to detect fires. **Sensitivity**
+is how often it goes off when there really is a fire --- you want this high, because
+missing a fire is dangerous. **Specificity** is how often it stays quiet when there is
+no fire --- you want this high too, because false alarms at 3 a.m. are miserable.
+The trade-off: a hair-trigger alarm that screams at burnt toast has *perfect*
+sensitivity (it never misses a fire) but terrible specificity (it fires on everything
+else). A broken alarm that never rings has perfect specificity (no false alarms) but
+zero sensitivity (it misses every fire). Every real alarm sits somewhere between those
+extremes, and where you set the trigger is a *choice* about which kind of mistake
+hurts more.
+
+Where the analogy breaks: a fire alarm has one threshold (how much smoke trips it),
+while a classification model usually outputs a probability that you *then* threshold.
+But the core trade-off is the same.
+
+**Why accuracy alone misleads.** Accuracy lumps all errors together. In our toy
+example accuracy is 0.75, which sounds reasonable. But suppose only 5% of patients are
+sick and the model lazily predicts "healthy" for everyone. That model gets 95%
+accuracy --- and catches zero sick people. The confusion matrix forces you to see
+*which* errors you are making: is the model failing the sick patients (low
+sensitivity) or overwhelming healthy people with false alarms (low specificity)?
+
+**What these numbers feel like.** In our toy example, sensitivity and specificity are
+both 0.75. That means one in four sick patients slips through (the model misses them),
+and one in four healthy patients gets a false alarm. Making the model more aggressive
+(calling more people "sick") would catch that missed patient (sensitivity goes up) but
+create more false alarms (specificity goes down). That is the *threshold trade-off* in
+a nutshell.
+
+**Precision and recall.** There is one more pair worth knowing. **Precision** asks:
+"of the ones I *flagged* as sick, how many really were?" In our toy data the model
+flagged 4 patients as sick (TP + FP = 3 + 1 = 4), and 3 of them really were, so
+precision is 3/4 = 0.75. **Recall** is just another name for sensitivity --- "of the
+ones who really were sick, how many did I catch?" When the positive class is rare,
+precision drops because even a small FP rate produces many false alarms relative to
+the few true positives. Imagine 1,000 patients with only 10 actually sick. Even if the
+model catches all 10 (perfect recall/sensitivity), it might also flag 50 healthy
+patients, giving precision of just 10/60 $\approx$ 0.17. That is a lot of unnecessary
+biopsies for every real catch.
+
+
+## What the notation is going to say
+
+The formulas will give names to the four counts (TP, FP, TN, FN) and then write each
+metric as a fraction of those counts. Accuracy is the total correct divided by the
+total count. Sensitivity divides the correctly-caught positives by all actual
+positives. Specificity divides the correctly-identified negatives by all actual
+negatives. Precision divides the correctly-caught positives by everything the model
+*called* positive. The **false positive rate** (FPR) is one minus specificity --- the
+fraction of healthy people who got a false alarm. The ROC curve will plot sensitivity
+(y-axis) against FPR (x-axis) as we slide the decision threshold from strict to
+lenient, and AUC will measure the total area under that curve.
+
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\text{TP}$ | "true positive" | model said positive AND it really is positive | 3 |
+| $\text{FP}$ | "false positive" | model said positive BUT it is really negative | 1 |
+| $\text{TN}$ | "true negative" | model said negative AND it really is negative | 3 |
+| $\text{FN}$ | "false negative" | model said negative BUT it is really positive | 1 |
+| $\text{Accuracy}$ | "accuracy" | fraction of all predictions that are correct | 6/8 = 0.75 |
+| $\text{Sensitivity}$ | "sensitivity" (also called recall or true positive rate) | fraction of actual positives the model catches (in R: `TP / (TP + FN)`) | 3/4 = 0.75 |
+| $\text{TPR}$ | "T-P-R" (true positive rate) | just another name for sensitivity --- same fraction, same formula | 3/4 = 0.75 |
+| $\text{Specificity}$ | "specificity" (also called true negative rate) | fraction of actual negatives the model correctly clears (in R: `TN / (TN + FP)`) | 3/4 = 0.75 |
+| $\text{TNR}$ | "T-N-R" (true negative rate) | just another name for specificity --- same fraction, same formula | 3/4 = 0.75 |
+| $\text{Precision}$ | "precision" (also called positive predictive value, PPV) | fraction of predicted positives that are truly positive (in R: `TP / (TP + FP)`) | 3/4 = 0.75 |
+| $\text{PPV}$ | "P-P-V" (positive predictive value) | just another name for precision --- same fraction, same formula | 3/4 = 0.75 |
+| $\text{Recall}$ | "recall" | same as sensitivity --- another name for the same thing | 3/4 = 0.75 |
+| $\text{FPR}$ | "false positive rate" | fraction of actual negatives that get a false alarm: $1 - \text{Specificity}$ | 1/4 = 0.25 |
+| $t$ | "tee" (the threshold) | the cutoff probability above which the model predicts positive | depends on context |
+| $\text{ROC}$ | "R-O-C" (receiver operating characteristic) | a curve: TPR (y) vs FPR (x) as $t$ varies | see the Explore section |
+| $\text{AUC}$ | "A-U-C" (area under the ROC curve) | one number summarizing the whole ROC curve: 0.5 = random guessing, 1.0 = perfect | computed below |
+
+
+## The formal version
+
+$$
+\text{Accuracy} = \frac{TP + TN}{TP + FP + TN + FN}
+$$
+
+Reading it aloud: "accuracy equals TP plus TN, divided by TP plus FP plus TN plus
+FN" --- or in everyday words: "the fraction of all predictions that turned out
+correct." [@james2021introductionstatisticallearning, pp. 148--149]
+
+$$
+\text{Sensitivity} = \text{Recall} = \text{TPR} = \frac{TP}{TP + FN}
+$$
+
+Reading it aloud: "sensitivity equals TP divided by TP plus FN" --- or in everyday
+words: "of all the people who truly are positive, the fraction the model caught."
+[@james2021introductionstatisticallearning, p. 149]
+
+$$
+\text{Specificity} = \text{TNR} = \frac{TN}{TN + FP}
+$$
+
+Reading it aloud: "specificity equals TN divided by TN plus FP" --- or in everyday
+words: "of all the people who truly are negative, the fraction the model correctly
+cleared." [@james2021introductionstatisticallearning, pp. 149, 152--153]
+
+$$
+\text{Precision} = \text{PPV} = \frac{TP}{TP + FP}
+$$
+
+Reading it aloud: "precision equals TP divided by TP plus FP" --- or in everyday
+words: "of everyone the model flagged as positive, the fraction that actually were."
+[@james2021introductionstatisticallearning, pp. 152--153]
+
+$$
+\text{FPR} = 1 - \text{Specificity} = \frac{FP}{FP + TN}
+$$
+
+Reading it aloud: "the false positive rate equals one minus specificity, which is FP
+divided by FP plus TN" --- or in everyday words: "the fraction of truly negative
+people who got a false alarm."
+[@james2021introductionstatisticallearning, pp. 149, 152--153]
+
+**The ROC curve:** as you slide the threshold $t$ from very strict (almost nobody
+predicted positive) to very lenient (almost everybody predicted positive), you get a
+different confusion matrix at each threshold. At each one, compute the TPR and FPR.
+Plot TPR on the y-axis and FPR on the x-axis. Connect the dots --- that is the ROC
+curve. [@james2021introductionstatisticallearning, pp. 150--151]
+
+**AUC (area under the ROC curve):** the total area under the ROC curve, always between
+0 and 1. AUC = 0.5 means the model is no better than flipping a coin. AUC = 1.0
+means the model separates the two classes perfectly. AUC gives you a single number
+that summarizes performance across *all possible thresholds* rather than at one
+particular cutoff. [@james2021introductionstatisticallearning, p. 151]
+
+Mapping it onto the toy example:
+
+- $TP + TN = 3 + 3 = 6$ is the "six out of eight correct" we computed by hand.
+- $TP + FN = 3 + 1 = 4$ is the total number of truly sick patients --- the
+  denominator for sensitivity.
+- $TN + FP = 3 + 1 = 4$ is the total number of truly healthy patients --- the
+  denominator for specificity.
+- $TP + FP = 3 + 1 = 4$ is everything the model *called* sick --- the denominator
+  for precision.
+
+
+## Explore it
+
+**PREDICT:** this cell rebuilds the confusion matrix with R's `table()` function
+instead of counting by hand. Before running it, predict: will sensitivity,
+specificity, and precision come out the same as the by-hand values above (0.75,
+0.75, 0.75)? Run the cell to check.
+
+```{webr}
+#| autorun: true
+# The 8-patient data from the toy example
+predicted <- c("sick", "sick", "sick", "healthy",
+               "healthy", "healthy", "healthy", "sick")
+actual    <- c("sick", "sick", "healthy", "sick",
+               "healthy", "healthy", "healthy", "sick")
+
+# Build the confusion matrix with table()
+# Rows = predicted, columns = actual
+conf <- table(Predicted = predicted, Actual = actual)
+conf
+
+# Compute the four counts from the table
+TP <- conf["sick", "sick"]        # 3
+FP <- conf["sick", "healthy"]     # 1
+FN <- conf["healthy", "sick"]     # 1
+TN <- conf["healthy", "healthy"]  # 3
+
+# Compute the rates
+sensitivity <- TP / (TP + FN)     # caught sick / all truly sick
+specificity <- TN / (TN + FP)     # cleared healthy / all truly healthy
+precision   <- TP / (TP + FP)     # truly sick / everyone called sick
+
+cat("Sensitivity (recall):", sensitivity, "\n")
+cat("Specificity:         ", specificity, "\n")
+cat("Precision:           ", precision, "\n")
+```
+
+The numbers match --- 0.75, 0.75, 0.75 --- because `table()` does exactly the same
+counting the manual `sum()` calls did earlier; it is just a faster way to build the
+2-by-2 grid. Now the real question: what happens to those numbers if the model gets
+MORE aggressive about calling patients "sick"? Catching more of the truly sick people
+(sensitivity up) always costs some false alarms (specificity down) --- that is the
+threshold trade-off, and the ROC curve below traces it out completely.
+
+Now let's see the ROC curve built from scratch. Ten patients, each with a model-output
+probability of being sick. We will sweep the threshold and compute TPR and FPR at each
+cutoff.
+
+```{webr}
+#| autorun: true
+#| fig-alt: "An ROC curve plotting true positive rate versus false positive rate for 10 patients, with a diagonal dashed line showing random chance. The curve bows toward the upper-left corner, indicating the model is better than random."
+# 10 patients: model outputs a probability of being sick
+prob  <- c(0.95, 0.85, 0.70, 0.65, 0.55, 0.45, 0.35, 0.30, 0.15, 0.05)
+truth <- c(   1,    1,    0,    1,    1,    0,    0,    1,    0,    0)
+# 1 = truly sick, 0 = truly healthy
+
+# Sweep thresholds from 1.0 down to 0.0
+thresholds <- seq(1.0, 0.0, by = -0.05)
+
+# At each threshold, compute TPR and FPR
+tpr <- numeric(length(thresholds))
+fpr <- numeric(length(thresholds))
+
+for (i in seq_along(thresholds)) {
+  t <- thresholds[i]
+  pred_pos <- prob >= t            # predict "sick" if prob >= threshold
+  TP <- sum(pred_pos & truth == 1)
+  FP <- sum(pred_pos & truth == 0)
+  FN <- sum(!pred_pos & truth == 1)
+  TN <- sum(!pred_pos & truth == 0)
+  tpr[i] <- TP / (TP + FN)        # sensitivity at this threshold
+  fpr[i] <- FP / (FP + TN)        # false positive rate at this threshold
+}
+
+# Plot the ROC curve
+plot(fpr, tpr, type = "l", lwd = 2, col = "steelblue",
+     xlab = "False Positive Rate (1 - Specificity)",
+     ylab = "True Positive Rate (Sensitivity)",
+     main = "ROC curve (10-patient example)",
+     xlim = c(0, 1), ylim = c(0, 1))
+abline(a = 0, b = 1, lty = 2, col = "grey50")  # diagonal = random chance
+points(fpr, tpr, pch = 19, cex = 0.6, col = "steelblue")
+
+# Compute AUC by the trapezoidal rule
+# Sort by FPR so the integral goes left to right
+ord <- order(fpr)
+auc <- sum(diff(fpr[ord]) * (tpr[ord][-1] + tpr[ord][-length(tpr[ord])]) / 2)
+cat("AUC:", round(auc, 3), "\n")
+cat("(0.5 = random, 1.0 = perfect)\n")
+```
+
+Now try changing the threshold yourself and watch the confusion matrix change.
+
+```{webr}
+#| autorun: false
+# TRY IT: change the threshold below and re-run to see how the confusion
+# matrix and rates shift.
+# PREDICT: what happens to sensitivity and specificity if you set t = 0.30?
+prob  <- c(0.95, 0.85, 0.70, 0.65, 0.55, 0.45, 0.35, 0.30, 0.15, 0.05)
+truth <- c(   1,    1,    0,    1,    1,    0,    0,    1,    0,    0)
+
+t <- 0.50  # <-- change this threshold
+
+pred_label <- ifelse(prob >= t, "sick", "healthy")
+actual_label <- ifelse(truth == 1, "sick", "healthy")
+
+conf <- table(Predicted = pred_label, Actual = actual_label)
+conf
+
+TP <- sum(pred_label == "sick"    & actual_label == "sick")
+FP <- sum(pred_label == "sick"    & actual_label == "healthy")
+FN <- sum(pred_label == "healthy" & actual_label == "sick")
+TN <- sum(pred_label == "healthy" & actual_label == "healthy")
+
+cat("Sensitivity:", TP / (TP + FN), "\n")
+cat("Specificity:", TN / (TN + FP), "\n")
+cat("Precision:  ", TP / (TP + FP), "\n")
+cat("Accuracy:   ", (TP + TN) / (TP + FP + TN + FN), "\n")
+```
+
+
+## Common traps
+
+**Trap: "High accuracy = good model."** This is the most dangerous misconception in
+classification. Go back to our 8-patient example: 4 patients are healthy, 4 are sick.
+A model that always predicts "healthy" --- never examines anything --- gets every
+healthy patient right and every sick patient wrong, for accuracy $= 4/8 = 0.5$. Its
+sensitivity is $0/4 = 0\%$: it misses every sick person. Now scale it up to an
+imbalanced population: if 90 out of 100 patients are healthy and only 10 are sick,
+that same lazy model scores accuracy $= 90/100 = 0.9$ --- 90% sounds impressive ---
+while its sensitivity is still $0/10 = 0\%$. The lazier the model, the better accuracy
+looks as the healthy class comes to dominate the count, even though it still catches
+zero sick people. The confusion matrix catches this instantly: TP = 0 means the model
+is useless for the job it was built for. Whenever the positive class is rare (called
+**class imbalance**), accuracy is misleading.
+[@james2021introductionstatisticallearning, pp. 148--149]
+
+**Trap: "Sensitivity and specificity are properties of the disease."** They are
+properties of the *test* or *model*, not the condition. The same disease, tested with
+a better model, produces different sensitivity and specificity. Saying "this disease
+has 90% sensitivity" is like saying "this road has 90% braking power" --- it depends
+on the car (the model), not the road (the disease).
+
+**Trap: "The 50% threshold is always the right one."** The 50% cutoff (predict
+"sick" whenever the model's probability exceeds 0.5) minimizes the *overall* error
+rate, but "overall" quietly averages the two kinds of mistakes together as if they
+cost the same --- and they usually don't. Look back at the 10-patient ROC data above:
+at $t = 0.50$, sensitivity and specificity are both 0.8. Lower the threshold to
+$t = 0.30$ and sensitivity rises to 1.0 (every truly sick patient is now caught) while
+specificity falls to 0.4 (more healthy patients get a false alarm). If missing a sick
+patient is far more costly than one extra follow-up test --- true for most medical
+screening --- the 0.30 threshold is the better choice even though it makes the raw
+error rate worse. There is no universally "correct" threshold; the right one depends
+on how much each kind of mistake costs in your specific problem.
+[@james2021introductionstatisticallearning, pp. 149--150]
+
+::: {.callout-note title="If you've done hypothesis testing, this vocabulary is not new"}
+The confusion matrix maps directly onto the Type I/Type II error language from
+[hypothesis tests, p-values, and confidence intervals](../hypothesis-tests-p-values-and-confidence-intervals/lesson.qmd):
+a **false positive (FP)** is a **Type I error** (a false alarm --- rejecting a true
+null when there was nothing there), a **false negative (FN)** is a **Type II error**
+(a missed signal --- failing to reject when there really was something there), and
+**sensitivity** is the same idea as **power** (the fraction of real positives you
+correctly detect). Same fire alarm, same trade-off, different vocabulary.
+[@james2021introductionstatisticallearning, p. 152]
+:::
+
+
+## Check yourself
+
+**1.** In our 8-patient confusion matrix (TP = 3, FP = 1, FN = 1, TN = 3), what is
+the false positive rate (FPR)?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\text{FPR} = \frac{FP}{FP + TN} = \frac{1}{1 + 3} = 0.25$. One in four healthy
+patients got a false alarm. Equivalently, $\text{FPR} = 1 - \text{Specificity} =
+1 - 0.75 = 0.25$.
+:::
+
+**2.** If a classifier has AUC = 0.5, what does that tell you?
+
+::: {.callout-note collapse="true" title="Answer"}
+AUC = 0.5 means the model is no better than flipping a coin. Its ROC curve sits right
+on the diagonal line from (0, 0) to (1, 1). The model cannot distinguish between the
+two classes at any threshold.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, why accuracy can
+be misleading for a classification model and what to look at instead.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Accuracy counts correct predictions without caring which class the errors land in, so
+a model that guesses the majority class every time can score high while missing
+everything you care about. The confusion matrix shows you exactly how many positives
+the model caught (sensitivity) versus how many false alarms it generated
+(specificity), so you can see whether the errors are acceptable for your problem.
+:::
+
+
+## What you can now do
+
+- Build a confusion matrix from predictions and truth labels, counting TP, FP, TN,
+  FN by hand.
+- Compute accuracy, sensitivity, specificity, and precision from those four counts.
+- Explain the threshold trade-off: making the model more aggressive raises
+  sensitivity but lowers specificity.
+- Sketch what an ROC curve shows (TPR vs FPR across thresholds) and why the diagonal
+  means "no better than random."
+- Interpret AUC as a single-number summary of classifier quality (0.5 = random,
+  1.0 = perfect).
+
+If any of these feels shaky, revisit
+[A tiny example first](#a-tiny-example-first) (confusion matrix, accuracy,
+sensitivity, specificity), [Getting a feel for it](#getting-a-feel-for-it) (the
+threshold trade-off), or [Explore it](#explore-it) (ROC curve and AUC) before
+continuing --- the next module that uses classification evaluation assumes all of
+them.
+
+
+## Where this goes next
+
+These tools apply every time you build or evaluate a classifier. In the
+[k-nearest-neighbors](../k-nearest-neighbors/lesson.qmd) module you will train your
+first classifier --- and the confusion matrix, sensitivity/specificity, and ROC curve
+you just learned are exactly how you would grade it, or any classifier you build
+later.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

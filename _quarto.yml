@@ -31,18 +31,30 @@ project:
     - foundations/partial-derivatives-and-the-gradient/lesson.qmd
     - foundations/partial-derivatives-and-the-gradient/practice.qmd
     - foundations/partial-derivatives-and-the-gradient/resources.md
+    - foundations/clustering-k-means-and-hierarchical/lesson.qmd
+    - foundations/clustering-k-means-and-hierarchical/practice.qmd
+    - foundations/clustering-k-means-and-hierarchical/resources.md
     - foundations/distance-similarity-and-geometry/lesson.qmd
     - foundations/distance-similarity-and-geometry/practice.qmd
     - foundations/distance-similarity-and-geometry/resources.md
+    - foundations/k-nearest-neighbors/lesson.qmd
+    - foundations/k-nearest-neighbors/practice.qmd
+    - foundations/k-nearest-neighbors/resources.md
     - foundations/linear-combinations-and-data-matrices/lesson.qmd
     - foundations/linear-combinations-and-data-matrices/practice.qmd
     - foundations/linear-combinations-and-data-matrices/resources.md
     - foundations/matrices-and-linear-transforms/lesson.qmd
     - foundations/matrices-and-linear-transforms/practice.qmd
     - foundations/matrices-and-linear-transforms/resources.md
+    - foundations/pca-and-svd/lesson.qmd
+    - foundations/pca-and-svd/practice.qmd
+    - foundations/pca-and-svd/resources.md
     - foundations/quadratic-forms-and-the-chi-square-statistic/lesson.qmd
     - foundations/quadratic-forms-and-the-chi-square-statistic/practice.qmd
     - foundations/quadratic-forms-and-the-chi-square-statistic/resources.md
+    - foundations/rank-and-linear-independence/lesson.qmd
+    - foundations/rank-and-linear-independence/practice.qmd
+    - foundations/rank-and-linear-independence/resources.md
     - foundations/sherman-morrison-rank-one-updates/lesson.qmd
     - foundations/sherman-morrison-rank-one-updates/practice.qmd
     - foundations/sherman-morrison-rank-one-updates/resources.md
@@ -55,6 +67,9 @@ project:
     - foundations/mean-variance-covariance/lesson.qmd
     - foundations/mean-variance-covariance/practice.qmd
     - foundations/mean-variance-covariance/resources.md
+    - foundations/multivariate-normal-distribution/lesson.qmd
+    - foundations/multivariate-normal-distribution/practice.qmd
+    - foundations/multivariate-normal-distribution/resources.md
     - foundations/priors-posteriors-and-updating/lesson.qmd
     - foundations/priors-posteriors-and-updating/practice.qmd
     - foundations/priors-posteriors-and-updating/resources.md
@@ -64,6 +79,9 @@ project:
     - foundations/bayes-factors-and-posterior-odds/lesson.qmd
     - foundations/bayes-factors-and-posterior-odds/practice.qmd
     - foundations/bayes-factors-and-posterior-odds/resources.md
+    - foundations/classification-evaluation/lesson.qmd
+    - foundations/classification-evaluation/practice.qmd
+    - foundations/classification-evaluation/resources.md
     - foundations/false-discovery-rate/lesson.qmd
     - foundations/false-discovery-rate/practice.qmd
     - foundations/false-discovery-rate/resources.md
@@ -143,6 +161,47 @@ project:
     - courses/multiple-regression/modules/04-capstone-reading-a-multiple-regression/practice.qmd
     - courses/multiple-regression/resources.md
     # >>> generated: knowledge render list (scripts/gen-kb-index.R) — do not edit by hand
+    - knowledge/glossary.md
+    - knowledge/concepts/clustering-and-k-means.md
+    - knowledge/concepts/determinants.md
+    - knowledge/concepts/eigenvalues-and-eigenvectors.md
+    - knowledge/concepts/inner-product.md
+    - knowledge/concepts/least-squares.md
+    - knowledge/concepts/least-squares-data-fitting.md
+    - knowledge/concepts/linear-functions.md
+    - knowledge/concepts/linear-independence.md
+    - knowledge/concepts/norm-and-distance.md
+    - knowledge/concepts/orthogonal-projection.md
+    - knowledge/concepts/orthogonality-and-inner-products.md
+    - knowledge/concepts/principal-component-analysis.md
+    - knowledge/concepts/quadratic-forms.md
+    - knowledge/concepts/singular-value-decomposition.md
+    - knowledge/concepts/span-of-vectors.md
+    - knowledge/concepts/spectral-theorem-and-symmetric-matrices.md
+    - knowledge/concepts/vectors-and-operations.md
+    - knowledge/concepts/conditional-probability.md
+    - knowledge/concepts/continuous-named-distributions.md
+    - knowledge/concepts/covariance-and-correlation.md
+    - knowledge/concepts/discrete-named-distributions.md
+    - knowledge/concepts/expectation-and-moments.md
+    - knowledge/concepts/joint-distributions.md
+    - knowledge/concepts/probability-and-odds.md
+    - knowledge/concepts/random-variables-and-distributions.md
+    - knowledge/concepts/sample-statistics-and-convergence.md
+    - knowledge/concepts/confidence-intervals-and-hypothesis-testing.md
+    - knowledge/concepts/false-discovery-rate.md
+    - knowledge/concepts/likelihood-and-log-likelihood.md
+    - knowledge/concepts/maximum-a-posteriori-estimation.md
+    - knowledge/concepts/resampling-bootstrap-and-permutation.md
+    - knowledge/concepts/bias-variance-trade-off.md
+    - knowledge/concepts/classification-evaluation.md
+    - knowledge/concepts/k-nearest-neighbors.md
+    - knowledge/concepts/model-selection-and-information-criteria.md
+    - knowledge/concepts/ridge-regularization.md
+    - knowledge/sources/2018-boyd-applied-linear-algebra.md
+    - knowledge/sources/2021-chan-probability-data-science.md
+    - knowledge/sources/2021-james-introduction-statistical-learning.md
+    - knowledge/sources/2022-austin-understanding-linear-algebra.md
     # <<< generated: knowledge render list
 
 website:
@@ -236,6 +295,14 @@ website:
                     href: foundations/partial-derivatives-and-the-gradient/resources.md
           - section: "Linear algebra"
             contents:
+              - section: "Clustering (k-means & hierarchical)"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/clustering-k-means-and-hierarchical/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/clustering-k-means-and-hierarchical/practice.qmd
+                  - text: "Resources"
+                    href: foundations/clustering-k-means-and-hierarchical/resources.md
               - section: "Distance, similarity & geometry"
                 contents:
                   - text: "Lesson"
@@ -244,6 +311,14 @@ website:
                     href: foundations/distance-similarity-and-geometry/practice.qmd
                   - text: "Resources"
                     href: foundations/distance-similarity-and-geometry/resources.md
+              - section: "k-nearest neighbors"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/k-nearest-neighbors/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/k-nearest-neighbors/practice.qmd
+                  - text: "Resources"
+                    href: foundations/k-nearest-neighbors/resources.md
               - section: "Linear combinations & the data matrix"
                 contents:
                   - text: "Lesson"
@@ -260,6 +335,14 @@ website:
                     href: foundations/matrices-and-linear-transforms/practice.qmd
                   - text: "Resources"
                     href: foundations/matrices-and-linear-transforms/resources.md
+              - section: "PCA & SVD"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/pca-and-svd/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/pca-and-svd/practice.qmd
+                  - text: "Resources"
+                    href: foundations/pca-and-svd/resources.md
               - section: "Quadratic forms & the chi-square statistic"
                 contents:
                   - text: "Lesson"
@@ -268,6 +351,14 @@ website:
                     href: foundations/quadratic-forms-and-the-chi-square-statistic/practice.qmd
                   - text: "Resources"
                     href: foundations/quadratic-forms-and-the-chi-square-statistic/resources.md
+              - section: "Rank & linear independence"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/rank-and-linear-independence/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/rank-and-linear-independence/practice.qmd
+                  - text: "Resources"
+                    href: foundations/rank-and-linear-independence/resources.md
               - section: "Sherman–Morrison rank-1 updates"
                 contents:
                   - text: "Lesson"
@@ -302,6 +393,14 @@ website:
                     href: foundations/mean-variance-covariance/practice.qmd
                   - text: "Resources"
                     href: foundations/mean-variance-covariance/resources.md
+              - section: "Multivariate normal distribution"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/multivariate-normal-distribution/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/multivariate-normal-distribution/practice.qmd
+                  - text: "Resources"
+                    href: foundations/multivariate-normal-distribution/resources.md
               - section: "Priors, posteriors & updating"
                 contents:
                   - text: "Lesson"
@@ -328,6 +427,14 @@ website:
                     href: foundations/bayes-factors-and-posterior-odds/practice.qmd
                   - text: "Resources"
                     href: foundations/bayes-factors-and-posterior-odds/resources.md
+              - section: "Classification evaluation"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/classification-evaluation/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/classification-evaluation/practice.qmd
+                  - text: "Resources"
+                    href: foundations/classification-evaluation/resources.md
               - section: "The false discovery rate"
                 contents:
                   - text: "Lesson"
@@ -540,6 +647,100 @@ website:
           - text: "Resources"
             href: courses/multiple-regression/resources.md
       # >>> generated: knowledge sidebar (scripts/gen-kb-index.R) — do not edit by hand
+      - section: "Knowledge base"
+        contents:
+          - text: "Glossary"
+            href: knowledge/glossary.md
+          - section: "Linear algebra"
+            contents:
+              - text: "Clustering: k-means and hierarchical"
+                href: knowledge/concepts/clustering-and-k-means.md
+              - text: "Determinants"
+                href: knowledge/concepts/determinants.md
+              - text: "Eigenvalues and eigenvectors"
+                href: knowledge/concepts/eigenvalues-and-eigenvectors.md
+              - text: "Inner product (dot product)"
+                href: knowledge/concepts/inner-product.md
+              - text: "Least squares"
+                href: knowledge/concepts/least-squares.md
+              - text: "Least squares data fitting"
+                href: knowledge/concepts/least-squares-data-fitting.md
+              - text: "Linear and affine functions"
+                href: knowledge/concepts/linear-functions.md
+              - text: "Linear independence"
+                href: knowledge/concepts/linear-independence.md
+              - text: "Norm, distance, and angle"
+                href: knowledge/concepts/norm-and-distance.md
+              - text: "Orthogonal projection"
+                href: knowledge/concepts/orthogonal-projection.md
+              - text: "Orthogonality and inner products"
+                href: knowledge/concepts/orthogonality-and-inner-products.md
+              - text: "Principal component analysis"
+                href: knowledge/concepts/principal-component-analysis.md
+              - text: "Quadratic forms"
+                href: knowledge/concepts/quadratic-forms.md
+              - text: "Singular value decomposition"
+                href: knowledge/concepts/singular-value-decomposition.md
+              - text: "Span of a set of vectors"
+                href: knowledge/concepts/span-of-vectors.md
+              - text: "Spectral theorem and symmetric matrices"
+                href: knowledge/concepts/spectral-theorem-and-symmetric-matrices.md
+              - text: "Vectors and operations"
+                href: knowledge/concepts/vectors-and-operations.md
+          - section: "Probability"
+            contents:
+              - text: "Conditional probability"
+                href: knowledge/concepts/conditional-probability.md
+              - text: "Continuous named distributions"
+                href: knowledge/concepts/continuous-named-distributions.md
+              - text: "Covariance and correlation"
+                href: knowledge/concepts/covariance-and-correlation.md
+              - text: "Discrete named distributions"
+                href: knowledge/concepts/discrete-named-distributions.md
+              - text: "Expectation and moments"
+                href: knowledge/concepts/expectation-and-moments.md
+              - text: "Joint distributions"
+                href: knowledge/concepts/joint-distributions.md
+              - text: "Probability and odds"
+                href: knowledge/concepts/probability-and-odds.md
+              - text: "Random variables and distributions"
+                href: knowledge/concepts/random-variables-and-distributions.md
+              - text: "Sample statistics and convergence"
+                href: knowledge/concepts/sample-statistics-and-convergence.md
+          - section: "Statistical inference"
+            contents:
+              - text: "Confidence intervals and hypothesis testing"
+                href: knowledge/concepts/confidence-intervals-and-hypothesis-testing.md
+              - text: "False discovery rate and multiple testing"
+                href: knowledge/concepts/false-discovery-rate.md
+              - text: "Likelihood and log-likelihood"
+                href: knowledge/concepts/likelihood-and-log-likelihood.md
+              - text: "Maximum a posteriori estimation"
+                href: knowledge/concepts/maximum-a-posteriori-estimation.md
+              - text: "Resampling, bootstrap, and permutation"
+                href: knowledge/concepts/resampling-bootstrap-and-permutation.md
+          - section: "Regression & models"
+            contents:
+              - text: "Bias-variance trade-off"
+                href: knowledge/concepts/bias-variance-trade-off.md
+              - text: "Classification evaluation"
+                href: knowledge/concepts/classification-evaluation.md
+              - text: "K-nearest neighbors"
+                href: knowledge/concepts/k-nearest-neighbors.md
+              - text: "Model selection and information criteria"
+                href: knowledge/concepts/model-selection-and-information-criteria.md
+              - text: "Ridge regression and the lasso"
+                href: knowledge/concepts/ridge-regularization.md
+          - section: "Sources"
+            contents:
+              - text: "Boyd & Vandenberghe (2018) — Introduction to Applied Linear Algebra"
+                href: knowledge/sources/2018-boyd-applied-linear-algebra.md
+              - text: "Chan (2021) — Introduction to Probability for Data Science"
+                href: knowledge/sources/2021-chan-probability-data-science.md
+              - text: "James et al. (2021) — An Introduction to Statistical Learning"
+                href: knowledge/sources/2021-james-introduction-statistical-learning.md
+              - text: "Austin (2023) — Understanding Linear Algebra"
+                href: knowledge/sources/2022-austin-understanding-linear-algebra.md
       # <<< generated: knowledge sidebar
 
 # The whole site renders as `live-html` (the r-wasm/quarto-live format) so that

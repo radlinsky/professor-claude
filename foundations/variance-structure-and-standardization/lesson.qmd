@@ -363,6 +363,8 @@ exactly) duplicated, the split becomes unstable — tiny changes in the data swi
 estimated pieces wildly, even though their combination is nailed down. The fix is almost
 always to notice the redundancy — a correlation matrix with off-diagonal entries near
 $\pm 1$ is the tell — and drop or combine the offending columns before proceeding.
+The formal machinery behind this — linear independence and rank — is in the
+[rank and linear independence](../rank-and-linear-independence/lesson.qmd) module.
 
 ## A fifth idea: pooling / borrowing strength (in words)
 

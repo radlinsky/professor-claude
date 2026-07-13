@@ -1,0 +1,8 @@
+ShortName: Classification evaluation
+Topic: statistical-inference
+Concepts: confusion matrix (TP/FP/TN/FN), accuracy, sensitivity (true positive rate),
+ specificity (true negative rate), precision, recall, the threshold trade-off,
+ ROC curve, AUC (area under the ROC curve)
+BuildsOn: [probability-and-odds](probability-and-odds/lesson.qmd),
+ [model-fit-error-and-validation](model-fit-error-and-validation/lesson.qmd) (soft — for the idea of grading a model)
+UsedBy: —

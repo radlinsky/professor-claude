@@ -401,6 +401,8 @@ $S$ throws away information (it squashes different inputs onto the same output),
 there's no way to undo that. `solve(S)` doesn't return a matrix — it errors with
 "system is exactly singular." This is the matrix version of "you can't divide by
 zero," and it's precisely why papers fuss over whether a matrix is *invertible*.
+The [rank and linear independence](../rank-and-linear-independence/lesson.qmd)
+module digs into *why* redundant rows/columns cause this.
 
 ## Check yourself
 

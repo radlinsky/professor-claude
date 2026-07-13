@@ -32,7 +32,7 @@ already own, given a geometric picture.
 
 This lesson stays with concrete, hand-checkable points (two locations, a person's
 height and weight) and base R — mostly `dist()`, `sqrt()`, and `sum()`. We will *not*
-touch eigenvalues, SVD, or PCA (that machinery is course-level), we will *not* re-teach
+touch eigenvalues, SVD, or PCA (that machinery lives in [PCA & SVD](../pca-and-svd/lesson.qmd)), we will *not* re-teach
 the dot product (that lives in [vectors & summation](../vectors-and-summation/lesson.qmd) — we only reuse it), and we will *not*
 teach standardizing/scaling data (that is the variance-structure material — we only
 point at *why* it matters).
@@ -218,6 +218,7 @@ $$
 d(\mathbf{a}, \mathbf{b}) \;=\; \lVert \mathbf{a} - \mathbf{b} \rVert
 \;=\; \sqrt{\sum_{i=1}^{n} (a_i - b_i)^2}
 $$
+[@boyd2018appliedlinearalgebra, pp. 46--49]
 
 Reading it aloud: "d of a and b equals the norm of a minus b equals the square root of
 the sum, from i equals 1 to n, of a-sub-i minus b-sub-i, all squared" — or in everyday
@@ -296,7 +297,8 @@ len_b <- sqrt(sum(b^2))   # 5  — the norm of b
 dp / len_b                # 4  — how far a reaches along b's direction
 ```
 
-**Orthogonal — at right angles, carrying separate information.** When two vectors sit at
+**Orthogonal — at right angles, carrying separate information.**
+[@austin2022understandinglinearalgebra, pp. 337--340] When two vectors sit at
 a perfect right angle, neither has *any* shadow on the other — one tells you nothing
 about the other. The signal for this is beautifully simple: their **dot product is
 exactly 0**. Vectors whose dot product is 0 are called **orthogonal** (the fancy word
@@ -412,8 +414,8 @@ picking one raw column, you can build a new axis that blends several columns int
 single "summary direction" — a combination that spreads the points out as much as
 possible, so one number captures most of the differences. Plotting the points along one
 or two such summary directions gives a faithful flat picture of a many-columned cloud.
-*Finding* those directions is exactly what PCA/SVD do — course-level machinery we are
-**not** opening here. The takeaway for now: a well-chosen direction can stand in for
+*Finding* those directions is exactly what PCA/SVD do — see the
+[PCA & SVD](../pca-and-svd/lesson.qmd) foundation module. The takeaway for now: a well-chosen direction can stand in for
 many columns, and distances/shadows/right-angles are the tools that make "well-chosen"
 precise.
 
@@ -508,7 +510,9 @@ finds neighbours, or projects data assumes all of these.
 ## Where this goes next
 
 Once each thing you study is a point, "similar", "far", "along this direction", and "at
-right angles" become measurable — and whole methods (nearest-neighbours, clustering, and
-the summary-direction machinery of PCA/SVD) are built by stacking these moves. The
-pieces here — distance, norm, projection, orthogonality — are the geometry those methods
+right angles" become measurable — and whole methods are built by stacking these moves:
+[k-nearest neighbors](../k-nearest-neighbors/lesson.qmd),
+[clustering](../clustering-k-means-and-hierarchical/lesson.qmd), and the
+summary-direction machinery of [PCA & SVD](../pca-and-svd/lesson.qmd). The pieces
+here — distance, norm, projection, orthogonality — are the geometry those methods
 speak. Ready for more reps? Do the [practice problems](practice.qmd).
