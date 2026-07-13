@@ -180,7 +180,8 @@ If a Task/Agent tool is available, dispatch the **`course-auditor` agent** on ev
 changed file (self-review is NOT permitted when dispatch is possible); fix confirmed
 defects, re-verify (back through Step 5), re-dispatch until clean.
 Fallback (no Task/Agent tool available): self-review against
-`.claude/course-authoring/content-review-checklist.md` with fresh eyes and disclose
+`.claude/course-authoring/content-review-checklist.md` plus the persona pass in
+`.claude/course-authoring/student-walkthrough.md` with fresh eyes and disclose
 that the review was self-performed.
 
 Report to the user: what changed and why, the classification from Step 1, every

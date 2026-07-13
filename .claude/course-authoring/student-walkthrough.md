@@ -39,8 +39,10 @@ so neither can you. While reading, hold these five disciplines:
    "sanity-check it numerically in front of the reader" rule failing.
 2. **The R-programmer rule.** Run what this learner would run. They will
    `cor(iris[,1:4])` the moment a lesson claims something about iris; they will
-   re-run a quoted seed to see if the draw reproduces; they read every code
-   comment as teaching text, because to them the chunks ARE the lesson. Verify
+   re-run a quoted seed to see if the draw reproduces; they read every comment
+   the displayed chunk shows them as teaching text (`#|` chunk options are
+   stripped at render and don't count), because to them the chunks ARE the
+   lesson. Verify
    with `Rscript -e` as you go (check 26 owns dataset claims; check 25 owns
    comments).
 3. **The "do I know this yet?" register.** At every symbol, term, and algebraic

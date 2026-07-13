@@ -258,8 +258,9 @@ re-render, and re-check.
     table, and sentence that presents itself as using that data ("our fish",
     "the toy data again") must use exactly those values. Diff every re-statement
     of the toy data against the original table. A deliberate variation is fine
-    ONLY when the prose introduces it as new data in the same breath ("suppose
-    instead we had caught..."); a silent swap is a defect even when the section's
+    ONLY when the prose introduces it in the same breath as new data ("suppose
+    instead we had caught...") or as an explicit transformation of the original
+    ("now center the weights"); a silent swap is a defect even when the section's
     own arithmetic is internally consistent — it renders fine, which is why it
     escapes. Seed bug: the LDA/QDA lesson's QDA section changed the bass weights
     from (5, 6, 5) to (6, 4, 6) while saying "the within-class covariances for
@@ -268,11 +269,13 @@ re-render, and re-check.
 
 25. **Learner-visible code comments are teaching text.**
     The learner reads every comment inside every visible chunk as part of the
-    lesson. Scan them: each must be plain English that serves the reader —
-    a step label, a TRY IT / PREDICT prompt, or an expected result. A placeholder,
-    codeword, author-to-author note, or truncated fragment is a defect. Expected-
-    result comments (`# 22.46`, `# both zero`) fall under check 3's recompute
-    rule. Seed bug: a ridge lesson chunk shipped `# ponytail: Nelder-Mead on L1;
+    lesson (`#|` chunk-option lines are render directives, stripped from the
+    displayed code — not comments under this check). Scan them: each must be
+    plain English that serves the reader — a step label, a TRY IT / PREDICT
+    prompt, or an expected result. A placeholder, codeword, author-to-author
+    note, or truncated fragment is a defect. Expected-result comments
+    (`# 22.46`, `# both zero`) fall under check 3's recompute rule.
+    Seed bug: a ridge lesson chunk shipped `# ponytail: Nelder-Mead on L1;
     coordinate descent if plot artifacts appear` — meaningless to any reader.
 
 26. **Empirical claims about real datasets are verified.**

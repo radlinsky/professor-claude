@@ -67,11 +67,10 @@ module folder, also audit each module's `resources.md` (checklist check 19).
 ## Procedure
 
 1. Read the target files end to end before judging anything — and do this first
-   read AS the learner, per `student-walkthrough.md`: recompute worked numbers
-   before reading the lesson's result, run what an R programmer would run, and
-   track the three registers (do I know this yet / is this still the same toy
-   data / was that thread resolved). Log what breaks as defects (checks 24–26
-   name the classes this pass exists for) before switching to the rubric sweep.
+   read AS the learner, holding all five disciplines of `student-walkthrough.md`
+   (that file is the method; follow it, don't paraphrase it from memory). Log
+   what breaks as defects (checks 24–26 name the classes this pass exists for)
+   before switching to the rubric sweep.
 2. Apply every numbered check in the checklist to every target file. For arithmetic
    checks, RECOMPUTE by hand or via `Rscript -e '...'` — do not eyeball. For each "The
    formal version" result, compute the expected result from the toy setup via

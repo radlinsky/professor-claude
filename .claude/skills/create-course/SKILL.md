@@ -356,7 +356,8 @@ clean verdict is the done condition; any defects it finds re-enter the fix loop
 above (fix, re-render, re-dispatch, then confirm again).
 
 Fallback (no Task/Agent tool available): read
-`.claude/course-authoring/content-review-checklist.md` and run it yourself against
+`.claude/course-authoring/content-review-checklist.md` and its companion persona
+pass `.claude/course-authoring/student-walkthrough.md` and run both yourself against
 every new file, re-reading as if you had never written it — and say in your report
 that the review was self-performed.
 
