@@ -63,8 +63,10 @@ so neither can you. While reading, hold these five disciplines:
    would have said — is a defect under TEACHING.md §Building equations even though
    no arithmetic is wrong.
 
-Practice files get the same treatment: attempt each problem from the starter chunk
-before opening the answer callout, exactly as the timing note tells the learner to.
+Practice files get the same treatment: attempt each problem before opening the
+answer callout, exactly as the timing note tells the learner to — running its
+starter chunk first when the problem provides one (not every problem does; see
+`problem-authoring.md` §Copy-able data for the exemptions).
 
 ## Logging what you find
 
