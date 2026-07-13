@@ -350,6 +350,38 @@ Surface it in the syllabus's *Before you start* section and as a green
 `:::priorcourse` node in the roadmap. (Example: `logistic-regression` builds on
 `simple-linear-regression` and `gradient-descent`.)
 
+## University-catalog rule (topic filing, module scope, teaching order)
+
+Foundations and courses MUST mirror how real universities teach the material. This
+rule is binding on every new module, every topic assignment, and every Builds-on
+edge; the course-auditor treats violations as defects.
+
+1. **Filing — topics are a course catalog.** Every topic in
+   `.claude/course-authoring/topics.dcf` names a recognizable university course area,
+   and a module files under the topic whose university course actually **teaches**
+   it — never under the math it merely *uses*. The test: *in which course's
+   syllabus / textbook table of contents does this concept appear as a section?*
+   k-means uses linear algebra, but no linear-algebra syllabus teaches k-means — it
+   is statistical-learning material. When unsure, DO NOT GUESS: check which extracted
+   source teaches it (`knowledge/sources/*.md` chapter maps — the book a concept
+   lives in IS the catalog answer) or a real syllabus (MIT OCW, a standard
+   textbook's TOC).
+2. **Scope — a module ≈ a textbook section.** A module's `Concepts` list must match
+   how standard textbooks scope the topic (the granularity of a chapter section),
+   not an invented grouping. If no standard text teaches two concepts together, do
+   not fuse them into one module.
+3. **Order — Builds-on edges follow standard teaching order.** Prerequisite edges
+   (and course module numbering) follow the discipline's canonical sequence:
+   e.g. span/independence/rank before eigenvalues; eigenvalues before PCA/SVD;
+   probability before inference; inference before multiple testing. A lesson must
+   not lean on a concept that standard curricula teach *later* unless the use is
+   explicitly marked **Optional (preview)** with a link at point of use.
+
+Deliberate deviation is allowed — this repo serves one learner, not a registrar —
+but it must be *stated*, in one line, where the deviation lives (the syllabus for a
+course; the lesson's Builds-on block for a foundation). An unstated deviation is a
+defect.
+
 ## Index tables
 
 - `courses/README.md` columns: `Course | Teaches | Source | Prerequisite courses | Foundation prerequisites | Status` (`Prerequisite courses` = `—` when none)

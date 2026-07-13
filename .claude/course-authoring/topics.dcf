@@ -15,6 +15,15 @@
 # every module/page that carries it (grep first). Keep the list small (~6-10) — a
 # topic with one module in it forever is a concept, not a topic.
 #
+# UNIVERSITY-CATALOG RULE (binding — see course-structure.md §University-catalog
+# rule): every topic MUST name a recognizable university course area, and a module
+# files under the topic whose university course actually TEACHES it — never under
+# the math it merely uses. Test: in which course's syllabus / textbook TOC does
+# this concept appear as a section? (k-means USES linear algebra but is TAUGHT in
+# statistical-learning courses, so it files under statistical-learning.) When
+# unsure, check the knowledge/sources/ chapter maps or a real syllabus — do not
+# guess.
+#
 # Grouping/enforcement is live: gen-indexes.R and gen-kb-index.R group by topic
 # and fail --check for topics not listed here.
 #
