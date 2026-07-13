@@ -26,6 +26,8 @@
 #      declares the Bib key its filename implies (see citations.md)
 #   9. every knowledge/concepts/<slug>.md link resolves to a real concept page
 #  10. every knowledge/concepts/ page carries at least one citation
+#  11. every concept slug in a source record chapter map resolves to a concept page,
+#      and that concept page cites the source's bib key
 #
 # Run from the repo root: Rscript scripts/check-indexes.R
 
@@ -398,6 +400,44 @@ for (f in concept_pages) {
   }
 }
 passed(before, "every knowledge concept page carries a citation")
+
+## ---- Check 11: source record chapter maps vs concept pages ---------------------------
+cat("\n== Check 11: source record chapter-map concept slugs resolve and cite the source ==\n")
+before <- checkpoint()
+for (f in source_pages) {
+  lines <- read_lines(f)
+  # Extract bib key from the **Bib key:** line.
+  ki <- grep("^\\*\\*Bib key:\\*\\*", lines)
+  if (!length(ki)) next
+  bib_key <- trimws(sub("^\\*\\*Bib key:\\*\\*", "", lines[ki[1]]))
+  # Parse the chapter map table and extract concept slugs from the "Concepts extracted"
+  # column. Slugs appear as `slug (created)` or `slug (augmented)`.
+  rows <- table_rows(lines)
+  for (x in rows) {
+    if (length(x$cells) < 4) next
+    concepts_cell <- x$cells[[4]]
+    if (concepts_cell == "Concepts extracted") next
+    # Only extract concept slugs from before "; glossary:" — glossary terms also
+    # carry (augmented) annotations but are not concept pages.
+    concepts_part <- sub(";\\s*glossary:.*$", "", concepts_cell)
+    slugs <- regmatches(concepts_part,
+      gregexpr("[a-z][a-z0-9-]+ \\((created|augmented)", concepts_part))[[1]]
+    slugs <- sub(" \\((created|augmented)$", "", slugs)
+    for (s in slugs) {
+      cpath <- file.path("knowledge", "concepts", paste0(s, ".md"))
+      if (!file.exists(cpath)) {
+        err(f, sprintf("chapter map lists concept '%s' but %s does not exist", s, cpath), x$line)
+      } else {
+        clines <- read_lines(cpath)
+        cprose <- clines[code_mask(clines)]
+        if (!any(grepl(paste0("@", bib_key), cprose, fixed = TRUE))) {
+          err(f, sprintf("chapter map lists concept '%s' but %s does not cite [@%s]", s, cpath, bib_key), x$line)
+        }
+      }
+    }
+  }
+}
+passed(before, "all chapter-map concept slugs resolve and cite their source")
 
 ## ---- done ---------------------------------------------------------------------------
 cat("\n")
