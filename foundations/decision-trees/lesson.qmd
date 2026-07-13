@@ -1,0 +1,428 @@
+---
+title: "Decision trees"
+subtitle: "Split the data into boxes — each box makes one prediction"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c("rpart")
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+Every method we have seen so far fits a **single** formula to the whole dataset — a
+line, a curve, a discriminant score. A decision tree does something different: it
+**splits** the data into regions and makes a separate prediction in each region. The
+result is a flowchart of yes/no questions: "Is age < 30? Yes → go left. Is income >
+50k? Yes → predict class A." That flowchart IS the model — you can draw it and read it
+like a recipe. [@james2021introductionstatisticallearning, pp. 327--329]
+
+The trade-off: trees are easy to interpret but they are **unstable** — small changes in
+the data can produce a completely different tree. The next module solves that problem by
+averaging many trees together.
+
+**Builds on:**
+[model fit, error & validation](../model-fit-error-and-validation/lesson.qmd) — RSS as
+the measure of fit, and train/test splitting to avoid overfitting;
+[classification evaluation](../classification-evaluation/lesson.qmd) — confusion
+matrices and accuracy for grading classification trees
+
+
+## Warm-up: do you remember?
+
+Before the new stuff, a few quick reps — answers from memory first, then check.
+
+**1.** You fit a model to a training set and get RSS = 20. On the test set, RSS = 80.
+In one sentence, what is happening?
+
+::: {.callout-note collapse="true" title="Answer"}
+The model is **overfitting** — it fits the training data well (low RSS) but fails to
+generalize (high test RSS). Taught in
+[model fit, error & validation](../model-fit-error-and-validation/lesson.qmd); revisit
+if shaky.
+:::
+
+**2.** A confusion matrix has 40 true positives and 10 false negatives. What is the
+sensitivity?
+
+::: {.callout-note collapse="true" title="Answer"}
+Sensitivity = TP / (TP + FN) = 40 / 50 = 0.80. Taught in
+[classification evaluation](../classification-evaluation/lesson.qmd); revisit if shaky.
+:::
+
+
+## A tiny example first
+
+Twelve customers, each described by one predictor (account age in years) and one
+outcome (dollars spent last month):
+
+| Customer | Age (yrs) | Spent ($) |
+|----------|-----------|-----------|
+| 1        | 1         | 10        |
+| 2        | 2         | 15        |
+| 3        | 3         | 12        |
+| 4        | 4         | 18        |
+| 5        | 5         | 40        |
+| 6        | 6         | 45        |
+| 7        | 7         | 50        |
+| 8        | 8         | 42        |
+| 9        | 9         | 80        |
+| 10       | 10        | 85        |
+| 11       | 11        | 78        |
+| 12       | 12        | 90        |
+
+Suppose you want to predict spending from age. A linear regression would draw one
+line through all 12 points. A tree asks: **what single cutpoint on age best splits
+these customers into two groups with the smallest total RSS?**
+
+Try splitting at age = 4.5 (customers 1--4 go left, 5--12 go right):
+
+- Left group: (10, 15, 12, 18). Mean = 13.75. RSS = $(10-13.75)^2 + (15-13.75)^2 + (12-13.75)^2 + (18-13.75)^2 = 14.06 + 1.56 + 3.06 + 18.06 = 36.75$.
+- Right group: (40, 45, 50, 42, 80, 85, 78, 90). Mean = 63.75. RSS = sum of squared deviations = 3185.5.
+- Total RSS = 36.75 + 3185.5 = 3222.25.
+
+Now try splitting at age = 8.5 (customers 1--8 go left, 9--12 go right):
+
+- Left group: (10, 15, 12, 18, 40, 45, 50, 42). Mean = 29. RSS = 1954.
+- Right group: (80, 85, 78, 90). Mean = 83.25. RSS = 86.75.
+
+- Total RSS = 1954 + 86.75 = 2040.75.
+
+The age = 8.5 split has lower total RSS. The tree algorithm tries **every** possible
+cutpoint and picks the one with the smallest total RSS.
+
+```{r toy-example}
+# The toy data
+age   <- 1:12
+spent <- c(10, 15, 12, 18, 40, 45, 50, 42, 80, 85, 78, 90)
+
+# Try every possible split and compute total RSS
+try_split <- function(cutpoint) {
+  left  <- spent[age <= cutpoint]
+  right <- spent[age > cutpoint]
+  rss_left  <- sum((left  - mean(left))^2)
+  rss_right <- sum((right - mean(right))^2)
+  rss_left + rss_right
+}
+
+# Candidate cutpoints: midpoints between consecutive ages
+cuts <- 1:11 + 0.5
+rss  <- sapply(cuts, try_split)
+names(rss) <- cuts
+round(rss, 1)
+
+# Best first split
+cat("Best split at age =", cuts[which.min(rss)],
+    "with total RSS =", round(min(rss), 1), "\n")
+```
+
+
+## Getting a feel for it
+
+**The mental picture: a tree carves the number line (or the predictor space) into
+boxes, and each box gets its own flat prediction.** One split on age creates two
+boxes; a second split on one of those boxes creates three; and so on. The prediction
+inside each box is just the average of the training $y$-values that landed there.
+
+**Why this construction?** Because some patterns are not lines. If spending jumps
+sharply at certain age thresholds (new customers spend little, established ones spend
+a lot, long-tenured ones spend even more), a tree discovers those thresholds
+automatically. No one needs to specify the breakpoints in advance — the algorithm
+finds the split that minimizes RSS at each step.
+
+**Where the analogy breaks:** a tree can only make axis-aligned cuts (vertical or
+horizontal lines in 2D). It cannot tilt a boundary diagonally the way LDA or logistic
+regression can. For smooth, diagonal relationships, a line often beats a tree.
+
+**What the numbers feel like.** In our toy example, the best first split separates
+low spenders from high spenders. The RSS inside each group is much smaller than the
+total RSS before the split — the tree "explains" the jump by finding where it happens.
+
+
+## What the notation is going to say
+
+The formula will say: partition the predictor space into regions $R_1, \ldots, R_J$,
+and for each region predict the mean of the training $y$-values in that region. The
+algorithm picks the regions by greedily choosing the split (which predictor, which
+cutpoint) that reduces RSS the most at each step. In our toy, the first region might
+be "age $\leq$ 4.5" (predicted spending ≈ 14) and the second "age > 4.5" (predicted
+spending ≈ 64).
+
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x_i$, $y_i$ | "x-i", "y-i" | the predictor value and response for observation $i$ | $x_3 = 3$ (age), $y_3 = 12$ (spending) |
+| $n_j$ | "n-j" | number of training observations in region $R_j$ | 4 customers in the left group after splitting at 4.5 |
+| $R_j$ | "R-j" | the $j$-th region (leaf) of the tree | $R_1$: customers with age $\leq$ the cutpoint; $R_2$: the rest |
+| $J$ | "J" | number of terminal nodes (leaves) | 2 after the first split |
+| $\hat{y}_{R_j}$ | "y-hat R-j" | the predicted value in region $R_j$: the mean of training $y$-values there | mean spending for customers in that box |
+| $\in$ | "in" | "is a member of" — $x_i \in R_j$ means observation $i$ falls in region $j$ | customer 3 $\in R_1$ (age 3 is in the left group) |
+| $s$ | "s" | the cutpoint value for a split | 4.5 (the first cutpoint we tried) |
+| $X_j$ | "X-j" | the predictor being split on (when there are multiple predictors) | age (our only predictor here) |
+| $\lvert T \rvert$ | "size of T" | number of terminal nodes in tree $T$ | 2 for a single split, 3 for two splits, etc. |
+| $\alpha$ | "alpha" | the pruning penalty on tree size — larger $\alpha$ favors smaller trees | (used in pruning below) |
+| $G$ | "Gini index" | a measure of node impurity for classification: small when a node is pure (mostly one class) | (used for classification trees below) |
+
+
+## The formal version
+
+### The prediction rule
+
+A decision tree partitions the predictor space into $J$ non-overlapping regions
+$R_1, \ldots, R_J$, and for each observation falling in region $R_j$, predicts
+[@james2021introductionstatisticallearning, pp. 330--331]:
+
+$$
+\hat{y} = \hat{y}_{R_j} = \frac{1}{n_j} \sum_{i:\, x_i \in R_j} y_i
+$$
+
+Reading it aloud: "y-hat equals the mean of the training y-values in region R-j" —
+or in everyday words: "look up which box the new point falls in, and predict the
+average of the training data in that box."
+
+Mapping it onto the toy: if the tree splits at age = 4.5, then a customer with age 3
+falls in $R_1$ and is predicted 13.75 (the mean of 10, 15, 12, 18).
+
+### How splits are chosen (greedy, top-down)
+
+At each step, the algorithm considers every predictor $X_j$ and every cutpoint $s$,
+and picks the pair that minimizes the total RSS across the two resulting regions
+[@james2021introductionstatisticallearning, pp. 330--331]:
+
+$$
+\sum_{i:\, x_i \in R_1(j,s)} (y_i - \hat{y}_{R_1})^2 \;+\; \sum_{i:\, x_i \in R_2(j,s)} (y_i - \hat{y}_{R_2})^2
+$$
+
+Reading it aloud: "the RSS in the left region plus the RSS in the right region" —
+this is exactly the two-group computation we did by hand above.
+
+The process is **greedy**: at each step it picks the locally best split without
+looking ahead. This is fast (try all cutpoints, pick the winner) but means the
+globally optimal tree is not guaranteed.
+
+### For classification: Gini index
+
+When the response is a class label instead of a number, RSS does not apply. Instead,
+trees need a measure of how **mixed** (impure) a node is. Imagine a node with 3
+class-A observations and 1 class-B. The proportion of A is 3/4 = 0.75, B is 1/4 =
+0.25. How impure is that? Multiply each proportion by its complement and add:
+$0.75 \times 0.25 + 0.25 \times 0.75 = 0.375$. That is the **Gini index** — a
+score from 0 (pure) to 0.5 (maximally mixed for 2 classes).
+[@james2021introductionstatisticallearning, pp. 335--336]
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\hat{p}_{mk}$ | "p-hat m-k" | proportion of observations in node $m$ from class $k$ | if 3 of 4 customers in a node are "low spenders," $\hat{p}_{m,\text{low}} = 0.75$ |
+| $K$ | "K" | total number of classes | 2 (low spenders, high spenders) |
+
+The formal version:
+
+$$
+G = \sum_{k=1}^{K} \hat{p}_{mk}(1 - \hat{p}_{mk})
+$$
+
+Reading it aloud: "the Gini index equals the sum over all classes of p-hat-m-k times
+one minus p-hat-m-k" — in everyday words: "how mixed is this node?" If a node is
+pure (all one class), every $\hat{p}_{mk}$ is 0 or 1, so $G = 0$. If the node is
+evenly split between two classes, $G = 2 \times 0.5 \times 0.5 = 0.5$ — maximum
+impurity. The tree picks the split that reduces the weighted Gini index the most.
+
+### Pruning: grow big, then cut back
+
+A tree that keeps splitting until every leaf has one observation will overfit badly —
+it memorizes the training data. The fix is **cost-complexity pruning**: grow the
+largest tree $T_0$, then find the subtree $T$ that minimizes
+[@james2021introductionstatisticallearning, pp. 331--333]:
+
+$$
+\sum_{m=1}^{|T|} \sum_{i:\, x_i \in R_m} (y_i - \hat{y}_{R_m})^2 + \alpha\,|T|
+$$
+
+Reading it aloud: "the total RSS of the tree plus alpha times the number of leaves"
+— or in everyday words: "fit plus a penalty for complexity." When $\alpha = 0$, the
+full tree wins (lowest RSS). As $\alpha$ grows, the penalty for extra leaves
+increases, and the best tree shrinks. Select $\alpha$ by cross-validation — same
+idea as choosing $\lambda$ in ridge or lasso.
+
+PREDICT: how many leaves will the unpruned tree have for 12 data points? Write your
+guess, then check the plot below.
+
+```{r pruning-demo}
+#| fig-alt: "Two regression trees for the toy data: the left tree is unpruned (many leaves, low training RSS), the right tree is pruned to 3 leaves."
+library(rpart)
+df <- data.frame(age = 1:12,
+                 spent = c(10, 15, 12, 18, 40, 45, 50, 42, 80, 85, 78, 90))
+
+# Grow a big tree (no pruning constraints)
+big_tree <- rpart(spent ~ age, data = df, control = rpart.control(minsplit = 2, cp = 0))
+
+# Prune to 3 leaves using a complexity parameter
+pruned <- prune(big_tree, cp = 0.05)
+
+par(mfrow = c(1, 2), mar = c(2, 2, 3, 1))
+plot(big_tree, uniform = TRUE, main = "Unpruned"); text(big_tree, cex = 0.8)
+plot(pruned, uniform = TRUE, main = "Pruned (3 leaves)"); text(pruned, cex = 0.8)
+```
+
+
+## Explore it
+
+### Find the best split by hand
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Bar chart showing total RSS for each possible split point on age (1.5 through 11.5). The minimum RSS is marked, showing the best first split."
+# The toy data
+age   <- 1:12
+spent <- c(10, 15, 12, 18, 40, 45, 50, 42, 80, 85, 78, 90)
+
+# TRY IT: change the spending values and re-run — does the best split move?
+# PREDICT: which cutpoint will have the lowest RSS? Write your guess first.
+
+# Try every cutpoint
+cuts <- 1:11 + 0.5
+rss <- numeric(length(cuts))
+for (i in seq_along(cuts)) {
+  left  <- spent[age <= cuts[i]]
+  right <- spent[age >  cuts[i]]
+  rss[i] <- sum((left - mean(left))^2) + sum((right - mean(right))^2)
+}
+
+barplot(rss, names.arg = cuts, xlab = "Cutpoint", ylab = "Total RSS",
+        main = "RSS for each possible split", col = ifelse(rss == min(rss), "coral", "steelblue"))
+cat("Best split: age =", cuts[which.min(rss)], " RSS =", round(min(rss), 1), "\n")
+```
+
+### `rpart` agrees with our hand computation
+
+::: {.callout-note collapse="true" title="Static R — runs at build time, not in the browser"}
+The `rpart` package fits decision trees. This cell runs when the page is built; you
+can run it on your own machine with `Rscript`.
+:::
+
+```{r rpart-toy}
+library(rpart)
+df <- data.frame(age = 1:12,
+                 spent = c(10, 15, 12, 18, 40, 45, 50, 42, 80, 85, 78, 90))
+fit <- rpart(spent ~ age, data = df, control = rpart.control(minsplit = 2, cp = 0.01))
+
+# The first split rpart chose
+cat("rpart's splits:\n")
+print(fit)
+
+# Compare: our hand-computed best split
+cuts <- 1:11 + 0.5
+rss <- sapply(cuts, function(s) {
+  L <- df$spent[df$age <= s]; R <- df$spent[df$age > s]
+  sum((L - mean(L))^2) + sum((R - mean(R))^2)
+})
+cat("\nHand search best split: age =", cuts[which.min(rss)], "\n")
+cat("rpart first split agrees:", grepl(as.character(cuts[which.min(rss)]),
+    paste(capture.output(print(fit)), collapse = " ")), "\n")
+```
+
+### Classification tree on iris
+
+PREDICT: iris has 4 predictors — will the tree use all 4, or will a few suffice?
+
+```{r iris-tree}
+#| fig-alt: "A classification tree for the iris dataset, splitting on Petal.Length and Petal.Width to classify three species."
+library(rpart)
+fit_iris <- rpart(Species ~ ., data = iris, method = "class")
+plot(fit_iris, uniform = TRUE, margin = 0.1); text(fit_iris, cex = 0.8)
+
+preds <- predict(fit_iris, type = "class")
+cat("Training accuracy:", mean(preds == iris$Species), "\n")
+```
+
+
+## Common traps
+
+**Trap: "A split that barely reduces RSS is useless — just stop early."** Stopping
+early is risky because a weak split now can enable a strong split later. For example,
+in our toy data, suppose the first split at age = 8.5 looks mediocre. If we stop, we
+miss the chance to split the left group at age = 4.5, which would cleanly separate
+the low and mid spenders. The standard approach is: grow the full tree, then prune
+back. Let the pruning penalty decide what to keep, not an early-stopping rule.
+[@james2021introductionstatisticallearning, p. 331]
+
+**Trap: "Trees are as accurate as linear models."** On our toy data, a single tree
+with 3 leaves might predict 14, 44, and 83 for the three groups. A well-fit line
+through the same data could have lower test error if the true relationship is smooth.
+Trees shine when the true pattern has sharp jumps or interactions — but for smooth
+trends, a line or generalized linear model usually wins. The real power of trees comes
+from ensembles (next module).
+[@james2021introductionstatisticallearning, pp. 338--340]
+
+
+## Check yourself
+
+**1.** In our toy data, the best first split is at age = 8.5 (from the R output). What
+is the predicted spending for a customer with age = 3?
+
+```{webr}
+#| autorun: false
+# check1-starter
+age   <- 1:12
+spent <- c(10, 15, 12, 18, 40, 45, 50, 42, 80, 85, 78, 90)
+# What is the mean of spent for customers with age <= 8.5?
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Age 3 falls in the left region (age $\leq$ 8.5). The training values there are 10,
+15, 12, 18, 40, 45, 50, 42. Mean = 232/8 = 29. So the prediction is \$29.
+:::
+
+**2.** A node has 60 observations: 45 from class A and 15 from class B. Compute the
+Gini index.
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat{p}_A = 45/60 = 0.75$, $\hat{p}_B = 15/60 = 0.25$.
+$G = 0.75 \times 0.25 + 0.25 \times 0.75 = 0.375$.
+(A pure node would have $G = 0$; this node is moderately impure.)
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what a decision
+tree does and why it needs pruning.
+
+::: {.callout-note collapse="true" title="A model answer"}
+A decision tree splits the data into boxes using yes/no questions about the
+predictors, and predicts the average (or majority class) in each box. Without
+pruning it keeps splitting until each box has one observation — memorizing the
+training data — so you grow the full tree and then cut back branches that don't
+improve test-set performance.
+:::
+
+
+## What you can now do
+
+- Find the best binary split on a predictor by trying every cutpoint and picking the
+  one with the lowest RSS (or Gini index for classification)
+- Read a tree diagram: follow the branches to get a prediction for a new observation
+- Explain why pruning (grow big, then cut back with a penalty) is safer than
+  stopping early
+- State the key weakness of single trees: instability (small data changes, very
+  different tree)
+
+If any of these feels shaky, revisit the relevant section above before continuing —
+the next module builds on trees as the base learner for ensemble methods.
+
+
+## Where this goes next
+
+A single tree is interpretable but fragile — small changes in the data can produce a
+completely different tree. The next module — **bagging, random forests & boosting** —
+fixes this by growing **many** trees and averaging their predictions, trading
+interpretability for dramatically better accuracy and stability.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

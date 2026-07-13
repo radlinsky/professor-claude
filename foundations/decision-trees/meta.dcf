@@ -1,0 +1,11 @@
+ShortName: Decision trees
+Topic: statistical-learning
+Concepts: recursive binary splitting (greedily choose the predictor and cutpoint that minimize RSS or impurity),
+ terminal nodes (leaves) as the prediction regions,
+ the Gini index as the split criterion for classification,
+ cost-complexity pruning (grow big then cut back with a penalty on tree size),
+ trees vs linear models (axis-aligned rectangles vs linear boundaries),
+ tree instability (small data changes can produce very different trees)
+BuildsOn: [model-fit-error-and-validation](model-fit-error-and-validation/lesson.qmd),
+ [classification-evaluation](classification-evaluation/lesson.qmd)
+UsedBy: —

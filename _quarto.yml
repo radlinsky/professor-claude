@@ -103,6 +103,9 @@ project:
     - foundations/clustering-k-means-and-hierarchical/lesson.qmd
     - foundations/clustering-k-means-and-hierarchical/practice.qmd
     - foundations/clustering-k-means-and-hierarchical/resources.md
+    - foundations/decision-trees/lesson.qmd
+    - foundations/decision-trees/practice.qmd
+    - foundations/decision-trees/resources.md
     - foundations/k-nearest-neighbors/lesson.qmd
     - foundations/k-nearest-neighbors/practice.qmd
     - foundations/k-nearest-neighbors/resources.md
@@ -501,6 +504,14 @@ website:
                     href: foundations/clustering-k-means-and-hierarchical/practice.qmd
                   - text: "Resources"
                     href: foundations/clustering-k-means-and-hierarchical/resources.md
+              - section: "Decision trees"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/decision-trees/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/decision-trees/practice.qmd
+                  - text: "Resources"
+                    href: foundations/decision-trees/resources.md
               - section: "k-nearest neighbors"
                 contents:
                   - text: "Lesson"

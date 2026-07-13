@@ -1,0 +1,236 @@
+---
+title: "Practice: Decision trees"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+library(rpart)
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+
+## Problem 1 — confidence rep with new numbers
+
+Eight observations, one predictor ($x$), one response ($y$):
+
+| $x$ | 1  | 2  | 3  | 4  | 5  | 6  | 7  | 8  |
+|-----|----|----|----|----|----|----|----|----|
+| $y$ | 5  | 8  | 6  | 7  | 20 | 25 | 22 | 23 |
+
+Try splitting at $x = 4.5$. Compute the mean $y$ and RSS in each group. What is the
+total RSS?
+
+```{webr}
+#| autorun: false
+# p1-starter
+x <- 1:8
+y <- c(5, 8, 6, 7, 20, 25, 22, 23)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Left ($x \leq 4.5$): $y$ = (5, 8, 6, 7). Mean = 6.5.
+RSS = $(5-6.5)^2 + (8-6.5)^2 + (6-6.5)^2 + (7-6.5)^2 = 2.25 + 2.25 + 0.25 + 0.25 = 5$.
+Right ($x > 4.5$): $y$ = (20, 25, 22, 23). Mean = 22.5.
+RSS = $(20-22.5)^2 + (25-22.5)^2 + (22-22.5)^2 + (23-22.5)^2 = 6.25 + 6.25 + 0.25 + 0.25 = 13$.
+Total RSS = 5 + 13 = 18.
+:::
+
+
+## Problem 2 — faded worked example
+
+Below is a best-split search for the lesson's toy data (age 1--12, spending as
+given). One step is blanked out.
+
+- Step 1: list all candidate cutpoints: 1.5, 2.5, ..., 11.5 (midpoints between
+  consecutive ages).
+- Step 2: for cutpoint = 4.5, the left group is (10, 15, 12, 18) with mean 13.75,
+  and the right group is (40, 45, 50, 42, 80, 85, 78, 90) with mean 63.75.
+- Step 3: **your step here** — compute the RSS in the left group and the RSS in the
+  right group for the cutpoint 4.5.
+- Step 4: add left RSS + right RSS to get the total RSS for this cutpoint.
+- Step 5: repeat for all cutpoints, pick the one with the smallest total.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 3: Left RSS = $(10-13.75)^2 + (15-13.75)^2 + (12-13.75)^2 + (18-13.75)^2$
+$= 14.06 + 1.56 + 3.06 + 18.06 = 36.75$.
+Right RSS = $(40-63.75)^2 + (45-63.75)^2 + (50-63.75)^2 + (42-63.75)^2 + (80-63.75)^2 + (85-63.75)^2 + (78-63.75)^2 + (90-63.75)^2$
+$= 564.06 + 351.56 + 189.06 + 473.06 + 264.06 + 451.56 + 203.06 + 689.06 = 3185.5$.
+Total = 36.75 + 3185.5 = 3222.25. (Not the best split — the R code in the lesson
+finds a cutpoint with lower total RSS.)
+:::
+
+
+## Problem 3 — Gini index computation
+
+A classification node has 80 observations: 60 from class A and 20 from class B.
+
+(a) Compute the Gini index for this node.
+(b) After splitting, the left child has 55 A and 5 B; the right child has 5 A and
+15 B. Compute the Gini index of each child. Is the split an improvement?
+
+```{webr}
+#| autorun: false
+# p3-starter
+# PREDICT: will the split improve (lower) the weighted Gini?
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $\hat{p}_A = 60/80 = 0.75$, $\hat{p}_B = 0.25$.
+$G_\text{parent} = 0.75 \times 0.25 + 0.25 \times 0.75 = 0.375$.
+
+(b) Left (60 obs): $\hat{p}_A = 55/60 = 0.917$, $\hat{p}_B = 5/60 = 0.083$.
+$G_\text{left} = 0.917 \times 0.083 + 0.083 \times 0.917 = 0.153$.
+Right (20 obs): $\hat{p}_A = 5/20 = 0.25$, $\hat{p}_B = 15/20 = 0.75$.
+$G_\text{right} = 0.25 \times 0.75 + 0.75 \times 0.25 = 0.375$.
+Weighted Gini = $(60/80) \times 0.153 + (20/80) \times 0.375 = 0.115 + 0.094 = 0.209$.
+Yes, the split improves impurity: parent Gini = 0.375, weighted child Gini = 0.209.
+The left child is much purer (mostly A).
+:::
+
+
+## Problem 4 — spot the error
+
+A colleague says: *"My unpruned tree has 0% training error — it must be the best
+model, so I'll deploy it as-is."* This contains **exactly one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: equating 0% training error with "best model." An unpruned tree can
+achieve 0% training error by creating one leaf per observation, but that tree is
+**overfitting** — it memorizes the training data and will perform poorly on new data.
+A pruned tree (fewer leaves, higher training error) almost always has lower **test**
+error. This is the "grow big then cut back" lesson: training error alone does not
+measure quality.
+:::
+
+
+## Problem 5 — interleaved *(uses model fit, error & validation's train/test idea)*
+
+Using the lesson's toy data (age 1--12), suppose you hold out customers 11 and 12 as
+a test set and build a tree on the remaining 10.
+
+(a) Training on customers 1--10 with a split at age = 8.5: the right group (ages 9,
+10; spending 80, 85) has mean 82.5. What is the test RSS for customers 11 and 12
+(actual spending: 78 and 90)?
+(b) Is this test RSS higher or lower than the training RSS for the same tree? What
+does that tell you?
+
+```{webr}
+#| autorun: false
+# p5-starter
+# Test customers: age 11 (spent 78), age 12 (spent 90)
+# Both fall in the right region (age > 8.5), predicted = 82.5 (from training data only)
+test_actual <- c(78, 90)
+test_pred   <- 82.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) Both test customers have age > 8.5, so both are predicted 82.5 (the mean of the
+training right group: ages 9--10).
+Test RSS = $(78 - 82.5)^2 + (90 - 82.5)^2 = 20.25 + 56.25 = 76.5$.
+
+(b) The test RSS (76.5 for 2 observations) is proportionally higher than the
+training RSS per observation — expected, because the tree was fit to the training
+data, not these new points. Moderate test error on unseen data is normal; the
+concern would be if test RSS were dramatically worse than training, signaling
+overfitting.
+:::
+
+
+## Problem 6 — transfer: tree instability
+
+Remove customer 12 (age = 12, spent = 90) from the toy dataset and re-find the best
+first split on the remaining 11 customers. Does the best cutpoint change? What does
+this say about tree stability?
+
+```{webr}
+#| autorun: false
+# p6-starter
+# PREDICT: will removing one customer change the best split? Write your guess.
+age   <- 1:11
+spent <- c(10, 15, 12, 18, 40, 45, 50, 42, 80, 85, 78)
+cuts  <- 1:10 + 0.5
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r}
+age <- 1:11; spent <- c(10, 15, 12, 18, 40, 45, 50, 42, 80, 85, 78)
+rss <- sapply(1:10 + 0.5, function(s) {
+  L <- spent[age <= s]; R <- spent[age > s]
+  sum((L - mean(L))^2) + sum((R - mean(R))^2)
+})
+names(rss) <- 1:10 + 0.5; round(rss, 1)
+cat("Best split:", names(which.min(rss)), "\n")
+```
+
+Removing one customer can change which cutpoint wins (or at least change the RSS
+values substantially). This is tree **instability**: small data changes can produce
+different trees. It is the main weakness of single decision trees and the motivation
+for ensemble methods (bagging, random forests) in the next module.
+:::
+
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/decision-trees" pass="4"}
+
+::: {.quiz-q qid="dt-split-criterion" qtype="mc" answer="c"}
+A regression tree picks each split by choosing the cutpoint that:
+
+a) Maximizes the distance between the two group means after splitting
+b) Puts an equal number of observations in each resulting child node
+c) Minimizes the total RSS (sum of squared deviations) in both resulting groups
+:::
+
+::: {.quiz-q qid="dt-gini-pure" qtype="mc" answer="a"}
+A classification node contains 30 observations, all from class A. What is its Gini index?
+
+a) 0 — the node is perfectly pure, so every term in the Gini sum is zero
+b) 0.5 — because there is only one class present in this particular node
+c) 1 — because the node has maximum certainty about its predicted class
+:::
+
+::: {.quiz-q qid="dt-pruning-why" qtype="mc" answer="b"}
+Why is "grow big, then prune" preferred over "stop splitting when RSS gain is small"?
+
+a) Pruning always produces a tree with exactly two leaves, which is simplest
+b) A weak early split can enable a strong later split that stopping would miss
+c) Pruning uses the training RSS directly, avoiding any need for cross-validation
+:::
+
+::: {.quiz-q qid="dt-instability" qtype="mc" answer="a"}
+What is the main weakness of a single decision tree compared to linear regression?
+
+a) Small changes in the data can produce a very different tree (high variance)
+b) Trees cannot handle classification problems, only regression problems
+c) Trees require the predictors to be normally distributed within each region
+:::
+
+::: {.quiz-q qid="dt-train-rss" qtype="mc" answer="c"}
+(From model fit, error & validation.) An unpruned tree achieves 0% training error. This means:
+
+a) The tree will also achieve 0% error on new data from the same population
+b) The tree has found the true underlying relationship between predictors and response
+c) The tree has likely memorized the training data and will overfit on new observations
+:::
+
+:::
+
+::::
