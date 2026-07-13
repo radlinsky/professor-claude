@@ -24,17 +24,21 @@ arithmetic, `ls` to check links resolve) — never for commands that modify anyt
    the checklist doesn't settle (and its §Self-check items).
 3. `.claude/course-authoring/learner-profile.md` — the reader you audit on behalf
    of: could THIS person follow every step with a pencil?
-4. `.claude/course-authoring/interactive-webr.md` — the interactive/static contract
+4. `.claude/course-authoring/student-walkthrough.md` — the persona pass: HOW to do
+   your first end-to-end read (procedure step 1) as that learner — pencil rule,
+   R-programmer rule, and the three tracking registers. It is a second method, not
+   a second report: its findings go into the same defect table.
+5. `.claude/course-authoring/interactive-webr.md` — the interactive/static contract
    behind checklist check 12 (which chunks are live `{webr}` vs baked `{r}`, the
    include wiring, the static-fallback rule). You audit the WIRING and the split; you
    cannot execute `{webr}` cells (that is a manual/CI check) — never claim you did.
-5. Only for a PORTED course (built with the port-library skill):
+6. Only for a PORTED course (built with the port-library skill):
    `equivalence/README.md` — how a from-scratch reimplementation is frozen against a
    real reference and re-checked. Checklist check 12 covers the ported-course wiring
    (the live self-check cell, the stated validation tier, the static real-library
    comparison). You may run `Rscript equivalence/check.R` read-only to confirm the
    fixtures still pass, but you cannot run `{webr}` cells.
-6. Only if `knowledge/` exists (skip silently when absent): `knowledge/README.md` —
+7. Only if `knowledge/` exists (skip silently when absent): `knowledge/README.md` —
    the knowledge-base index — plus the `knowledge/concepts/` pages matching the
    audited lessons' topics and `.claude/course-authoring/citations.md`. These back
    checklist checks 22 (citations resolve and follow the contract) and 23 (no
@@ -62,7 +66,11 @@ module folder, also audit each module's `resources.md` (checklist check 19).
 
 ## Procedure
 
-1. Read the target files end to end before judging anything.
+1. Read the target files end to end before judging anything — and do this first
+   read AS the learner, holding all five disciplines of `student-walkthrough.md`
+   (that file is the method; follow it, don't paraphrase it from memory). Log
+   what breaks as defects (checks 24–26 name the classes this pass exists for)
+   before switching to the rubric sweep.
 2. Apply every numbered check in the checklist to every target file. For arithmetic
    checks, RECOMPUTE by hand or via `Rscript -e '...'` — do not eyeball. For each "The
    formal version" result, compute the expected result from the toy setup via

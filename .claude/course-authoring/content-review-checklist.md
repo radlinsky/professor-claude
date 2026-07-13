@@ -13,7 +13,9 @@ agent** (`.claude/agents/course-auditor.md`) instead of self-reviewing —
 independence catches what self-review misses.
 
 (This file is the machine-checkable rubric; the contract behind it is root
-`TEACHING.md`, whose §Self-check these items operationalize.)
+`TEACHING.md`, whose §Self-check these items operationalize. The companion
+persona pass — reading the material AS the learner, pencil and R session in
+hand — is `.claude/course-authoring/student-walkthrough.md`; run both.)
 
 For every new lesson and practice file, verify each item. A "no" is a defect: fix it,
 re-render, and re-check.
@@ -249,6 +251,44 @@ re-render, and re-check.
     extracted yet". Deliberate simplification at this learner's level is not a
     contradiction — flag only claims a source refutes. Skip this check entirely if
     `knowledge/` does not exist or has no concept pages.
+
+24. **Toy-data continuity — the running example never changes silently.**
+    The toy dataset introduced in "A tiny example first" is the lesson's running
+    example; the learner is tracking its values on paper. Every later chunk,
+    table, and sentence that presents itself as using that data ("our fish",
+    "the toy data again") must use exactly those values. Diff every re-statement
+    of the toy data against the original table. A deliberate variation is fine
+    ONLY when the prose introduces it in the same breath as new data ("suppose
+    instead we had caught...") or as an explicit transformation of the original
+    ("now center the weights"); a silent swap is a defect even when the section's
+    own arithmetic is internally consistent — it renders fine, which is why it
+    escapes. Seed bug: the LDA/QDA lesson's QDA section changed the bass weights
+    from (5, 6, 5) to (6, 4, 6) while saying "the within-class covariances for
+    our fish" — with the real toy data the covariances were identical, so the
+    section's entire motivation was false of the data on the learner's paper.
+
+25. **Learner-visible code comments are teaching text.**
+    The learner reads every comment inside every visible chunk as part of the
+    lesson (`#|` chunk-option lines are render directives, stripped from the
+    displayed code — not comments under this check). Scan them: each must be
+    plain English that serves the reader — a step label, a TRY IT / PREDICT
+    prompt, or an expected result. A placeholder, codeword, author-to-author
+    note, or truncated fragment is a defect. Expected-result comments
+    (`# 22.46`, `# both zero`) fall under check 3's recompute rule.
+    Seed bug: a ridge lesson chunk shipped `# ponytail: Nelder-Mead on L1;
+    coordinate descent if plot artifacts appear` — meaningless to any reader.
+
+26. **Empirical claims about real datasets are verified.**
+    Any prose claim about a built-in or real dataset ("iris predictors aren't
+    highly correlated", "Petal.Width dominates") must be checked by actually
+    computing it (`Rscript -e`), because this learner will. A claim that the
+    computation contradicts is a defect — including claims that are "roughly"
+    wrong in the direction that matters for the teaching point. Hand-worked toy
+    numbers are check 3; this check owns statements about data the lesson did
+    not fabricate. Seed bug: a bagging lesson claimed iris predictors "aren't
+    highly correlated" while `cor(iris[,1:4])` shows petal length/width at 0.96,
+    and the surrounding passage conflated predictor correlation with the
+    tree-level correlation random forests actually address.
 
 ## Reporting
 

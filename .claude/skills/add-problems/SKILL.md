@@ -77,8 +77,9 @@ hidden worked answers, notation reuse — lives in one place; do not reinvent it
    `.claude/course-authoring/content-review-checklist.md`: if a Task/Agent tool is
    available, dispatch `course-auditor` on the changed files instead of self-reviewing —
    independence catches what self-review misses; fix confirmed defects, re-render, and
-   re-dispatch until clean. Otherwise self-review against the checklist and disclose that
-   no independent pass was run.
+   re-dispatch until clean. Otherwise self-review against the checklist and its
+   companion persona pass (`.claude/course-authoring/student-walkthrough.md`) and
+   disclose that no independent pass was run.
 
 Do NOT touch the syllabus, roadmap, or README indexes — you are adding problems to an
 existing module, not restructuring the course.
