@@ -192,10 +192,13 @@ project:
     - knowledge/concepts/likelihood-and-log-likelihood.md
     - knowledge/concepts/maximum-a-posteriori-estimation.md
     - knowledge/concepts/resampling-bootstrap-and-permutation.md
+    - knowledge/concepts/bagging-random-forests-and-boosting.md
     - knowledge/concepts/bias-variance-trade-off.md
     - knowledge/concepts/classification-evaluation.md
     - knowledge/concepts/clustering-and-k-means.md
+    - knowledge/concepts/decision-trees.md
     - knowledge/concepts/k-nearest-neighbors.md
+    - knowledge/concepts/lda-qda-and-naive-bayes.md
     - knowledge/concepts/model-selection-and-information-criteria.md
     - knowledge/concepts/ridge-regularization.md
     - knowledge/sources/2018-boyd-applied-linear-algebra.md
@@ -721,14 +724,20 @@ website:
                 href: knowledge/concepts/resampling-bootstrap-and-permutation.md
           - section: "Statistical learning & ML"
             contents:
+              - text: "Bagging, random forests, and boosting"
+                href: knowledge/concepts/bagging-random-forests-and-boosting.md
               - text: "Bias-variance trade-off"
                 href: knowledge/concepts/bias-variance-trade-off.md
               - text: "Classification evaluation"
                 href: knowledge/concepts/classification-evaluation.md
               - text: "Clustering: k-means and hierarchical"
                 href: knowledge/concepts/clustering-and-k-means.md
+              - text: "Decision trees"
+                href: knowledge/concepts/decision-trees.md
               - text: "K-nearest neighbors"
                 href: knowledge/concepts/k-nearest-neighbors.md
+              - text: "LDA, QDA, and naive Bayes"
+                href: knowledge/concepts/lda-qda-and-naive-bayes.md
               - text: "Model selection and information criteria"
                 href: knowledge/concepts/model-selection-and-information-criteria.md
               - text: "Ridge regression and the lasso"

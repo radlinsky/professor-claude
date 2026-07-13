@@ -56,10 +56,13 @@ fully machine-owned.
 | [likelihood-and-log-likelihood](concepts/likelihood-and-log-likelihood.md) | Statistical inference | chan2021probabilitydatascience | — |
 | [maximum-a-posteriori-estimation](concepts/maximum-a-posteriori-estimation.md) | Statistical inference | chan2021probabilitydatascience | — |
 | [resampling-bootstrap-and-permutation](concepts/resampling-bootstrap-and-permutation.md) | Statistical inference | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
+| [bagging-random-forests-and-boosting](concepts/bagging-random-forests-and-boosting.md) | Statistical learning & ML | james2021introductionstatisticallearning | — |
 | [bias-variance-trade-off](concepts/bias-variance-trade-off.md) | Statistical learning & ML | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
 | [classification-evaluation](concepts/classification-evaluation.md) | Statistical learning & ML | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
 | [clustering-and-k-means](concepts/clustering-and-k-means.md) | Statistical learning & ML | boyd2018appliedlinearalgebra, james2021introductionstatisticallearning | — |
+| [decision-trees](concepts/decision-trees.md) | Statistical learning & ML | james2021introductionstatisticallearning | — |
 | [k-nearest-neighbors](concepts/k-nearest-neighbors.md) | Statistical learning & ML | james2021introductionstatisticallearning | — |
+| [lda-qda-and-naive-bayes](concepts/lda-qda-and-naive-bayes.md) | Statistical learning & ML | james2021introductionstatisticallearning | — |
 | [model-selection-and-information-criteria](concepts/model-selection-and-information-criteria.md) | Statistical learning & ML | james2021introductionstatisticallearning | — |
 | [ridge-regularization](concepts/ridge-regularization.md) | Statistical learning & ML | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
 <!-- <<< generated: knowledge concepts table -->
@@ -71,6 +74,6 @@ fully machine-owned.
 <!-- >>> generated: knowledge sources table (scripts/gen-kb-index.R) — do not edit by hand -->
 | [Boyd & Vandenberghe (2018) — Introduction to Applied Linear Algebra](sources/2018-boyd-applied-linear-algebra.md) | boyd2018appliedlinearalgebra | © Cambridge University Press, all rights reserved; free web copy permitted by publisher (web.stanford.edu/~boyd/vmls/) — flagged, confirmed by human 2026-07-11 | 6 done · 17 skipped |
 | [Chan (2021) — Introduction to Probability for Data Science](sources/2021-chan-probability-data-science.md) | chan2021probabilitydatascience | © 2021 Stanley H. Chan, Michigan Publishing; free electronic distribution for students and instructors (probability4datascience.com) — flagged, confirmed by human 2026-07-11 | 8 done · 2 skipped |
-| [James et al. (2021) — An Introduction to Statistical Learning](sources/2021-james-introduction-statistical-learning.md) | james2021introductionstatisticallearning | © Springer, all rights reserved; free PDF officially distributed by the authors at statlearning.com — flagged, confirmed by human 2026-07-11 | 6 done · 7 skipped |
+| [James et al. (2021) — An Introduction to Statistical Learning](sources/2021-james-introduction-statistical-learning.md) | james2021introductionstatisticallearning | © Springer, all rights reserved; free PDF officially distributed by the authors at statlearning.com — flagged, confirmed by human 2026-07-11 | 7 done · 6 skipped |
 | [Austin (2023) — Understanding Linear Algebra](sources/2022-austin-understanding-linear-algebra.md) | austin2022understandinglinearalgebra | CC-BY-4.0 (Creative Commons Attribution 4.0 International) — OK; attribute David Austin, Grand Valley State University | 5 done · 3 skipped |
 <!-- <<< generated: knowledge sources table -->
