@@ -1,5 +1,5 @@
 ShortName: k-nearest neighbors
-Topic: linear-algebra
+Topic: statistical-learning
 Concepts: classify or predict by majority vote of k closest points,
  distance choice matters for kNN,
  choosing k (flexibility vs smoothness),

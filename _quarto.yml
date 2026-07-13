@@ -31,15 +31,9 @@ project:
     - foundations/partial-derivatives-and-the-gradient/lesson.qmd
     - foundations/partial-derivatives-and-the-gradient/practice.qmd
     - foundations/partial-derivatives-and-the-gradient/resources.md
-    - foundations/clustering-k-means-and-hierarchical/lesson.qmd
-    - foundations/clustering-k-means-and-hierarchical/practice.qmd
-    - foundations/clustering-k-means-and-hierarchical/resources.md
     - foundations/distance-similarity-and-geometry/lesson.qmd
     - foundations/distance-similarity-and-geometry/practice.qmd
     - foundations/distance-similarity-and-geometry/resources.md
-    - foundations/k-nearest-neighbors/lesson.qmd
-    - foundations/k-nearest-neighbors/practice.qmd
-    - foundations/k-nearest-neighbors/resources.md
     - foundations/linear-combinations-and-data-matrices/lesson.qmd
     - foundations/linear-combinations-and-data-matrices/practice.qmd
     - foundations/linear-combinations-and-data-matrices/resources.md
@@ -79,9 +73,6 @@ project:
     - foundations/bayes-factors-and-posterior-odds/lesson.qmd
     - foundations/bayes-factors-and-posterior-odds/practice.qmd
     - foundations/bayes-factors-and-posterior-odds/resources.md
-    - foundations/classification-evaluation/lesson.qmd
-    - foundations/classification-evaluation/practice.qmd
-    - foundations/classification-evaluation/resources.md
     - foundations/false-discovery-rate/lesson.qmd
     - foundations/false-discovery-rate/practice.qmd
     - foundations/false-discovery-rate/resources.md
@@ -103,6 +94,18 @@ project:
     - foundations/resampling-bootstrap-and-permutation/lesson.qmd
     - foundations/resampling-bootstrap-and-permutation/practice.qmd
     - foundations/resampling-bootstrap-and-permutation/resources.md
+    - foundations/variance-structure-and-standardization/lesson.qmd
+    - foundations/variance-structure-and-standardization/practice.qmd
+    - foundations/variance-structure-and-standardization/resources.md
+    - foundations/classification-evaluation/lesson.qmd
+    - foundations/classification-evaluation/practice.qmd
+    - foundations/classification-evaluation/resources.md
+    - foundations/clustering-k-means-and-hierarchical/lesson.qmd
+    - foundations/clustering-k-means-and-hierarchical/practice.qmd
+    - foundations/clustering-k-means-and-hierarchical/resources.md
+    - foundations/k-nearest-neighbors/lesson.qmd
+    - foundations/k-nearest-neighbors/practice.qmd
+    - foundations/k-nearest-neighbors/resources.md
     - foundations/model-fit-error-and-validation/lesson.qmd
     - foundations/model-fit-error-and-validation/practice.qmd
     - foundations/model-fit-error-and-validation/resources.md
@@ -112,9 +115,6 @@ project:
     - foundations/ridge-regularization/lesson.qmd
     - foundations/ridge-regularization/practice.qmd
     - foundations/ridge-regularization/resources.md
-    - foundations/variance-structure-and-standardization/lesson.qmd
-    - foundations/variance-structure-and-standardization/practice.qmd
-    - foundations/variance-structure-and-standardization/resources.md
     # <<< generated: foundation render list
     - courses/simple-linear-regression/syllabus.md
     - courses/simple-linear-regression/00-roadmap.qmd
@@ -162,7 +162,6 @@ project:
     - courses/multiple-regression/resources.md
     # >>> generated: knowledge render list (scripts/gen-kb-index.R) — do not edit by hand
     - knowledge/glossary.md
-    - knowledge/concepts/clustering-and-k-means.md
     - knowledge/concepts/determinants.md
     - knowledge/concepts/eigenvalues-and-eigenvectors.md
     - knowledge/concepts/inner-product.md
@@ -195,6 +194,7 @@ project:
     - knowledge/concepts/resampling-bootstrap-and-permutation.md
     - knowledge/concepts/bias-variance-trade-off.md
     - knowledge/concepts/classification-evaluation.md
+    - knowledge/concepts/clustering-and-k-means.md
     - knowledge/concepts/k-nearest-neighbors.md
     - knowledge/concepts/model-selection-and-information-criteria.md
     - knowledge/concepts/ridge-regularization.md
@@ -295,14 +295,6 @@ website:
                     href: foundations/partial-derivatives-and-the-gradient/resources.md
           - section: "Linear algebra"
             contents:
-              - section: "Clustering (k-means & hierarchical)"
-                contents:
-                  - text: "Lesson"
-                    href: foundations/clustering-k-means-and-hierarchical/lesson.qmd
-                  - text: "Practice"
-                    href: foundations/clustering-k-means-and-hierarchical/practice.qmd
-                  - text: "Resources"
-                    href: foundations/clustering-k-means-and-hierarchical/resources.md
               - section: "Distance, similarity & geometry"
                 contents:
                   - text: "Lesson"
@@ -311,14 +303,6 @@ website:
                     href: foundations/distance-similarity-and-geometry/practice.qmd
                   - text: "Resources"
                     href: foundations/distance-similarity-and-geometry/resources.md
-              - section: "k-nearest neighbors"
-                contents:
-                  - text: "Lesson"
-                    href: foundations/k-nearest-neighbors/lesson.qmd
-                  - text: "Practice"
-                    href: foundations/k-nearest-neighbors/practice.qmd
-                  - text: "Resources"
-                    href: foundations/k-nearest-neighbors/resources.md
               - section: "Linear combinations & the data matrix"
                 contents:
                   - text: "Lesson"
@@ -427,14 +411,6 @@ website:
                     href: foundations/bayes-factors-and-posterior-odds/practice.qmd
                   - text: "Resources"
                     href: foundations/bayes-factors-and-posterior-odds/resources.md
-              - section: "Classification evaluation"
-                contents:
-                  - text: "Lesson"
-                    href: foundations/classification-evaluation/lesson.qmd
-                  - text: "Practice"
-                    href: foundations/classification-evaluation/practice.qmd
-                  - text: "Resources"
-                    href: foundations/classification-evaluation/resources.md
               - section: "The false discovery rate"
                 contents:
                   - text: "Lesson"
@@ -493,6 +469,40 @@ website:
                     href: foundations/resampling-bootstrap-and-permutation/resources.md
           - section: "Regression & models"
             contents:
+              - section: "Variance structure & standardization"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/variance-structure-and-standardization/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/variance-structure-and-standardization/practice.qmd
+                  - text: "Resources"
+                    href: foundations/variance-structure-and-standardization/resources.md
+          - section: "Statistical learning & ML"
+            contents:
+              - section: "Classification evaluation"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/classification-evaluation/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/classification-evaluation/practice.qmd
+                  - text: "Resources"
+                    href: foundations/classification-evaluation/resources.md
+              - section: "Clustering (k-means & hierarchical)"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/clustering-k-means-and-hierarchical/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/clustering-k-means-and-hierarchical/practice.qmd
+                  - text: "Resources"
+                    href: foundations/clustering-k-means-and-hierarchical/resources.md
+              - section: "k-nearest neighbors"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/k-nearest-neighbors/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/k-nearest-neighbors/practice.qmd
+                  - text: "Resources"
+                    href: foundations/k-nearest-neighbors/resources.md
               - section: "Model fit, error & validation"
                 contents:
                   - text: "Lesson"
@@ -517,14 +527,6 @@ website:
                     href: foundations/ridge-regularization/practice.qmd
                   - text: "Resources"
                     href: foundations/ridge-regularization/resources.md
-              - section: "Variance structure & standardization"
-                contents:
-                  - text: "Lesson"
-                    href: foundations/variance-structure-and-standardization/lesson.qmd
-                  - text: "Practice"
-                    href: foundations/variance-structure-and-standardization/practice.qmd
-                  - text: "Resources"
-                    href: foundations/variance-structure-and-standardization/resources.md
           # <<< generated: foundation sidebar
       - section: "Simple Linear Regression"
         contents:
@@ -653,8 +655,6 @@ website:
             href: knowledge/glossary.md
           - section: "Linear algebra"
             contents:
-              - text: "Clustering: k-means and hierarchical"
-                href: knowledge/concepts/clustering-and-k-means.md
               - text: "Determinants"
                 href: knowledge/concepts/determinants.md
               - text: "Eigenvalues and eigenvectors"
@@ -719,12 +719,14 @@ website:
                 href: knowledge/concepts/maximum-a-posteriori-estimation.md
               - text: "Resampling, bootstrap, and permutation"
                 href: knowledge/concepts/resampling-bootstrap-and-permutation.md
-          - section: "Regression & models"
+          - section: "Statistical learning & ML"
             contents:
               - text: "Bias-variance trade-off"
                 href: knowledge/concepts/bias-variance-trade-off.md
               - text: "Classification evaluation"
                 href: knowledge/concepts/classification-evaluation.md
+              - text: "Clustering: k-means and hierarchical"
+                href: knowledge/concepts/clustering-and-k-means.md
               - text: "K-nearest neighbors"
                 href: knowledge/concepts/k-nearest-neighbors.md
               - text: "Model selection and information criteria"

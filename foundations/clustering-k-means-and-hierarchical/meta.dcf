@@ -1,5 +1,5 @@
 ShortName: Clustering (k-means & hierarchical)
-Topic: linear-algebra
+Topic: statistical-learning
 Concepts: k-means clustering (assign to nearest centroid and update centroids),
  initialization sensitivity (random starts),
  within-cluster sum of squares (WCSS),

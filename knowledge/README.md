@@ -26,7 +26,6 @@ fully machine-owned.
 | Concept | Topic | Sources | Referenced by |
 |---|---|---|---|
 <!-- >>> generated: knowledge concepts table (scripts/gen-kb-index.R) — do not edit by hand -->
-| [clustering-and-k-means](concepts/clustering-and-k-means.md) | Linear algebra | boyd2018appliedlinearalgebra, james2021introductionstatisticallearning | — |
 | [determinants](concepts/determinants.md) | Linear algebra | austin2022understandinglinearalgebra | — |
 | [eigenvalues-and-eigenvectors](concepts/eigenvalues-and-eigenvectors.md) | Linear algebra | austin2022understandinglinearalgebra | — |
 | [inner-product](concepts/inner-product.md) | Linear algebra | boyd2018appliedlinearalgebra | — |
@@ -57,11 +56,12 @@ fully machine-owned.
 | [likelihood-and-log-likelihood](concepts/likelihood-and-log-likelihood.md) | Statistical inference | chan2021probabilitydatascience | — |
 | [maximum-a-posteriori-estimation](concepts/maximum-a-posteriori-estimation.md) | Statistical inference | chan2021probabilitydatascience | — |
 | [resampling-bootstrap-and-permutation](concepts/resampling-bootstrap-and-permutation.md) | Statistical inference | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
-| [bias-variance-trade-off](concepts/bias-variance-trade-off.md) | Regression & models | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
-| [classification-evaluation](concepts/classification-evaluation.md) | Regression & models | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
-| [k-nearest-neighbors](concepts/k-nearest-neighbors.md) | Regression & models | james2021introductionstatisticallearning | — |
-| [model-selection-and-information-criteria](concepts/model-selection-and-information-criteria.md) | Regression & models | james2021introductionstatisticallearning | — |
-| [ridge-regularization](concepts/ridge-regularization.md) | Regression & models | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
+| [bias-variance-trade-off](concepts/bias-variance-trade-off.md) | Statistical learning & ML | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
+| [classification-evaluation](concepts/classification-evaluation.md) | Statistical learning & ML | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
+| [clustering-and-k-means](concepts/clustering-and-k-means.md) | Statistical learning & ML | boyd2018appliedlinearalgebra, james2021introductionstatisticallearning | — |
+| [k-nearest-neighbors](concepts/k-nearest-neighbors.md) | Statistical learning & ML | james2021introductionstatisticallearning | — |
+| [model-selection-and-information-criteria](concepts/model-selection-and-information-criteria.md) | Statistical learning & ML | james2021introductionstatisticallearning | — |
+| [ridge-regularization](concepts/ridge-regularization.md) | Statistical learning & ML | chan2021probabilitydatascience, james2021introductionstatisticallearning | — |
 <!-- <<< generated: knowledge concepts table -->
 
 ## Sources

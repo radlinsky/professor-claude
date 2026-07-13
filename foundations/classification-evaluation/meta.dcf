@@ -1,5 +1,5 @@
 ShortName: Classification evaluation
-Topic: statistical-inference
+Topic: statistical-learning
 Concepts: confusion matrix (TP/FP/TN/FN), accuracy, sensitivity (true positive rate),
  specificity (true negative rate), precision, recall, the threshold trade-off,
  ROC curve, AUC (area under the ROC curve)

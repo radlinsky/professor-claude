@@ -1,6 +1,6 @@
 ---
 title: "K-nearest neighbors"
-topic: regression-and-models
+topic: statistical-learning
 ---
 
 <!-- Copy of .claude/course-authoring/kb-concept-template.md. Rules:

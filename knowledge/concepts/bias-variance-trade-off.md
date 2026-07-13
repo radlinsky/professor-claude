@@ -1,6 +1,6 @@
 ---
 title: "Bias-variance trade-off"
-topic: regression-and-models
+topic: statistical-learning
 ---
 
 <!-- Copy of .claude/course-authoring/kb-concept-template.md. Rules:
