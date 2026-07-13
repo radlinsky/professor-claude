@@ -53,7 +53,7 @@ map <- (heads + alpha - 1) / (n + alpha + beta_prior - 2)
 prior_mode <- (alpha - 1) / (alpha + beta_prior - 2)
 cat("MLE:", mle, "\n")
 cat("MAP:", round(map, 3), "\n")
-cat("Prior centre:", prior_centre, "\n")
+cat("Prior mode:", prior_mode, "\n")
 ```
 :::
 
@@ -133,9 +133,9 @@ strong prior with strong evidence.
 
 ```{r}
 map <- (3 + 50 - 1) / (5 + 50 + 2 - 2)
-prior_centre <- (50 - 1) / (50 + 2 - 2)
+prior_mode <- (50 - 1) / (50 + 2 - 2)
 cat("MAP:", round(map, 3), "\n")     # 0.945
-cat("Prior centre:", prior_centre, "\n")  # 0.98
+cat("Prior mode:", prior_mode, "\n")  # 0.98
 cat("MLE:", 3/5, "\n")               # 0.6
 ```
 :::
@@ -224,8 +224,8 @@ c) It is undefined, because the posterior cannot be computed from a uniform prio
 ::: {.quiz-q qid="map-ridge" qtype="mc" answer="b"}
 Which prior distribution on the regression coefficients produces ridge regression as a MAP estimate?
 
-a) A Laplace prior moded at zero, which creates the absolute-value penalty
-b) A Gaussian prior moded at zero, which creates the squared penalty
+a) A Laplace prior centered at zero, which creates the absolute-value penalty
+b) A Gaussian prior centered at zero, which creates the squared penalty
 c) A uniform prior, which produces no penalty and gives ordinary least squares
 :::
 
@@ -236,7 +236,7 @@ For 5 flips with 3 heads and a Beta(3, 3) prior, what is $\hat{p}_{\text{MAP}}$?
 ::: {.quiz-q qid="map-lasso-why" qtype="mc" answer="a"}
 (From ridge-regularization.) Why does the lasso set some coefficients exactly to zero while ridge does not?
 
-a) The Laplace prior has a sharp crease at zero that concentrates mass there
+a) The absolute-value penalty has a non-differentiable corner at zero that traps small coefficients
 b) The lasso uses a larger penalty weight than ridge by default
 c) The Gaussian prior has heavier tails that allow coefficients to stay large
 :::
