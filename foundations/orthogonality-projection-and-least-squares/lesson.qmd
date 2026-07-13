@@ -1,0 +1,458 @@
+---
+title: "Orthogonality, projection & least squares"
+subtitle: "Why the best-fit line works: the residual is perpendicular to every predictor column"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+When three data points don't fall perfectly on a line, no choice of intercept and
+slope makes the errors zero — the system of equations is **inconsistent**. The best
+you can do is find the line whose errors are as small as possible. That "best
+approximate answer" turns out to be a **projection**: you drop a perpendicular from the
+data onto the space of all possible fitted values, and the foot of that perpendicular
+is the fitted line. The normal equations that `lm()` solves are nothing but the
+algebraic statement of that perpendicularity.
+[@austin2022understandinglinearalgebra, pp. 397--398]
+
+This lesson extends the "shadow" you already know from the distance module into a full
+projection machine, then shows that ordinary least squares IS that machine.
+
+**Builds on:**
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd) —
+the shadow of one vector onto another (dot product divided by norm);
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd) —
+$A^\top A$ and matrix multiplication;
+[rank & linear independence](../rank-and-linear-independence/lesson.qmd) — why
+independent columns matter (the normal equations need $A^\top A$ invertible).
+
+## Warm-up: do you remember?
+
+Three quick reps — produce each answer from memory first, then check.
+
+**1.** *(distance)* For $\mathbf{a} = (4, 2)$ and $\mathbf{b} = (3, 4)$, what is the
+shadow length of $\mathbf{a}$ along $\mathbf{b}$?
+
+::: {.callout-note collapse="true" title="Answer"}
+Shadow length = $\mathbf{a} \cdot \mathbf{b} \;/\; \lVert \mathbf{b} \rVert$
+$= (4 \times 3 + 2 \times 4) / \sqrt{9 + 16} = 20 / 5 = \mathbf{4}$. Taught in
+[distance, similarity & geometry §Formal version](../distance-similarity-and-geometry/lesson.qmd#the-formal-version);
+revisit if shaky.
+:::
+
+**2.** *(matrices)* For $A = \begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{bmatrix}$,
+what is $A^\top A$? (It's a $2 \times 2$ matrix — compute each entry.)
+
+::: {.callout-note collapse="true" title="Answer"}
+$A^\top A = \begin{bmatrix} 1\!\cdot\!1 + 1\!\cdot\!1 + 1\!\cdot\!1 &
+1\!\cdot\!1 + 1\!\cdot\!2 + 1\!\cdot\!3 \\ 1\!\cdot\!1 + 2\!\cdot\!1 + 3\!\cdot\!1 &
+1\!\cdot\!1 + 2\!\cdot\!2 + 3\!\cdot\!3 \end{bmatrix} =
+\begin{bmatrix} 3 & 6 \\ 6 & 14 \end{bmatrix}$. Taught in
+[matrices & linear transforms §Transpose](../matrices-and-linear-transforms/lesson.qmd);
+revisit if shaky.
+:::
+
+**3.** *(rank)* If a matrix $A$ has 3 rows and 2 columns, and both columns point in
+genuinely different directions (neither is a multiple of the other), what is the rank
+of $A$? Can you invert $A^\top A$?
+
+::: {.callout-note collapse="true" title="Answer"}
+Rank = 2 (two independent columns). Since the columns are independent, $A^\top A$ is
+a $2 \times 2$ invertible matrix — `solve(t(A) %*% A)` works. Taught in
+[rank & linear independence](../rank-and-linear-independence/lesson.qmd); revisit if
+shaky.
+:::
+
+
+## A tiny example first
+
+Three students: hours studied = 1, 2, 3; exam scores = 1, 3, 2. You want the
+best-fit line $y = a + bx$, but the points don't line up:
+
+| Student | Hours ($x$) | Score ($y$) |
+|---|---|---|
+| A | 1 | 1 |
+| B | 2 | 3 |
+| C | 3 | 2 |
+
+To fit the line $y = a + bx$, you need $a$ and $b$ such that:
+
+$$
+a + 1b = 1, \quad a + 2b = 3, \quad a + 3b = 2
+$$
+
+Three equations, two unknowns — no exact solution exists. Write this as a matrix
+equation $A\mathbf{x} = \mathbf{y}$ where the design matrix $A$ stacks the
+coefficients:
+
+$$
+\underbrace{\begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{bmatrix}}_{A}
+\underbrace{\begin{bmatrix} a \\ b \end{bmatrix}}_{\mathbf{x}} =
+\underbrace{\begin{bmatrix} 1 \\ 3 \\ 2 \end{bmatrix}}_{\mathbf{y}}
+$$
+
+No $\mathbf{x}$ makes this exact. So which $\mathbf{x}$ comes closest?
+
+The one that makes the **residual** $\mathbf{e} = \mathbf{y} - A\hat{\mathbf{x}}$ as
+short as possible — that is, minimises $\lVert \mathbf{e} \rVert^2 = e_1^2 + e_2^2 +
+e_3^2$. The answer turns out to be $a = 1$, $b = 0.5$:
+
+- Fitted values: $\hat{\mathbf{y}} = (1.5,\; 2,\; 2.5)$
+- Residuals: $\mathbf{e} = (1 - 1.5,\; 3 - 2,\; 2 - 2.5) = (-0.5,\; 1,\; -0.5)$
+
+Here is the key fact — check it with arithmetic:
+
+- Column 1 of $A$ is $(1, 1, 1)$. Dot it with $\mathbf{e} = (-0.5, 1, -0.5)$:
+  $1(-0.5) + 1(1) + 1(-0.5) = \mathbf{0}$.
+- Column 2 of $A$ is $(1, 2, 3)$. Dot it with $\mathbf{e}$:
+  $1(-0.5) + 2(1) + 3(-0.5) = -0.5 + 2 - 1.5 = \mathbf{0}$.
+
+The residual is **orthogonal to both columns of $A$**. That is not a coincidence — it
+is the whole reason least squares works. The rest of this lesson is about *why*.
+
+```{r toy-example}
+x <- c(1, 2, 3); y <- c(1, 3, 2)
+A <- cbind(1, x)
+xhat <- solve(t(A) %*% A, t(A) %*% y)   # solve A^T A xhat = A^T y
+cat("intercept:", xhat[1], " slope:", xhat[2], "\n")
+
+yhat <- A %*% xhat                        # fitted values
+e    <- y - yhat                           # residuals
+cat("fitted:", yhat, "\n")
+cat("residuals:", e, "\n")
+
+cat("col1 dot e:", sum(A[,1] * e), "\n")   # 0 — orthogonal
+cat("col2 dot e:", sum(A[,2] * e), "\n")   # 0 — orthogonal
+```
+
+
+## Getting a feel for it
+
+In the distance module you learned the **shadow**: the shadow of $\mathbf{a}$ onto
+$\mathbf{b}$ tells you how much of $\mathbf{a}$ lies along $\mathbf{b}$'s direction.
+The leftover — $\mathbf{a}$ minus its shadow — is perpendicular to $\mathbf{b}$.
+
+Least squares is the same move, scaled up. Instead of projecting one vector onto a
+*line* (the direction of $\mathbf{b}$), you project the response vector $\mathbf{y}$
+onto the **flat surface** spanned by the columns of $A$. The surface contains every
+vector you could build by mixing those columns — every possible set of fitted values
+$a \cdot (1,1,1) + b \cdot (1,2,3)$. The projection $\hat{\mathbf{y}}$ is the point on
+that surface closest to $\mathbf{y}$, and the residual $\mathbf{e}$ is the perpendicular
+dropped from $\mathbf{y}$ down to the surface.
+[@austin2022understandinglinearalgebra, pp. 371--372, 397--398]
+
+Why perpendicular? Because a perpendicular is the shortest path from a point to a flat
+surface — the same reason a plumb line hangs straight down. If the residual tilted even
+slightly toward the surface, you could slide the foot of the perpendicular a little and
+get a shorter residual. Perpendicular means you have already slid as far as possible —
+the errors are as small as they can be.
+
+In the toy example, $\mathbf{y} = (1, 3, 2)$ lives in 3D space (one dimension per
+student). The two columns of $A$ span a 2D plane inside that 3D space. The fitted
+values $(1.5, 2, 2.5)$ are the point on that plane closest to $(1, 3, 2)$, and the
+residual $(-0.5, 1, -0.5)$ is the perpendicular from $\mathbf{y}$ down to the plane.
+That perpendicular has squared length $0.25 + 1 + 0.25 = 1.5$ — any other line would
+give a longer residual.
+
+
+## What the notation is going to say
+
+The formula will say: "find $\hat{\mathbf{x}}$ so that $A\hat{\mathbf{x}}$ is the
+closest point in the span of $A$'s columns to $\mathbf{y}$." The condition for
+"closest" is that the residual $\mathbf{y} - A\hat{\mathbf{x}}$ is orthogonal to every
+column. Writing "orthogonal to every column" in matrix language gives
+$A^\top (\mathbf{y} - A\hat{\mathbf{x}}) = \mathbf{0}$, which rearranges to the
+**normal equations**: $A^\top A\,\hat{\mathbf{x}} = A^\top \mathbf{y}$. In our toy,
+that's $\begin{bmatrix}3 & 6 \\ 6 & 14\end{bmatrix}\hat{\mathbf{x}} =
+\begin{bmatrix}6 \\ 13\end{bmatrix}$, exactly the system `solve(t(A) %*% A, t(A) %*% y)`
+solves.
+
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $A$ | "the design matrix" | each row is one observation; columns are predictor variables (first column often all 1s for the intercept) | $\begin{bmatrix}1&1\\1&2\\1&3\end{bmatrix}$ |
+| $\mathbf{y}$ | "why" (the response vector) | the column of observed outcomes, one entry per observation | $(1, 3, 2)$ |
+| $\hat{\mathbf{x}}$ | "ex hat" | the vector of coefficients that minimises the residual — the least-squares solution; the hat means "estimated from data" | $(1, 0.5)$ = intercept 1, slope 0.5 |
+| $\hat{\mathbf{y}}$ | "why hat" (the fitted values) | $A\hat{\mathbf{x}}$ — the projection of $\mathbf{y}$ onto the column space of $A$ | $(1.5, 2, 2.5)$ |
+| $\mathbf{e}$ | "the residual vector" | $\mathbf{y} - \hat{\mathbf{y}}$ — what the model missed; perpendicular to every column of $A$ | $(-0.5, 1, -0.5)$ |
+| $\text{Col}(A)$ | "the column space of A" | the set of all vectors you can build as $A\mathbf{x}$ — every possible set of fitted values; this is the **span** of $A$'s columns | a 2D plane inside $\mathbb{R}^3$ |
+| $A^\top A$ | "A transpose A" | the Gram matrix — always square, always symmetric; invertible when columns are independent | $\begin{bmatrix}3&6\\6&14\end{bmatrix}$ |
+| $A^\top \mathbf{y}$ | "A transpose why" | the right-hand side of the normal equations — each entry is a column of $A$ dotted with $\mathbf{y}$ | $(6, 13)$ |
+| $\mathbf{a}$ | "a" (the vector being projected) | the vector whose shadow we want | $(4, 2)$ in the projection example |
+| $\mathbf{b}$ | "b" (the direction projected onto) | the vector defining the line we project onto | $(3, 4)$ in the projection example |
+| $\hat{\mathbf{a}}$ | "a-hat" (the projection of a onto b) | the shadow as a vector — the point on the line through $\mathbf{b}$ closest to $\mathbf{a}$ | $(2.4, 3.2)$ |
+| $\perp$ | "perpendicular to" / "orthogonal to" | at right angles — dot product is 0 | $\mathbf{e} \perp \text{Col}(A)$ |
+
+
+## The formal version
+
+### Projection vector (one vector onto another)
+
+The distance module gave you the shadow **length**:
+$\mathbf{a} \cdot \mathbf{b} / \lVert \mathbf{b} \rVert$. Now we need the shadow as a
+**vector** — the actual point on the line through $\mathbf{b}$ closest to $\mathbf{a}$.
+Scale $\mathbf{b}$ to the right length:
+[@austin2022understandinglinearalgebra, pp. 371--374]
+
+$$
+\hat{\mathbf{a}} \;=\;
+\frac{\mathbf{a} \cdot \mathbf{b}}{\mathbf{b} \cdot \mathbf{b}} \;\mathbf{b}
+$$
+
+Reading it aloud: "a-hat equals a-dot-b over b-dot-b, times b." In everyday words:
+"scale b by how much of a points along it."
+
+Take $\mathbf{a} = (4, 2)$, $\mathbf{b} = (3, 4)$:
+$\hat{\mathbf{a}} = (20/25) \times (3, 4) = 0.8 \times (3, 4) = (2.4, 3.2)$.
+The leftover $\mathbf{a} - \hat{\mathbf{a}} = (1.6, -1.2)$ is orthogonal to
+$\mathbf{b}$: $(1.6)(3) + (-1.2)(4) = 4.8 - 4.8 = 0$. The perpendicular from
+$\mathbf{a}$ to the line through $\mathbf{b}$ has zero dot product with $\mathbf{b}$
+— exactly the orthogonality that makes this the closest point.
+
+```{r proj-vector}
+a <- c(4, 2); b <- c(3, 4)
+ahat <- (sum(a * b) / sum(b * b)) * b     # projection vector
+leftover <- a - ahat                       # the perpendicular part
+cat("projection:", ahat, "\n")             # 2.4  3.2
+cat("leftover:", leftover, "\n")           # 1.6 -1.2
+cat("check orthogonal:", sum(leftover * b), "\n")  # 0
+```
+
+### Projection onto a column space (least squares)
+
+Now instead of projecting onto one vector, project $\mathbf{y}$ onto the **span** of
+several columns — the column space $\text{Col}(A)$. The closest point
+$\hat{\mathbf{y}} = A\hat{\mathbf{x}}$ satisfies: the residual
+$\mathbf{e} = \mathbf{y} - A\hat{\mathbf{x}}$ is orthogonal to **every** column of $A$.
+[@austin2022understandinglinearalgebra, pp. 397--398]
+
+"Orthogonal to every column" means each column's dot product with $\mathbf{e}$ is 0.
+Stack those dot products into a matrix multiplication and you get:
+
+$$
+A^\top \mathbf{e} = \mathbf{0}
+\qquad\Longleftrightarrow\qquad
+A^\top (\mathbf{y} - A\hat{\mathbf{x}}) = \mathbf{0}
+$$
+
+Distribute $A^\top$ and rearrange:
+
+$$
+A^\top A\,\hat{\mathbf{x}} = A^\top \mathbf{y}
+\qquad\text{(the normal equations)}
+$$
+
+Reading it aloud: "A-transpose-A times x-hat equals A-transpose y." In everyday words:
+"the coefficients that make the residual perpendicular to every column."
+[@boyd2018appliedlinearalgebra, pp. 228--229]
+
+When the columns of $A$ are linearly independent (full rank), $A^\top A$ is invertible
+and the unique solution is:
+
+$$
+\hat{\mathbf{x}} = (A^\top A)^{-1}\,A^\top \mathbf{y}
+$$
+
+Mapping it onto the toy example:
+
+- $A^\top A = \begin{bmatrix}3 & 6 \\ 6 & 14\end{bmatrix}$ — the "how do the columns
+  relate to each other" matrix (warm-up Q2).
+- $A^\top \mathbf{y} = \begin{bmatrix}1(1)+1(3)+1(2) \\ 1(1)+2(3)+3(2)\end{bmatrix} =
+  \begin{bmatrix}6 \\ 13\end{bmatrix}$ — each column dotted with $\mathbf{y}$.
+- Solve $\begin{bmatrix}3&6\\6&14\end{bmatrix}\hat{\mathbf{x}} =
+  \begin{bmatrix}6\\13\end{bmatrix}$: multiply row 1 by 2 and subtract from row 2 →
+  $2b = 1$, so $b = 0.5$; back-substitute → $3a = 6 - 3 = 3$, so $a = 1$.
+- $\hat{\mathbf{x}} = (1, 0.5)$ — intercept 1, slope 0.5, exactly what `lm()` returns.
+
+```{r normal-equations}
+x <- c(1, 2, 3); y <- c(1, 3, 2)
+A <- cbind(1, x)
+
+AtA <- t(A) %*% A        # [3 6; 6 14]
+Aty <- t(A) %*% y        # [6; 13]
+xhat <- solve(AtA, Aty)  # solve the normal equations
+cat("xhat:", xhat, "\n") # 1.0  0.5
+
+yhat <- A %*% xhat
+e <- y - yhat
+cat("A^T e:", t(A) %*% e, "\n")  # 0  0  — orthogonal, as promised
+
+cat("\nlm() agrees:\n")
+print(coef(lm(y ~ x)))   # intercept = 1, slope = 0.5
+```
+
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Scatter plot of 3 points with fitted line and vertical residual segments; residuals are perpendicular to the column space"
+# explore-1 — LIVE: plot the data, fitted line, and residuals.
+# TRY IT: change y to c(1, 2, 4) — how does the line move?
+# PREDICT: will the residuals still sum to zero? Guess, then check.
+x <- c(1, 2, 3); y <- c(1, 3, 2)
+A <- cbind(1, x)
+xhat <- solve(t(A) %*% A, t(A) %*% y)
+yhat <- A %*% xhat
+e <- y - yhat
+
+plot(x, y, pch = 19, cex = 1.5, xlim = c(0.5, 3.5), ylim = c(0, 4),
+     xlab = "hours", ylab = "score",
+     main = sprintf("y = %.1f + %.1fx   residuals sum to %.1f",
+                    xhat[1], xhat[2], sum(e)))
+abline(xhat[1], xhat[2], col = "steelblue", lwd = 2)
+segments(x, y, x, yhat, col = "tomato", lwd = 2, lty = 2)
+points(x, yhat, pch = 4, col = "steelblue", cex = 1.5, lwd = 2)
+legend("topleft", legend = c("data", "fitted", "residual"),
+       pch = c(19, 4, NA), lty = c(NA, NA, 2),
+       col = c("black", "steelblue", "tomato"), lwd = 2, bty = "n")
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Bar chart showing the dot product of each column of A with the residual vector is zero, confirming orthogonality"
+# explore-2 — LIVE: verify the residual is orthogonal to EVERY column of A.
+# TRY IT: add a third predictor column (say x^2) and check again.
+# PREDICT: will column 3's dot product with e also be zero?
+x <- c(1, 2, 3); y <- c(1, 3, 2)
+A <- cbind(intercept = 1, hours = x)
+xhat <- solve(t(A) %*% A, t(A) %*% y)
+e <- y - A %*% xhat
+
+dots <- as.numeric(t(A) %*% e)
+barplot(dots, names.arg = colnames(A), col = "steelblue",
+        main = "dot product of each column with residual",
+        ylab = "column · e", ylim = c(-1, 1))
+abline(h = 0, lty = 2)
+cat("A^T e =", dots, "— both zero: residual is orthogonal to Col(A)\n")
+cat("\nlm() agrees:", coef(lm(y ~ x)), "\n")
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: projection vector recap. The shadow as a VECTOR.
+# TRY IT: change a to (0, 5) — what direction is the projection?
+# PREDICT: for a = (3, -4) (orthogonal to b), what is the projection vector?
+a <- c(4, 2); b <- c(3, 4)
+
+proj <- (sum(a * b) / sum(b * b)) * b   # projection vector
+leftover <- a - proj                     # perpendicular part
+
+cat("projection of a onto b:", proj, "\n")
+cat("leftover (perpendicular):", leftover, "\n")
+cat("check: leftover dot b =", sum(leftover * b), "\n")
+```
+
+
+## Common traps
+
+**Trap: "The projection drops a perpendicular to the fitted LINE."** The
+perpendicular is not to the line *in the scatter plot* — those are the vertical
+residuals, and they are not generally at right angles to the fitted line. The
+orthogonality is in $n$-dimensional **observation space**: the residual vector
+$\mathbf{e}$ (one entry per data point) is perpendicular to the columns of $A$ (also
+one entry per data point). In our toy, $\mathbf{e} = (-0.5, 1, -0.5)$ lives in
+$\mathbb{R}^3$; the perpendicularity is there, not in the 2D scatter plot. The
+vertical segments in the plot show the *sizes* of the residuals, not their geometric
+direction.
+[@austin2022understandinglinearalgebra, pp. 397--398]
+
+**Trap: "The normal equations are just algebra to memorise."** They are the
+*orthogonality condition* $A^\top \mathbf{e} = \mathbf{0}$, rearranged. Memorising the
+formula hides the geometry; remembering "the residual must be perpendicular to every
+column" recovers the formula in one line: $A^\top(\mathbf{y} - A\hat{\mathbf{x}}) = 0$
+→ distribute → $A^\top A\hat{\mathbf{x}} = A^\top \mathbf{y}$.
+[@boyd2018appliedlinearalgebra, p. 231]
+
+
+## Check yourself
+
+**1.** For $\mathbf{a} = (6, 0)$ and $\mathbf{b} = (3, 4)$, compute the projection
+*vector* of $\mathbf{a}$ onto $\mathbf{b}$. (Not the shadow length — the actual vector.)
+
+```{webr}
+#| autorun: false
+# check1-starter
+a <- c(6, 0); b <- c(3, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat{\mathbf{a}} = \frac{\mathbf{a}\cdot\mathbf{b}}{\mathbf{b}\cdot\mathbf{b}}
+\mathbf{b} = \frac{18}{25}(3, 4) = (2.16, 2.88)$.
+Check: leftover = $(3.84, -2.88)$; dot with $\mathbf{b}$:
+$3.84 \times 3 + (-2.88) \times 4 = 11.52 - 11.52 = 0$. Orthogonal.
+
+```{r}
+a <- c(6, 0); b <- c(3, 4)
+proj <- (sum(a * b) / sum(b * b)) * b
+cat("projection:", proj, "\n")
+cat("check:", sum((a - proj) * b), "\n")
+```
+:::
+
+**2.** Using the toy data ($x = (1,2,3)$, $y = (1,3,2)$), what is the entry
+$(A^\top \mathbf{y})_2$ — the second entry of $A^\top \mathbf{y}$? What does it
+represent geometrically?
+
+```{webr}
+#| autorun: false
+# check2-starter
+x <- c(1, 2, 3); y <- c(1, 3, 2)
+A <- cbind(1, x)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$(A^\top \mathbf{y})_2 = 1(1) + 2(3) + 3(2) = 1 + 6 + 6 = 13$. Geometrically, it is
+the **dot product of column 2 of $A$** (the hours column $(1,2,3)$) with the response
+$\mathbf{y}$. It measures how much $\mathbf{y}$ points along that column's direction —
+the same "how much lies along" idea as the shadow from the distance module.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the normal
+equations say and why they work.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The normal equations say: find the coefficients that make the residual perpendicular to
+every predictor column. That works because perpendicular is the shortest path — any
+other coefficients would leave a longer residual.
+:::
+
+
+## What you can now do
+
+- **Compute a projection vector** — the shadow as a vector, not just a length — and
+  verify it is orthogonal to the leftover.
+- **Write down the normal equations** $A^\top A\hat{\mathbf{x}} = A^\top \mathbf{y}$
+  from the orthogonality condition, and solve them by hand for a $2 \times 2$ system.
+- **Explain why least squares IS projection** — the fitted values are the closest
+  point in the column space, and the residual is the perpendicular.
+- **Verify orthogonality in R** — `t(A) %*% e` should be a vector of zeros.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
+[The formal version](#the-formal-version) before continuing — anything that uses `lm()`
+is solving these normal equations under the hood.
+
+
+## Where this goes next
+
+The [multiple-regression course](../../courses/multiple-regression/syllabus.md) derives
+and solves these normal equations for real data with many predictors — this module gives
+you the geometric reason *why* those equations are the right ones to solve. The
+[ridge-regularization module](../ridge-regularization/lesson.qmd) adds a penalty that
+nudges the solution away from the plain least-squares answer, trading a small increase
+in bias for a large decrease in variance. Ready for more reps? Do the
+[practice problems](practice.qmd).

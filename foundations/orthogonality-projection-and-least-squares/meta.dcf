@@ -1,0 +1,5 @@
+ShortName: Orthogonality, projection & least squares
+Topic: linear-algebra
+Concepts: Projection vector (the shadow cast onto a direction), orthogonal projection onto a column space (closest vector in the span of the columns), normal equations ($A^\top A \hat{x} = A^\top y$ — the orthogonality condition rewritten), least squares as projection (the residual is perpendicular to every predictor column; `lm()` solves the normal equations)
+BuildsOn: [distance-similarity-and-geometry](distance-similarity-and-geometry/lesson.qmd), [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd), [rank-and-linear-independence](rank-and-linear-independence/lesson.qmd)
+UsedBy: —

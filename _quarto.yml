@@ -40,6 +40,9 @@ project:
     - foundations/matrices-and-linear-transforms/lesson.qmd
     - foundations/matrices-and-linear-transforms/practice.qmd
     - foundations/matrices-and-linear-transforms/resources.md
+    - foundations/orthogonality-projection-and-least-squares/lesson.qmd
+    - foundations/orthogonality-projection-and-least-squares/practice.qmd
+    - foundations/orthogonality-projection-and-least-squares/resources.md
     - foundations/pca-and-svd/lesson.qmd
     - foundations/pca-and-svd/practice.qmd
     - foundations/pca-and-svd/resources.md
@@ -85,6 +88,9 @@ project:
     - foundations/marginal-likelihood-and-model-evidence/lesson.qmd
     - foundations/marginal-likelihood-and-model-evidence/practice.qmd
     - foundations/marginal-likelihood-and-model-evidence/resources.md
+    - foundations/maximum-a-posteriori-estimation/lesson.qmd
+    - foundations/maximum-a-posteriori-estimation/practice.qmd
+    - foundations/maximum-a-posteriori-estimation/resources.md
     - foundations/profile-likelihood/lesson.qmd
     - foundations/profile-likelihood/practice.qmd
     - foundations/profile-likelihood/resources.md
@@ -331,6 +337,14 @@ website:
                     href: foundations/matrices-and-linear-transforms/practice.qmd
                   - text: "Resources"
                     href: foundations/matrices-and-linear-transforms/resources.md
+              - section: "Orthogonality, projection & least squares"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/orthogonality-projection-and-least-squares/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/orthogonality-projection-and-least-squares/practice.qmd
+                  - text: "Resources"
+                    href: foundations/orthogonality-projection-and-least-squares/resources.md
               - section: "PCA & SVD"
                 contents:
                   - text: "Lesson"
@@ -455,6 +469,14 @@ website:
                     href: foundations/marginal-likelihood-and-model-evidence/practice.qmd
                   - text: "Resources"
                     href: foundations/marginal-likelihood-and-model-evidence/resources.md
+              - section: "Maximum a posteriori estimation"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/maximum-a-posteriori-estimation/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/maximum-a-posteriori-estimation/practice.qmd
+                  - text: "Resources"
+                    href: foundations/maximum-a-posteriori-estimation/resources.md
               - section: "Profile likelihood"
                 contents:
                   - text: "Lesson"
