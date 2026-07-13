@@ -1,0 +1,287 @@
+---
+title: "Practice: Orthogonality, projection & least squares"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+
+## Problem 1 — confidence rep with new numbers
+
+Four observations:
+
+| $x$ | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| $y$ | 2 | 5 | 4 | 7 |
+
+(a) Write the $4 \times 2$ design matrix $A$ for fitting $y = a + bx$.
+(b) Compute $A^\top A$ and $A^\top \mathbf{y}$.
+(c) Solve the normal equations for $\hat{\mathbf{x}} = (a, b)$.
+(d) Compute the residuals and verify $A^\top \mathbf{e} = \mathbf{0}$.
+
+```{webr}
+#| autorun: false
+# p1-starter
+x <- c(1, 2, 3, 4); y <- c(2, 5, 4, 7)
+A <- cbind(1, x)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $A = \begin{bmatrix}1&1\\1&2\\1&3\\1&4\end{bmatrix}$
+
+(b)
+```{r}
+x <- c(1, 2, 3, 4); y <- c(2, 5, 4, 7)
+A <- cbind(1, x)
+AtA <- t(A) %*% A; Aty <- t(A) %*% y
+cat("A^T A:\n"); print(AtA)   # [4 10; 10 30]
+cat("A^T y:\n"); print(Aty)   # [18; 52]
+```
+
+(c) Solve $\begin{bmatrix}4&10\\10&30\end{bmatrix}\hat{\mathbf{x}} =
+\begin{bmatrix}18\\52\end{bmatrix}$: multiply row 1 by 2.5 and subtract from row 2 →
+$5b = 52 - 45 = 7$, so $b = 1.4$; back-substitute → $4a = 18 - 14 = 4$, so $a = 1$.
+
+```{r}
+xhat <- solve(AtA, Aty)
+cat("intercept:", xhat[1], " slope:", xhat[2], "\n")  # 1  1.4
+```
+
+(d) Fitted values: $(2.4, 3.8, 5.2, 6.6)$. Residuals: $(-0.4, 1.2, -1.2, 0.4)$.
+
+```{r}
+yhat <- A %*% xhat; e <- y - yhat
+cat("fitted:", yhat, "\n")
+cat("residuals:", e, "\n")
+cat("A^T e:", t(A) %*% e, "\n")  # 0  0
+```
+
+Both entries of $A^\top \mathbf{e}$ are zero — the residual is orthogonal to both
+columns, confirming this is the least-squares solution.
+:::
+
+
+## Problem 2 — fill in the missing step
+
+Here is the procedure for finding the least-squares line through
+$(x, y) = (1,1), (2,3), (3,2)$:
+
+- Step 1: Write the design matrix $A = \begin{bmatrix}1&1\\1&2\\1&3\end{bmatrix}$ and
+  the response $\mathbf{y} = (1, 3, 2)$.
+- Step 2: Compute $A^\top A = \begin{bmatrix}3&6\\6&14\end{bmatrix}$ and
+  $A^\top \mathbf{y} = (6, 13)$.
+- Step 3: **your step here** — what equation do you solve, and why does it give the
+  best-fit coefficients?
+- Step 4: Compute $\hat{\mathbf{y}} = A\hat{\mathbf{x}} = (1.5, 2, 2.5)$ and residuals
+  $\mathbf{e} = (-0.5, 1, -0.5)$.
+- Step 5: Verify $A^\top \mathbf{e} = \mathbf{0}$.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 3: **Solve the normal equations**
+$A^\top A \hat{\mathbf{x}} = A^\top \mathbf{y}$ — that is,
+$\begin{bmatrix}3&6\\6&14\end{bmatrix}\hat{\mathbf{x}} =
+\begin{bmatrix}6\\13\end{bmatrix}$.
+
+This gives $\hat{\mathbf{x}} = (1, 0.5)$: intercept $a = 1$, slope $b = 0.5$.
+
+The normal equations are the orthogonality condition
+$A^\top(\mathbf{y} - A\hat{\mathbf{x}}) = \mathbf{0}$ rearranged: they find the
+coefficients that make the residual perpendicular to every column of $A$, which is
+what makes $\hat{\mathbf{y}}$ the closest point in the column space to $\mathbf{y}$.
+:::
+
+
+## Problem 3 — projection vector
+
+Compute the projection of $\mathbf{a} = (5, 1)$ onto $\mathbf{b} = (2, 6)$. Then
+verify the leftover is orthogonal to $\mathbf{b}$.
+
+```{webr}
+#| autorun: false
+# p3-starter
+a <- c(5, 1); b <- c(2, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$\hat{\mathbf{a}} = \frac{\mathbf{a} \cdot \mathbf{b}}{\mathbf{b} \cdot \mathbf{b}}
+\mathbf{b} = \frac{10 + 6}{4 + 36}(2, 6) = \frac{16}{40}(2, 6) = 0.4 \times (2, 6)
+= (0.8, 2.4)$.
+
+Leftover: $(5 - 0.8, 1 - 2.4) = (4.2, -1.4)$.
+Check: $4.2 \times 2 + (-1.4) \times 6 = 8.4 - 8.4 = 0$. Orthogonal.
+
+```{r}
+a <- c(5, 1); b <- c(2, 6)
+proj <- (sum(a * b) / sum(b * b)) * b
+leftover <- a - proj
+cat("projection:", proj, "\n")
+cat("leftover:", leftover, "\n")
+cat("check:", sum(leftover * b), "\n")  # 0
+```
+:::
+
+
+## Problem 4 — spot the error
+
+A colleague says: *"To check whether my least-squares fit is correct, I plotted the
+data and the fitted line, then measured the angle between each residual segment and
+the fitted line. They're not 90°, so something went wrong."*
+
+This contains **exactly one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: checking for **right angles in the scatter plot**. The orthogonality of
+least squares is not between the vertical residual segments and the fitted line in the
+2D plot. It is between the residual *vector* $\mathbf{e}$ (one entry per data point,
+living in $n$-dimensional observation space) and each column of the design matrix $A$.
+The correct check is $A^\top \mathbf{e} = \mathbf{0}$ — dot the residual vector with
+each column and verify the result is zero. The vertical segments in a scatter plot show
+residual *magnitudes*, not geometric directions.
+:::
+
+
+## Problem 5 — mixing it with rank *(uses rank's "independent columns" idea)*
+
+You have two predictor columns: `hours` $= (1, 2, 3)$ and `double_hours` $= (2, 4, 6)$.
+
+(a) What is the rank of $A = \begin{bmatrix}1&1&2\\1&2&4\\1&3&6\end{bmatrix}$
+(intercept + hours + double_hours)?
+(b) Can you solve the normal equations $A^\top A\hat{\mathbf{x}} = A^\top \mathbf{y}$?
+Why or why not?
+(c) What does `lm(y ~ hours + double_hours)` do in this situation?
+
+```{webr}
+#| autorun: false
+# p5-starter
+hours <- c(1, 2, 3); double_hours <- 2 * hours
+A <- cbind(1, hours, double_hours)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) Rank = 2. Column 3 is exactly $2 \times$ column 2, so it is not independent — the
+third column adds nothing new.
+
+(b) No. $A^\top A$ is a $3 \times 3$ matrix but only rank 2, so it is singular —
+`solve(t(A) %*% A)` fails. The normal equations need $A^\top A$ invertible, which
+requires the columns of $A$ to be linearly independent.
+
+(c) R's `lm()` detects the dependence and reports `NA` for the redundant coefficient:
+
+```{r}
+y <- c(1, 3, 2); hours <- c(1, 2, 3); double_hours <- 2 * hours
+coef(lm(y ~ hours + double_hours))
+```
+
+It drops `double_hours` and fits the same line as `lm(y ~ hours)`. The rank module
+warned that a dependent column does not enlarge the span — the column space of $A$ is
+the same plane with or without `double_hours`.
+:::
+
+
+## Problem 6 — transfer: what R^2 means geometrically
+
+The toy data has $\mathbf{y} = (1, 3, 2)$ and fitted $\hat{\mathbf{y}} = (1.5, 2, 2.5)$.
+
+(a) Compute $\lVert \mathbf{e} \rVert^2$ (total squared residual).
+(b) Compute $\lVert \mathbf{y} - \bar{y} \rVert^2$ (total variation of $\mathbf{y}$
+around its mean $\bar{y} = 2$).
+(c) Compute $R^2 = 1 - \lVert \mathbf{e} \rVert^2 / \lVert \mathbf{y} - \bar{y} \rVert^2$.
+What fraction of the variation does the line explain?
+[@austin2022understandinglinearalgebra, pp. 400, 412--413]
+
+```{webr}
+#| autorun: false
+# p6-starter
+y <- c(1, 3, 2); yhat <- c(1.5, 2, 2.5)
+ybar <- mean(y)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $\lVert \mathbf{e} \rVert^2 = (-0.5)^2 + 1^2 + (-0.5)^2 = 0.25 + 1 + 0.25 = 1.5$.
+
+(b) $\mathbf{y} - \bar{y} = (1-2, 3-2, 2-2) = (-1, 1, 0)$.
+$\lVert \mathbf{y} - \bar{y} \rVert^2 = 1 + 1 + 0 = 2$.
+
+(c) $R^2 = 1 - 1.5/2 = 1 - 0.75 = 0.25$.
+
+The line explains 25% of the variation in $\mathbf{y}$. The other 75% is in the
+residual — the perpendicular part. Geometrically, $R^2$ is the fraction of
+$\lVert \mathbf{y} - \bar{y} \rVert^2$ that lies in the column space direction.
+
+```{r}
+y <- c(1, 3, 2); yhat <- c(1.5, 2, 2.5); ybar <- mean(y)
+SSE <- sum((y - yhat)^2)            # 1.5
+SST <- sum((y - ybar)^2)            # 2
+R2  <- 1 - SSE / SST                # 0.25
+cat("SSE:", SSE, " SST:", SST, " R^2:", R2, "\n")
+```
+:::
+
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/orthogonality-projection-and-least-squares" pass="4"}
+
+::: {.quiz-q qid="opls-resid-ortho" qtype="mc" answer="b"}
+What geometric property characterises the least-squares residual vector?
+
+a) It points in the same direction as the longest column of the design matrix
+b) It is orthogonal to every column of the design matrix
+c) It has the same length as the response vector
+:::
+
+::: {.quiz-q qid="opls-normal-eqn" qtype="mc" answer="a"}
+The normal equations $A^\top A \hat{\mathbf{x}} = A^\top \mathbf{y}$ are equivalent to which condition?
+
+a) The residual is perpendicular to the column space of $A$
+b) The fitted values equal the response values exactly for every observation
+c) The columns of $A$ are mutually orthogonal to one another
+:::
+
+::: {.quiz-q qid="opls-proj-vec" qtype="mc" answer="c"}
+The projection of $\mathbf{a}$ onto $\mathbf{b}$ is $(\mathbf{a} \cdot \mathbf{b} / \mathbf{b} \cdot \mathbf{b})\,\mathbf{b}$. What happens to the projection when $\mathbf{a}$ is orthogonal to $\mathbf{b}$?
+
+a) The projection equals $\mathbf{a}$ itself because the vectors do not interact with each other
+b) The projection equals $\mathbf{b}$ because the formula always returns a multiple of $\mathbf{b}$
+c) The projection is the zero vector because the dot product in the numerator is zero
+:::
+
+::: {.quiz-q qid="opls-ata-toy" qtype="numeric" answer="14" tolerance="0"}
+For the toy design matrix $A = \begin{bmatrix}1&1\\1&2\\1&3\end{bmatrix}$, what is the bottom-right entry of $A^\top A$?
+:::
+
+::: {.quiz-q qid="opls-rank-needed" qtype="mc" answer="b"}
+(From rank.) Why does solving the normal equations require the columns of $A$ to be linearly independent?
+
+a) Dependent columns make the residual vector longer, which increases the total error of fit
+b) Dependent columns make $A^\top A$ singular, so `solve()` fails on the normal equations
+c) Dependent columns make the response vector lie outside the column space of $A$
+:::
+
+:::
+
+::::

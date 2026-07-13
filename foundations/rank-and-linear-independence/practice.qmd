@@ -1,0 +1,291 @@
+---
+title: "Practice: Rank and linear independence"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers
+
+Three employees have their weekly hours recorded in three columns: regular hours,
+overtime hours, and total hours (which is regular + overtime).
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to solve, right here
+regular  <- c(35, 40, 38)
+overtime <- c(5, 10, 2)
+total    <- regular + overtime
+
+X <- cbind(regular, overtime, total)
+X
+
+# 1. Is {regular, overtime, total} linearly independent or dependent? Why?
+# 2. What is the rank of X?
+# 3. Can you invert X'X?
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**1.** Dependent — total = 1 × regular + 1 × overtime, so column 3 is a weighted
+sum of the other two (weights 1, 1, not all zero).
+
+**2.** Rank 2, because only two columns carry independent information.
+
+**3.** No — $X^\top X$ is singular because $X$ is rank-deficient.
+
+```{r p1-answer}
+regular  <- c(35, 40, 38)
+overtime <- c(5, 10, 2)
+total    <- regular + overtime
+X <- cbind(regular, overtime, total)
+
+qr(X)$rank   # 2
+
+tryCatch(solve(t(X) %*% X),
+         error = function(e) cat("ERROR:", e$message, "\n"))
+```
+:::
+
+## Problem 2 — fill in the missing step
+
+You want to check whether three columns $\mathbf{a}$, $\mathbf{b}$, $\mathbf{c}$
+are linearly dependent. Here is the approach:
+
+**Step 1:** Set up the test — if $c_1 \mathbf{a} + c_2 \mathbf{b} + c_3 \mathbf{c} = \mathbf{0}$ has a nonzero solution, the set is dependent.
+
+**Step 2:** **Your step here** — what do you actually check in R to determine
+whether a nonzero solution exists?
+
+**Step 3:** The rank is 2, so the set is dependent.
+
+```{webr}
+#| autorun: false
+# p2-starter — fill in Step 2
+a <- c(1, 0, 2)
+b <- c(0, 1, 1)
+cc <- c(2, 1, 5)   # "cc" because "c" is a function in R
+
+M <- cbind(a, b, cc)
+
+# Step 2: what do you compute here?
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**Step 2:** Check the rank of the matrix formed by the three columns. If the rank
+is less than the number of columns (3), a nonzero solution exists and the set is
+dependent.
+
+```{r p2-answer}
+a <- c(1, 0, 2)
+b <- c(0, 1, 1)
+cc <- c(2, 1, 5)
+M <- cbind(a, b, cc)
+
+qr(M)$rank   # 2 < 3 columns → dependent
+
+# Verify: cc = 2*a + 1*b
+2 * a + 1 * b    # (2, 1, 5) = cc ✓
+```
+
+The rank is the key diagnostic: `qr(M)$rank < ncol(M)` means dependent.
+:::
+
+## Problem 3 — rank of a data matrix
+
+A 5×3 data matrix records height, weight, and BMI for five people. BMI is
+weight / height² (not a linear combination of the other two).
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: find the rank and explain it
+height <- c(1.65, 1.70, 1.75, 1.80, 1.85)   # metres
+weight <- c(60, 70, 75, 80, 90)              # kg
+bmi    <- weight / height^2
+
+X <- cbind(height, weight, bmi)
+
+# PREDICT: is the rank 1, 2, or 3? Write your guess, then run.
+qr(X)$rank
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The rank is **3**. BMI is a *nonlinear* function of height and weight
+(weight / height²), not a linear combination ($c_1 \cdot \text{height} + c_2 \cdot \text{weight}$).
+Linear independence only cares about *weighted sums* — a nonlinear function like
+BMI creates a genuinely new column that no linear combination of the originals
+can reproduce (for continuous real-valued data).
+
+```{r p3-answer}
+height <- c(1.65, 1.70, 1.75, 1.80, 1.85)
+weight <- c(60, 70, 75, 80, 90)
+bmi    <- weight / height^2
+X <- cbind(height, weight, bmi)
+qr(X)$rank   # 3 — all independent
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague says: "I have a 50×4 data matrix where two columns have correlation
+0.98. The rank must be 3, because those two columns are basically the same."
+
+This reasoning contains **exactly one mistake**. Find it and fix it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: **high correlation does not make columns linearly dependent.** Two
+columns with correlation 0.98 are *nearly* but not *exactly* collinear. Linear
+dependence is all-or-nothing: one column must be an *exact* weighted sum of the
+others for the rank to drop. With correlation 0.98, the matrix almost certainly
+still has rank 4 — it is just **ill-conditioned** (close to singular but not
+actually singular).
+
+```{r p4-answer}
+set.seed(42)
+x1 <- rnorm(50)
+x2 <- 0.98 * x1 + sqrt(1 - 0.98^2) * rnorm(50)   # cor ≈ 0.98
+x3 <- rnorm(50)
+x4 <- rnorm(50)
+X <- cbind(x1, x2, x3, x4)
+
+cat("correlation:", round(cor(x1, x2), 3), "\n")
+cat("rank:", qr(X)$rank, "\n")   # still 4!
+```
+
+The fix: "The columns are highly correlated, so the matrix is **ill-conditioned**
+(nearly singular), but the rank is still 4."
+:::
+
+## Problem 5 — mixing it with matrices *(uses matrices & linear transforms' `solve()`)*
+
+You have a 3×3 matrix $A$. First check whether it is invertible. If it is,
+compute $A^{-1}$ using `solve()`. If it is not, explain why.
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to solve, right here
+A <- matrix(c(1, 2, 3,
+              4, 5, 6,
+              5, 7, 9), nrow = 3, byrow = TRUE)
+
+# Step 1: check the rank
+qr(A)$rank
+
+# Step 2: try to invert (will it work?)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The rank is 2 (less than 3), so $A$ is singular — `solve(A)` will error.
+
+Why: row 3 = row 1 + row 2 ($5 = 1+4$, $7 = 2+5$, $9 = 3+6$), so the
+third row is a linear combination of the other two.
+
+```{r p5-answer}
+A <- matrix(c(1, 2, 3,
+              4, 5, 6,
+              5, 7, 9), nrow = 3, byrow = TRUE)
+
+cat("rank:", qr(A)$rank, "\n")  # 2
+
+# Row 3 = Row 1 + Row 2:
+A[1, ] + A[2, ]    # (5, 7, 9) = A[3,] ✓
+
+tryCatch(solve(A),
+         error = function(e) cat("ERROR:", e$message, "\n"))
+```
+
+The rank check (`qr(A)$rank < nrow(A)`) predicts the failure — this is the
+connection between linear independence and invertibility from the
+[matrices lesson](../matrices-and-linear-transforms/lesson.qmd).
+:::
+
+## Problem 6 — rank and PCA *(a gentle cliffhanger)*
+
+A researcher runs PCA on a 200×10 data matrix and finds that the first 3
+principal components explain 100% of the variance. The other 7 components
+have eigenvalue zero.
+
+What does this tell you about the rank of the data matrix? If you had to
+guess, what happened in the data collection?
+
+::: {.callout-note collapse="true" title="Answer"}
+The rank is **3**. Only 3 eigenvalues of the covariance matrix are nonzero, so
+only 3 columns carry independent information — the other 7 are linear
+combinations of those 3.
+
+What probably happened: the 10 variables were not all measured independently.
+Perhaps 3 are genuine measurements and the other 7 are derived quantities
+(e.g., sums, differences, or rescalings of the original 3). This is the
+"rank caps PCA" idea in action — PCA cannot find more directions of variance
+than the rank allows, no matter how many columns the data frame has.
+
+The next step would be to inspect the correlation matrix for columns with
+$|r| = 1$ and drop the redundant ones before modelling.
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/rank-and-linear-independence" pass="4"}
+
+::: {.quiz-q qid="rli-dep-def" qtype="mc" answer="c"}
+A set of vectors is **linearly dependent** if:
+
+a) Every vector in the set is a scalar multiple of one other vector
+b) The vectors all have the same length
+c) One vector can be written as a weighted sum of the others
+d) The vectors are uncorrelated
+:::
+
+::: {.quiz-q qid="rli-rank-value" qtype="numeric" answer="2" tolerance="0"}
+A 4×3 matrix has columns: $\mathbf{a}$, $\mathbf{b}$, and $\mathbf{c} = 3\mathbf{a} - \mathbf{b}$. What is its rank?
+:::
+
+::: {.quiz-q qid="rli-max-rank" qtype="numeric" answer="5" tolerance="0"}
+What is the maximum possible rank of a 5×8 matrix?
+:::
+
+::: {.quiz-q qid="rli-trap" qtype="mc" answer="b"}
+Two columns have correlation 0.99. Which statement is correct?
+
+a) The columns are linearly dependent, which means the matrix is singular
+b) The columns are linearly independent but the matrix is ill-conditioned
+c) The rank of the matrix drops by 1 because the columns are nearly equal
+d) PCA will find one fewer component than the number of columns
+:::
+
+::: {.quiz-q qid="rli-mm-conformability" qtype="mc" answer="a"}
+*(interleaved — uses matrices & linear transforms)* A matrix $A$ is $4 \times 6$ and a
+matrix $B$ is $6 \times 2$. What shape is $AB$, and is the product defined?
+
+a) 4×2; defined, because the inner dimensions (6 and 6) match
+b) 6×6; defined, because both matrices have a 6 in their shape
+c) 4×2; undefined, because the outer dimensions (4 and 2) don't match
+d) 2×4; defined, by swapping the order of multiplication
+:::
+
+:::
+
+::::

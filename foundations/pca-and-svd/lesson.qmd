@@ -1,0 +1,702 @@
+---
+title: "PCA and SVD: finding the directions that matter"
+subtitle: "How the covariance matrix's hidden directions compress a many-column dataset into a few numbers that capture most of the information"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+You know that a covariance matrix packs all pairwise co-movements into one grid, and
+you know how to project a vector onto a direction. Now: that covariance grid has hidden
+directions built into it -- directions along which the data spreads the most. **PCA**
+(principal component analysis) finds those directions. **SVD** (singular value
+decomposition) is the machinery that does the finding. The payoff: take a dataset with
+50 columns and compress it to 3 or 4 numbers per row that capture most of the
+information.
+
+**Builds on:**
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd)
+(projection, orthogonality),
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd)
+(matrix multiply, transpose, $X^\top X$),
+[variance structure & standardization](../variance-structure-and-standardization/lesson.qmd)
+(covariance matrix, standardization, `cov()`, `cor()`)
+
+## Warm-up: do you remember?
+
+Three quick reps first -- answers from memory, then check.
+
+**1.** Project vector `a <- c(3, 4)` onto direction `b <- c(1, 0)`. What is the
+projection length? (The formula: dot product of a and b, divided by the length of b.)
+
+```{webr}
+#| autorun: false
+# warmup1-starter -- edit and Run to check
+a <- c(3, 4)
+b <- c(1, 0)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The dot product is $3 \times 1 + 4 \times 0 = 3$, and the length of b is
+$\sqrt{1^2 + 0^2} = 1$, so the projection length is $3 / 1 = 3$. In R:
+`sum(a * b) / sqrt(sum(b^2))` returns 3. Taught in
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd);
+revisit if shaky.
+:::
+
+**2.** If two vectors are orthogonal (their dot product is 0), what does that mean in
+plain words?
+
+::: {.callout-note collapse="true" title="Answer"}
+They are at right angles to each other -- neither has any shadow on the other, so they
+carry separate, non-overlapping information. In R: `sum(u * w) == 0` is the test.
+Taught in
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd).
+:::
+
+**3.** What does the diagonal of a covariance matrix tell you? And the off-diagonal?
+
+::: {.callout-note collapse="true" title="Answer"}
+The diagonal holds each column's own variance. The off-diagonal holds the pairwise
+covariances -- how each pair of columns moves together. And the matrix is symmetric:
+entry $(j, k)$ equals entry $(k, j)$. Taught in
+[variance structure & standardization](../variance-structure-and-standardization/lesson.qmd);
+revisit if shaky.
+:::
+
+
+## Sub-spine A: The covariance matrix as a matrix product {#sub-spine-a}
+
+### A tiny example first
+
+We measured 4 people's **height** (cm) and **weight** (kg):
+
+```{r toy-data}
+height <- c(160, 170, 175, 180)
+weight <- c(55, 65, 68, 75)
+X <- cbind(height, weight)   # 4-by-2 data matrix: one ROW per person, one COLUMN per variable
+X
+```
+
+You already know `cov(X)` gives the covariance matrix -- the grid whose diagonal is
+each column's variance and whose off-diagonal is how the columns move together. Let's
+see it:
+
+```{r cov-direct}
+S <- cov(X)
+S
+```
+
+The covariance matrix is roughly $\begin{bmatrix} 72.9 & 70.4 \\ 70.4 & 68.9
+\end{bmatrix}$. Both columns spread a lot (diagonal), and they move together strongly
+(off-diagonal nearly as big as the diagonal).
+
+Now here is the connection to matrices. First, **center** the data -- subtract each
+column's mean:
+
+```{r center}
+# Column means: height = 171.25, weight = 65.75
+col_means <- colMeans(X)
+col_means
+
+# Subtract them: centered data (deviations from the mean)
+X_c <- scale(X, center = TRUE, scale = FALSE)
+X_c
+```
+
+Now watch: the matrix product $X_c^\top X_c$ divided by $(n - 1)$ gives the exact same
+covariance matrix. Reading it aloud: "ex-sub-c transpose, ex-sub-c, over n minus one" --
+in plain words, multiply the centered data table by its own transpose (flip its rows and
+columns, then matrix-multiply), and divide by one less than the number of observations.
+$X_c$ is the centered data matrix (4-by-2, here), the raised $\top$ means transpose, and
+$n$ is the number of observations (4, here).
+
+```{r cov-as-matrix-product}
+# t(X_c) is 2-by-4; X_c is 4-by-2; their product is 2-by-2
+t(X_c) %*% X_c / (4 - 1)   # (n-1) = 3
+
+# Compare to cov(X):
+S
+```
+
+They match. The covariance matrix you already know from
+[variance structure](../variance-structure-and-standardization/lesson.qmd) **is** a
+matrix product you already know from
+[matrices](../matrices-and-linear-transforms/lesson.qmd).
+
+### Getting a feel for it
+
+**Why does $X_c^\top X_c$ give covariances?** Each entry of $X_c^\top X_c$ is a dot
+product between two centered columns. The dot product of centered-height with
+centered-weight is $(-11.25)(-10.75) + (-1.25)(-0.75) + (3.75)(2.25) + (8.75)(9.25)$.
+That sum of products of paired deviations is exactly the numerator of the covariance
+formula from
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) -- all we need
+to finish it off is dividing by $(n - 1)$. When a column is dotted with *itself*, the
+sum of products of deviations is the numerator of that column's variance. So the
+diagonal of $X_c^\top X_c / (n - 1)$ is each column's variance, and the off-diagonal
+is each pair's covariance -- the covariance matrix, assembled by the matrix machinery
+you already own.
+
+This means: every time a paper writes "the sample covariance matrix," it's talking
+about a matrix product of centered data with itself (transposed). One recipe, two
+views.
+
+
+## Sub-spine B: Eigenvalues and eigenvectors {#sub-spine-b}
+
+### A tiny example first
+
+Take the covariance matrix $S$ we just computed. What happens when you multiply $S$ by
+a vector? Normally, matrix multiplication both **stretches** and **rotates** a vector
+-- it changes the vector's length and its direction. But some special vectors are only
+stretched, never rotated. Those are **eigenvectors**, and the stretch factor for each
+one is its **eigenvalue**.
+
+Let's find them. R's `eigen()` does the work:
+
+```{r eigen-decomp}
+e <- eigen(S)
+
+# Two eigenvalues: the stretch factors
+e$values
+
+# Two eigenvectors: the special directions (each is a column of e$vectors)
+e$vectors
+```
+
+The first eigenvalue is about **141.4** and the second is about **0.47**. The first
+eigenvector is roughly $(-0.717, -0.697)$ and the second is roughly $(0.697, -0.717)$.
+
+Now verify what "eigenvector" means -- by hand. Take the first eigenvector and multiply
+$S$ by it. Then separately multiply the eigenvalue by the same vector. They should give
+the same result:
+
+```{r eigen-verify}
+v1 <- e$vectors[, 1]         # first eigenvector
+lambda1 <- e$values[1]       # first eigenvalue (about 141.4)
+
+# Multiply S by v1 (matrix times vector)
+S %*% v1
+
+# Multiply lambda1 by v1 (scalar times vector)
+lambda1 * v1
+```
+
+They match. When $S$ acts on its eigenvector, all it does is scale the vector by the
+eigenvalue -- no rotation. The matrix pushed this vector straight along its own
+direction, just faster (or slower).
+
+One more check: the two eigenvectors should be **perpendicular** to each other
+(orthogonal -- dot product 0), just like the orthogonal vectors in the
+[distance & geometry](../distance-similarity-and-geometry/lesson.qmd) lesson:
+
+```{r ortho-check}
+v2 <- e$vectors[, 2]     # second eigenvector
+sum(v1 * v2)              # dot product: 0 = orthogonal
+```
+
+Zero. They are at right angles.
+
+### Getting a feel for it
+
+**The funnel picture.** Imagine pushing a ball through a funnel. Most directions
+deflect the ball -- it enters heading one way and exits heading another. But one
+direction -- straight through the center -- just speeds the ball up or slows it down
+without deflecting it at all. That direction is an eigenvector. The speed-up factor is
+the eigenvalue. A large eigenvalue means the matrix stretches a lot along that
+direction; a small eigenvalue means it barely stretches at all. (Where the analogy
+breaks: the funnel has one special direction; a matrix has as many eigenvectors as it
+has rows/columns.)
+
+**Why symmetric matrices are special.** The covariance matrix is symmetric -- entry
+$(1, 2)$ equals entry $(2, 1)$ -- you learned this in
+[variance structure](../variance-structure-and-standardization/lesson.qmd). Symmetric
+matrices always have **real** eigenvalues (not complex numbers)
+[@austin2022understandinglinearalgebra, p. 421] and **perpendicular**
+eigenvectors [@austin2022understandinglinearalgebra, pp. 421--422]. This is why PCA works: the "special directions" of the covariance matrix
+are guaranteed to be at right angles to each other, so they carry separate,
+non-overlapping information -- exactly the orthogonality idea from the
+[distance & geometry](../distance-similarity-and-geometry/lesson.qmd) lesson.
+
+**What the eigenvalues feel like.** Our first eigenvalue (141.4) is enormous compared
+to the second (0.47). That tells you the covariance matrix stretches almost entirely
+along one direction and barely stretches at all along the perpendicular direction. As
+we'll see next, that "big-stretch direction" is where the data spreads the most -- and
+that is PC1.
+
+### What the notation is going to say
+
+The formula below will say: when you multiply the covariance matrix $S$ by a special
+vector $\mathbf{v}$, the result is just a number $\lambda$ times that same vector --
+the matrix stretched it without rotating it. In our example, that is exactly the
+"multiply $S$ by $(-0.717, -0.697)$ and get $141.4 \times (-0.717, -0.697)$ back" step
+we just verified.
+
+We use $S$ for the sample covariance matrix (not the capital sigma $\Sigma$ you saw in
+[variance structure](../variance-structure-and-standardization/lesson.qmd)) to avoid
+confusion with the $\Sigma$ in the SVD decomposition $X = U\Sigma V^\top$ that comes
+later. Same concept, different letter, chosen to keep the two apart.
+
+### How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $S$ | "ess" | sample covariance matrix (in R: `cov(X)`) | the 2-by-2 grid $\approx \begin{bmatrix} 72.9 & 70.4 \\ 70.4 & 68.9 \end{bmatrix}$ |
+| $X$ | "ex" | the raw (uncentered) data matrix -- one row per observation, one column per variable (in R: `cbind(height, weight)`) | our 4-by-2 raw height/weight matrix |
+| $X_c$ | "ex sub see" or "centered ex" | data matrix with column means subtracted (in R: `scale(X, center=TRUE, scale=FALSE)`) | our 4-by-2 centered height and weight |
+| $n$ | "en" | the number of observations (in R: `nrow(X)`) | 4 |
+| $\lambda$ | "lambda" | eigenvalue -- how much the matrix stretches along one eigenvector direction (in R: `eigen(S)$values`) | $\lambda_1 \approx 141.4$, $\lambda_2 \approx 0.47$ |
+| $\mathbf{v}$ | "vee" (bold) | eigenvector -- a direction the matrix only stretches, never rotates (in R: `eigen(S)$vectors`) | $\mathbf{v}_1 \approx (-0.717, -0.697)$ |
+| $S\mathbf{v} = \lambda\mathbf{v}$ | "ess times vee equals lambda times vee" | the eigenvalue equation: applying $S$ to $\mathbf{v}$ just scales $\mathbf{v}$ by $\lambda$ | verified by multiplying $S$ by $\mathbf{v}_1$ |
+| $U$ | "yoo" | left singular vectors (in SVD; in R: `svd(X_c)$u`) | a 4-by-2 matrix from `svd(X_c)$u` |
+| $\Sigma$ (in SVD) | "sigma" (capital) | diagonal matrix of singular values (in SVD; in R: `svd(X_c)$d`) | singular values $\approx 20.6$ and $1.19$ |
+| $d_k$ | "dee sub kay" | the $k$-th singular value -- the $k$-th number on $\Sigma$'s diagonal ("sub k" means: the k-th one; in R: `svd(X_c)$d[k]`) | $d_1 \approx 20.6$, $d_2 \approx 1.19$ |
+| $V$ | "vee" (capital) | right singular vectors = the principal component directions (in R: `svd(X_c)$v` or `prcomp(X)$rotation`) | matches `prcomp(X)$rotation` |
+| $\mathbf{u}^\top S \mathbf{u}$ | "yoo transpose ess yoo" | variance of data projected onto direction $\mathbf{u}$ | equals $\lambda$ when $\mathbf{u}$ is an eigenvector of $S$ |
+
+### The formal version
+
+The eigenvalue equation:
+
+$$
+S\mathbf{v} = \lambda\mathbf{v}
+$$
+
+Reading it aloud: "ess times vee equals lambda times vee" -- or in everyday words:
+**"multiplying the covariance matrix by this special direction just scales it by a
+number, without rotating it."** [@austin2022understandinglinearalgebra, p. 230]
+
+Mapping onto the toy example:
+
+- $S$ is our 2-by-2 covariance matrix
+- $\mathbf{v}_1 = (-0.717, -0.697)$ is the first eigenvector
+- $\lambda_1 = 141.4$ is the first eigenvalue
+- $S \mathbf{v}_1$ gave us $(-101.4, -98.5)$, and $141.4 \times (-0.717, -0.697)$
+  gave us the same $(-101.4, -98.5)$ -- verified.
+
+**Why the eigenvalue is the variance along that direction (the punchline).** If you
+project all your centered data points onto an eigenvector direction and compute the
+variance of those projections, you get exactly the eigenvalue. In formula:
+
+$$
+\mathbf{u}^\top S \mathbf{u} = \lambda \quad \text{when } \mathbf{u} \text{ is a unit eigenvector of } S
+$$
+
+Reading it aloud: "yoo transpose ess yoo equals lambda" -- the variance of the data's
+shadow on direction $\mathbf{u}$ equals the eigenvalue for that direction, provided
+$\mathbf{u}$ has unit length ($\lVert \mathbf{u} \rVert = 1$). R's `eigen()` returns
+unit eigenvectors by default [@austin2022understandinglinearalgebra, p. 431]. We will
+verify this numerically in sub-spine C.
+
+
+## Sub-spine C: PCA = eigenvectors of S, ordered by eigenvalue {#sub-spine-c}
+
+### A tiny example first
+
+Using the same centered data $X_c$ (4 people, height and weight), project every point
+onto the first eigenvector. That gives one number per person -- their "score" along
+that direction:
+
+```{r project-pc1}
+# Scores = centered data projected onto eigenvector 1
+scores_1 <- X_c %*% v1
+scores_1
+
+# The variance of these scores equals the first eigenvalue
+var(as.vector(scores_1))
+lambda1
+```
+
+The variance of the scores on the first eigenvector is **141.4** -- exactly $\lambda_1$.
+Now do the same for the second eigenvector:
+
+```{r project-pc2}
+scores_2 <- X_c %*% v2
+scores_2
+var(as.vector(scores_2))
+e$values[2]   # lambda2
+```
+
+The variance of the scores on the second eigenvector is **0.47** -- exactly
+$\lambda_2$. The first eigenvector "captures" far more of the data's spread than the
+second. That is why it is **PC1** (principal component 1): it is the direction of
+maximum variance.
+
+**This is PCA.** Line up the eigenvectors from largest eigenvalue to smallest. Call
+them PC1, PC2, and so on. Each one is an orthogonal direction in the data, and each
+one's eigenvalue tells you how much variance it captures
+[@austin2022understandinglinearalgebra, p. 447]. The first few PCs often
+capture the lion's share of the total variance, so you can throw the rest away and
+still keep most of the information.
+
+### Getting a feel for it
+
+**PCA is finding the "best camera angle."** Imagine you have a 3D sculpture and one
+photograph to take. The best angle is the one that shows the most variation in the
+sculpture's shape -- the one where the shadow of the sculpture is widest. PC1 is that
+best angle. PC2 is the next-best angle at right angles to it. Each PC is a camera angle
+that captures as much of the remaining variation as possible, and no two cameras point
+in overlapping directions.
+
+**Why build it from the covariance matrix?** Because the covariance matrix already
+holds all the information about how the data spreads and co-moves. Its eigenvectors are
+the directions of maximum spread, and its eigenvalues are the amounts of spread along
+those directions. PCA just reads those directions out of the matrix you already know
+how to build.
+
+### Checking with prcomp()
+
+R's `prcomp()` is the standard PCA function. Let's compare its output to our `eigen()`
+results:
+
+```{r prcomp-compare}
+p <- prcomp(X)
+
+# The "rotation" matrix = the eigenvectors (the PC directions)
+p$rotation
+
+# Compare to eigen:
+e$vectors
+```
+
+The numbers match up to a **sign flip** -- `prcomp()` gives $(0.717, 0.697)$ where
+`eigen()` gave $(-0.717, -0.697)$. This is fine: an eigenvector and its negative point
+in opposite directions along the same line, like "north" and "south" on the same axis.
+The direction matters, not which end you call positive.
+
+```{r prcomp-eigenvalues}
+# prcomp's sdev^2 = the eigenvalues
+p$sdev^2
+
+# Compare to eigen:
+e$values
+```
+
+`prcomp(X)$sdev` gives the standard deviations of each PC; squaring them gives the
+eigenvalues. Everything matches.
+
+### The SVD connection
+
+There is a second way to get PCA: the **singular value decomposition** (SVD). Instead
+of computing the covariance matrix and then finding its eigenvectors, SVD works
+directly on the centered data. Any matrix can be decomposed as $X = U \Sigma V^\top$
+[@austin2022understandinglinearalgebra, p. 464]
+-- three pieces that R's `svd()` hands you:
+
+```{r svd-connection}
+s <- svd(X_c)
+
+# V from SVD = the rotation from prcomp (the PC directions)
+s$v
+p$rotation
+
+# The singular values (diagonal of Sigma)
+s$d
+
+# Singular values squared, divided by (n-1), = the eigenvalues
+s$d^2 / (4 - 1)
+e$values
+```
+
+The match is exact. Here is the relationship in words:
+
+- $V$ from SVD = the eigenvectors of the covariance matrix = the PC directions
+  (`prcomp(X)$rotation`)
+- The singular values $d_k$, squared and divided by $(n - 1)$, give the eigenvalues =
+  the variance along each PC [@austin2022understandinglinearalgebra, p. 478]
+
+**Why does `prcomp()` use SVD internally?** Computing `eigen(cov(X))` requires building
+the covariance matrix first, which can lose numerical precision when the numbers are
+large or the columns are nearly collinear. SVD works on the raw centered data and is
+more numerically stable. The result is mathematically identical.
+
+This is **not** a full SVD tutorial -- just the connection you need: PCA directions
+come from SVD's $V$, and the variances come from the singular values. When a paper
+writes $X = U \Sigma V^\top$, you know where the PCA pieces live.
+
+### Scree plot: how many PCs to keep?
+
+With only 2 columns, our toy data has only 2 PCs, so a scree plot would be just two
+bars. To see a meaningful scree plot, here is the classic `iris` dataset (4 numeric
+columns -- sepal length, sepal width, petal length, petal width):
+
+```{r scree-iris}
+#| fig-alt: "Bar chart showing variance explained by each of four principal components of the iris dataset, with PC1 capturing about 73% and PC2 about 23%"
+ip <- prcomp(iris[, 1:4], scale. = TRUE)
+
+# Proportion of variance explained by each PC
+prop_var <- ip$sdev^2 / sum(ip$sdev^2)
+round(prop_var * 100, 1)
+
+# Cumulative proportion
+round(cumsum(prop_var) * 100, 1)
+
+# The scree plot: a bar for each PC's share of the total variance
+barplot(prop_var * 100, names.arg = paste0("PC", 1:4),
+        ylab = "% of variance explained",
+        main = "Scree plot: iris (4 columns, scaled)",
+        col = "steelblue", border = NA)
+```
+
+PC1 captures about 73% of the total variance, and PC1 + PC2 together capture about
+96%. Two PCs summarize 4 columns with only a 4% loss of information -- each bar is
+that PC's **proportion of variance explained**, its eigenvalue divided by the sum of
+all the eigenvalues [@james2021introductionstatisticallearning, pp. 503--504]. The
+**scree plot** (the bar chart above) is the standard tool for making this call: look
+for the "elbow" where the bars drop off sharply, and keep the PCs above that elbow
+[@james2021introductionstatisticallearning, pp. 507--508]. One hard ceiling on the
+count: the number of nonzero eigenvalues can never exceed the **rank** of the data
+matrix -- if the columns are not all independent, some PCs are guaranteed to carry
+zero variance [@austin2022understandinglinearalgebra, pp. 466--467]; see
+[rank & linear independence](../rank-and-linear-independence/lesson.qmd).
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Scatter plot of two correlated variables with arrows showing PC1 and PC2 directions overlaid on the data"
+# explore-1 -- LIVE: PCA on correlated 2D data, with PC directions as arrows.
+# PREDICT: if I INCREASE the correlation (change 0.8 to 0.95), will PC1 explain MORE
+# or LESS of the total variance? Commit to an answer, then run.
+set.seed(42)
+n <- 100
+r <- 0.8   # TRY IT: change this to 0.3, then 0.95, then re-run
+x1 <- rnorm(n)
+x2 <- r * x1 + sqrt(1 - r^2) * rnorm(n)   # x2 correlated with x1
+
+dat <- cbind(x1, x2)
+pc <- prcomp(dat)
+prop <- pc$sdev^2 / sum(pc$sdev^2)
+
+plot(dat, pch = 16, col = "grey60", asp = 1,
+     xlab = "x1", ylab = "x2",
+     main = sprintf("PC1 explains %.0f%% of variance (r = %.1f)", prop[1]*100, r))
+# Draw PC directions as arrows from the center of the cloud
+ctr <- colMeans(dat)
+for (k in 1:2) {
+  arrows(ctr[1], ctr[2],
+         ctr[1] + pc$rotation[1, k] * pc$sdev[k],
+         ctr[2] + pc$rotation[2, k] * pc$sdev[k],
+         col = c("firebrick", "steelblue")[k], lwd = 3, length = 0.12)
+}
+legend("topleft", c("PC1", "PC2"), col = c("firebrick", "steelblue"), lwd = 3)
+```
+
+```{webr}
+#| autorun: false
+# explore-2 -- LIVE: change the correlation and watch PC1 rotate.
+# TRY IT: set r to 0.0. What happens to the PC1 arrow? Why?
+# Then set r to -0.9 and see what changes.
+set.seed(42)
+n <- 100
+r <- 0.3   # CHANGE ME: try 0.0, 0.5, -0.9
+x1 <- rnorm(n)
+x2 <- r * x1 + sqrt(1 - r^2) * rnorm(n)
+
+pc <- prcomp(cbind(x1, x2))
+cat("PC1 direction:", round(pc$rotation[, 1], 3), "\n")
+cat("PC1 explains:", round(pc$sdev[1]^2 / sum(pc$sdev^2) * 100, 1), "% of variance\n")
+cat("PC2 explains:", round(pc$sdev[2]^2 / sum(pc$sdev^2) * 100, 1), "% of variance\n")
+```
+
+```{webr}
+#| autorun: false
+#| fig-alt: "Two side-by-side scree plots for the iris dataset: unscaled PCA where PC1 towers over the rest, and scaled PCA where the variance is spread more evenly across the first two components"
+# explore-3 -- LIVE: iris PCA, unscaled vs scaled, side by side.
+# PREDICT: will scaling (scale. = TRUE) change which PCs matter? Commit, then run.
+ip_raw    <- prcomp(iris[, 1:4], scale. = FALSE)
+ip_scaled <- prcomp(iris[, 1:4], scale. = TRUE)
+
+prop_raw    <- ip_raw$sdev^2    / sum(ip_raw$sdev^2)
+prop_scaled <- ip_scaled$sdev^2 / sum(ip_scaled$sdev^2)
+
+par(mfrow = c(1, 2))
+barplot(prop_raw * 100, names.arg = paste0("PC", 1:4),
+        ylab = "% of variance explained",
+        main = "Unscaled", col = "steelblue", border = NA)
+barplot(prop_scaled * 100, names.arg = paste0("PC", 1:4),
+        ylab = "% of variance explained",
+        main = "Scaled", col = "steelblue", border = NA)
+par(mfrow = c(1, 1))
+
+cat("UNSCALED proportion:", round(prop_raw * 100, 1), "\n")
+cat("UNSCALED cumulative:", round(cumsum(prop_raw) * 100, 1), "\n")
+cat("SCALED   proportion:", round(prop_scaled * 100, 1), "\n")
+cat("SCALED   cumulative:", round(cumsum(prop_scaled) * 100, 1), "\n")
+cat("PCs needed for 90% -- unscaled:", which(cumsum(prop_raw) >= 0.90)[1],
+    "| scaled:", which(cumsum(prop_scaled) >= 0.90)[1], "\n")
+```
+
+Did your prediction hold? Unscaled, PC1 alone carries about 92% of the variance
+(petal length's centimeter spread dominates the raw covariance matrix), so one PC
+clears 90%. Scaled, the shares rebalance to about 73% and 23%, and you need two PCs
+to clear 90% -- scaling really does change which PCs matter.
+
+## Common traps
+
+**Trap 1 -- "PCA gives you the most important VARIABLES."** Tempting, because we talk
+about "reducing columns." But PC1 is not one of the original columns -- it is a
+**[linear combination](../linear-combinations-and-data-matrices/lesson.qmd)** of all
+of them. In our toy data, the first PC direction is
+roughly $(0.72, 0.70)$: that is $0.72 \times \text{height} + 0.70 \times \text{weight}$.
+Both variables contribute almost equally. A principal component is a *direction through
+variable space*, not a column you can point at.
+
+```{r trap-1-demo}
+# The rotation matrix shows HOW MUCH each variable contributes to each PC
+p <- prcomp(cbind(height = c(160, 170, 175, 180),
+                  weight = c(55, 65, 68, 75)))
+round(p$rotation, 2)
+# PC1 = 0.72*height + 0.70*weight -- both variables matter
+```
+
+**Trap 2 -- "Always run PCA on raw (unscaled) data."** If height is in millimeters
+(range 1,600--1,800) and weight is in kilograms (range 55--75), the millimeter
+column's variance (7,292) is about a hundred times larger than the kilogram column's
+(68.9), and PC1 will just point along millimeters -- not because millimeters are more
+informative, but because their numbers are bigger. This is exactly the scale-swamping
+trap from
+[variance structure](../variance-structure-and-standardization/lesson.qmd). The fix:
+`prcomp(X, scale. = TRUE)` standardizes each column first, so all columns start on
+equal footing [@james2021introductionstatisticallearning, pp. 505--506].
+
+```{r trap-2-demo}
+# height in mm (large variance), weight in kg (small variance)
+height_mm <- c(1600, 1700, 1750, 1800)
+weight_kg <- c(55, 65, 68, 75)
+
+# The variances: about 7292 vs about 69 -- a factor of ~106
+var(height_mm)
+var(weight_kg)
+
+p_raw <- prcomp(cbind(height_mm, weight_kg))
+p_scaled <- prcomp(cbind(height_mm, weight_kg), scale. = TRUE)
+
+# Unscaled: PC1 is almost entirely height_mm (loading 0.9954)
+round(p_raw$rotation, 4)
+
+# Scaled: both variables contribute equally to PC1 (loadings 0.7071)
+round(p_scaled$rotation, 4)
+```
+
+**Trap 3 -- "PC1 is the most important predictor (or risk factor)."** Tempting,
+because "principal" sounds like "most important." But PCA never looks at any outcome
+-- it finds the direction of maximum **variance**, not maximum predictive power
+[@chan2021probabilitydatascience, p. 311]. Trap 2's own numbers refute it: unscaled,
+PC1 loads 0.9954 on `height_mm` -- not because millimeter-height predicts anything,
+but because its variance (7,292) is about a hundred times the other column's (68.9).
+The "leading" component can be nothing more than a scale artifact. Whether a
+direction *predicts* an outcome is a separate, supervised question -- you would need
+a regression against that outcome to answer it.
+
+**Trap 4 (Optional) -- "PCA can compress anything."** One sentence on what this
+buys: knowing PCA's structural limit tells you when to reach for a different tool
+instead of blaming your data. PCA is **linear** -- each PC is a straight-line
+direction through variable space. Data that lives on a *curved* shape has no good
+low-dimensional straight-line summary [@chan2021probabilitydatascience, p. 311].
+Watch it fail on a ring:
+
+```{r trap-4-demo}
+#| fig-alt: "Scatter plot of 200 points arranged in a ring (donut shape), with the caption reporting that PC1 explains 52.1% and PC2 explains 47.9% of the variance -- no dominant direction"
+# 200 points on a circle plus a little noise -- a donut of data
+set.seed(42)
+n <- 200
+theta <- runif(n, 0, 2 * pi)
+ring <- cbind(x = cos(theta) + rnorm(n, sd = 0.05),
+              y = sin(theta) + rnorm(n, sd = 0.05))
+
+pr <- prcomp(ring)
+prop_ring <- pr$sdev^2 / sum(pr$sdev^2)
+round(prop_ring * 100, 1)   # PC1: 52.1%, PC2: 47.9% -- a near 50/50 split
+
+plot(ring, pch = 16, col = "grey60", asp = 1,
+     main = sprintf("Ring data: PC1 %.1f%%, PC2 %.1f%% -- no dominant direction",
+                    prop_ring[1] * 100, prop_ring[2] * 100))
+```
+
+PC1 explains 52.1% and PC2 explains 47.9% -- an almost even split, so dropping
+either PC throws away half the information. The ring really has just ONE underlying
+dimension (the angle around the circle), but no *straight line* captures it. The
+escape hatch is **kernel PCA**: first stretch the data through a nonlinear
+transformation that unbends the curve, then run ordinary PCA on the result
+[@chan2021probabilitydatascience, p. 311].
+
+## Check yourself
+
+**1.** A 3-by-3 covariance matrix $S$ has eigenvalues 50, 8, and 2. What percentage of
+the total variance does PC1 capture?
+
+::: {.callout-note collapse="true" title="Answer"}
+Total variance = sum of eigenvalues = $50 + 8 + 2 = 60$. PC1 captures
+$50 / 60 \approx 83.3\%$. The eigenvalue of a PC *is* the variance it captures, so you
+just divide by the total.
+:::
+
+**2.** You run `eigen(cov(X))` and get eigenvectors $\mathbf{v}_1 = (0.6, 0.8)$ and
+$\mathbf{v}_2 = (0.8, -0.6)$. Verify these are orthogonal by computing their dot
+product.
+
+```{webr}
+#| autorun: false
+# check2-starter -- edit and Run to check
+v1 <- c(0.6, 0.8)
+v2 <- c(0.8, -0.6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Dot product: $0.6 \times 0.8 + 0.8 \times (-0.6) = 0.48 - 0.48 = 0$. Zero means
+orthogonal -- the two PCs are at right angles, carrying separate information. In R:
+`sum(v1 * v2)` returns 0.
+:::
+
+**3.** Explain to a colleague, in two sentences, what an eigenvalue tells you about its
+eigenvector, and why PCA uses the covariance matrix.
+
+::: {.callout-note collapse="true" title="A model answer"}
+An eigenvalue tells you how much the covariance matrix stretches along its eigenvector's
+direction, and that stretch equals the variance of the data when projected onto that
+direction -- so a big eigenvalue means the data spreads a lot that way. PCA uses the
+covariance matrix because its eigenvectors are guaranteed to be perpendicular directions
+of maximum spread, which means each principal component captures as much of the data's
+remaining variation as possible without overlapping with the others.
+:::
+
+## What you can now do
+
+- **Write the covariance matrix as a matrix product**: $S = X_c^\top X_c / (n - 1)$,
+  and explain why each entry is a dot product of centered columns.
+- **Find eigenvalues and eigenvectors** with `eigen()` and verify the eigenvalue
+  equation $S\mathbf{v} = \lambda\mathbf{v}$ by multiplying both sides.
+- **Run PCA with `prcomp()`** and read its output: `$rotation` is the PC directions
+  (eigenvectors), `$sdev^2` is the eigenvalues (variances along each PC).
+- **Connect SVD to PCA**: `svd(X_c)$v` gives the same PC directions, and the singular
+  values squared divided by $(n - 1)$ give the eigenvalues.
+- **Read a scree plot** to decide how many PCs to keep, and explain why `scale. = TRUE`
+  matters when columns have different units.
+
+If any of these feels shaky, revisit [Sub-spine B](#sub-spine-b) (eigenvalues) and
+[Sub-spine C](#sub-spine-c) (PCA) before continuing -- anything that uses PCA assumes
+all of these.
+
+## Where this goes next
+
+PCA shows up wherever high-dimensional data needs to be compressed or visualized. In
+genetics, the first few PCs of a genotype matrix reveal **population structure** --
+groups of individuals with shared ancestry -- and those PCs are routinely included as
+covariates in GWAS to prevent confounding. With the covariance matrix, eigenvalues,
+eigenvectors, `prcomp()`, and scree plots in hand, you are ready for any course that
+uses PCA as a building block.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

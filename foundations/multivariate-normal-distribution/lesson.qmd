@@ -1,0 +1,761 @@
+---
+title: "The multivariate normal distribution"
+subtitle: "When variables are jointly normal, the covariance matrix IS the shape"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only -- a live {webr} cell does NOT see anything defined here,
+# so every teaching cell below re-states its own data. Pure base R (chol, mahalanobis,
+# contour, etc.), so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+You know the bell curve (normal distribution) for one variable, and you know a
+covariance matrix packs all pairwise co-movements into one grid. Now: what happens
+when several variables are *jointly* normally distributed?
+The **multivariate normal distribution** -- and that covariance matrix you built in
+the variance-structure module IS its shape parameter. (A subtle point: each variable
+being individually normal is *not enough* to make them jointly normal -- the joint
+distribution is a stronger statement, explored in the Traps section below.) When a paper writes "assume
+$\mathbf{X} \sim N(\boldsymbol{\mu}, \boldsymbol{\Sigma})$," this is what they mean:
+a cloud of points whose shape is an ellipse (or ellipsoid) described by
+$\boldsymbol{\Sigma}$.
+
+**Builds on:**
+[distributions & densities](../distributions-and-densities/lesson.qmd) (the idea of a
+density curve, the normal distribution),
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) (variance,
+covariance),
+[variance structure & standardization](../variance-structure-and-standardization/lesson.qmd)
+(covariance matrix, `cov()`, correlation matrix),
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd) (matrix
+multiplication, inverse), and
+[quadratic forms & the chi-square statistic](../quadratic-forms-and-the-chi-square-statistic/lesson.qmd)
+(the quadratic form $\mathbf{x}^\top A\,\mathbf{x}$, and $\mathbf{x}^\top V^{-1}\mathbf{x}$
+as the standardised squared / Mahalanobis distance).
+
+
+## Warm-up: do you remember?
+
+Before the new stuff, four quick reps -- answers from memory first, then check.
+
+**1.** For a density curve, what does the area under the curve between two values
+represent? And for a normal distribution, roughly what share of values falls within
+1 standard deviation of the mean?
+
+::: {.callout-note collapse="true" title="Answer"}
+The area between two values IS the **probability** of landing in that interval --
+density height alone is not a probability. For a normal distribution, the area
+within 1 standard deviation of the mean is about **0.68** -- roughly two-thirds of
+values. Taught in
+[distributions & densities](../distributions-and-densities/lesson.qmd); revisit if
+shaky.
+:::
+
+**2.** What does the off-diagonal entry of a covariance matrix tell you?
+
+::: {.callout-note collapse="true" title="Answer"}
+It is the **covariance** between two variables -- how the pair co-move. Positive means
+they tend to go up together; negative means one goes up while the other goes down.
+Taught in
+[variance structure & standardization](../variance-structure-and-standardization/lesson.qmd);
+revisit if shaky.
+:::
+
+**3.** What does $\mathbf{X}^{-1}$ (the matrix inverse) do to $\mathbf{X}$?
+
+::: {.callout-note collapse="true" title="Answer"}
+It **undoes** it: $\mathbf{X}^{-1} \mathbf{X} = \mathbf{I}$ (the identity matrix). In
+R, `solve(X) %*% X` gives you back a matrix of 1s on the diagonal and 0s off it.
+Taught in
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd); revisit
+if shaky.
+:::
+
+**4.** What does sandwiching a matrix between a vector and itself --
+$\mathbf{v}^\top A\, \mathbf{v}$ -- produce? And what does the special case
+$\mathbf{x}^\top V^{-1} \mathbf{x}$ (with $V$ a covariance matrix) measure?
+
+::: {.callout-note collapse="true" title="Answer"}
+The sandwich produces a **single number** -- that shape is called a **quadratic
+form**. With the inverse covariance matrix as the filling,
+$\mathbf{x}^\top V^{-1} \mathbf{x}$ is the **standardised squared distance**: how far
+the vector sits from zero, on a scale that counts wobble in a noisy direction as
+less alarming than the same wobble in a precise one. Taught in
+[quadratic forms & the chi-square statistic](../quadratic-forms-and-the-chi-square-statistic/lesson.qmd);
+revisit if shaky.
+:::
+
+
+## A tiny example first
+
+We will work with **two variables** throughout -- just two dimensions, so we can draw
+everything. Call them $X_1$ and $X_2$.
+
+Here are the two objects that fully describe this distribution -- a **mean vector** and
+a **covariance matrix** [@chan2021probabilitydatascience, pp. 289--290]:
+
+- The **mean vector** says where the center of the cloud sits: $X_1$ is centered at 5,
+  $X_2$ is centered at 10.
+- The **covariance matrix** says how wide the cloud is in each direction, and whether
+  it tilts:
+
+| | $X_1$ | $X_2$ |
+|---|---|---|
+| $X_1$ | 4 | 3 |
+| $X_2$ | 3 | 9 |
+
+Reading the grid: the diagonal gives each variable's variance ($\text{Var}(X_1) = 4$,
+so $\text{sd}(X_1) = 2$; $\text{Var}(X_2) = 9$, so $\text{sd}(X_2) = 3$). The
+off-diagonal is the covariance between the pair: $\text{Cov}(X_1, X_2) = 3$. The
+correlation is $3 / (2 \times 3) = 0.5$ -- a moderate positive link.
+
+Now: generate 500 points from this distribution and look at them. We need a way to
+produce multivariate normal samples. The trick is the **Cholesky decomposition** --
+it splits the covariance matrix into a triangular factor called $L$ (say "ell"; a
+matrix with zeros below its diagonal) that, multiplied against itself the right way,
+rebuilds the covariance matrix exactly. The symbol table below gives the formula.
+Then you generate independent standard normals and multiply by $L$ (which stretches
+and tilts them), then add the mean vector.
+
+```{r toy-example}
+# The two parameters that define a bivariate normal
+mu    <- c(5, 10)                          # mean vector (center of the cloud)
+Sigma <- matrix(c(4, 3,                    # covariance matrix (shape of the cloud)
+                  3, 9), nrow = 2)
+
+# A helper to generate multivariate normal samples via Cholesky decomposition
+rmvn <- function(n, mu, Sigma) {
+  p <- length(mu)                          # number of dimensions
+  L <- chol(Sigma)                         # upper triangular Cholesky factor: t(L) %*% L = Sigma
+  Z <- matrix(rnorm(n * p), n, p)          # n rows of independent standard normals
+  sweep(Z %*% L, 2, mu, "+")              # stretch/tilt, then shift to the right center
+}
+
+set.seed(42)
+pts <- rmvn(500, mu, Sigma)                # 500 points from the bivariate normal
+
+# Check: the sample means and covariances should be close to what we asked for
+colMeans(pts)        # should be near c(5, 10)
+cov(pts)             # should be near our Sigma
+```
+
+The sample means are close to $(5, 10)$ and the sample covariance matrix is close to
+our input -- that is the distribution delivering what we specified.
+
+
+## Getting a feel for it
+
+**The mental picture: a water balloon.** A univariate normal is a sausage-shaped
+balloon -- one dimension of squish. A bivariate normal is a football-shaped balloon
+(two dimensions of squish). The **mean vector** is where you hold it -- the center.
+The **covariance matrix** describes how squishy it is in each direction and whether it
+is tilted. The diagonal entries (4 and 9) control how wide the balloon is in each
+direction -- they are the individual variances, the stretch. The off-diagonal entry (3)
+tilts the balloon -- it is the covariance. Set the covariance to 0 and the balloon
+un-tilts; the variables become independent. Set it to $-3$ and it tilts the other way.
+(Where the analogy strains: a balloon has a boundary you can feel, but a normal
+distribution trails off smoothly in every direction -- there is no hard edge, just
+lower and lower density.)
+
+**Why this construction.** The univariate normal is completely described by two numbers:
+mean and variance. Promote "one variable" to "many variables" and each number becomes
+its matrix counterpart: the mean becomes a mean *vector* (one center per variable) and
+the variance becomes a *covariance matrix* (one variance per variable on the diagonal,
+plus every pairwise covariance off the diagonal). That is the whole move. The covariance
+matrix you built in
+[variance structure & standardization](../variance-structure-and-standardization/lesson.qmd)
+IS the shape parameter -- there is nothing new to learn about building one; it
+literally IS the same object, now doing double duty as the distribution's shape.
+
+**What the numbers feel like.** Our cloud of 500 points is a tilted oval -- wider in
+the $X_2$ direction (variance 9 vs 4), tilted up-and-to-the-right (positive
+covariance 3). Make the covariance 0 and the cloud becomes an untilted oval. Make
+the variances equal (say both 4) *and* the covariance zero, and the cloud becomes
+round (a circle, because both directions have the same spread and no tilt). Make the covariance larger and the cloud becomes
+more cigar-shaped -- the variables track each other more tightly.
+
+
+### Contour ellipses: why the shape is an ellipse
+
+The curves where the density stays constant -- the **contour lines** -- are ellipses.
+Why? Every contour is a set of points at the same "distance from the center"
+(Mahalanobis distance, which we define below). The axes of the ellipse are the
+eigenvectors of the covariance matrix, and the lengths of those axes are proportional
+to the square roots of the eigenvalues. You do not need to know eigenvectors yet --
+just know that they are the natural "directions" of the data cloud, and the covariance
+matrix encodes them. (This connection is exactly what PCA exploits later -- but PCA is
+not a prerequisite here; we only note the connection.)
+[@chan2021probabilitydatascience, p. 297]
+
+
+## One new building block: the determinant
+
+The density formula coming up uses one quantity no earlier module has taught: the
+**determinant** of a matrix, written $\det(\boldsymbol{\Sigma})$. It is a single
+number attached to a square matrix, and its geometric meaning is an *area* (in 2D;
+a volume in higher dimensions): the area of the parallelogram spanned by the
+matrix's columns [@austin2022understandinglinearalgebra, pp. 203, 205]. For a
+covariance matrix, that makes it a one-number summary of how much total spread the
+cloud carries -- a bigger determinant means a bigger, more spread-out cloud. For a
+$2 \times 2$ matrix there is a hand rule: the determinant of
+$\begin{pmatrix} a & b \\ c & d \end{pmatrix}$ is $ad - bc$ -- "the product of the
+diagonal, minus the product of the off-diagonal"
+[@austin2022understandinglinearalgebra, p. 209]. For our covariance matrix that is
+$4 \times 9 - 3 \times 3 = 36 - 9 = 27$. One more fact we use later: if the
+determinant is zero the parallelogram has collapsed flat, and the matrix has no
+inverse [@austin2022understandinglinearalgebra, pp. 206--207].
+
+```{r determinant}
+Sigma <- matrix(c(4, 3, 3, 9), nrow = 2)
+
+# The 2x2 hand rule: diagonal product minus off-diagonal product
+4 * 9 - 3 * 3        # 36 - 9 = 27
+
+# R's built-in agrees
+det(Sigma)           # 27
+```
+
+
+## What the notation is going to say
+
+The density formula below will say: **the density at a point $\mathbf{x}$ depends on
+how far that point is from the center $\boldsymbol{\mu}$, measured in a way that
+accounts for the shape of the cloud (the covariance matrix $\boldsymbol{\Sigma}$).
+Points far from the center have low density; points near the center have high
+density. The normalizing constant in front makes sure the total volume under the
+surface is exactly 1 (it is still a proper probability distribution).**
+
+In our toy example, the formula will say: "the point $(5, 10)$ is at the center, so it
+has the highest density. The point $(9, 16)$ is far from the center -- but how
+surprising it is depends on whether its distance is mostly in the wide direction
+($X_2$, variance 9) or the narrow direction ($X_1$, variance 4)."
+
+
+## How to read the symbols
+
+Every symbol used anywhere in this lesson gets a row here.
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $X_1, X_2$ | "ex-one, ex-two" | the individual random variables (the columns of $\mathbf{X}$) | the two variables in our bivariate example |
+| $p$ | "pee" | the number of variables (dimensions) | 2 ($X_1$ and $X_2$) |
+| $\boldsymbol{\mu}$ | "the mean vector, bold mew" | a vector of $p$ means -- the center of the cloud (in R: a plain `c()` vector) | $\boldsymbol{\mu} = (5, 10)$ |
+| $\boldsymbol{\Sigma}$ | "the covariance matrix, bold big-sigma" | the $p \times p$ grid of variances (diagonal) and covariances (off-diagonal); the shape of the cloud (in R: `cov(df)` or `matrix(...)`) | `matrix(c(4,3,3,9), 2, 2)` |
+| $\mathbf{x}$ | "the vector ex" | a single point in $p$-dimensional space (in R: a length-$p$ vector) | $(7, 13)$ -- one sampled point |
+| $\mathbf{X} \sim N(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ | "X follows a multivariate normal with mean mew and covariance sigma" | the random vector $\mathbf{X}$ is drawn from a multivariate normal distribution with center $\boldsymbol{\mu}$ and shape $\boldsymbol{\Sigma}$ | "our 500 points come from $N((5,10), \Sigma)$" |
+| $\lvert\boldsymbol{\Sigma}\rvert$ or $\det(\boldsymbol{\Sigma})$ | "the determinant of sigma" | a single number that measures the overall "volume" of spread (in R: `det(Sigma)`) | $\det = 4 \times 9 - 3 \times 3 = 27$ |
+| $\boldsymbol{\Sigma}^{-1}$ | "sigma inverse" / "the precision matrix" | the matrix that undoes $\boldsymbol{\Sigma}$ (in R: `solve(Sigma)`) | `solve(matrix(c(4,3,3,9),2,2))` |
+| $L$ | "ell" / "the Cholesky factor" | the triangular matrix that splits the covariance matrix: $L^\top L = \boldsymbol{\Sigma}$ (in R: `chol(Sigma)`) | `chol(Sigma)`: rows $(2, 1.5)$ and $(0, 2.598)$ |
+| $d_M$ | "dee-sub-em" / "the Mahalanobis distance" | how many standard deviations a point is from the center, in all directions at once (in R: `mahalanobis()`) | see below |
+| $z$ | "zee" | a one-variable standardised value: the deviation divided by the standard deviation, $z = (x - \mu)/\sigma$ | for $X_1$ alone, the value 9 has $z = (9-5)/2 = 2$ |
+| $\sigma$ | "sigma (lowercase)" | one variable's standard deviation (the square root of its variance) | $\text{sd}(X_1) = \sqrt{4} = 2$ |
+| $S$ | "ess" / "the sample covariance matrix" | the covariance matrix computed from data (in R: `cov(X)`) | `cov(pts)` from the 500 points |
+| $(\mathbf{x} - \boldsymbol{\mu})^\top$ | "x minus mew, transposed" | the deviation of $\mathbf{x}$ from the center, laid out as a row | $(7-5, 13-10) = (2, 3)$ as a row |
+| $f(\mathbf{x})$ | "f of x" | the density function -- the height of the bell surface at point $\mathbf{x}$ (not a probability) | $f((5,10)) \approx 0.031$ (the peak) |
+| $\exp(\cdot)$ | "e to the" / "exp of" | the exponential function $e^{(\cdot)}$ (in R: `exp(...)`) | $\exp(0) = 1$; $\exp(-2) \approx 0.14$ |
+| $\mu_1, \mu_2$ | "mew-one, mew-two" | the individual entries of the mean vector (in R: `mu[1]`, `mu[2]`) | $\mu_1 = 5$, $\mu_2 = 10$ |
+| $\Sigma_{ij}$ | "sigma sub eye-jay" | the $(i,j)$ entry of the covariance matrix (in R: `Sigma[i, j]`) | $\Sigma_{12} = 3$ (the covariance) |
+| $X_2 \mid X_1$ | "X-two given X-one" | the distribution of $X_2$ when you know the value of $X_1$ | see conditional distributions below |
+| $(2\pi)^{p/2}$ | "two pi to the p over 2" | part of the normalizing constant that depends on the number of dimensions | $(2\pi)^1 = 6.283$ |
+| $\mathbf{a}$ | "the vector ay" | any non-zero test vector in the positive-definite condition $\mathbf{a}^\top \boldsymbol{\Sigma}\, \mathbf{a} > 0$ (see Common traps) | any length-2 vector, e.g. $(1, -1)$ |
+
+
+## The formal version
+
+### The Mahalanobis distance: a known tool, moved to a new center
+
+You built this machine in
+[quadratic forms & the chi-square statistic](../quadratic-forms-and-the-chi-square-statistic/lesson.qmd):
+sandwiching the inverse covariance matrix between a deviation vector and itself --
+the quadratic form $\mathbf{x}^\top V^{-1} \mathbf{x}$ -- gives the **standardised
+squared distance**, which divides out each direction's spread and co-movement before
+measuring "how far from zero" [@austin2022understandinglinearalgebra, p. 433]. Only
+the scenery changes here: the deviation is measured from the distribution's center
+$\boldsymbol{\mu}$ instead of from zero, the weighting matrix is
+$\boldsymbol{\Sigma}^{-1}$, and we take a square root at the end to land back on the
+"distance" scale. The result is the **Mahalanobis distance**:
+
+$$
+d_M = \sqrt{(\mathbf{x} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1} (\mathbf{x} - \boldsymbol{\mu})}
+$$
+
+Reading it aloud: "dee-sub-em equals the square root of: x minus mew, transposed,
+times sigma-inverse, times x minus mew" -- or in everyday words: **"how many standard
+deviations is this point from the center, accounting for the shape of the cloud."**
+
+Two things ARE new in this lesson:
+
+1. **$d_M$ is the multivariate z-score.** In one dimension, $z = (x - \mu)/\sigma$
+   counts standard deviations from the mean; squaring it gives
+   $(x - \mu)^2/\sigma^2$, which is exactly the quadratic form when $p = 1$ (a
+   $1 \times 1$ "covariance matrix" is just $\sigma^2$, and its inverse is
+   $1/\sigma^2$). So $d_M$ is what "how many standard deviations away" *means* when
+   there are several correlated directions at once.
+2. **Curves of equal $d_M$ are the density's contour ellipses.** The density formula
+   in the next section depends on the point ONLY through its Mahalanobis distance,
+   so "same $d_M$" means "same density" -- the contour ellipses you met earlier ARE
+   the level sets of $d_M$ [@chan2021probabilitydatascience, p. 297].
+
+Now put the known tool to work on our toy numbers. Take the point
+$\mathbf{x} = (9, 10)$ -- 4 units right of center in $X_1$, dead-center in $X_2$, so
+the deviation is $(4, 0)$:
+
+```{r mahalanobis-by-hand}
+# Our parameters
+mu    <- c(5, 10)
+Sigma <- matrix(c(4, 3, 3, 9), nrow = 2)
+
+# A point 4 units right of center, 0 units above center
+x <- c(9, 10)
+
+# Step 1: deviation from the center
+dev <- x - mu                              # (4, 0)
+dev
+
+# Step 2: the precision matrix (inverse of the covariance)
+Sigma_inv <- solve(Sigma)                  # undoes Sigma
+round(Sigma_inv, 4)
+
+# Step 3: the quadratic form inside the square root
+# (x - mu)^T  Sigma^{-1}  (x - mu)
+quad <- t(dev) %*% Sigma_inv %*% dev       # a single number
+quad                                       # 5.333 (= 16/3)
+
+# Step 4: Mahalanobis distance = square root
+d_M <- sqrt(as.numeric(quad))
+d_M                                        # 2.309
+
+# Check: R's built-in function gives the SQUARED Mahalanobis distance
+mahalanobis(x, center = mu, cov = Sigma)   # 5.333 (the quad, not the sqrt)
+sqrt(mahalanobis(x, center = mu, cov = Sigma))  # 2.309 -- matches
+```
+
+So the point $(9, 10)$ is about 2.31 Mahalanobis-standard-deviations from the
+center, and the raw formula and R's built-in `mahalanobis()` agree exactly (note:
+the built-in returns the SQUARED distance -- take the square root yourself).
+
+One more pair, because it shows why the tool matters here: $(9, 10)$ and $(5, 14)$
+are BOTH 4 Euclidean units from the center, but point A's 4 units are in the narrow
+$X_1$ direction (variance 4) while point B's are in the wide $X_2$ direction
+(variance 9).
+
+```{r mahal-compare}
+mu    <- c(5, 10)
+Sigma <- matrix(c(4, 3, 3, 9), nrow = 2)
+
+# Point A: 4 units RIGHT of center (in the narrow X1 direction, variance = 4)
+dM_A <- sqrt(mahalanobis(c(9, 10), center = mu, cov = Sigma))
+
+# Point B: 4 units UP from center (in the wide X2 direction, variance = 9)
+dM_B <- sqrt(mahalanobis(c(5, 14), center = mu, cov = Sigma))
+
+c(point_A = round(dM_A, 3), point_B = round(dM_B, 3))
+# Same Euclidean distance (4), different Mahalanobis distance!
+```
+
+A has $d_M = 2.309$ while B has $d_M = 1.540$: same Euclidean distance, but A is
+"more surprising" because its distance is in the narrow direction -- the
+distorted-dartboard scoring from the quadratic-forms module, now centered on
+$\boldsymbol{\mu}$. Euclidean distance misses both the unequal variances and the
+correlation.
+
+
+### The multivariate normal density
+
+Now the full formula. The density at a point $\mathbf{x}$ for a $p$-dimensional
+multivariate normal is [@chan2021probabilitydatascience, p. 290]:
+
+$$
+f(\mathbf{x}) = \frac{1}{(2\pi)^{p/2} \lvert\boldsymbol{\Sigma}\rvert^{1/2}} \exp\!\left(-\frac{1}{2}(\mathbf{x} - \boldsymbol{\mu})^\top \boldsymbol{\Sigma}^{-1}(\mathbf{x} - \boldsymbol{\mu})\right)
+$$
+
+Reading it aloud: "f of x equals one over two-pi-to-the-p-over-two times the square
+root of the determinant of sigma, times e-to-the-minus-one-half times the quadratic
+form" -- or in everyday words: **"the density at a point is a normalizing constant
+times e raised to minus half the squared Mahalanobis distance."**
+
+Breaking it down term by term:
+
+- **$(2\pi)^{p/2} \lvert\boldsymbol{\Sigma}\rvert^{1/2}$** = the normalizing constant
+  that makes the whole thing integrate to 1. It depends on $p$ (how many dimensions)
+  and the determinant of $\boldsymbol{\Sigma}$ (how much total spread the cloud has).
+  A bigger determinant means a wider cloud, so the peak must be shorter to keep the
+  total volume at 1.
+- **The exponent** is $-\frac{1}{2} d_M^2$ -- negative one-half times the squared
+  Mahalanobis distance. Points far from the center (in Mahalanobis terms) get a large
+  negative exponent, which makes $\exp(\cdot)$ small -- low density. The center itself
+  ($\mathbf{x} = \boldsymbol{\mu}$) has $d_M = 0$, so the exponent is 0 and
+  $\exp(0) = 1$ -- the maximum.
+- **When $p = 1$**, this simplifies to the familiar one-variable normal density:
+  $\frac{1}{\sigma\sqrt{2\pi}} \exp\!\left(-\frac{(x - \mu)^2}{2\sigma^2}\right)$.
+  The matrix machinery collapses: the "covariance matrix" is just the scalar
+  $\sigma^2$, its determinant is $\sigma^2$, its inverse is $1/\sigma^2$, and the
+  quadratic form is $(x - \mu)^2 / \sigma^2$.
+
+Mapping it onto the toy example at the center $\mathbf{x} = (5, 10)$:
+
+```{r density-at-center}
+mu    <- c(5, 10)
+Sigma <- matrix(c(4, 3, 3, 9), nrow = 2)
+p     <- 2                                 # two dimensions
+
+# The normalizing constant
+norm_const <- (2 * pi)^(p / 2) * sqrt(det(Sigma))
+norm_const                                 # (2*pi)^1 * sqrt(27) = 32.65
+
+# At the center, the Mahalanobis distance is 0
+# exp(-0.5 * 0^2) = exp(0) = 1
+# So the density = 1 / norm_const
+density_center <- 1 / norm_const
+density_center                             # 0.03063 -- the peak density
+```
+
+The peak of this 2D bell surface is about 0.031 -- not a probability (remember, density
+height is not probability), but the highest the surface gets.
+
+
+### Marginal distributions: what you get when you ignore one variable
+
+If $\mathbf{X} \sim N(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ and you ignore one
+variable -- project onto one axis, the way integrating out a variable projects a
+joint density onto the remaining one [@chan2021probabilitydatascience, p. 250] --
+you get a **univariate normal**. The marginal distribution of $X_1$ is
+$N(\mu_1, \Sigma_{11})$: just grab the corresponding mean and the diagonal entry of
+the covariance matrix.
+
+In our toy example: $X_1 \sim N(5, 4)$ and $X_2 \sim N(10, 9)$. No new math, just the
+slice.
+
+```{r marginals}
+# Our 500 points from earlier
+mu    <- c(5, 10)
+Sigma <- matrix(c(4, 3, 3, 9), nrow = 2)
+
+rmvn <- function(n, mu, Sigma) {
+  p <- length(mu)
+  L <- chol(Sigma)
+  Z <- matrix(rnorm(n * p), n, p)
+  sweep(Z %*% L, 2, mu, "+")
+}
+
+set.seed(42)
+pts <- rmvn(500, mu, Sigma)
+
+# The first column alone should look like N(5, 4)
+mean(pts[, 1])      # close to 5
+var(pts[, 1])       # close to 4
+
+# The second column alone should look like N(10, 9)
+mean(pts[, 2])      # close to 10
+var(pts[, 2])       # close to 9
+```
+
+The histogram of just the first column is a bell curve centered near 5 with
+variance near 4 -- you can see it in the interactive section below.
+
+
+### Conditional distributions (brief)
+
+*"If I know $X_1 = 7$, what is the distribution of $X_2$?"*
+
+The answer is still normal, but the mean shifts and the variance shrinks. The intuition:
+knowing that $X_1$ is above its mean shifts your expectation of $X_2$ upward (because
+they are positively correlated) and narrows your uncertainty (because part of $X_2$'s
+variability was due to $X_1$, and you have pinned that down).
+
+For the bivariate case, the conditional distribution $X_2 \mid X_1 = x_1$ is:
+
+$$
+X_2 \mid X_1 = x_1 \;\sim\; N\!\left(\mu_2 + \frac{\Sigma_{21}}{\Sigma_{11}}(x_1 - \mu_1),\;\; \Sigma_{22} - \frac{\Sigma_{21}^2}{\Sigma_{11}}\right)
+$$
+
+In our toy example with $x_1 = 7$:
+
+- Conditional mean: $10 + \frac{3}{4}(7 - 5) = 10 + 1.5 = 11.5$. Knowing $X_1$ is 2
+  above its mean shifts $X_2$'s expected value up by 1.5.
+- Conditional variance: $9 - \frac{3^2}{4} = 9 - 2.25 = 6.75$. The uncertainty in
+  $X_2$ shrinks from 9 to 6.75 -- you have explained away some of $X_2$'s variance by
+  observing $X_1$.
+
+```{r conditional}
+# Conditional distribution of X2 given X1 = 7
+mu1 <- 5; mu2 <- 10
+s11 <- 4; s22 <- 9; s12 <- 3
+
+x1_obs <- 7
+
+cond_mean <- mu2 + (s12 / s11) * (x1_obs - mu1)
+cond_var  <- s22 - s12^2 / s11
+
+c(conditional_mean = cond_mean,     # 11.5
+  conditional_var  = cond_var)      # 6.75
+```
+
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Scatter plot of 500 points from a bivariate normal distribution centered at (5, 10). The cloud is elliptical, tilted up-right, reflecting positive correlation. Points are densest near the center and thin out toward the edges."
+# TRY IT: change cov_12 to 0, then to -3, then to 5.5, and watch the cloud shape.
+# PREDICT: if you set cov_12 = 0, will the cloud be tilted or untilted?
+
+# ---- Parameters ----
+mu    <- c(5, 10)
+cov_12 <- 3                               # try 0, -3, or 5.5
+Sigma <- matrix(c(4, cov_12,
+                  cov_12, 9), nrow = 2)
+
+# ---- Generate samples via Cholesky decomposition ----
+rmvn <- function(n, mu, Sigma) {
+  p <- length(mu)
+  L <- chol(Sigma)                         # upper Cholesky factor
+  Z <- matrix(rnorm(n * p), n, p)          # independent standard normals
+  sweep(Z %*% L, 2, mu, "+")              # stretch, tilt, shift
+}
+
+set.seed(42)
+pts <- rmvn(500, mu, Sigma)
+
+# ---- Plot ----
+plot(pts[, 1], pts[, 2],
+     pch = 16, cex = 0.5, col = rgb(0.2, 0.4, 0.8, 0.5),
+     xlab = "X1", ylab = "X2",
+     main = paste0("Bivariate normal (cov = ", cov_12, ")"),
+     asp = 1)
+
+# Add the density contour ellipses
+x_grid <- seq(min(pts[, 1]) - 1, max(pts[, 1]) + 1, length = 80)
+y_grid <- seq(min(pts[, 2]) - 1, max(pts[, 2]) + 1, length = 80)
+Sigma_inv <- solve(Sigma)
+z_grid <- outer(x_grid, y_grid, function(a, b) {
+  sapply(seq_along(a), function(i) {
+    d <- c(a[i], b[i]) - mu
+    t(d) %*% Sigma_inv %*% d              # squared Mahalanobis distance
+  })
+})
+contour(x_grid, y_grid, z_grid,
+        levels = c(1, 4, 9),              # d_M^2 = 1, 2^2, 3^2
+        add = TRUE, col = "darkblue", lwd = 1.5,
+        drawlabels = FALSE)
+points(mu[1], mu[2], pch = 3, cex = 2, col = "red", lwd = 2)
+```
+
+The contour ellipses mark where the squared Mahalanobis distance equals 1, 4, and 9
+(i.e., 1, 2, and 3 Mahalanobis standard deviations from the center). Change `cov_12`
+to 0 and the ellipses become un-tilted -- axis-aligned. Change it to $-3$ and they
+tilt the other way.
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Scatter plot of 500 bivariate normal points colored by Mahalanobis distance from the center. Points near the center are dark purple, points farther out are yellow, showing concentric elliptical bands of equal distance. Three marked points: A and B, whose Mahalanobis distances the lesson already computed, and a new point C up-left of center whose distance the legend reveals."
+# Points colored by Mahalanobis distance -- same ellipse = same distance.
+# You already know A (9,10) has dM = 2.31 and B (5,14) has dM = 1.54.
+# PREDICT: the NEW point C = (1, 13) is 5 Euclidean units out (4 left, 3 up) --
+# AGAINST the cloud's up-right tilt. Write down a guess: will its dM be bigger
+# or smaller than A's 2.31? Now run and check the legend.
+
+mu    <- c(5, 10)
+Sigma <- matrix(c(4, 3, 3, 9), nrow = 2)
+
+rmvn <- function(n, mu, Sigma) {
+  p <- length(mu)
+  L <- chol(Sigma)
+  Z <- matrix(rnorm(n * p), n, p)
+  sweep(Z %*% L, 2, mu, "+")
+}
+
+set.seed(42)
+pts <- rmvn(500, mu, Sigma)
+
+# Mahalanobis distance for every point
+d_M <- sqrt(mahalanobis(pts, center = mu, cov = Sigma))
+
+# Color by distance
+cols <- hcl.colors(100, palette = "Viridis")
+col_idx <- pmin(100, pmax(1, round(d_M / max(d_M) * 100)))
+
+plot(pts[, 1], pts[, 2],
+     pch = 16, cex = 0.6, col = cols[col_idx],
+     xlab = "X1", ylab = "X2",
+     main = "Points colored by Mahalanobis distance")
+
+# Mark the two known points and the new prediction point
+points(9, 10, pch = 17, cex = 2, col = "red")       # A: 4 right (dM known: 2.31)
+points(5, 14, pch = 17, cex = 2, col = "darkgreen") # B: 4 up (dM known: 1.54)
+points(1, 13, pch = 17, cex = 2, col = "purple")    # C: 4 left, 3 up -- PREDICT!
+text(9.5, 10, "A", col = "red", font = 2)
+text(5.5, 14.5, "B", col = "darkgreen", font = 2)
+text(0.6, 13.6, "C", col = "purple", font = 2)
+
+# Print all three Mahalanobis distances
+dM_A <- sqrt(mahalanobis(c(9, 10), center = mu, cov = Sigma))
+dM_B <- sqrt(mahalanobis(c(5, 14), center = mu, cov = Sigma))
+dM_C <- sqrt(mahalanobis(c(1, 13), center = mu, cov = Sigma))
+legend("topleft",
+       legend = c(paste0("A (9,10): dM = ", round(dM_A, 2)),
+                  paste0("B (5,14): dM = ", round(dM_B, 2)),
+                  paste0("C (1,13): dM = ", round(dM_C, 2))),
+       col = c("red", "darkgreen", "purple"), pch = 17, bty = "n")
+```
+
+Point C lands at $d_M = 3.06$ -- roughly *double* B's $1.54$, even though the
+ruler says C is only 25% farther out than B (5 Euclidean units vs 4). Moving
+*against* the tilt (up-left while the cloud leans up-right) is the most surprising
+direction of all: the positive covariance makes "$X_1$ low while $X_2$ high" a
+combination the cloud almost never produces.
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Histogram of the first column (X1) of 500 bivariate normal samples, overlaid with the theoretical N(5, 4) density curve. The histogram matches the curve regardless of the covariance setting, showing the marginal ignores the off-diagonal entry."
+# Marginal distribution: ignore X2, look at X1 alone.
+# You already saw that X1's marginal is N(5, 4) when cov_12 = 3.
+# TRY IT: change cov_12 to 0, then -3, then 5.5, and re-run.
+# PREDICT: does changing cov_12 move the histogram's center or spread?
+
+mu     <- c(5, 10)
+cov_12 <- 3                               # try 0, -3, or 5.5
+Sigma  <- matrix(c(4, cov_12,
+                   cov_12, 9), nrow = 2)
+
+rmvn <- function(n, mu, Sigma) {
+  p <- length(mu)
+  L <- chol(Sigma)
+  Z <- matrix(rnorm(n * p), n, p)
+  sweep(Z %*% L, 2, mu, "+")
+}
+
+set.seed(42)
+pts <- rmvn(500, mu, Sigma)
+
+# Histogram of just the first column
+hist(pts[, 1], breaks = 25, freq = FALSE,
+     col = rgb(0.2, 0.4, 0.8, 0.3), border = "white",
+     xlab = "X1", main = paste0("Marginal of X1 (cov_12 = ", cov_12, ")"))
+
+# Overlay the theoretical N(5, 4) curve -- cov_12 does not appear in it
+curve(dnorm(x, mean = 5, sd = 2), add = TRUE, col = "darkblue", lwd = 2)
+
+# Print sample stats
+cat("Sample mean of X1:", round(mean(pts[, 1]), 2), "(theory: 5)\n")
+cat("Sample var  of X1:", round(var(pts[, 1]), 2), "(theory: 4)\n")
+```
+
+Whatever you set `cov_12` to, the printed stats stay at a sample mean of 4.94 and a
+sample variance of 3.78 -- the histogram does not budge. The marginal of $X_1$ is
+$N(\mu_1, \Sigma_{11}) = N(5, 4)$, built from the first mean and the first diagonal
+entry ONLY; the off-diagonal covariance never enters. (With this generator the
+$X_1$ draws are literally the same numbers each time: the Cholesky factor sends the
+covariance entirely into the $X_2$ column.)
+
+
+## Common traps
+
+**Trap: "Multivariate normal means each variable is normal."** This is backwards.
+If the joint distribution is multivariate normal, then yes, each marginal is normal.
+But the reverse is **not** true: two individually normal variables are NOT necessarily
+bivariate normal. You can construct two variables that each have a perfect bell-curve
+histogram, yet their *joint* distribution has a non-elliptical shape (a bowtie, a
+cross). The multivariate normal is a stronger assumption than "each variable is
+normal on its own." With our toy numbers: if you generate $X_1$ from $N(5, 4)$ and
+$X_2$ from $N(10, 9)$ independently, the scatter cloud would be an untilted oval --
+but that only works because independent normals happen to be jointly normal. The moment
+you introduce dependence in a way that does not preserve joint normality, marginal
+normality does not guarantee joint normality.
+
+**Trap: "The covariance matrix can be any symmetric matrix."** Not quite. A valid
+covariance matrix must be symmetric AND **positive semi-definite** (PSD) -- meaning
+$\mathbf{a}^\top \boldsymbol{\Sigma} \mathbf{a} \ge 0$ for any vector $\mathbf{a}$.
+A PSD matrix with determinant zero is a legitimate covariance (e.g., perfectly
+correlated variables), but the multivariate normal **density** requires the stronger
+condition **positive definite** (PD, strictly $> 0$), because the density formula
+needs $\boldsymbol{\Sigma}^{-1}$, which exists only when the determinant is positive.
+In practical terms: `chol()` needs PD to succeed; a PSD-but-singular matrix describes
+a valid covariance structure but the distribution lives on a lower-dimensional
+subspace and has no density in the usual sense.
+With numbers: `matrix(c(4, 5, 5, 1), 2, 2)` has determinant $4 \times 1 - 5 \times 5
+= -21 < 0$. It is not even PSD, and `chol()` will error. The covariance of 5
+between two variables with standard deviations 2 and 1 implies a correlation of
+$5 / (2 \times 1) = 2.5$, which is impossible (correlations live in $[-1, 1]$).
+
+
+## Check yourself
+
+**1.** You have a 3-dimensional multivariate normal with mean vector
+$\boldsymbol{\mu} = (2, 5, 8)$ and the covariance matrix has diagonal entries
+$(1, 4, 9)$. What is the marginal distribution of $X_2$ alone?
+
+::: {.callout-note collapse="true" title="Answer"}
+$X_2 \sim N(5, 4)$ -- a univariate normal with mean 5 (the second entry of
+$\boldsymbol{\mu}$) and variance 4 (the second diagonal entry of
+$\boldsymbol{\Sigma}$). The marginal ignores everything else; just read off the
+matching entries.
+:::
+
+**2.** For our toy example ($\boldsymbol{\mu} = (5, 10)$,
+$\boldsymbol{\Sigma} = \begin{pmatrix} 4 & 3 \\ 3 & 9 \end{pmatrix}$), what is the
+determinant $\lvert\boldsymbol{\Sigma}\rvert$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\det(\boldsymbol{\Sigma}) = 4 \times 9 - 3 \times 3 = 36 - 9 = 27$. In R:
+`det(matrix(c(4, 3, 3, 9), 2, 2))` gives 27.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the covariance
+matrix does in a multivariate normal distribution and why Mahalanobis distance is more
+informative than Euclidean distance.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The covariance matrix controls the shape of the point cloud -- its diagonal entries set
+how wide the cloud is in each direction (the individual variances) and its off-diagonal
+entries tilt the cloud (the covariances). Mahalanobis distance measures "how far away"
+in units that respect that shape, so a point 4 units from the mean in a high-variance
+direction is less surprising than 4 units in a low-variance direction -- Euclidean
+distance treats both the same and misses that distinction.
+:::
+
+
+## What you can now do
+
+- Recognize the notation $\mathbf{X} \sim N(\boldsymbol{\mu}, \boldsymbol{\Sigma})$
+  and explain what the mean vector and covariance matrix control.
+- Generate multivariate normal samples in R using the Cholesky decomposition.
+- Compute Mahalanobis distance by hand and with `mahalanobis()`, and explain why it
+  is more informative than raw Euclidean distance.
+- Read off the marginal distribution of any single variable from the joint parameters.
+- Identify when a proposed covariance matrix is invalid (not positive definite) and
+  explain why.
+
+If any of these feels shaky, revisit the section that teaches it --
+*A tiny example first* and *Getting a feel for it* for the first bullet,
+*A tiny example first* for Cholesky sampling,
+*The Mahalanobis distance* for the third bullet,
+*Marginal distributions* for the fourth, and
+*Common traps* for the fifth --
+before continuing; the next module that uses this will assume all of them.
+
+
+## Where this goes next
+
+When a paper writes "assume the data follow a multivariate normal distribution," you
+now know what that means and what the covariance matrix controls. The very next place
+this shows up is
+[LDA, QDA & naive Bayes](../lda-qda-and-naive-bayes/lesson.qmd) — LDA models each
+class as a multivariate normal cloud with its own center but a shared covariance, and
+you classify a new point by asking which cloud it fits inside best. The same idea
+recurs in **Bayesian methods** (multivariate normal priors on parameter vectors),
+**probabilistic PCA** (the latent variables are multivariate normal), and many genetics
+models (e.g., modeling correlated effect sizes across SNPs). Ready for more reps? Do
+the [practice problems](practice.qmd).

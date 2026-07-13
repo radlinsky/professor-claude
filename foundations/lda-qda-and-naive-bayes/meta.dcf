@@ -1,0 +1,12 @@
+ShortName: LDA, QDA & naive Bayes
+Topic: statistical-learning
+Concepts: Bayes' theorem as a classification recipe (flip class-conditional density into a posterior),
+ LDA (shared covariance gives a linear decision boundary),
+ QDA (per-class covariance gives a curved decision boundary),
+ naive Bayes (independence assumption drops the covariance matrix entirely),
+ estimating priors from class frequencies,
+ the flexibility dial from LDA to QDA (bias-variance trade-off in number of parameters)
+BuildsOn: [multivariate-normal-distribution](multivariate-normal-distribution/lesson.qmd),
+ [classification-evaluation](classification-evaluation/lesson.qmd),
+ [priors-posteriors-and-updating](priors-posteriors-and-updating/lesson.qmd)
+UsedBy: —

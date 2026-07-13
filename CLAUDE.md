@@ -141,6 +141,13 @@ overwrite them.
   vocabulary `.claude/course-authoring/topics.dcf` (record order there = display
   order). Both generators (`gen-indexes.R`, `gen-kb-index.R`) group by topic and
   fail `--check` on a missing or invalid topic.
+- **University-catalog rule (BINDING):** topics, module scope, and prerequisite
+  order MUST mirror standard university curricula — a module files under the topic
+  whose university course actually *teaches* it (not the math it uses), scopes like
+  a textbook section, and orders its Builds-on edges in the discipline's canonical
+  teaching sequence. Full rule + the filing test:
+  `.claude/course-authoring/course-structure.md` §University-catalog rule. Unstated
+  deviations are audit defects.
 - **R packages:** the setup chunk in each template auto-installs into renv. If you
   added a package, run `Rscript -e 'renv::snapshot()'` before finishing so
   `renv.lock` stays true.

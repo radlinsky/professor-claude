@@ -1,0 +1,541 @@
+---
+title: "Bagging, random forests & boosting"
+subtitle: "Grow many trees and combine them — trading interpretability for stability and accuracy"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c("rpart", "randomForest")
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+A single decision tree is easy to read but **unstable** — remove one data point and the
+whole tree can change. Ensemble methods fix this by growing **many** trees and combining
+their predictions. The three methods in this module — **bagging**, **random forests**, and
+**boosting** — all use trees as building blocks but combine them differently. The payoff:
+dramatically lower test error, at the cost of the "read the tree" interpretability.
+
+**Builds on:**
+[decision trees](../decision-trees/lesson.qmd) — we reuse the greedy best-split algorithm
+and the instability observation, and do not re-derive them; and
+[resampling: the bootstrap](../resampling-bootstrap-and-permutation/lesson.qmd)
+— we reuse the bootstrap's "draw with replacement" loop, which becomes the engine behind
+bagging.
+
+
+## Warm-up: do you remember?
+
+Before the new stuff, three quick reps — produce each answer from memory, then check.
+
+**1.** *(decision trees)* What is the main weakness of a single decision tree — the one
+the last lesson ended on?
+
+::: {.callout-note collapse="true" title="Answer"}
+**Instability:** small changes in the data (removing one point, adding one point) can
+produce a completely different tree. The tree has **high variance** — it jumps around a lot
+across different samples. That's what this module fixes. Shaky? Revisit
+[decision trees](../decision-trees/lesson.qmd) §What you can now do.
+:::
+
+**2.** *(resampling)* In R, what does `sample(x, length(x), replace = TRUE)` produce, and
+how is that different from `sample(x)`?
+
+```{webr}
+#| autorun: false
+# warmup2-starter — edit and Run to see the difference
+x <- c(3, 5, 8, 9)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+`sample(x, length(x), replace = TRUE)` draws with **replacement** — some values repeat,
+some go missing. This is a **bootstrap resample**. Plain `sample(x)` draws without
+replacement — just a reshuffle of the same values, no repeats. Bagging uses the
+with-replacement version. Shaky? Revisit
+[resampling](../resampling-bootstrap-and-permutation/lesson.qmd) §A tiny example first.
+:::
+
+**3.** *(resampling)* Write the one-line `replicate()` call that takes 2000 bootstrap
+resamples of `x` and records the mean each time.
+
+::: {.callout-note collapse="true" title="Answer"}
+`replicate(2000, mean(sample(x, length(x), replace = TRUE)))` — the same three-line
+loop pattern (resample, compute, repeat) from the resampling module. Bagging swaps
+`mean(...)` for "fit a tree and predict" — the loop shape is identical. Shaky? Revisit
+[resampling](../resampling-bootstrap-and-permutation/lesson.qmd) §The formal version.
+:::
+
+
+## A tiny example first
+
+Here are **six** customers — one predictor (age) and one response (spending):
+
+| Customer | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| Age ($x$) | 1 | 2 | 3 | 4 | 5 | 6 |
+| Spending ($y$) | 5 | 8 | 6 | 20 | 25 | 22 |
+
+A single one-split tree picks the cut at $x = 3.5$: left mean = $(5 + 8 + 6)/3 = 6.33$,
+right mean = $(20 + 25 + 22)/3 = 22.33$. For a new customer with age 5, it predicts
+**22.33**.
+
+Now draw **one bootstrap resample** of these six customers — with replacement, so some
+repeat and some go missing. With seed 1 in R we draw customers {1, 4, 1, 2, 5, 3}:
+
+| Bootstrap draw | 1 | 4 | 1 | 2 | 5 | 3 |
+|---|---|---|---|---|---|---|
+| Age | 1 | 4 | 1 | 2 | 5 | 3 |
+| Spending | 5 | 20 | 5 | 8 | 25 | 6 |
+
+The best split on this bootstrap sample is still $x = 3.5$, but now the left mean is
+**6** (not 6.33) and the right mean is **22.5** (not 22.33). Prediction at age 5 shifted
+from 22.33 to 22.5 — different data in, different prediction out.
+
+**Bagging's idea: do this $B$ times and average.** Draw 25 bootstrap resamples, fit a
+one-split tree to each, and average their predictions:
+
+```{r bag-toy}
+x <- c(1, 2, 3, 4, 5, 6)
+y <- c(5, 8, 6, 20, 25, 22)
+
+# A simple one-split tree: find the best cut, return prediction for new_x
+stump <- function(x, y, new_x) {
+  ux <- sort(unique(x))
+  if (length(ux) < 2) return(mean(y))
+  cuts <- (ux[-length(ux)] + ux[-1]) / 2
+  rss <- sapply(cuts, function(s) {
+    L <- y[x <= s]; R <- y[x > s]
+    sum((L - mean(L))^2) + sum((R - mean(R))^2)
+  })
+  best <- cuts[which.min(rss)]
+  ifelse(new_x <= best, mean(y[x <= best]), mean(y[x > best]))
+}
+
+stump(x, y, new_x = 5)   # 22.33 — one noisy estimate
+
+set.seed(42)
+bag_preds <- replicate(25, {
+  idx <- sample(1:6, 6, replace = TRUE)
+  stump(x[idx], y[idx], new_x = 5)
+})
+round(bag_preds, 2)       # 25 different predictions, each a bit different
+mean(bag_preds)            # 22.46 — the bagged prediction, stable
+```
+
+Each bootstrap tree bounces between 20 and 25, but their average settles near 22.5. That's
+bagging: **grow many trees on bootstrap samples, average them out, and the noise cancels**.
+
+
+## Getting a feel for it
+
+**The "wisdom of crowds" picture.** Each bootstrap tree is like one person's guess at a
+jar of jellybeans: individually noisy, but average 25 guesses and the noise cancels. The
+key is that the guesses must be *somewhat independent* — if everyone copies the same
+answer, averaging doesn't help. Bagging gets diversity by giving each tree a different
+bootstrap sample. But the bootstrap samples overlap (they're drawn from the same pool),
+so the trees are identically distributed but **correlated**, not independent. That
+correlation limits how much variance the average can remove — and is exactly what random
+forests attack below by forcing each split to consider only a random subset of
+predictors.
+
+**Why trees are the perfect building block.** Averaging works best on high-variance,
+low-bias estimators. An unpruned tree is exactly that: it memorizes training data (low
+bias) but jumps around with each new sample (high variance). Bagging keeps the low bias
+and crushes the variance. You don't prune individual trees in a bagging ensemble — you
+*want* them noisy, because the averaging does the smoothing.
+
+**What the bagged number feels like.** Our single tree's 22.33 for age 5 could easily
+shift to 20 or 25 on different data (the instability from the last module). The bagged
+22.46, averaging 25 such trees, is much harder to budge — you'd have to change the data
+in a way that shifts *most* of the 25 bootstrap samples, which is unlikely.
+
+
+## What the notation is going to say
+
+The bagging formula says exactly what the R code did: "take $B$ bootstrap trees'
+predictions and average them." In our toy, that's "add up the 25 predictions at age 5
+and divide by 25." The notation names each piece: $B$ for how many trees,
+$\hat{f}^{*b}(x)$ for the $b$th tree's prediction (the star flags "from a bootstrap
+sample"), and $\hat{f}_{\text{bag}}(x)$ for the average.
+
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x$ | "ex" | the predictor(s) for a new point | age = 5 |
+| $y$ | "why" | the response | spending |
+| $B$ | "big B" | how many trees in the ensemble | 25 |
+| $\hat{f}^{*b}(x)$ | "f-hat star b of x" | prediction from the $b$th bootstrap tree; the star means "trained on a bootstrap sample" | 22.5 for tree 1 at age 5 |
+| $\hat{f}_{\text{bag}}(x)$ | "f-hat sub bag of x" | the bagged prediction: average of all $B$ trees | 22.46 at age 5 |
+| $m$ | "em" | predictors randomly chosen as split candidates at each node (random forests) | $\sqrt{p}$ by default |
+| $p$ | "pee" | total number of predictors | 1 in the toy; 4 in iris |
+| $\lambda$ | "lambda" (the shrinkage rate) | how much each new boosted tree's contribution is scaled down | 0.1 in the boosting demo |
+| $d$ | "dee" (interaction depth) | number of splits per boosted tree; $d = 1$ means stumps | 1 in the boosting demo |
+| $\hat{f}(x)$ | "f-hat of x" (the current model) | the running boosted prediction: sum of all trees so far | starts at 0; after iter 1, (0.4, 0.4, 1.65, 1.65) |
+| $r_i$ | "r sub eye" (the residual) | what's left for observation $i$ after the current boosted model: $y_i - \hat{f}(x_i)$ | 2.6 for customer 1 after one boosting step |
+| $\hat{f}^b(x)$ | "f-hat b of x" (no star) | in boosting: the $b$th small tree, fit to residuals (sequential, not bootstrapped) | the stump predicting 4 (left) or 16.5 (right) |
+
+The star ($^{*}$) distinguishes bagging trees (random, correlated via overlapping
+bootstrap samples) from boosting trees (sequential, fit to what's left over).
+
+
+## The formal version
+
+### Bagging (bootstrap aggregation)
+
+$$
+\hat{f}_{\text{bag}}(x) \;=\; \frac{1}{B} \sum_{b=1}^{B} \hat{f}^{*b}(x)
+$$
+
+Reading it aloud: "f-hat-sub-bag of x equals one over B, times the sum from b equals 1
+to B of f-hat-star-b of x" — or in everyday words: **"average the predictions from B
+bootstrap trees."**
+
+Mapping it onto the toy:
+
+- $B = 25$ is how many bootstrap resamples we drew.
+- $\hat{f}^{*b}(5)$ is the $b$th tree's prediction at age 5 — each number in our
+  `bag_preds` vector (22.5, 22.5, 21, 23.75, ...).
+- $\hat{f}_{\text{bag}}(5) = \frac{1}{25}(22.5 + 22.5 + 21 + \cdots) = 22.46$.
+
+For **classification**, replace the average with a **majority vote**: each tree casts a
+vote for a class, and the class with the most votes wins.
+
+
+### Out-of-bag (OOB) error — a free test set
+
+Each bootstrap sample uses about two-thirds of the observations (on average); the
+remaining third are **out-of-bag (OOB)** for that tree. For observation $i$, collect
+predictions only from trees where $i$ was OOB (roughly $B/3$ trees) and average them —
+that's the OOB prediction. Compare to actual $y_i$ across all observations and you have
+the **OOB error**: a free test-error estimate with no held-out set needed.
+
+```{r oob-demo}
+x <- c(1, 2, 3, 4, 5, 6)
+y <- c(5, 8, 6, 20, 25, 22)
+
+stump <- function(x, y, new_x) {
+  ux <- sort(unique(x)); if (length(ux) < 2) return(mean(y))
+  cuts <- (ux[-length(ux)] + ux[-1]) / 2
+  rss <- sapply(cuts, function(s) {
+    L <- y[x <= s]; R <- y[x > s]
+    sum((L - mean(L))^2) + sum((R - mean(R))^2)
+  })
+  best <- cuts[which.min(rss)]
+  ifelse(new_x <= best, mean(y[x <= best]), mean(y[x > best]))
+}
+
+set.seed(42)
+B <- 25; oob_preds <- matrix(NA, 6, B)
+for (b in 1:B) {
+  idx <- sample(1:6, 6, replace = TRUE)
+  oob <- setdiff(1:6, idx)
+  for (i in oob) oob_preds[i, b] <- stump(x[idx], y[idx], new_x = x[i])
+}
+
+# Customer 1 was OOB for 8 of the 25 trees:
+oob_1 <- oob_preds[1, !is.na(oob_preds[1,])]
+cat("Customer 1: OOB in", length(oob_1), "trees, OOB pred =",
+    round(mean(oob_1), 2), "(actual y =", y[1], ")\n")
+
+# OOB MSE across all 6 customers
+oob_means <- sapply(1:6, function(i) mean(oob_preds[i, !is.na(oob_preds[i,])]))
+oob_mse <- mean((y - oob_means)^2)
+cat("OOB MSE:", round(oob_mse, 2), "\n")
+```
+
+With $B$ large enough, OOB error converges to roughly the leave-one-out cross-validation
+error — without the cost of refitting.
+
+
+### Random forests — fixing the "groupthink" problem
+
+Bagging's weakness: when one predictor dominates, **every** bootstrap tree splits on it
+first, making the trees correlated. Averaging correlated predictions doesn't reduce
+variance as well as averaging uncorrelated ones.
+
+**Random forests fix this with one tweak:** at each split, randomly select only $m$ of the
+$p$ available predictors as candidates (a fresh draw at each split). Some trees are forced
+to split on a weaker predictor, diversifying the ensemble. The typical default is
+$m = \sqrt{p}$ for classification, $m = p/3$ for regression. When $m = p$, random forests
+reduce to plain bagging.
+
+```{r rf-demo}
+# iris: 4 predictors, 3 species — Petal.Length dominates
+set.seed(42)
+bag_iris <- randomForest(Species ~ ., data = iris, mtry = 4, ntree = 200)
+rf_iris  <- randomForest(Species ~ ., data = iris, mtry = 2, ntree = 200)
+
+cat("Bagging (m = p = 4) OOB error:",
+    round(bag_iris$err.rate[200, "OOB"] * 100, 1), "%\n")
+cat("Random forest (m = 2) OOB error:",
+    round(rf_iris$err.rate[200, "OOB"] * 100, 1), "%\n")
+```
+
+On this seed, bagging and random forests produce similar OOB error. (Iris actually has
+highly correlated predictors — petal length and width correlate at ~0.96 — so the trees
+are correlated even under bagging. Restricting $m$ decorrelates the *trees*, which is
+what matters for variance reduction, not whether the original *predictors* are
+correlated.) With more strongly dominant predictors, the gap between RF and bagging
+widens because bagging trees all split on the same predictor first.
+
+
+### Boosting — learning from your mistakes, slowly
+
+Bagging and random forests grow trees **in parallel** (each on its own bootstrap sample)
+and average. Boosting takes the opposite approach: trees are grown **sequentially**, each
+one fixing the mistakes of the ensemble so far.
+
+Here's the idea on four data points — smaller even than the bagging toy, so the
+arithmetic stays quick:
+
+| $x$ | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| $y$ | 3 | 5 | 15 | 18 |
+
+**Iteration 1:** Start with $\hat{f}(x) = 0$ for all $x$. Residuals are just $y$:
+$(3, 5, 15, 18)$. Fit a stump ($d = 1$): best split at $x = 2.5$, left mean = 4, right
+mean = 16.5. Scale it down by $\lambda = 0.1$:
+
+- $\hat{f}(1) = 0 + 0.1 \times 4 = 0.4$, $\quad \hat{f}(2) = 0.4$
+- $\hat{f}(3) = 0 + 0.1 \times 16.5 = 1.65$, $\quad \hat{f}(4) = 1.65$
+
+New residuals: $(3 - 0.4,\; 5 - 0.4,\; 15 - 1.65,\; 18 - 1.65) = (2.6,\; 4.6,\; 13.35,\; 16.35)$.
+Still far from zero, but smaller — the first stump took a bite.
+
+**Iteration 2:** Fit another stump to the new residuals (same split at 2.5: left mean =
+3.6, right mean = 14.85). Update: $\hat{f}(1) = 0.4 + 0.1 \times 3.6 = 0.76$,
+$\hat{f}(3) = 1.65 + 0.1 \times 14.85 = 3.14$. Still far, still creeping.
+
+```{r boost-toy}
+bx <- c(1, 2, 3, 4); by <- c(3, 5, 15, 18)
+lambda <- 0.1; f <- rep(0, 4)
+
+for (iter in 1:100) {
+  r <- by - f
+  ux <- sort(unique(bx))
+  cuts <- (ux[-length(ux)] + ux[-1]) / 2
+  rss_vals <- sapply(cuts, function(s) {
+    L <- r[bx <= s]; R <- r[bx > s]
+    sum((L - mean(L))^2) + sum((R - mean(R))^2)
+  })
+  best <- cuts[which.min(rss_vals)]
+  f <- f + lambda * ifelse(bx <= best, mean(r[bx <= best]), mean(r[bx > best]))
+}
+cat("After 100 iterations: f =", round(f, 2), "\n")
+cat("Actual y:                ", by, "\n")
+```
+
+After 100 tiny corrections the predictions nearly match the data — that's boosting:
+**many small trees, each fixing what the ensemble got wrong, adding up to high accuracy.**
+
+Boosting has three tuning parameters:
+
+- **$B$** (number of trees): unlike bagging, too large a $B$ can overfit. Use
+  cross-validation to choose it.
+- **$\lambda$** (shrinkage): small values (0.01, 0.001) learn slowly but generalize
+  better; small $\lambda$ needs large $B$.
+- **$d$** (interaction depth): $d = 1$ gives stumps (an additive model, no interactions);
+  $d = 2$ allows two-variable interactions. Typical values are small (1--3).
+
+
+### Variable importance
+
+For bagging, random forests, and boosting alike, **variable importance** ranks each
+predictor by totaling the RSS improvement (regression) or Gini index decrease
+(classification) from all splits on that predictor, across all $B$ trees. A large total
+means the predictor matters. This partially compensates for losing single-tree readability.
+
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Histogram of 25 bagged stump predictions at age 5, centered near 22.5, with a red dashed line at the average"
+# explore-1 — LIVE: bag stumps on the toy data and watch the average stabilize.
+# TRY IT: change B from 25 to 200 and re-run — does the average change much?
+# PREDICT: will the AVERAGE change much with more trees? Will the histogram shift or just fill in?
+set.seed(42)
+x <- c(1, 2, 3, 4, 5, 6)
+y <- c(5, 8, 6, 20, 25, 22)
+B <- 25  # try 50, 100, 200
+
+stump <- function(x, y, new_x) {
+  ux <- sort(unique(x)); if (length(ux) < 2) return(mean(y))
+  cuts <- (ux[-length(ux)] + ux[-1]) / 2
+  rss <- sapply(cuts, function(s) {
+    L <- y[x <= s]; R <- y[x > s]
+    sum((L - mean(L))^2) + sum((R - mean(R))^2)
+  })
+  best <- cuts[which.min(rss)]
+  ifelse(new_x <= best, mean(y[x <= best]), mean(y[x > best]))
+}
+
+bag_preds <- replicate(B, {
+  idx <- sample(1:6, 6, replace = TRUE)
+  stump(x[idx], y[idx], new_x = 5)
+})
+
+hist(bag_preds, breaks = 15, col = "steelblue",
+     main = sprintf("B = %d bagged trees: mean = %.2f, SD = %.2f",
+                    B, mean(bag_preds), sd(bag_preds)),
+     xlab = "individual tree prediction at age 5")
+abline(v = mean(bag_preds), col = "red", lwd = 2, lty = 2)
+```
+
+```{r explore-rf}
+#| fig-alt: "Bar chart of variable importance from a random forest on iris, showing Petal.Width and Petal.Length as the most important predictors"
+# BAKED: random forest variable importance on iris.
+# Variable importance replaces single-tree interpretability with a predictor ranking.
+set.seed(42)
+rf <- randomForest(Species ~ ., data = iris, ntree = 200, importance = TRUE)
+cat("Random forest OOB error:", round(rf$err.rate[200, "OOB"] * 100, 1), "%\n")
+varImpPlot(rf, main = "Which predictors matter most?")
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Line plot showing boosted training MSE decreasing over 100 iterations, converging toward zero"
+# explore-3 — LIVE: watch boosting converge iteration by iteration.
+# TRY IT: change lambda from 0.1 to 0.01 — does it converge faster or slower?
+# PREDICT: with lambda = 0.5, will 100 iterations overshoot? Guess first.
+bx <- c(1, 2, 3, 4); by <- c(3, 5, 15, 18)
+lambda <- 0.1  # try 0.01, 0.5
+B <- 100
+
+f <- rep(0, 4)
+errors <- numeric(B)
+for (iter in 1:B) {
+  r <- by - f
+  ux <- sort(unique(bx))
+  cuts <- (ux[-length(ux)] + ux[-1]) / 2
+  rss_vals <- sapply(cuts, function(s) {
+    L <- r[bx <= s]; R <- r[bx > s]
+    sum((L - mean(L))^2) + sum((R - mean(R))^2)
+  })
+  best <- cuts[which.min(rss_vals)]
+  stump_vals <- ifelse(bx <= best, mean(r[bx <= best]), mean(r[bx > best]))
+  f <- f + lambda * stump_vals
+  errors[iter] <- mean((by - f)^2)
+}
+
+plot(1:B, errors, type = "l", col = "darkgreen", lwd = 2,
+     xlab = "boosting iteration", ylab = "training MSE",
+     main = sprintf("Boosting (lambda = %.2f): final MSE = %.3f", lambda, errors[B]))
+```
+
+
+## Common traps
+
+**Trap 1 — "more trees in a random forest means overfitting."** Tempting because it's
+true for boosting — but bagging and random forests do NOT overfit as $B$ grows. Each tree
+is trained independently on a random sample; adding more just stabilizes the average.
+Watch on the toy:
+
+```{r trap1}
+x <- c(1, 2, 3, 4, 5, 6)
+y <- c(5, 8, 6, 20, 25, 22)
+
+stump <- function(x, y, new_x) {
+  ux <- sort(unique(x)); if (length(ux) < 2) return(mean(y))
+  cuts <- (ux[-length(ux)] + ux[-1]) / 2
+  rss <- sapply(cuts, function(s) {
+    L <- y[x <= s]; R <- y[x > s]
+    sum((L - mean(L))^2) + sum((R - mean(R))^2)
+  })
+  best <- cuts[which.min(rss)]
+  ifelse(new_x <= best, mean(y[x <= best]), mean(y[x > best]))
+}
+
+set.seed(42)
+p25  <- replicate(25,  { i <- sample(1:6, 6, TRUE); stump(x[i], y[i], 5) })
+p500 <- replicate(500, { i <- sample(1:6, 6, TRUE); stump(x[i], y[i], 5) })
+cat("B = 25:  mean =", round(mean(p25), 2),  ", SD =", round(sd(p25), 2), "\n")
+cat("B = 500: mean =", round(mean(p500), 2), ", SD =", round(sd(p500), 2), "\n")
+```
+
+Going from 25 to 500 trees doesn't make predictions worse — the average barely moves. For
+bagging and random forests, more trees is never a problem; for boosting, cross-validation
+picks $B$.
+
+**Trap 2 — "boosting just fits the training data harder than bagging."** Tempting because
+boosting sequentially reduces training error. But each boosted tree is *tiny* (often a
+stump), and $\lambda$ shrinkage ensures each contributes only a small correction. Slow
+learners generalize better — the same bias-variance logic as regularization. In our toy,
+$\lambda = 0.1$ means each stump's contribution is scaled to 10%. After 2 iterations,
+predictions are still $(0.76, 0.76, 3.14, 3.14)$ — far from the data. It takes 100
+iterations of patient correction to converge, which is exactly the discipline that
+slows overfitting (though CV must still choose when to stop).
+
+
+## Check yourself
+
+**1.** You have `x <- c(2, 4, 6, 8, 10, 12)` and `y <- c(3, 5, 4, 25, 30, 28)`. The
+best one-split tree at $x = 7$ predicts 4 (left) and 27.67 (right). If you bag $B = 50$
+trees, will the bagged prediction at $x = 10$ be exactly 27.67, close to 27.67, or far
+from 27.67?
+
+::: {.callout-note collapse="true" title="Answer"}
+**Close to 27.67** but not exactly. Each bootstrap tree sees a slightly different sample,
+so each gives a slightly different right-region mean. Their average converges near 27.67
+as $B$ grows — bagging reduces variance without shifting the prediction far.
+:::
+
+**2.** In the boosting toy, after iteration 1 the predictions were $(0.4, 0.4, 1.65,
+1.65)$ and actual values are $(3, 5, 15, 18)$. What are the residuals going into
+iteration 2?
+
+::: {.callout-note collapse="true" title="Answer"}
+Residuals = $y - \hat{f}(x)$:
+$(3 - 0.4,\; 5 - 0.4,\; 15 - 1.65,\; 18 - 1.65) = (2.6,\; 4.6,\; 13.35,\; 16.35)$.
+Each residual is what the current model hasn't yet explained — the next stump fits these.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what bagging does and
+why it works.
+
+::: {.callout-note collapse="true" title="A model answer"}
+Bagging grows many decision trees, each trained on a different bootstrap resample of the
+data, and averages their predictions to get a single, more stable estimate. It works
+because individual trees are noisy (high variance), and averaging many noisy
+estimates reduces the noise — the same "wisdom of crowds" effect that makes the mean
+of many guesses better than any single guess.
+:::
+
+
+## What you can now do
+
+- **Bag** a set of trees: bootstrap the data, fit an unpruned tree to each sample, and
+  average the predictions — using the `replicate()` loop from the resampling module
+- Explain **OOB error** as a free test-error estimate from the observations left out of
+  each bootstrap sample
+- Explain why **random forests** restrict predictors at each split ($m < p$): to
+  decorrelate trees when a strong predictor would otherwise dominate
+- Describe **boosting's** sequential strategy: fit small trees to residuals with
+  shrinkage, trading many tiny corrections for accuracy
+- Read a **variable importance** plot as a partial replacement for single-tree
+  interpretability
+
+If any of these feels shaky, revisit [The formal version](#the-formal-version) and
+[Common traps](#common-traps) before continuing — these methods appear in nearly every
+applied machine-learning paper.
+
+
+## Where this goes next
+
+Bagging, random forests, and boosting are the workhorses of applied prediction: any time
+a paper or analysis reports an "RF model" or "gradient boosted trees," this is the
+machinery. The ensemble idea — combine many weak models into one strong one — extends
+well beyond trees, but trees remain the most common building block because their high
+variance and low bias make them ideal for averaging.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

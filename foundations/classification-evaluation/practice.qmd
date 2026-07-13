@@ -1,0 +1,461 @@
+---
+title: "Practice: Classification evaluation"
+subtitle: "Answers are hidden --- try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order --- they get harder. Do them on paper or in the live cells; only
+then open the answer. Reminders: Sensitivity $= TP/(TP + FN)$, Specificity
+$= TN/(TN + FP)$, Precision $= TP/(TP + FP)$, FPR $= 1 -$ Specificity.
+
+
+## Problem 1 --- the toy example, new numbers
+
+Ten patients. A model predicts "sick" or "healthy" for each. Here are the results:
+
+| Patient | Model says | Truth   |
+|---------|-----------|---------|
+| 1       | sick      | sick    |
+| 2       | sick      | healthy |
+| 3       | healthy   | healthy |
+| 4       | sick      | sick    |
+| 5       | healthy   | sick    |
+| 6       | healthy   | healthy |
+| 7       | sick      | healthy |
+| 8       | sick      | sick    |
+| 9       | healthy   | healthy |
+| 10      | healthy   | sick    |
+
+Build the confusion matrix by hand. Then compute accuracy, sensitivity, specificity,
+and precision.
+
+```{webr}
+#| autorun: false
+# p1-starter --- count TP/FP/FN/TN, then compute the four rates
+predicted <- c("sick", "sick", "healthy", "sick", "healthy",
+               "healthy", "sick", "sick", "healthy", "healthy")
+actual    <- c("sick", "healthy", "healthy", "sick", "sick",
+               "healthy", "healthy", "sick", "healthy", "sick")
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Count: TP = 3 (patients 1, 4, 8), FP = 2 (patients 2, 7), FN = 2 (patients 5, 10),
+TN = 3 (patients 3, 6, 9).
+
+|                    | Actually sick | Actually healthy |
+|--------------------|:------------:|:----------------:|
+| **Predicted sick**     | TP = 3       | FP = 2           |
+| **Predicted healthy**  | FN = 2       | TN = 3           |
+
+- Accuracy $= (3 + 3) / (3 + 2 + 2 + 3) = 6/10 = 0.60$
+- Sensitivity $= 3 / (3 + 2) = 3/5 = 0.60$
+- Specificity $= 3 / (3 + 2) = 3/5 = 0.60$
+- Precision $= 3 / (3 + 2) = 3/5 = 0.60$
+
+```{r p1-answer}
+predicted <- c("sick", "sick", "healthy", "sick", "healthy",
+               "healthy", "sick", "sick", "healthy", "healthy")
+actual    <- c("sick", "healthy", "healthy", "sick", "sick",
+               "healthy", "healthy", "sick", "healthy", "sick")
+
+TP <- sum(predicted == "sick"    & actual == "sick")      # 3
+FP <- sum(predicted == "sick"    & actual == "healthy")   # 2
+FN <- sum(predicted == "healthy" & actual == "sick")      # 2
+TN <- sum(predicted == "healthy" & actual == "healthy")   # 3
+
+c(TP = TP, FP = FP, FN = FN, TN = TN)
+c(accuracy    = (TP + TN) / (TP + FP + TN + FN),   # 0.60
+  sensitivity = TP / (TP + FN),                     # 0.60
+  specificity = TN / (TN + FP),                     # 0.60
+  precision   = TP / (TP + FP))                     # 0.60
+```
+:::
+
+
+## Problem 2 --- fill in the missing step
+
+We are building an ROC curve. Six patients have model probabilities and true labels:
+
+| Patient | Prob  | Truth |
+|---------|-------|-------|
+| A       | 0.90  | 1     |
+| B       | 0.75  | 1     |
+| C       | 0.60  | 0     |
+| D       | 0.40  | 1     |
+| E       | 0.25  | 0     |
+| F       | 0.10  | 0     |
+
+Here is a partial threshold sweep:
+
+> **Threshold = 0.80:** predict sick if prob $\ge$ 0.80.
+> Predicted positive: A only. TP = 1, FP = 0, FN = 2, TN = 3.
+> TPR = 1/3 $\approx$ 0.333. FPR = 0/3 = 0.
+
+> **Threshold = 0.50:** predict sick if prob $\ge$ 0.50.
+> **Your step here** --- list who is predicted positive, count TP/FP/FN/TN, and
+> compute TPR and FPR.
+
+> **Threshold = 0.20:** predict sick if prob $\ge$ 0.20.
+> Predicted positive: A, B, C, D, E. TP = 3, FP = 2, FN = 0, TN = 1.
+> TPR = 3/3 = 1.0. FPR = 2/3 $\approx$ 0.667.
+
+Supply the missing step at threshold = 0.50.
+
+```{webr}
+#| autorun: false
+# p2-starter --- work out threshold = 0.50
+prob  <- c(0.90, 0.75, 0.60, 0.40, 0.25, 0.10)
+truth <- c(   1,    1,    0,    1,    0,    0)
+t <- 0.50
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+At threshold = 0.50, predict sick if prob $\ge$ 0.50. That flags patients A (0.90),
+B (0.75), and C (0.60).
+
+- TP = 2 (A and B are truly sick)
+- FP = 1 (C is truly healthy)
+- FN = 1 (D, prob 0.40, is truly sick but falls below the threshold)
+- TN = 2 (E and F are truly healthy and predicted healthy)
+- TPR = 2/3 $\approx$ 0.667
+- FPR = 1/3 $\approx$ 0.333
+
+```{r p2-answer}
+prob  <- c(0.90, 0.75, 0.60, 0.40, 0.25, 0.10)
+truth <- c(   1,    1,    0,    1,    0,    0)
+t <- 0.50
+pred_pos <- prob >= t
+TP <- sum(pred_pos & truth == 1)   # 2
+FP <- sum(pred_pos & truth == 0)   # 1
+FN <- sum(!pred_pos & truth == 1)  # 1
+TN <- sum(!pred_pos & truth == 0)  # 2
+c(TP = TP, FP = FP, FN = FN, TN = TN)
+c(TPR = TP / (TP + FN), FPR = FP / (FP + TN))  # 0.667, 0.333
+```
+:::
+
+
+## Problem 3 --- full ROC curve in R
+
+Twelve patients with model probabilities and true labels:
+
+| Patient | Prob  | Truth |
+|---------|-------|-------|
+| 1       | 0.98  | 1     |
+| 2       | 0.89  | 1     |
+| 3       | 0.82  | 0     |
+| 4       | 0.74  | 1     |
+| 5       | 0.66  | 1     |
+| 6       | 0.58  | 0     |
+| 7       | 0.49  | 0     |
+| 8       | 0.41  | 1     |
+| 9       | 0.33  | 0     |
+| 10      | 0.22  | 0     |
+| 11      | 0.14  | 1     |
+| 12      | 0.07  | 0     |
+
+Write R code that sweeps thresholds from 1.0 to 0.0 (by 0.01), computes TPR and FPR
+at each, plots the ROC curve, and computes the AUC. **PREDICT:** will this model's
+AUC be closer to 0.5 or to 1.0? (Hint: look at how well the probabilities separate
+the 1s from the 0s.)
+
+```{webr}
+#| autorun: false
+# p3-starter --- build the full ROC curve and compute AUC
+prob  <- c(0.98, 0.89, 0.82, 0.74, 0.66, 0.58,
+           0.49, 0.41, 0.33, 0.22, 0.14, 0.07)
+truth <- c(   1,    1,    0,    1,    1,    0,
+              0,    1,    0,    0,    1,    0)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The 1s and 0s are partially interleaved (patient 3 at 0.82 is a 0, patient 11 at 0.14
+is a 1), so the model is decent but not perfect. AUC should be noticeably above 0.5
+but not near 1.0.
+
+```{r p3-answer}
+#| fig-alt: "ROC curve plotting true positive rate against false positive rate, with AUC annotated."
+prob  <- c(0.98, 0.89, 0.82, 0.74, 0.66, 0.58,
+           0.49, 0.41, 0.33, 0.22, 0.14, 0.07)
+truth <- c(   1,    1,    0,    1,    1,    0,
+              0,    1,    0,    0,    1,    0)
+
+thresholds <- seq(1.0, 0.0, by = -0.01)
+tpr <- numeric(length(thresholds))
+fpr <- numeric(length(thresholds))
+
+for (i in seq_along(thresholds)) {
+  pred_pos <- prob >= thresholds[i]
+  TP <- sum(pred_pos & truth == 1)
+  FP <- sum(pred_pos & truth == 0)
+  FN <- sum(!pred_pos & truth == 1)
+  TN <- sum(!pred_pos & truth == 0)
+  tpr[i] <- TP / (TP + FN)       # sensitivity at this threshold
+  fpr[i] <- FP / (FP + TN)       # false positive rate
+}
+
+# Plot the ROC curve
+plot(fpr, tpr, type = "l", lwd = 2, col = "steelblue",
+     xlab = "False Positive Rate", ylab = "True Positive Rate",
+     main = "ROC curve (12-patient data)")
+abline(a = 0, b = 1, lty = 2, col = "grey50")
+
+# AUC via trapezoidal rule
+ord <- order(fpr)
+auc <- sum(diff(fpr[ord]) * (tpr[ord][-1] + tpr[ord][-length(tpr)]) / 2)
+cat("AUC:", round(auc, 3), "\n")
+```
+
+AUC $\approx$ 0.722 --- above 0.5 (better than random) but well short of perfect,
+which matches the partial overlap between the two groups' probabilities (patient 3 is
+a healthy person with a high probability, and patient 11 is a sick person with a low
+probability --- those crossings keep the AUC down).
+:::
+
+
+## Problem 4 --- spot the error
+
+A colleague reports the following about their disease-screening model:
+
+> "We tested 200 patients. 190 are healthy, 10 are sick. Our model predicts 'healthy'
+> for everyone. Accuracy is 190/200 = 0.95. The model is great!"
+
+The colleague's confusion matrix is:
+
+|                    | Actually sick | Actually healthy |
+|--------------------|:------------:|:----------------:|
+| **Predicted sick**     | 0            | 0                |
+| **Predicted healthy**  | 10           | 190              |
+
+This argument contains **exactly one mistake** in reasoning. Find it and explain why
+the model is not great.
+
+::: {.callout-note collapse="true" title="Answer"}
+The arithmetic is correct --- accuracy really is 190/200 = 0.95. The mistake is in
+the *reasoning*: claiming high accuracy means the model is great. Look at the
+confusion matrix: TP = 0. The model catches zero sick patients. Sensitivity
+$= 0 / (0 + 10) = 0$. It has *zero* ability to detect the condition it was built to
+detect. The 95% accuracy is entirely driven by the overwhelming number of healthy
+patients (class imbalance). This is the "high accuracy = good model" trap: accuracy
+is misleading when one class dominates.
+:::
+
+
+## Problem 5 --- mixing it with probability-and-odds *(uses probability-and-odds' rates and proportions --- Bayes' formula is given below, just plug in)*
+
+A diagnostic test has sensitivity 0.90 and specificity 0.95. The prevalence of the
+disease is $P(\text{disease}) = 0.01$ (1 in 100 people). A person tests positive.
+What is $P(\text{disease} \mid \text{positive test})$?
+
+Use Bayes' theorem:
+
+$$
+P(\text{disease} \mid +) = \frac{P(+ \mid \text{disease}) \cdot P(\text{disease})}{P(+ \mid \text{disease}) \cdot P(\text{disease}) + P(+ \mid \text{no disease}) \cdot P(\text{no disease})}
+$$
+
+where $P(+ \mid \text{disease})$ is the sensitivity and $P(+ \mid \text{no disease})$
+is $1 - \text{specificity} = \text{FPR}$.
+
+```{webr}
+#| autorun: false
+# p5-starter --- plug in the three numbers and compute
+sensitivity <- 0.90
+specificity <- 0.95
+prevalence  <- 0.01
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+$P(+ \mid \text{disease}) = 0.90$ (sensitivity).
+$P(+ \mid \text{no disease}) = 1 - 0.95 = 0.05$ (FPR).
+$P(\text{disease}) = 0.01$, $P(\text{no disease}) = 0.99$.
+
+$$
+P(\text{disease} \mid +) = \frac{0.90 \times 0.01}{0.90 \times 0.01 + 0.05 \times 0.99}
+= \frac{0.009}{0.009 + 0.0495} = \frac{0.009}{0.0585} \approx 0.154
+$$
+
+Even with a good test (90% sensitivity, 95% specificity), a positive result gives
+only about a 15% chance of actually having the disease when the disease is rare. The
+large pool of healthy people (99%) generates enough false positives to swamp the true
+positives. This connects back to the rates-and-proportions ideas from
+[probability-and-odds](../probability-and-odds/lesson.qmd): the *base rate* matters
+enormously.
+
+```{r p5-answer}
+sens <- 0.90
+spec <- 0.95
+prev <- 0.01
+
+# Bayes' theorem
+numerator   <- sens * prev                         # P(+ | disease) * P(disease)
+denominator <- sens * prev + (1 - spec) * (1 - prev)  # + P(+ | no disease) * P(no disease)
+prob_disease_given_pos <- numerator / denominator   # ~ 0.154
+prob_disease_given_pos
+```
+:::
+
+
+## Problem 6 --- the real-world trade-off
+
+Your company uses a fraud detection model. The CEO wants to minimize false alarms
+(maximize precision --- "when we flag a transaction, it had better be real fraud").
+The compliance officer wants to catch every fraudulent transaction (maximize
+recall/sensitivity --- "we cannot let even one slip through"). These are
+contradictory goals.
+
+In two to three sentences, explain why maximizing precision and maximizing recall push
+in opposite directions. Then explain how an ROC curve (or a precision-recall curve)
+helps the CEO and the compliance officer find a compromise.
+
+::: {.callout-note collapse="true" title="Answer"}
+Maximizing recall means lowering the threshold so the model flags more transactions as
+fraud --- this catches more true fraud (TP goes up), but it also flags more legitimate
+transactions (FP goes up), which drags precision down. Maximizing precision means
+raising the threshold so the model only flags transactions it is very confident about
+--- FP drops, but some real fraud slips through (FN goes up), dragging recall down.
+
+The ROC curve shows every possible threshold at once. The CEO and compliance officer
+can walk along the curve together: the upper-left corner is the ideal (high recall,
+low FPR), but real models cannot reach it perfectly. Moving the threshold lower
+(toward the upper-right) raises recall but also raises FPR (more false alarms).
+Moving it higher (toward the lower-left) lowers FPR but also lowers recall. They
+find the point where the trade-off is acceptable for their business --- maybe
+catching 95% of fraud (recall = 0.95) while accepting a certain false alarm rate.
+The curve makes the trade-off *visible* instead of hidden behind a single number.
+:::
+
+
+## Problem 7 --- the credit-card default threshold trade-off (real data)
+
+A bank's classifier predicts whether each of 10,000 credit-card customers will
+default. Of the 10,000 customers, 333 actually default and 9,667 do not. Here are the
+confusion matrices the bank measured at two different classification thresholds:
+
+**Threshold = 50%** (the default cutoff --- predict "default" if predicted
+probability $\ge 0.50$):
+
+|                          | Actually default | Actually no default |
+|--------------------------|:-----------------:|:---------------------:|
+| **Predicted default**    | TP = 81           | FP = 23                |
+| **Predicted no default** | FN = 252          | TN = 9644              |
+
+**Threshold = 20%** (predict "default" if predicted probability $\ge 0.20$):
+
+|                          | Actually default | Actually no default |
+|--------------------------|:-----------------:|:---------------------:|
+| **Predicted default**    | TP = 195          | FP = 235               |
+| **Predicted no default** | FN = 138          | TN = 9432              |
+
+Compute sensitivity, specificity, and precision at both thresholds. Then answer: if
+you ran this bank's risk team, would you prefer the 50% threshold or the 20%
+threshold? Justify your answer in terms of the cost of missing a defaulter versus the
+cost of a false alarm (an unnecessary credit hold on a customer who would have paid).
+
+```{webr}
+#| autorun: false
+# p7-starter --- the two confusion matrices as named vectors
+threshold_50 <- c(TP = 81,  FP = 23,  FN = 252, TN = 9644)
+threshold_20 <- c(TP = 195, FP = 235, FN = 138, TN = 9432)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+At the 50% threshold: sensitivity $= 81/(81+252) = 81/333 \approx 0.243$, specificity
+$= 9644/(9644+23) = 9644/9667 \approx 0.998$, precision $= 81/(81+23) = 81/104
+\approx 0.779$.
+
+At the 20% threshold: sensitivity $= 195/(195+138) = 195/333 \approx 0.586$,
+specificity $= 9432/(9432+235) = 9432/9667 \approx 0.976$, precision $=
+195/(195+235) = 195/430 \approx 0.453$.
+
+```{r p7-answer}
+threshold_50 <- c(TP = 81,  FP = 23,  FN = 252, TN = 9644)
+threshold_20 <- c(TP = 195, FP = 235, FN = 138, TN = 9432)
+
+rates <- function(cm) {
+  c(sensitivity = cm["TP"] / (cm["TP"] + cm["FN"]),
+    specificity = cm["TN"] / (cm["TN"] + cm["FP"]),
+    precision   = cm["TP"] / (cm["TP"] + cm["FP"]))
+}
+rbind("50% threshold" = rates(threshold_50),
+      "20% threshold" = rates(threshold_20))
+```
+
+Lowering the threshold from 50% to 20% more than doubles sensitivity (24.3% up to
+58.6%) --- the bank now catches over half of the defaulters instead of barely a
+quarter. The cost: false positives rise from 23 to 235 (specificity drops from 99.8%
+to 97.6%), and precision falls from 77.9% to 45.3% (fewer than half the flagged
+customers actually default). For a bank, missing a defaulter usually costs far more
+than one unnecessary credit hold, so the 20% threshold --- despite its worse
+precision --- is very likely the better business choice. This is the same
+asymmetric-cost reasoning as the lesson's "50% threshold is always right" trap: the
+"optimal" threshold depends on what a mistake costs, not on minimizing errors in the
+abstract. [@james2021introductionstatisticallearning, pp. 148--150]
+:::
+
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice --- come back to it **at least a day from
+now**, once the material is not fresh. A pass then is real evidence you have retained
+it. Five questions, graded on the page; 4/5 or better means this module is solid.
+Score under 4? Revisit what the missed questions point at, then retake in a **later
+session** --- passing after another gap is the evidence that counts. Results are saved
+in this browser only.
+
+::: {.module-check module="foundations/classification-evaluation" pass="4"}
+
+::: {.quiz-q qid="ce-sensitivity-calc" qtype="numeric" answer="0.75" tolerance="0.01"}
+A confusion matrix has TP = 6, FP = 2, FN = 2, TN = 10. What is the sensitivity?
+Round to two decimals.
+:::
+
+::: {.quiz-q qid="ce-accuracy-trap" qtype="mc" answer="c"}
+A model predicts "negative" for every observation. The dataset has 950 negatives and
+50 positives. What is the model's sensitivity?
+
+a) 0.95
+b) 0.50
+c) 0.00
+d) 1.00
+:::
+
+::: {.quiz-q qid="ce-fpr-meaning" qtype="mc" answer="b"}
+The false positive rate (FPR) measures what?
+
+a) The fraction of predicted positives that are actually wrong
+b) The fraction of actual negatives that get a false alarm
+c) The fraction of actual positives the model fails to catch
+:::
+
+::: {.quiz-q qid="ce-auc-random" qtype="numeric" answer="0.5" tolerance="0"}
+A classifier that performs no better than random chance has an AUC of what value?
+:::
+
+::: {.quiz-q qid="ce-complement-interleaved" qtype="mc" answer="a"}
+*(From probability-and-odds.)* If $P(\text{event}) = 0.15$, what is
+$P(\text{not event})$?
+
+a) 0.85
+b) 0.15
+c) 1.15
+d) 0.75
+:::
+
+:::
+
+::::

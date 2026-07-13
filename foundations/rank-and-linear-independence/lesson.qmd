@@ -1,0 +1,455 @@
+---
+title: "Rank and linear independence"
+subtitle: "When columns carry their own information — and when they don't"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+You have already seen that a matrix can be **singular** — its inverse does not
+exist, and `solve()` errors out. You have also seen that **collinear** columns
+make regression estimates blow up. This module explains *why* both of those
+happen: some columns are just weighted sums of others, so they carry no new
+information. The number of genuinely independent columns is the **rank**, and
+rank controls what a matrix can and cannot do — including how many directions
+PCA can find.
+
+**Builds on:**
+[matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd)
+(matrix multiply, transpose, inverse, singular),
+[vectors, subscripts & summation](../vectors-and-summation/lesson.qmd)
+(vectors, dot product, weighted sums)
+
+## Warm-up: do you remember?
+
+Before the new stuff, a few quick reps — answers from memory first, then check.
+
+**1.** *(matrices)* What happens when you call `solve()` on the matrix
+$S = \begin{bmatrix} 1 & 2 \\ 2 & 4 \end{bmatrix}$? Why?
+
+::: {.callout-note collapse="true" title="Answer"}
+R errors with "system is exactly singular" — row 2 is exactly twice row 1, so
+the matrix squashes different inputs onto the same output and cannot be undone.
+Taught in [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd);
+revisit the inverse section if shaky.
+:::
+
+**2.** *(vectors)* If $\mathbf{a} = (3, 1)$ and $\mathbf{b} = (0, 2)$, what is the
+weighted sum $2\mathbf{a} + 1\mathbf{b}$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$2(3, 1) + 1(0, 2) = (6, 2) + (0, 2) = (6, 4)$. In R: `2 * c(3,1) + 1 * c(0,2)`.
+Taught in [vectors, subscripts & summation](../vectors-and-summation/lesson.qmd);
+revisit if shaky.
+:::
+
+## A tiny example first
+
+You measured three things about each of four houses: square metres, number of
+bedrooms, and "double bedrooms" (which happens to be exactly 2 × bedrooms).
+
+```{r toy-data}
+sqm      <- c(80, 100, 120, 140)
+bedrooms <- c(2,   3,   3,   4)
+dbl_bed  <- 2 * bedrooms              # col 3 is exactly 2 * col 2
+
+X <- cbind(sqm, bedrooms, dbl_bed)
+X
+```
+
+Look at the third column: every entry is exactly twice the second column.
+$\text{dbl\_bed} = 2 \times \text{bedrooms} + 0 \times \text{sqm}$ — it is a
+weighted sum of the other two columns. It carries no information that was not
+already there.
+
+Can you invert $X^\top X$?
+
+```{r xtx-singular}
+XtX <- t(X) %*% X
+XtX
+
+# Try to invert it:
+tryCatch(solve(XtX), error = function(e) message(e$message))
+```
+
+R refuses: "system is exactly singular: U[3,3] = 0." The third column being a
+weighted sum of the others made $X^\top X$ singular — exactly the problem from
+the [matrices lesson](../matrices-and-linear-transforms/lesson.qmd).
+
+Now drop the redundant column:
+
+```{r xtx-good}
+X_good <- X[, 1:2]   # just sqm and bedrooms
+solve(t(X_good) %*% X_good)   # works fine
+```
+
+Two genuinely independent columns → $X^\top X$ is invertible. Three columns,
+one redundant → singular. That difference is what **linear independence** and
+**rank** capture.
+
+## Getting a feel for it
+
+**Directions of information.** Think of each column as an arrow pointing in
+some direction in "data space." If every arrow points in its own direction, each
+column adds something new — you can reach places you could not reach before. But
+if one arrow is just a stretched or rotated combination of the others, it is not
+a new direction; it is a repeat. Adding it to your team does not let you go
+anywhere new.
+
+The dbl_bed column pointed in exactly the same direction as bedrooms, just
+twice as long. Stretching an arrow does not create a new direction — it is still
+the same line.
+
+Here is that picture with three small arrows:
+
+```{r independence-picture}
+#| fig-alt: "Two solid arrows from the origin pointing in different directions, labelled (2, 1) and (-1, 2), and a dashed arrow to (4, 2) lying exactly along the (2, 1) arrow's line, labelled (4, 2) = 2 times (2, 1). The dashed arrow adds no new direction."
+plot(NULL, xlim = c(-2, 5), ylim = c(-0.5, 3), asp = 1,
+     xlab = "", ylab = "",
+     main = "A dependent arrow adds no new direction")
+arrows(0, 0, 2, 1, lwd = 2, length = 0.12)                      # (2, 1) — its own direction
+arrows(0, 0, -1, 2, lwd = 2, length = 0.12)                     # (-1, 2) — its own direction
+arrows(0, 0, 4, 2, lwd = 2, lty = 2, col = "grey40",
+       length = 0.12)                                            # (4, 2) = 2 x (2, 1) — same line
+text(1.1, 0.55, "(2, 1)", pos = 1)
+text(-1, 2, "(-1, 2)", pos = 2)
+text(4, 2, "(4, 2) = 2 × (2, 1)", pos = 3)
+```
+
+The two solid arrows, $(2, 1)$ and $(-1, 2)$, each point somewhere the other
+cannot reach — two genuine directions. The dashed arrow $(4, 2)$ is exactly
+$2 \times (2, 1)$: it sits on top of the first arrow's line, just extended. It
+adds no new direction — that IS dependence, drawn.
+
+**Why this matters for regression.** When you ask R to split credit among
+columns using `lm()`, each column needs its own "direction" to get a unique
+share. If two columns point in the same direction, their shares are not
+determined — you can give all the credit to one or all to the other, and the
+fit is the same. That is why R hands back `NA` for the redundant column, and
+why the [collinearity discussion in variance structure](../variance-structure-and-standardization/lesson.qmd)
+calls it "two knobs wired to the same wheel."
+
+**What the numbers feel like.** Our three-column matrix has two genuine
+directions (sqm, bedrooms); the third is fake. So this matrix has "rank 2" —
+it carries two columns' worth of real information, even though it has three
+columns.
+
+## What the notation is going to say
+
+The formal definition will say: a set of columns is **linearly independent** if
+no column can be written as a weighted sum of the others. Equivalently, the
+*only* way to combine them all to get zero is with every weight equal to zero.
+In our toy example, dbl_bed = 2 × bedrooms + 0 × sqm, so the set {sqm,
+bedrooms, dbl_bed} is linearly **dependent** — that weighted sum exists with
+nonzero weights. Drop the redundant column and {sqm, bedrooms} is independent:
+neither is a multiple of the other.
+
+The **rank** is then the largest number of columns you can pick that are still
+independent. Our 4×3 matrix $X$ has rank 2; the good 4×2 matrix has rank 2 too.
+
+The **span** is every vector you could build by taking weighted sums of the
+columns. Adding a dependent column does not enlarge the span — the span of
+{sqm, bedrooms, dbl_bed} is the same as the span of {sqm, bedrooms}, because
+dbl_bed was already reachable.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $c_1, c_2, \ldots$ | "see one, see two, ..." | scalar weights in a weighted sum | the 2 and 0 in $\text{dbl\_bed} = 2 \cdot \text{bedrooms} + 0 \cdot \text{sqm}$ |
+| $c_1 \mathbf{v}_1 + c_2 \mathbf{v}_2 + \cdots$ | "see-one times vee-one plus see-two times vee-two plus ..." | a **linear combination** — a weighted sum of vectors | $0 \cdot \text{sqm} + 2 \cdot \text{bedrooms}$ |
+| $\text{Span}\{\mathbf{v}_1, \ldots, \mathbf{v}_k\}$ | "the span of vee-one through vee-k" | every vector reachable by weighted sums of these vectors | every 4-long vector reachable by mixing sqm and bedrooms |
+| $\text{rank}(A)$ | "the rank of A" | the number of genuinely independent columns | $\text{rank}(X) = 2$ |
+| $\mathbf{0}$ | "the zero vector" | a vector of all zeros | $(0, 0, 0, 0)$ |
+| $X^\top X$ | "ex-transpose ex" | the square matrix whose invertibility rank controls | our 3×3 singular matrix |
+| $\min(n, p)$ | "the minimum of n and p" | whichever is smaller: the number of rows or columns | $\min(4, 3) = 3$ |
+| $\Longrightarrow$ | "implies" | if the left side is true, the right side must be true | the only weights that produce zero are all-zero weights |
+| $\in$ | "is in" | belongs to a set | $c_1 \in \mathbb{R}$ means "see-one is a real number" |
+| $\mathbb{R}$ | "the real numbers" | the set of all real numbers | the weights can be any real number |
+| $\{\, \cdot \,\}$ (braces) | "the set of" | everything between the braces is a description of the items that belong to the set | $\{c_1\mathbf{v}_1 + \cdots\}$ = "the set of all such weighted sums" |
+| $\mid$ (the vertical bar inside braces) | "such that" | separates *what's in the set* (left of the bar) from *the condition it must satisfy* (right of the bar) | "weighted sums $c_1\mathbf{v}_1 + \cdots$, **such that** $c_1,\ldots,c_k$ are any real numbers" |
+| $\mathbf{u}\mathbf{v}^\top$ | "u v-transpose" | a column times a row — a rank-1 matrix | a 4×4 matrix with every row a multiple of $\mathbf{v}^\top$ |
+
+## The formal version
+
+**Linear independence.** A set of vectors $\mathbf{v}_1, \mathbf{v}_2, \ldots, \mathbf{v}_k$ is **linearly independent** if:
+
+$$
+c_1 \mathbf{v}_1 + c_2 \mathbf{v}_2 + \cdots + c_k \mathbf{v}_k = \mathbf{0}
+\quad \Longrightarrow \quad
+c_1 = c_2 = \cdots = c_k = 0
+$$
+
+Reading it aloud: "see-one times vee-one plus see-two times vee-two plus dot-dot-dot
+equals the zero vector *implies* every see equals zero" — or in everyday words:
+"the only way to combine them to get nothing is to use no contribution from any
+of them." [@austin2022understandinglinearalgebra, p. 98]
+
+If there exist weights that are NOT all zero and still produce the zero vector,
+the set is **linearly dependent** — at least one vector is a weighted sum of the
+others. Why are those two statements the same? Take the combination that equals
+zero, move any term whose weight is nonzero across the equals sign, and divide
+both sides by that (nonzero) weight — that vector is now written as a weighted
+sum of the rest.
+
+Mapping it onto the toy example: $0 \cdot \text{sqm} + 2 \cdot \text{bedrooms} + (-1) \cdot \text{dbl\_bed} = \mathbf{0}$,
+so {sqm, bedrooms, dbl_bed} is dependent (the weights 0, 2, −1 are not all zero).
+
+**Span.** The **span** of a set of vectors is the set of all vectors reachable
+by linear combinations of those vectors. [@austin2022understandinglinearalgebra, p. 81]
+
+$$
+\text{Span}\{\mathbf{v}_1, \ldots, \mathbf{v}_k\}
+= \{ c_1 \mathbf{v}_1 + \cdots + c_k \mathbf{v}_k \mid c_1, \ldots, c_k \in \mathbb{R} \}
+$$
+
+Reading it aloud: "the span of vee-one through vee-k equals the braces — **the set
+of** — see-one times vee-one plus dot-dot-dot, the vertical bar — **such that** —
+see-one through see-k are in the real numbers" — or in everyday words: "everything
+you can reach by mixing these vectors, where the weights can be any real numbers."
+
+Removing a dependent column does not shrink the span — the dependent vector was
+already reachable, so it was not contributing anything new.
+[@austin2022understandinglinearalgebra, p. 97]
+
+**Rank.** The **rank** of a matrix is the number of linearly independent columns
+(equivalently, the number of pivots in its row-reduced form).
+[@austin2022understandinglinearalgebra, p. 100]
+
+$$
+\text{rank}(A) = \text{number of independent columns of } A
+$$
+
+In R: `qr(A)$rank`.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+# The toy data: three columns, one redundant
+sqm      <- c(80, 100, 120, 140)
+bedrooms <- c(2,   3,   3,   4)
+dbl_bed  <- 2 * bedrooms
+
+X <- cbind(sqm, bedrooms, dbl_bed)
+
+# Rank: how many genuinely independent columns?
+qr(X)$rank     # 2 — dbl_bed adds nothing
+
+# Drop the redundant column:
+qr(X[, 1:2])$rank   # still 2
+```
+
+```{webr}
+#| autorun: false
+# TRY IT: make col3 genuinely different and re-check the rank.
+# PREDICT: what rank will the new X have? Write your guess, then run.
+sqm      <- c(80, 100, 120, 140)
+bedrooms <- c(2,   3,   3,   4)
+col3     <- c(1,   0,   1,   0)    # change these — anything NOT a combo of the first two
+
+X_new <- cbind(sqm, bedrooms, col3)
+qr(X_new)$rank
+```
+
+```{webr}
+#| autorun: false
+# Rank deficiency makes X'X singular -- solve() fails, but only when a column truly IS
+# a weighted sum of the others. Two candidate third columns below: one repeats old
+# information, one adds a genuinely new direction.
+# PREDICT, for EACH candidate: will solve(t(X) %*% X) work or error? Write both
+# predictions first, then run and check.
+sqm      <- c(80, 100, 120, 140)
+bedrooms <- c(2,   3,   3,   4)
+
+col_dep   <- 2 * bedrooms          # a weighted sum of bedrooms -> dependent
+col_indep <- c(1,   0,   1,   0)   # not a combo of sqm or bedrooms -> independent
+
+X_dep   <- cbind(sqm, bedrooms, col_dep)
+X_indep <- cbind(sqm, bedrooms, col_indep)
+
+cat("rank with col_dep:  ", qr(X_dep)$rank, "\n")
+cat("rank with col_indep:", qr(X_indep)$rank, "\n")
+
+tryCatch(
+  { solve(t(X_dep) %*% X_dep); cat("X_dep:   solve() worked\n") },
+  error = function(e) cat("X_dep:   ERROR -", e$message, "\n")
+)
+tryCatch(
+  { solve(t(X_indep) %*% X_indep); cat("X_indep: solve() worked\n") },
+  error = function(e) cat("X_indep: ERROR -", e$message, "\n")
+)
+```
+
+**Optional (preview — uses eigenvalues from [PCA & SVD](../pca-and-svd/lesson.qmd),
+fine to skip on first read).** Rank also caps how many components PCA can find:
+
+```{webr}
+#| autorun: false
+# Rank caps PCA: you can't get more components than the rank.
+# PREDICT: how many nonzero eigenvalues will a rank-2 matrix have?
+sqm      <- c(80, 100, 120, 140)
+bedrooms <- c(2,   3,   3,   4)
+dbl_bed  <- 2 * bedrooms
+X <- cbind(sqm, bedrooms, dbl_bed)
+
+S <- cov(X)
+eigenvalues <- eigen(S)$values
+cat("rank:", qr(X)$rank, "\n")
+cat("eigenvalues:", round(eigenvalues, 4), "\n")
+cat("nonzero eigenvalues:", sum(abs(eigenvalues) > 1e-10), "\n")
+```
+
+### Rank-1: a column times a row
+
+One special case shows up often: a **rank-1 matrix** is a single column times a
+single row. [@austin2022understandinglinearalgebra, pp. 337--340]
+
+```{webr}
+#| autorun: false
+# A rank-1 matrix: one column times one row
+u <- c(1, 2, 3)
+v <- c(4, 5)
+R1 <- u %*% t(v)     # 3x2: every row is a multiple of v
+R1
+qr(R1)$rank           # 1 — only one independent column
+
+# Every row is a scaled copy of v = (4, 5):
+R1[1, ] / v    # all 1's
+R1[2, ] / v    # all 2's
+R1[3, ] / v    # all 3's
+```
+
+Every row of $\mathbf{u}\mathbf{v}^\top$ is a scaled copy of $\mathbf{v}^\top$
+— there is only one "direction" in the matrix, hence rank 1. This is exactly
+the kind of change the
+[Sherman–Morrison formula](../sherman-morrison-rank-one-updates/lesson.qmd)
+handles: a rank-1 update to a matrix.
+
+## Common traps
+
+**Trap 1 — "Correlated columns are linearly dependent."** Two columns with a
+high correlation (say 0.95) point in *nearly* the same direction, but not
+exactly. They are linearly independent — neither is an *exact* weighted sum of
+the others. The matrix is technically invertible, but it is **ill-conditioned**:
+small data changes cause large swings in the inverse. This is the collinearity
+problem from [variance structure](../variance-structure-and-standardization/lesson.qmd) —
+it makes regression wobbly, but the matrix is not singular. Dependence is an
+exact, all-or-nothing property; collinearity is a matter of degree.
+
+```{r trap1-illconditioned}
+n <- 6
+set.seed(1)
+x1 <- scale(rnorm(n))[, 1]
+z  <- scale(rnorm(n))[, 1]
+z  <- z - sum(z * x1) / sum(x1^2) * x1              # make z orthogonal to x1
+x2 <- 0.95 * x1 + sqrt(1 - 0.95^2) * scale(z)[, 1]   # cor(x1, x2) = 0.95 exactly
+
+X <- cbind(x1, x2)
+cat("correlation:", round(cor(x1, x2), 2), "  rank:", qr(X)$rank, "\n")
+round(solve(t(X) %*% X), 2)
+```
+
+Rank 2 — full rank, so `solve()` succeeds — but the diagonal entries of the
+inverse come out around **2.05**, versus about **0.2** for two *uncorrelated*
+standardized columns of the same size. That is roughly ten times larger from a
+correlation of 0.95 alone, with no dependence anywhere in sight. Push the
+correlation even closer to 1 and the entries keep growing — the matrix stays
+invertible right up to the edge, but the inverse gets less and less trustworthy
+as it gets there.
+
+**Trap 2 — "A matrix with more columns than rows always has full rank."**
+Actually, a matrix can have at most $\min(n, p)$ independent columns (there are
+only $n$ rows, so at most $n$ pivot positions). A 3×5 matrix has rank at most 3,
+no matter how many columns it has. And if some columns are redundant, the rank
+can be even lower. [@austin2022understandinglinearalgebra, p. 101]
+
+## Check yourself
+
+**1.** The matrix below has 3 columns. Without computing, is it rank 3, 2, or 1?
+
+$$
+M = \begin{bmatrix} 1 & 0 & 2 \\ 0 & 1 & -1 \\ 3 & 1 & 5 \end{bmatrix}
+$$
+
+*Hint:* check whether column 3 is a combination of columns 1 and 2.
+
+```{webr}
+#| autorun: false
+# check1-starter
+M <- matrix(c(1, 0, 3,
+              0, 1, 1,
+              2, -1, 5), nrow = 3)
+# Check: does 2*col1 + (-1)*col2 equal col3?
+2 * M[, 1] + (-1) * M[, 2]
+M[, 3]
+qr(M)$rank
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Column 3 = 2 × column 1 + (−1) × column 2: check entry by entry —
+$2(1) + (-1)(0) = 2$ ✓, $2(0) + (-1)(1) = -1$ ✓, $2(3) + (-1)(1) = 5$ ✓.
+So the set is dependent and the rank is **2**, which `qr(M)$rank` confirms.
+:::
+
+**2.** **Optional (preview — uses eigenvalues from [PCA & SVD](../pca-and-svd/lesson.qmd),
+fine to skip on first read).** If a 100×4 data matrix $X$ has rank 3, how many nonzero
+eigenvalues does its covariance matrix have? How many principal components could PCA
+extract?
+
+::: {.callout-note collapse="true" title="Answer"}
+3 nonzero eigenvalues and at most 3 principal components. One of the four
+columns is a linear combination of the other three, so there are only three
+genuine directions of variation. The covariance matrix inherits that rank, and
+PCA can find at most as many components as the rank.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what the rank
+of a matrix tells you and why it matters.
+
+::: {.callout-note collapse="true" title="A model answer"}
+The rank is the number of columns that carry genuinely independent information
+— columns that point in their own direction rather than repeating what's already
+there. It matters because rank controls whether the matrix is invertible, how
+many regression coefficients can be estimated, and how many meaningful PCA
+components exist.
+:::
+
+## What you can now do
+
+- **Spot a dependent column** by checking whether it is a weighted sum of the
+  others, and explain why that makes $X^\top X$ singular.
+- **Find the rank** of a matrix using `qr(X)$rank` in R.
+- **Connect rank deficiency to collinearity** ("two knobs, one wheel") and to
+  PCA (rank caps the number of components).
+- **Recognise a rank-1 matrix** as a column times a row — one direction of
+  information.
+
+If any of these feels shaky, revisit the
+[tiny example](#a-tiny-example-first) (for independence) or the
+[Explore section](#explore-it) (for rank and rank-1) before continuing —
+later modules assume all of them.
+
+## Where this goes next
+
+You have now seen the *why* behind two ideas that came before: the "singular"
+error in [matrices & linear transforms](../matrices-and-linear-transforms/lesson.qmd)
+and the collinearity warning in
+[variance structure](../variance-structure-and-standardization/lesson.qmd). You
+have also met the "rank-1" label that
+[Sherman–Morrison](../sherman-morrison-rank-one-updates/lesson.qmd) builds on.
+In [PCA & SVD](../pca-and-svd/lesson.qmd), you will see rank control how many
+principal components are available — rank is the ceiling on PCA's output.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

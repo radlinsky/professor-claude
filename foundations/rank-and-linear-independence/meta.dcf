@@ -1,0 +1,5 @@
+ShortName: Rank & linear independence
+Topic: linear-algebra
+Concepts: Linear independence (no column is a weighted sum of the others), span (everything reachable by weighted sums), rank (`qr(X)$rank` — the number of independent columns), rank deficiency ↔ singular $X^\top X$ ↔ `solve()` fails, rank caps PCA (at most rank directions of variance), rank-1 decoded (a column times a row)
+BuildsOn: [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd), [vectors-and-summation](vectors-and-summation/lesson.qmd)
+UsedBy: —

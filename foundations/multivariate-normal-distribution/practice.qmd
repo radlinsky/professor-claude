@@ -1,0 +1,380 @@
+---
+title: "Practice: The multivariate normal distribution"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+# Build-time setup only (a {webr} starter does not see it -- each starter re-states
+# its own data). Pure base R, so nothing to install.
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order -- they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+
+## Problem 1 -- the toy example, new numbers
+
+A bivariate normal distribution has mean vector $\boldsymbol{\mu} = (3, 7)$ and
+covariance matrix
+
+$$
+\boldsymbol{\Sigma} = \begin{pmatrix} 1 & -1 \\ -1 & 4 \end{pmatrix}
+$$
+
+1. What are $\text{Var}(X_1)$, $\text{Var}(X_2)$, and $\text{Cov}(X_1, X_2)$?
+2. What is the correlation between $X_1$ and $X_2$?
+3. Generate 500 samples from this distribution using the Cholesky approach. Verify
+   that `colMeans()` and `cov()` of the samples are close to the inputs.
+
+```{webr}
+#| autorun: false
+# p1-starter -- edit and Run to solve, right here
+mu    <- c(3, 7)
+Sigma <- matrix(c(1, -1,
+                  -1, 4), nrow = 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+1. $\text{Var}(X_1) = 1$, $\text{Var}(X_2) = 4$, $\text{Cov}(X_1, X_2) = -1$.
+   The variances are the diagonal entries; the covariance is the off-diagonal.
+2. Correlation $= \text{Cov}/(sd_1 \times sd_2) = -1 / (1 \times 2) = -0.5$.
+   Negative: when $X_1$ is above its mean, $X_2$ tends to be below.
+3. Code below.
+
+```{r p1-answer}
+mu    <- c(3, 7)
+Sigma <- matrix(c(1, -1, -1, 4), nrow = 2)
+
+# Read off the parameters
+c(var_X1 = Sigma[1, 1], var_X2 = Sigma[2, 2], cov = Sigma[1, 2])  # 1, 4, -1
+Sigma[1, 2] / (sqrt(Sigma[1, 1]) * sqrt(Sigma[2, 2]))              # -0.5
+
+# Generate samples
+rmvn <- function(n, mu, Sigma) {
+  p <- length(mu)
+  L <- chol(Sigma)
+  Z <- matrix(rnorm(n * p), n, p)
+  sweep(Z %*% L, 2, mu, "+")
+}
+
+set.seed(99)
+pts <- rmvn(500, mu, Sigma)
+colMeans(pts)   # close to (3, 7)
+cov(pts)        # close to our Sigma
+```
+:::
+
+
+## Problem 2 -- fill in the missing step
+
+Here is a worked computation of the Mahalanobis distance from $(4, 5)$ to the center
+$(3, 7)$ under the covariance matrix above -- but **the core step is blanked**.
+
+> Step 1: deviation = $(4 - 3,\; 5 - 7) = (1, -2)$.
+>
+> Step 2: **`<your step here>`** -- compute $\boldsymbol{\Sigma}^{-1}$ (the inverse of
+> the covariance matrix).
+>
+> Step 3: quadratic form = $(1, -2)^\top \boldsymbol{\Sigma}^{-1} (1, -2)$.
+>
+> Step 4: $d_M = \sqrt{\text{quadratic form}}$.
+
+Fill in step 2: what is $\boldsymbol{\Sigma}^{-1}$ for
+$\boldsymbol{\Sigma} = \begin{pmatrix} 1 & -1 \\ -1 & 4 \end{pmatrix}$?
+Then compute the full Mahalanobis distance.
+
+```{webr}
+#| autorun: false
+# p2-starter -- compute the inverse and the Mahalanobis distance
+Sigma <- matrix(c(1, -1, -1, 4), nrow = 2)
+dev   <- c(1, -2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 2: The inverse of a $2 \times 2$ matrix $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$
+is $\frac{1}{ad - bc}\begin{pmatrix} d & -b \\ -c & a \end{pmatrix}$. Here
+$\det = 1 \times 4 - (-1)(-1) = 3$, so
+
+$$
+\boldsymbol{\Sigma}^{-1} = \frac{1}{3}\begin{pmatrix} 4 & 1 \\ 1 & 1 \end{pmatrix}
+= \begin{pmatrix} 4/3 & 1/3 \\ 1/3 & 1/3 \end{pmatrix}
+$$
+
+Then the quadratic form: $(1, -2) \begin{pmatrix} 4/3 & 1/3 \\ 1/3 & 1/3 \end{pmatrix} (1, -2)^\top$.
+
+First, $\boldsymbol{\Sigma}^{-1} \mathbf{d} = (4/3 \times 1 + 1/3 \times (-2),\;
+1/3 \times 1 + 1/3 \times (-2)) = (2/3, -1/3)$.
+
+Then $\mathbf{d}^\top (\boldsymbol{\Sigma}^{-1} \mathbf{d}) = 1 \times 2/3 + (-2) \times (-1/3) = 2/3 + 2/3 = 4/3 \approx 1.333$.
+
+$d_M = \sqrt{4/3} \approx 1.155$.
+
+```{r p2-answer}
+Sigma <- matrix(c(1, -1, -1, 4), nrow = 2)
+dev   <- c(1, -2)
+
+# Step 2: the inverse
+Sigma_inv <- solve(Sigma)
+round(Sigma_inv, 4)                               # 4/3, 1/3, 1/3, 1/3
+
+# Step 3: quadratic form
+quad <- t(dev) %*% Sigma_inv %*% dev
+quad                                               # 1.333
+
+# Step 4: Mahalanobis distance
+sqrt(as.numeric(quad))                             # 1.155
+
+# Check with R's built-in
+sqrt(mahalanobis(c(4, 5), center = c(3, 7), cov = Sigma))  # 1.155
+```
+:::
+
+
+## Problem 3 -- 3D marginals
+
+A 3-dimensional multivariate normal has mean vector $\boldsymbol{\mu} = (0, 5, -2)$
+and covariance matrix
+
+$$
+\boldsymbol{\Sigma} = \begin{pmatrix} 2 & 1 & 0 \\ 1 & 5 & -1 \\ 0 & -1 & 3 \end{pmatrix}
+$$
+
+1. Generate 500 samples from this distribution.
+2. Extract just the third column ($X_3$). What should its theoretical distribution be?
+3. Verify: is the sample mean close to its theoretical mean? Is the sample variance
+   close to its theoretical variance?
+
+```{webr}
+#| autorun: false
+# p3-starter -- generate 3D samples and check the marginal of X3
+mu    <- c(0, 5, -2)
+Sigma <- matrix(c(2,  1,  0,
+                  1,  5, -1,
+                  0, -1,  3), nrow = 3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The marginal of $X_3$ is $N(\mu_3, \Sigma_{33}) = N(-2, 3)$. Just read off the
+third mean and the (3,3) entry of the covariance matrix.
+
+```{r p3-answer}
+mu    <- c(0, 5, -2)
+Sigma <- matrix(c(2,  1,  0,
+                  1,  5, -1,
+                  0, -1,  3), nrow = 3)
+
+rmvn <- function(n, mu, Sigma) {
+  p <- length(mu)
+  L <- chol(Sigma)
+  Z <- matrix(rnorm(n * p), n, p)
+  sweep(Z %*% L, 2, mu, "+")
+}
+
+set.seed(101)
+pts <- rmvn(500, mu, Sigma)
+
+# Marginal of X3 should be N(-2, 3)
+cat("Theory: N(-2, 3)\n")
+cat("Sample mean of X3:", round(mean(pts[, 3]), 2), " (should be near -2)\n")
+cat("Sample var  of X3:", round(var(pts[, 3]),  2), " (should be near 3)\n")
+```
+
+The sample statistics are close to the theoretical values, confirming the marginal is
+$N(-2, 3)$.
+:::
+
+
+## Problem 4 -- spot the error
+
+A colleague built this covariance matrix for a bivariate normal and tries to generate
+samples:
+
+```
+Sigma <- matrix(c(4, 5, 5, 1), nrow = 2)
+L <- chol(Sigma)
+```
+
+They get an error. The code contains **exactly one mistake** -- find it and explain why
+it fails.
+
+```{webr}
+#| autorun: false
+# p4-starter -- try running this and diagnosing the error
+Sigma <- matrix(c(4, 5, 5, 1), nrow = 2)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The matrix is **not positive definite**. The determinant is $4 \times 1 - 5 \times 5
+= -21 < 0$, so `chol()` will fail with an error about a non-positive-definite matrix.
+
+Why? The off-diagonal covariance of 5 implies a correlation of $5 / (\sqrt{4} \times
+\sqrt{1}) = 5 / 2 = 2.5$, which is impossible -- correlations must live in $[-1, 1]$.
+The covariance between two variables can never exceed the product of their standard
+deviations. Here, $sd_1 = 2$ and $sd_2 = 1$, so the covariance must be between $-2$
+and $+2$.
+
+**Fix:** use a covariance within the valid range, e.g. `matrix(c(4, 1.5, 1.5, 1), 2, 2)`
+-- this has $\det = 4 - 2.25 = 1.75 > 0$ and correlation $1.5 / 2 = 0.75$.
+
+```{r p4-answer}
+# The broken matrix
+Sigma_bad <- matrix(c(4, 5, 5, 1), nrow = 2)
+det(Sigma_bad)                                      # -21 -- negative!
+Sigma_bad[1, 2] / (sqrt(Sigma_bad[1, 1]) * sqrt(Sigma_bad[2, 2]))  # 2.5 -- impossible
+
+# A fixed version
+Sigma_ok <- matrix(c(4, 1.5, 1.5, 1), nrow = 2)
+det(Sigma_ok)                                       # 1.75 -- positive
+chol(Sigma_ok)                                      # works
+```
+:::
+
+
+## Problem 5 -- mixing it with variance-structure-and-standardization *(uses variance-structure's covariance matrix and correlation skills)*
+
+Given a 3-variable covariance matrix:
+
+$$
+\boldsymbol{\Sigma} = \begin{pmatrix} 16 & 6 & -4 \\ 6 & 9 & 3 \\ -4 & 3 & 4 \end{pmatrix}
+$$
+
+1. What are the standard deviations of $X_1$, $X_2$, and $X_3$?
+2. Compute the full $3 \times 3$ correlation matrix from $\boldsymbol{\Sigma}$.
+3. If $\mathbf{X} \sim N(\boldsymbol{\mu}, \boldsymbol{\Sigma})$, what is the
+   correlation between $X_1$ and $X_3$? Is it positive or negative, and what does that
+   tell you about how $X_1$ and $X_3$ move?
+
+```{webr}
+#| autorun: false
+# p5-starter -- compute the correlation matrix
+Sigma <- matrix(c(16,  6, -4,
+                   6,  9,  3,
+                  -4,  3,  4), nrow = 3)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+1. Standard deviations are the square roots of the diagonal entries:
+   $sd_1 = \sqrt{16} = 4$, $sd_2 = \sqrt{9} = 3$, $sd_3 = \sqrt{4} = 2$.
+
+2. Correlation matrix: divide each off-diagonal entry by the product of the
+   corresponding standard deviations.
+   - $r_{12} = 6 / (4 \times 3) = 0.5$
+   - $r_{13} = -4 / (4 \times 2) = -0.5$
+   - $r_{23} = 3 / (3 \times 2) = 0.5$
+
+3. The correlation between $X_1$ and $X_3$ is $-0.5$ -- negative. When $X_1$ is above
+   its mean, $X_3$ tends to be below its mean. They move in opposite directions.
+
+```{r p5-answer}
+Sigma <- matrix(c(16,  6, -4,
+                   6,  9,  3,
+                  -4,  3,  4), nrow = 3)
+
+# Standard deviations
+sds <- sqrt(diag(Sigma))                            # 4, 3, 2
+sds
+
+# Correlation matrix: cov2cor() does this, or manual
+D_inv <- diag(1 / sds)                              # diagonal of 1/sd
+R <- D_inv %*% Sigma %*% D_inv                      # the correlation matrix
+round(R, 2)
+
+# Check with R's shortcut
+cov2cor(Sigma)
+
+# r(X1, X3) = -0.5 -- negative, they move in opposite directions
+```
+:::
+
+
+## Problem 6 -- transfer: interpreting a genetics paper
+
+A genetics paper says: "We model the effect sizes as
+$\boldsymbol{\beta} \sim N(\mathbf{0}, \boldsymbol{\Sigma}_\beta)$ where
+$\boldsymbol{\Sigma}_\beta$ encodes LD between SNPs."
+
+In one or two sentences, what does this assumption mean in plain language? (Hint: think
+about what each piece of the multivariate normal -- the mean vector and the covariance
+matrix -- controls.)
+
+::: {.callout-note collapse="true" title="Answer"}
+The effect sizes are random, centered at zero on average (the mean vector is
+$\mathbf{0}$, so no SNP is expected to have a positive or negative effect *a priori*),
+and **correlated with each other** according to the LD (linkage disequilibrium)
+structure. Nearby SNPs that are in high LD will have similar entries in
+$\boldsymbol{\Sigma}_\beta$, meaning their effect sizes tend to be similar in magnitude
+and sign -- the covariance matrix encodes how tightly each pair of SNPs' effects track
+each other, just like the covariance matrix in our toy example encoded how $X_1$ and
+$X_2$ moved together.
+:::
+
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice -- come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** --
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/multivariate-normal-distribution" pass="4"}
+
+::: {.quiz-q qid="mvn-marginal" qtype="mc" answer="c"}
+If $\mathbf{X} \sim N(\boldsymbol{\mu}, \boldsymbol{\Sigma})$ in 3 dimensions, and
+$\boldsymbol{\mu} = (1, 4, 9)$ with $\boldsymbol{\Sigma}$ having diagonal entries
+$(2, 5, 7)$, what is the marginal distribution of $X_2$?
+
+a) $N(4, 2)$
+b) $N(5, 4)$
+c) $N(4, 5)$
+d) $N(4, 7)$
+:::
+
+::: {.quiz-q qid="mvn-det-toy" qtype="numeric" answer="27" tolerance="0"}
+For the lesson's toy covariance matrix $\boldsymbol{\Sigma} = \begin{pmatrix} 4 & 3 \\ 3 & 9 \end{pmatrix}$, what is the determinant $\lvert\boldsymbol{\Sigma}\rvert$?
+:::
+
+::: {.quiz-q qid="mvn-posdef" qtype="mc" answer="a"}
+A colleague proposes $\boldsymbol{\Sigma} = \begin{pmatrix} 1 & 2 \\ 2 & 1 \end{pmatrix}$ as a covariance matrix. What happens when they try `chol(Sigma)`?
+
+a) It errors because the matrix is not positive definite
+b) It succeeds because the matrix is symmetric and has positive entries
+c) It errors because the diagonal entries must be larger than 1
+d) It succeeds because all entries are positive real numbers
+:::
+
+::: {.quiz-q qid="mvn-mahal-vs-euclid" qtype="mc" answer="d"}
+Why is Mahalanobis distance more informative than Euclidean distance for multivariate normal data?
+
+a) Mahalanobis distance is always smaller than Euclidean distance for the same pair of points
+b) Euclidean distance requires the covariance matrix, which may not be available in practice
+c) Mahalanobis distance only uses the diagonal entries of the covariance matrix, not off-diagonals
+d) It accounts for different variances and correlations between variables
+:::
+
+::: {.quiz-q qid="mvn-cov-interleave" qtype="mc" answer="b"}
+*(Recall from [variance structure & standardization](../variance-structure-and-standardization/lesson.qmd).)* If a covariance matrix has $\Sigma_{11} = 9$ and $\Sigma_{22} = 16$, and $\text{Cov}(X_1, X_2) = 6$, what is the correlation $r_{12}$?
+
+a) $6 / (9 \times 16) = 0.042$
+b) $6 / (3 \times 4) = 0.5$
+c) $6 / (81 \times 256) = 0.0003$
+d) $6 / (9 + 16) = 0.24$
+:::
+
+:::
+
+::::

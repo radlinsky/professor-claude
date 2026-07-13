@@ -1,0 +1,246 @@
+---
+title: "Practice: Maximum a posteriori estimation"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+
+## Problem 1 — confidence rep with new numbers
+
+You flip a coin 8 times and see 6 heads, 2 tails. Your prior is Beta(2, 4) — you
+believe before seeing data that the coin is more likely biased toward tails.
+
+(a) Compute the MLE $\hat{p}_{\text{ML}}$.
+(b) Compute the MAP estimate $\hat{p}_{\text{MAP}}$.
+(c) Is the MAP closer to the prior's mode or to the MLE? Why?
+
+```{webr}
+#| autorun: false
+# p1-starter
+n <- 8; heads <- 6; tails <- 2
+alpha <- 2; beta_prior <- 4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) MLE = 6/8 = 0.75.
+
+(b) $\hat{p}_{\text{MAP}} = (6 + 2 - 1)/(8 + 2 + 4 - 2) = 7/12 \approx 0.583$.
+
+(c) The prior's mode is $(2-1)/(2+4-2) = 1/4 = 0.25$. The MAP (0.583) is much
+closer to the MLE (0.75) than to the prior mode (0.25). The 8 data points overpower
+the weak Beta(2, 4) prior — the data horses outnumber the prior bull.
+
+```{r}
+n <- 8; heads <- 6; alpha <- 2; beta_prior <- 4
+mle <- heads / n
+map <- (heads + alpha - 1) / (n + alpha + beta_prior - 2)
+prior_mode <- (alpha - 1) / (alpha + beta_prior - 2)
+cat("MLE:", mle, "\n")
+cat("MAP:", round(map, 3), "\n")
+cat("Prior mode:", prior_mode, "\n")
+```
+:::
+
+
+## Problem 2 — fill in the missing step
+
+Here is the MAP derivation for the lesson's coin example (5 flips, 3 heads, Beta(3,3)
+prior):
+
+- Step 1: Log-likelihood: $\ell(p) = 3\log p + 2\log(1-p)$.
+- Step 2: Log-prior: $\log f(p) = (3-1)\log p + (3-1)\log(1-p) = 2\log p + 2\log(1-p)$.
+- Step 3: **your step here** — what do you do with these two expressions, and why?
+- Step 4: The result is $5\log p + 4\log(1-p)$, which peaks at $p = 5/9 \approx 0.556$.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 3: **Add them.** The MAP estimate maximises
+$\ell(p) + \log f(p) = (3\log p + 2\log(1-p)) + (2\log p + 2\log(1-p))$.
+
+Why: the posterior is proportional to likelihood × prior. Taking the log turns the
+product into a sum: $\log(\text{posterior}) = \ell(p) + \log f(p) + \text{const}$.
+Maximising this sum gives the posterior's peak — the MAP estimate.
+:::
+
+
+## Problem 3 — ridge as MAP
+
+In the lesson's toy regression ($x = (-1, 0, 1)$, $y = (-1, 0.5, 2)$), the OLS slope
+is $b = 1.5$.
+
+(a) What is the ridge slope when $\lambda = 4$?
+(b) In MAP language, is $\lambda = 4$ a tight or wide Gaussian prior?
+(c) Name one situation where you would *want* this much shrinkage.
+
+```{webr}
+#| autorun: false
+# p3-starter
+x <- c(-1, 0, 1); y <- c(-1, 0.5, 2)
+lambda <- 4
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) $b_{\text{ridge}} = \sum xy / (\sum x^2 + \lambda) = 3 / (2 + 4) = 0.5$.
+
+(b) Tight. $\lambda = \sigma^2/\sigma_0^2 = 4$ means the prior variance
+$\sigma_0^2 = \sigma^2/4$ — the prior is concentrated near zero, expressing a strong
+belief that the true slope is small.
+
+(c) When you have many predictors and suspect most are weak signals — a tight prior
+shrinks noise-driven estimates toward zero, reducing overfitting.
+
+```{r}
+x <- c(-1, 0, 1); y <- c(-1, 0.5, 2)
+b_ols   <- sum(x * y) / sum(x^2)
+b_ridge <- sum(x * y) / (sum(x^2) + 4)
+cat("OLS:", b_ols, "\n")
+cat("Ridge (lambda=4):", b_ridge, "\n")
+cat("Shrinkage:", round((1 - b_ridge / b_ols) * 100, 1), "%\n")
+```
+:::
+
+
+## Problem 4 — spot the error
+
+A colleague says: *"I used a Beta(50, 2) prior because I want to be open-minded about
+$p$. Then I flipped the coin 5 times, got 3 heads, and the MAP estimate came out to
+0.945 — the data strongly suggest the coin is biased!"*
+
+This contains **exactly one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: claiming Beta(50, 2) is "open-minded." Beta(50, 2) is an extremely
+informative prior — its centre is $(50-1)/(50+2-2) = 49/50 = 0.98$, which says "I
+believe the coin almost always lands heads." The MAP of 0.945 is driven primarily by
+that prior, not the data (which suggest 0.6). An open-minded prior would be Beta(1,1)
+(uniform) or Beta(2,2) (weakly centred at 0.5). The colleague's conclusion confuses a
+strong prior with strong evidence.
+
+```{r}
+map <- (3 + 50 - 1) / (5 + 50 + 2 - 2)
+prior_mode <- (50 - 1) / (50 + 2 - 2)
+cat("MAP:", round(map, 3), "\n")     # 0.945
+cat("Prior mode:", prior_mode, "\n")  # 0.98
+cat("MLE:", 3/5, "\n")               # 0.6
+```
+:::
+
+
+## Problem 5 — mixing it with likelihood *(uses likelihood's log-product rule)*
+
+The log-likelihood for 5 flips with 3 heads is
+$\ell(p) = 3\log p + 2\log(1-p)$.
+
+(a) Using the product-to-sum log rule from the likelihood module, explain in one
+sentence why the log-likelihood is a *sum* of logs.
+(b) The log-prior for Beta(3, 3) is $2\log p + 2\log(1-p)$. Add it to $\ell(p)$ and
+show the result is equivalent to the log-likelihood of a coin that produced 5 heads
+and 4 tails.
+(c) What does this mean about the prior's role — how many "phantom observations" does
+Beta(3, 3) contribute?
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) The likelihood is a *product* of per-observation terms ($p$ for each head,
+$(1-p)$ for each tail) because the flips are independent. Taking $\log$ of a product
+gives a *sum* of logs: $\log(p \cdot p \cdot (1-p)) = \log p + \log p + \log(1-p)$.
+
+(b) $\ell(p) + \log f(p) = (3+2)\log p + (2+2)\log(1-p) = 5\log p + 4\log(1-p)$.
+This is the log-likelihood for 5 heads and 4 tails from 9 flips:
+$\ell'(p) = 5\log p + 4\log(1-p)$.
+
+(c) The Beta(3, 3) prior acts like 4 phantom observations — 2 phantom heads and 2
+phantom tails (the $\alpha - 1$ and $\beta - 1$ counts). This is why the MAP formula
+adds them to the real counts: $(3 + 2)/(5 + 4) = 5/9$.
+:::
+
+
+## Problem 6 — transfer: choosing ridge vs lasso via MAP
+
+A researcher has 200 gene expression features but suspects only about 10 actually
+influence the outcome. The rest are noise.
+
+(a) Should the researcher use a Gaussian prior (ridge) or a Laplace prior (lasso)?
+Why?
+(b) In one sentence, what does the chosen prior "believe" about the coefficients?
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) **Laplace prior (lasso).** The researcher expects most coefficients (190 out of
+200) to be near zero — only 10 features matter. The Laplace prior concentrates mass
+near zero, and the non-differentiable corner of the absolute-value penalty drives
+small coefficients to exactly zero in the MAP solution.
+
+(b) The Laplace prior encodes the belief that the coefficient vector is **sparse** —
+most entries are near zero, and only a few carry meaningful signal.
+
+A Gaussian prior (ridge) would shrink all 200 coefficients toward zero but keep them
+all nonzero — the wrong model for a situation where most truly are zero.
+:::
+
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/maximum-a-posteriori-estimation" pass="4"}
+
+::: {.quiz-q qid="map-vs-mle" qtype="mc" answer="c"}
+What is the single difference between the MAP and MLE optimisation problems?
+
+a) MAP maximises the likelihood, while MLE maximises the log-likelihood
+b) MAP uses a different dataset than MLE to compute the estimate
+c) MAP adds the log-prior to the log-likelihood before maximising
+:::
+
+::: {.quiz-q qid="map-uniform" qtype="mc" answer="a"}
+What happens to the MAP estimate when the prior is uniform over the parameter space?
+
+a) It equals the MLE, because the log-prior is a constant that drops out
+b) It equals the prior mean, because the uniform prior dominates the likelihood
+c) It is undefined, because the posterior cannot be computed from a uniform prior
+:::
+
+::: {.quiz-q qid="map-ridge" qtype="mc" answer="b"}
+Which prior distribution on the regression coefficients produces ridge regression as a MAP estimate?
+
+a) A Laplace prior centered at zero, which creates the absolute-value penalty
+b) A Gaussian prior centered at zero, which creates the squared penalty
+c) A uniform prior, which produces no penalty and gives ordinary least squares
+:::
+
+::: {.quiz-q qid="map-coin-toy" qtype="numeric" answer="0.556" tolerance="0.002"}
+For 5 flips with 3 heads and a Beta(3, 3) prior, what is $\hat{p}_{\text{MAP}}$? (Enter to 3 decimal places.)
+:::
+
+::: {.quiz-q qid="map-lasso-why" qtype="mc" answer="a"}
+(From ridge-regularization.) Why does the lasso set some coefficients exactly to zero while ridge does not?
+
+a) The absolute-value penalty has a non-differentiable corner at zero that traps small coefficients
+b) The lasso uses a larger penalty weight than ridge by default
+c) The Gaussian prior has heavier tails that allow coefficients to stay large
+:::
+
+:::
+
+::::

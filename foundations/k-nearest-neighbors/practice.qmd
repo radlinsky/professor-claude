@@ -1,0 +1,358 @@
+---
+title: "Practice: k-nearest neighbors"
+subtitle: "Answers are hidden --- try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order --- they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 --- the toy example, new numbers
+
+Six points in 2D with class labels X and Y. Classify the query point using k=3.
+
+```{webr}
+#| autorun: false
+# p1-starter — compute distances, sort, take top 3, vote
+train_x <- c(1, 3, 4, 7, 9, 10)
+train_y <- c(2, 1, 3, 8, 9, 7)
+label   <- c("X", "X", "X", "Y", "Y", "Y")
+query   <- c(5, 5)
+k <- 3
+```
+
+**By hand:** compute the distance from (5, 5) to each training point, sort by
+distance, take the 3 nearest, and hold the majority vote. What class does k=3
+predict?
+
+::: {.callout-note collapse="true" title="Answer"}
+Distances from (5, 5):
+
+- (1, 2): $\sqrt{16+9} = \sqrt{25} = 5.00$ --- X
+- (3, 1): $\sqrt{4+16} = \sqrt{20} \approx 4.47$ --- X
+- (4, 3): $\sqrt{1+4} = \sqrt{5} \approx 2.24$ --- X
+- (7, 8): $\sqrt{4+9} = \sqrt{13} \approx 3.61$ --- Y
+- (9, 9): $\sqrt{16+16} = \sqrt{32} \approx 5.66$ --- Y
+- (10, 7): $\sqrt{25+4} = \sqrt{29} \approx 5.39$ --- Y
+
+Sorted: (4, 3) at $\sqrt{5}$, (7, 8) at $\sqrt{13}$, (3, 1) at $\sqrt{20}$,
+(1, 2) at 5.00, (10, 7) at $\sqrt{29}$, (9, 9) at $\sqrt{32}$.
+
+The 3 nearest are (4, 3) X, (7, 8) Y, (3, 1) X. Vote: 2 X vs 1 Y = **X**.
+
+```{r p1-answer}
+train_x <- c(1, 3, 4, 7, 9, 10)
+train_y <- c(2, 1, 3, 8, 9, 7)
+label   <- c("X", "X", "X", "Y", "Y", "Y")
+query   <- c(5, 5)
+
+dists <- sqrt((train_x - query[1])^2 + (train_y - query[2])^2)
+round(dists, 2)   # 5.00  4.47  2.24  3.61  5.66  5.39
+
+ranked <- order(dists)
+k <- 3
+nbrs <- ranked[1:k]
+label[nbrs]   # "X" "Y" "X"
+
+names(which.max(table(label[nbrs])))   # "X"
+```
+:::
+
+## Problem 2 --- fill in the missing step
+
+Here is a worked kNN classification with two steps blanked out. Fill them in.
+
+Using the same data as Problem 1 with query = (5, 5) and k = 3:
+
+**Step 1 (shown):** Compute the Euclidean distance from the query to each
+training point.
+
+| Point   | Distance |
+|---------|----------|
+| (1, 2)  | 5.00     |
+| (3, 1)  | 4.47     |
+| (4, 3)  | 2.24     |
+| (7, 8)  | 3.61     |
+| (9, 9)  | 5.66     |
+| (10, 7) | 5.39     |
+
+**Step 2: your step here** --- What are the indices (or points) of the k=3
+nearest neighbors, listed from closest to farthest?
+
+**Step 3: your step here** --- Given those 3 neighbors and their labels, what
+is the majority vote? What class does kNN predict?
+
+```{webr}
+#| autorun: false
+# p2-starter — use this to check your blanked steps
+train_x <- c(1, 3, 4, 7, 9, 10)
+train_y <- c(2, 1, 3, 8, 9, 7)
+label   <- c("X", "X", "X", "Y", "Y", "Y")
+query   <- c(5, 5)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**Step 2:** Sort by distance. The 3 nearest are: (4, 3) at distance 2.24,
+(7, 8) at 3.61, (3, 1) at 4.47.
+
+**Step 3:** Their labels are X, Y, X. The majority vote is 2 X vs 1 Y, so
+kNN predicts **X**.
+
+The core move is the **sort-then-take-top-k** step --- this is where you turn a
+list of distances into a neighborhood, and it is the step that makes $k$ matter.
+:::
+
+## Problem 3 --- implement kNN from scratch
+
+Write a function `my_knn(train_x, train_y, train_label, query, k)` that:
+
+1. Computes the Euclidean distance from `query` to each training point
+2. Finds the `k` nearest neighbors
+3. Returns the majority-vote label
+
+Test it on the lesson's original toy data with query = (4, 4) and k = 3.
+
+```{webr}
+#| autorun: false
+# p3-starter — implement your own knn function and test it
+train_x <- c(1, 2, 3, 6, 7, 8)
+train_y <- c(2, 3, 1, 7, 8, 6)
+train_label <- c("A", "A", "A", "B", "B", "B")
+query   <- c(4, 4)
+k <- 3
+
+# Your function here:
+# my_knn <- function(train_x, train_y, train_label, query, k) {
+#   ...
+# }
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+# From-scratch kNN
+my_knn <- function(train_x, train_y, train_label, query, k) {
+  dists  <- sqrt((train_x - query[1])^2 + (train_y - query[2])^2)  # Euclidean distances
+  ranked <- order(dists)                  # sort indices by distance (nearest first)
+  nbrs   <- ranked[1:k]                  # take the k closest indices
+  names(which.max(table(train_label[nbrs])))  # majority vote
+}
+
+# Test on the lesson's toy data
+train_x <- c(1, 2, 3, 6, 7, 8)
+train_y <- c(2, 3, 1, 7, 8, 6)
+train_label <- c("A", "A", "A", "B", "B", "B")
+query   <- c(4, 4)
+
+my_result <- my_knn(train_x, train_y, train_label, query, k = 3)
+my_result   # "A"
+
+# Compare with class::knn() — class is a base-recommended package
+train_mat <- cbind(train_x, train_y)   # knn() wants a matrix of training features
+query_mat <- matrix(query, nrow = 1)   # query as a 1-row matrix
+
+library_result <- class::knn(train_mat, query_mat, cl = train_label, k = 3)
+library_result   # "A"
+
+# They agree
+c(from_scratch = my_result, class_knn = as.character(library_result))
+```
+:::
+
+## Problem 4 --- spot the error
+
+A colleague classifies loan applicants as high-risk or low-risk using kNN with
+two features: age in years and income in dollars. Here is their distance
+computation, and their report: "The predictions seem to depend only on income ---
+age makes no difference at all."
+
+```{r p4-code}
+# The colleague's code — three applicants, distances fed straight to kNN
+age    <- c(25, 40, 60)                 # years
+income <- c(30000, 45000, 120000)       # dollars
+
+applicants <- cbind(age, income)
+dist(applicants)    # the pairwise distances their kNN uses
+```
+
+The code contains **exactly one mistake**. Find it and explain what to fix.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake is **feeding unscaled features to `dist()`.** Income spans tens of
+thousands of dollars while age spans a few decades, so the income column swallows
+the distance computation whole. Look at the printed distances: applicants 1 and 2
+differ by 15 years of age and \$15,000 of income, and their distance is 15000.01
+--- the age gap contributes about 0.01 of that. Age is effectively invisible,
+exactly what the colleague observed.
+
+The fix: standardize both columns (subtract the mean, divide by the standard
+deviation) before computing distances, so each feature contributes on an equal
+footing.
+
+```{r p4-answer}
+age    <- c(25, 40, 60)
+income <- c(30000, 45000, 120000)
+
+# Scaled: each column centered and divided by its sd
+applicants_scaled <- cbind(scale(age), scale(income))
+dist(applicants_scaled)   # now age and income both matter
+```
+:::
+
+## Problem 5 --- mixing it with distance *(uses distance-similarity-and-geometry's Manhattan distance)*
+
+Using the lesson's original toy data (query at (4, 4), k=3), compute the
+**Manhattan distance** ($\sum |a_i - b_i|$) from the query to each of the 6
+training points. Sort them. Does the k=3 classification change compared to
+Euclidean distance? Why or why not?
+
+```{webr}
+#| autorun: false
+# p5-starter — compute Manhattan distances, sort, vote
+train_x <- c(1, 2, 3, 6, 7, 8)
+train_y <- c(2, 3, 1, 7, 8, 6)
+label   <- c("A", "A", "A", "B", "B", "B")
+query   <- c(4, 4)
+k <- 3
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Manhattan distances from (4, 4): sum the absolute coordinate gaps.
+
+- (1, 2): $|3| + |2| = 5$ --- A
+- (2, 3): $|2| + |1| = 3$ --- A
+- (3, 1): $|1| + |3| = 4$ --- A
+- (6, 7): $|2| + |3| = 5$ --- B
+- (7, 8): $|3| + |4| = 7$ --- B
+- (8, 6): $|4| + |2| = 6$ --- B
+
+Sorted (Manhattan): (2, 3) = 3, (3, 1) = 4, (1, 2) = 5 and (6, 7) = 5 (tied),
+(8, 6) = 6, (7, 8) = 7.
+
+k=3: (2, 3) A, (3, 1) A, then the 3rd slot is a tie between (1, 2) A and
+(6, 7) B. Either way the majority is A.
+
+**The classification does not change** because the query is well inside the A
+cluster regardless of which distance metric we use. The ordering of points
+shifted slightly (Euclidean had (2, 3) then (3, 1) then a tie; Manhattan has the
+same first two, then a different tie), but the 3-nearest neighborhood is the same
+group. Distance choice matters more when the query sits near the decision boundary
+between clusters, where a different metric can rearrange which points qualify as
+neighbors.
+
+```{r p5-answer}
+train_x <- c(1, 2, 3, 6, 7, 8)
+train_y <- c(2, 3, 1, 7, 8, 6)
+label   <- c("A", "A", "A", "B", "B", "B")
+query   <- c(4, 4)
+
+# Manhattan distances: sum of absolute gaps
+man_dists <- abs(train_x - query[1]) + abs(train_y - query[2])
+man_dists   # 5 3 4 5 7 6
+
+# Euclidean for comparison
+euc_dists <- sqrt((train_x - query[1])^2 + (train_y - query[2])^2)
+round(euc_dists, 2)   # 3.61 2.24 3.16 3.61 5.00 4.47
+
+# k=3 vote under each metric
+k <- 3
+man_nbrs <- order(man_dists)[1:k]
+euc_nbrs <- order(euc_dists)[1:k]
+
+cat("Manhattan k=3 labels:", label[man_nbrs], "-> vote:",
+    names(which.max(table(label[man_nbrs]))), "\n")
+cat("Euclidean k=3 labels:", label[euc_nbrs], "-> vote:",
+    names(which.max(table(label[euc_nbrs]))), "\n")
+# Both predict A
+```
+:::
+
+## Problem 6 --- transfer: too many dimensions
+
+A dataset has 500 columns and 50 rows. A colleague wants to use kNN to classify
+new observations. What concern would you raise, and why?
+
+::: {.callout-note collapse="true" title="Answer"}
+The primary concern is the **curse of dimensionality**. With 500 dimensions and
+only 50 observations, all pairwise distances converge to roughly the same value
+--- the ratio of the farthest distance to the nearest distance shrinks toward 1.
+When every point is about equally far from every other point, the "nearest"
+neighbor is not meaningfully nearer than the rest, and the majority vote becomes
+essentially arbitrary.
+
+The lesson's simulation showed this directly: in 500 dimensions, the max/min
+distance ratio collapsed to near 1, while in 2 dimensions it was large (meaning
+neighbors were genuinely nearby). With 10 times more features than observations,
+kNN is almost certainly a poor choice unless the features are heavily reduced
+first (e.g., by PCA or feature selection to bring the effective dimensionality
+down).
+:::
+
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice --- come back to it **at least a day from
+now**, once the material isn't fresh. A pass then is real evidence you've retained
+it. Five questions, graded on the page; 4/5 or better means this module is solid.
+Score under 4? Revisit what the missed questions point at, then retake in a
+**later session** --- passing after another gap is the evidence that counts.
+Results are saved in this browser only.
+
+::: {.module-check module="foundations/k-nearest-neighbors" pass="4"}
+
+::: {.quiz-q qid="knn-vote-result" qtype="mc" answer="c"}
+For the lesson's toy data (6 points, query at (4, 4), k = 3), what does kNN predict?
+
+a) B, because the query is equidistant from both clusters
+b) A tie --- 3 A's and 3 B's in the training data cancel out
+c) A, because all three nearest neighbors are labeled A
+d) B, because the nearest single point is labeled B
+:::
+
+::: {.quiz-q qid="knn-lazy-meaning" qtype="mc" answer="a"}
+kNN is called a "lazy learner" because:
+
+a) It stores training data and defers computation to prediction time
+b) It uses a simpler distance formula than other classification methods do
+c) It requires fewer training observations than other classification methods
+:::
+
+::: {.quiz-q qid="knn-large-k" qtype="mc" answer="b"}
+What happens when you set k equal to the total number of training points?
+
+a) The model becomes maximally flexible and captures every local pattern
+b) The model always predicts the overall majority class, ignoring local structure
+c) The model produces the most accurate predictions because it uses all available information
+d) The model refuses to make a prediction because there are no "nearest" neighbors
+:::
+
+::: {.quiz-q qid="knn-scaling-interleaved" qtype="mc" answer="d"}
+*(Interleaved from [distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd).)* A kNN model uses height (cm, range 150--190) and income (dollars, range 30000--80000) as features, without scaling. Which feature dominates the distance computation?
+
+a) Height, because it is measured first
+b) Neither --- kNN automatically weights features equally
+c) Height, because centimeters are a more precise unit than dollars
+d) Income, because its numeric range is thousands of times larger
+:::
+
+::: {.quiz-q qid="knn-dist-query-to-86" qtype="numeric" answer="4.47" tolerance="0.01"}
+Using the lesson's toy data, what is the Euclidean distance from the query point (4, 4) to the training point (8, 6)? Round to two decimal places.
+:::
+
+:::
+
+::::

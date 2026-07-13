@@ -1,0 +1,525 @@
+---
+title: "k-nearest neighbors"
+subtitle: "Predict by asking the closest data points — no model required"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+You know how to measure how far apart two data points are. Now: use that distance
+to make predictions. Find the $k$ closest labeled data points to a new unlabeled
+point, and let them vote. That is the entire algorithm --- no model to fit, no
+parameters to estimate. The data IS the model.
+
+**Builds on:**
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd)
+(Euclidean distance, scaling effects),
+[classification evaluation](../classification-evaluation/lesson.qmd)
+(soft --- for confusion matrix, sensitivity/specificity),
+[model fit, error & validation](../model-fit-error-and-validation/lesson.qmd)
+(soft --- for overfitting, train/test split)
+
+## Warm-up: do you remember?
+
+A few quick reps --- answers from memory first, then check.
+
+**1.** Compute the Euclidean distance between the points $(1, 3)$ and $(4, 7)$.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+p <- c(1, 3)
+q <- c(4, 7)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Gaps: $4-1=3$ and $7-3=4$. Square: $9$ and $16$. Add: $25$. Square-root:
+$\sqrt{25} = 5$. In R: `sqrt(sum((p - q)^2))` gives 5. --- taught in
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd);
+revisit if shaky.
+:::
+
+**2.** What happens to distances when one column is measured in thousands and
+another in single digits?
+
+::: {.callout-note collapse="true" title="Answer"}
+The large-scale column dominates every distance computation. A 1-unit change in
+the big column moves the distance far more than a 1-unit change in the small
+column, regardless of which variable actually matters more. --- taught in
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd),
+"Closer = more similar" section; revisit if shaky.
+:::
+
+**3.** In one sentence: why is a perfect training score suspicious?
+
+::: {.callout-note collapse="true" title="Answer"}
+It usually means the model has memorized the training data (overfitting) and will
+perform poorly on new data it has never seen. --- taught in
+[model fit, error & validation](../model-fit-error-and-validation/lesson.qmd);
+revisit if shaky.
+:::
+
+## A tiny example first
+
+Six labeled points in 2D, each belonging to class A or class B. One new point ---
+the **query** --- has no label yet. Our job: classify it.
+
+```{r toy-data}
+# The labeled training data: 6 points, each with an (x, y) position and a class label
+train_x <- c(1, 2, 3, 6, 7, 8)
+train_y <- c(2, 3, 1, 7, 8, 6)
+label   <- c("A", "A", "A", "B", "B", "B")
+
+# The new point we want to classify
+query <- c(4, 4)
+```
+
+**Step 1 --- compute the distance from the query to every training point.**
+
+Point (1, 2): gaps are $4-1=3$ and $4-2=2$, so $\sqrt{3^2+2^2} = \sqrt{9+4} = \sqrt{13} \approx 3.61$.
+
+Point (2, 3): gaps are $4-2=2$ and $4-3=1$, so $\sqrt{4+1} = \sqrt{5} \approx 2.24$.
+
+Point (3, 1): gaps are $4-3=1$ and $4-1=3$, so $\sqrt{1+9} = \sqrt{10} \approx 3.16$.
+
+Point (6, 7): gaps are $4-6=-2$ and $4-7=-3$, so $\sqrt{4+9} = \sqrt{13} \approx 3.61$.
+
+Point (7, 8): gaps are $4-7=-3$ and $4-8=-4$, so $\sqrt{9+16} = \sqrt{25} = 5.00$.
+
+Point (8, 6): gaps are $4-8=-4$ and $4-6=-2$, so $\sqrt{16+4} = \sqrt{20} \approx 4.47$.
+
+**Step 2 --- sort by distance (nearest first).**
+
+| Rank | Point | Distance | Label |
+|------|-------|----------|-------|
+| 1st  | (2, 3) | $\sqrt{5} \approx 2.24$  | A |
+| 2nd  | (3, 1) | $\sqrt{10} \approx 3.16$ | A |
+| 3rd  | (1, 2) | $\sqrt{13} \approx 3.61$ | A |
+| 4th  | (6, 7) | $\sqrt{13} \approx 3.61$ | B |
+| 5th  | (8, 6) | $\sqrt{20} \approx 4.47$ | B |
+| 6th  | (7, 8) | $\sqrt{25} = 5.00$       | B |
+
+(Notice that points (1, 2) and (6, 7) are tied at $\sqrt{13}$. Tie-breaking rules
+vary by implementation, but here it does not matter --- the classification comes
+out the same either way.)
+
+**Step 3 --- for k=3, take the top 3 and vote.**
+
+The 3 nearest neighbors are (2, 3), (3, 1), and (1, 2) --- all labeled **A**. The
+majority vote is A (3 votes to 0), so we classify the query as **A**.
+
+Even if the tie between the 3rd and 4th closest had broken the other way ---
+giving us (6, 7) as the 3rd neighbor instead of (1, 2) --- the vote would be 2
+A's and 1 B: still **A**.
+
+The same computation in R:
+
+```{r toy-classify}
+# Compute distance from the query to each training point
+dists <- sqrt((train_x - query[1])^2 + (train_y - query[2])^2)
+round(dists, 2)    # 3.61  2.24  3.16  3.61  5.00  4.47
+
+# Sort by distance: order() returns the indices from nearest to farthest
+ranked <- order(dists)
+ranked              # 2 3 1 4 6 5  (index of nearest first)
+
+# The k=3 nearest neighbors and their labels
+k <- 3
+neighbors <- ranked[1:k]
+label[neighbors]    # "A" "A" "A"
+
+# The majority vote: whichever label appears most
+vote <- names(which.max(table(label[neighbors])))
+vote                # "A"
+```
+
+R also ships this exact procedure as a function. `class::knn()` is a
+base-recommended package (it comes with every R installation, no `install.packages()`
+needed) that does the same distance-sort-vote we just did by hand:
+
+```{r toy-classify-builtin}
+train_mat <- cbind(train_x, train_y)   # knn() wants training features as a matrix
+query_mat <- matrix(query, nrow = 1)   # the query as a 1-row matrix
+
+class::knn(train_mat, query_mat, cl = label, k = 3)   # "A"
+```
+
+Same answer as the hand vote: A. `class::knn()` is not a different algorithm ---
+it is exactly the sort-by-distance-and-vote you just did, vectorized and packaged.
+
+## Getting a feel for it
+
+**The restaurant-recommendation picture.** Imagine you move to a new city and want
+a restaurant recommendation. You do not survey everyone in the city --- you ask
+your 3 nearest neighbors. If 2 out of 3 say Italian, you go Italian. That is kNN:
+trust the people closest to you, ignore the rest. (Where the analogy breaks:
+real neighbors do not all live at measured distances from you, and their opinions
+might be swayed by things distance cannot capture.)
+
+**Why this construction --- the lazy learner.** Most models do work up front: they
+fit a line, estimate coefficients, search for a split. kNN does nothing at
+training time --- it stores the labeled data and waits. All the work happens at
+prediction time, when someone hands it a new point and it searches for the
+nearest neighbors. This is called a **lazy learner**: it does no work until
+someone asks a question. The training data is not a stepping stone to a model ---
+it IS the model.
+
+**Why k matters --- flexibility vs. smoothness.** As $k$ shrinks, the decision
+boundary gets more flexible and irregular (low bias, high variance); as $k$ grows,
+it gets smoother and closer to a straight line (high bias, low variance)
+[@james2021introductionstatisticallearning, pp. 41--42].
+
+- **k = 1** trusts a single neighbor. It is maximally flexible: the prediction
+  changes every time the nearest point changes. But it is noisy --- one outlier
+  can flip the answer. On our toy data, k=1 for the query at (4, 4) gives point
+  (2, 3) with label A. If that one training point were mislabeled, the
+  prediction would be wrong.
+- **k = 6** (all training points) averages everyone. It always predicts the
+  overall majority class --- here, a tie between 3 A's and 3 B's. With 5
+  labeled points (say 3 A, 2 B), k=5 would always predict A regardless of where
+  the query sits. That is too smooth: it ignores local structure entirely.
+- **k = 3** is a middle ground: local enough to capture the structure (the A
+  cluster is in the lower-left, the B cluster is in the upper-right), but
+  averaging over enough neighbors to smooth out noise.
+
+**What the number feels like.** Our k=3 vote was 3-vs-0 for class A --- a
+unanimous decision because the query at (4, 4) sits closer to the A cluster
+than to the B cluster. What if the query were at (5, 5) instead? The nearest
+neighbors change: the 3 closest become (6, 7), (8, 6), and either (2, 3) or
+(7, 8) --- now the majority is B. Moving the query two units shifts the
+prediction entirely, which is exactly the local sensitivity that makes kNN
+useful for data with well-separated groups.
+
+## The curse of dimensionality
+
+In 2D, "nearest" means something --- some points genuinely sit close and others
+sit far. But in high dimensions, a strange thing happens: **all points become
+roughly the same distance from each other.** When that happens, the "nearest"
+neighbor is barely nearer than the farthest one, and the whole concept of
+neighborhood breaks down.
+
+Here is a quick simulation. Generate 50 random points, and compute the ratio of
+the maximum pairwise distance to the minimum pairwise distance. In low dimensions,
+the farthest pair is many times farther than the closest pair; in high dimensions,
+that ratio collapses toward 1.
+
+```{r curse-sim}
+# Generate 50 random points in 2D, 50D, and 500D.
+# For each, compute max-distance / min-distance.
+set.seed(42)
+n_points <- 50
+
+ratio_for_dim <- function(d) {
+  pts <- matrix(rnorm(n_points * d), nrow = n_points, ncol = d)
+  all_dists <- as.numeric(dist(pts))  # all pairwise Euclidean distances
+  max(all_dists) / min(all_dists)     # how spread out are the distances?
+}
+
+dims <- c(2, 10, 50, 200, 500)
+ratios <- sapply(dims, ratio_for_dim)
+data.frame(dimensions = dims, max_over_min = round(ratios, 2))
+```
+
+In 2D, the farthest pair is many times farther than the closest --- distances are
+spread out, and neighbors mean something. By 500D, the ratio is close to small
+single digits: every point is about the same distance from every other point. When
+all points are equally far away, the "nearest" neighbor is not really near --- the
+concept breaks down. This is the **curse of dimensionality**.
+
+## What the notation is going to say
+
+The formula will say: given a new point, find the $k$ training points closest to
+it (the neighborhood), then take the most common label among those $k$ points as
+your prediction. For regression instead of classification, take the average of
+those $k$ neighbors' values. In our toy example, the neighborhood of size 3
+around (4, 4) contained three A's, so the prediction is A --- exactly the
+"sort-by-distance, take the top $k$, vote" procedure we just did by hand.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $k$ | "kay" | how many nearest neighbors to consult (a choice you make) | $3$ |
+| $\mathbf{x}$ (bold) | "the vector ex" | a data point --- its coordinates as a vector (in R: a numeric vector) | the query $(4, 4)$ |
+| $\mathbf{x}_i$ | "ex sub eye" | the $i$-th training point (in R: the $i$-th row of the training data) | $\mathbf{x}_2 = (2, 3)$ is the nearest |
+| $y_i$ | "why sub eye" | the label (or value) of training point $i$ | $y_2 = \text{A}$ |
+| $d(\mathbf{x}, \mathbf{x}_i)$ | "d of ex and ex-sub-eye" | the distance from point $\mathbf{x}$ to training point $\mathbf{x}_i$ (in R: `sqrt(sum((x - x_i)^2))`) | $d(\text{query}, \mathbf{x}_2) = \sqrt{5} \approx 2.24$ |
+| $N_k(\mathbf{x})$ | "the k-neighborhood of ex" / "en-sub-kay of ex" | the set of indices of the $k$ nearest training points to $\mathbf{x}$ | $N_3(\text{query}) = \{2, 3, 1\}$ (the three closest) |
+| $\hat{y}$ | "why hat" | the predicted label or value --- the hat means "estimated from data" | $\hat{y} = \text{A}$ |
+| $n$ | "en" | the number of data points (in R: `length(x)`) | $6$ training points |
+| $\in$ | "is in" / "is an element of" | belongs to a set: $i \in N_k(\mathbf{x})$ means $i$ is one of the neighbor indices | $2 \in \{2, 3, 1\}$ |
+| $\sum_{i \in N_k(\mathbf{x})}$ | "the sum over i in the k-neighborhood of x" | add up one term for each neighbor index (in R: `sum(...)`) | add the 3 nearest neighbors' values |
+
+## The formal version
+
+**Classification --- majority vote.**
+
+$$
+\hat{y} = \text{mode of } \{y_i : i \in N_k(\mathbf{x})\}
+$$
+
+Reading it aloud: "y-hat equals the mode of the set of y-sub-i for all i in
+the k-neighborhood of x" --- or in everyday words: **"the prediction is
+whichever label appears most often among the k nearest neighbors."**
+
+Mapping onto the toy example: $N_3(\text{query}) = \{2, 3, 1\}$, so we
+collect $\{y_2, y_3, y_1\} = \{\text{A}, \text{A}, \text{A}\}$. The mode
+(the value that appears most) is A. So $\hat{y} = \text{A}$ --- exactly what
+we got by hand. This is exactly the kNN classifier as defined in ISL: find the
+$k$ closest training points and estimate the class probability as the fraction of
+neighbors voting for it, then pick the class with the largest share
+[@james2021introductionstatisticallearning, p. 39].
+
+**Regression --- average the neighbors.**
+
+$$
+\hat{y} = \frac{1}{k}\sum_{i \in N_k(\mathbf{x})} y_i
+$$
+
+Reading it aloud: "y-hat equals one over k times the sum, for each i in the
+k-neighborhood of x, of y-sub-i" --- or in everyday words: **"the prediction
+is the average of the k nearest neighbors' values."**
+
+This version applies when the target is a number (like predicting someone's
+test score) rather than a class label. The arithmetic is the same --- find the
+k closest, then average their values instead of voting.
+
+$N_k(\mathbf{x})$ in both formulas is the set of indices of the $k$ nearest
+training points to $\mathbf{x}$, measured by $d(\mathbf{x}, \mathbf{x}_i)$.
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Six training points in 2D colored by label (A in blue, B in orange) with a query point shown as a red triangle. A dashed circle centered on the query encloses the k=3 nearest neighbors."
+# explore-1 — LIVE: plot the training data, the query, and the k-nearest circle.
+# TRY IT: change query_x and query_y to move the query point — watch which
+#   neighbors fall inside the circle.
+# PREDICT: if you move the query to (7, 7), right in the B cluster, what class
+#   will k=3 predict? Commit your answer, then change query_x and query_y and run.
+
+train_x <- c(1, 2, 3, 6, 7, 8)
+train_y <- c(2, 3, 1, 7, 8, 6)
+label   <- c("A", "A", "A", "B", "B", "B")
+query_x <- 4
+query_y <- 4
+k <- 3
+
+# Compute distances and find the k nearest
+dists  <- sqrt((train_x - query_x)^2 + (train_y - query_y)^2)
+ranked <- order(dists)
+nbrs   <- ranked[1:k]
+radius <- max(dists[nbrs])  # distance to the k-th nearest neighbor
+
+# Majority vote
+vote <- names(which.max(table(label[nbrs])))
+
+# Plot
+cols <- ifelse(label == "A", "steelblue", "darkorange")
+plot(train_x, train_y, pch = 16, cex = 2, col = cols,
+     xlim = c(-1, 10), ylim = c(-1, 10),
+     xlab = "x", ylab = "y",
+     main = sprintf("k=%d vote: %s (neighbors: %s)",
+                    k, vote,
+                    paste(label[nbrs], collapse = ", ")))
+points(query_x, query_y, pch = 17, cex = 2.5, col = "red")
+text(query_x, query_y, "query", pos = 1, col = "red")
+text(train_x, train_y, label, pos = 3, cex = 0.9)
+
+# Draw a circle around the k nearest neighbors
+theta <- seq(0, 2 * pi, length.out = 100)
+lines(query_x + radius * cos(theta),
+      query_y + radius * sin(theta),
+      lty = 2, col = "grey40")
+```
+
+```{webr}
+#| autorun: false
+# explore-2 — LIVE: what happens when you change k?
+# PREDICT: Set k=1. Which single point is nearest to (4,4)? What label does it have?
+# Then set k=6. With ALL 6 points voting (3 A's and 3 B's), what happens?
+# Commit to your answers, then change k below and run.
+
+train_x <- c(1, 2, 3, 6, 7, 8)
+train_y <- c(2, 3, 1, 7, 8, 6)
+label   <- c("A", "A", "A", "B", "B", "B")
+query   <- c(4, 4)
+k <- 3   # TRY IT: change to 1, then to 6
+
+dists  <- sqrt((train_x - query[1])^2 + (train_y - query[2])^2)
+ranked <- order(dists)
+nbrs   <- ranked[1:k]
+
+cat("k =", k, "\n")
+cat("Neighbors:", paste(sprintf("(%d,%d) %s dist=%.2f",
+    train_x[nbrs], train_y[nbrs], label[nbrs], dists[nbrs]),
+    collapse = "\n           "), "\n")
+cat("Vote:", names(which.max(table(label[nbrs]))), "\n")
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Line plot showing the ratio of maximum to minimum pairwise distance on the y-axis against the number of dimensions on the x-axis. The ratio is large in low dimensions and shrinks toward small values in high dimensions, illustrating the curse of dimensionality."
+# explore-3 — LIVE: the curse of dimensionality.
+# The baked simulation above already showed the max/min distance ratio at
+# 2, 10, 50, 200, and 500 dimensions.
+# PREDICT: at 25 dimensions — a value NOT shown above — will the ratio be
+# closer to the 10-dimension value or the 50-dimension value? Write down a
+# specific number, then run and check.
+
+set.seed(42)
+n_points <- 50
+
+ratio_for_dim <- function(d) {
+  pts <- matrix(rnorm(n_points * d), nrow = n_points, ncol = d)
+  all_dists <- as.numeric(dist(pts))
+  max(all_dists) / min(all_dists)
+}
+
+dims   <- c(2, 5, 10, 25, 50, 100, 200, 500)
+ratios <- sapply(dims, ratio_for_dim)
+
+cat("Ratio at 25 dimensions:", round(ratios[dims == 25], 2), "\n")
+
+plot(dims, ratios, type = "b", pch = 16, col = "steelblue",
+     xlab = "number of dimensions",
+     ylab = "max distance / min distance",
+     main = "the curse: distances converge in high dimensions")
+abline(h = 1, lty = 2, col = "grey50")
+```
+
+## Common traps
+
+**Trap 1 --- "More neighbors is always better."** It is tempting to set $k$ high
+for a smoother, more "stable" prediction. But k=6 on our toy data asks all 6
+training points to vote: 3 A's and 3 B's, a perfect tie. With an odd number of
+training points --- say 5, with 3 A's and 2 B's --- k=5 would always predict A,
+no matter where the query sits. That is too smooth: it ignores local structure
+and just predicts the overall majority class. In effect, a large $k$ throws away
+the whole point of looking at neighbors --- it pushes the model toward the
+high-bias, low-variance end of the flexibility trade-off
+[@james2021introductionstatisticallearning, p. 42]. On our data:
+
+```{r trap1-demo}
+train_x <- c(1, 2, 3, 6, 7, 8)
+train_y <- c(2, 3, 1, 7, 8, 6)
+label   <- c("A", "A", "A", "B", "B", "B")
+query   <- c(4, 4)
+
+dists  <- sqrt((train_x - query[1])^2 + (train_y - query[2])^2)
+ranked <- order(dists)
+
+# k=3: local vote — the 3 nearest are all A
+k3_vote <- names(which.max(table(label[ranked[1:3]])))
+k3_vote   # "A"
+
+# k=6: global vote — everyone votes, 3 A's and 3 B's = tie
+table(label[ranked[1:6]])   # A: 3, B: 3 — a tie, not a useful prediction
+```
+
+**Trap 2 --- "kNN doesn't need feature scaling."** It absolutely does. Recording
+the very same real-world difference in a finer unit inflates its number, and
+distance takes your columns at face value --- a column with big numbers
+dominates, exactly as in the
+[distance module](../distance-similarity-and-geometry/lesson.qmd). Scale your
+features before running kNN.
+
+```{r trap2-demo}
+# Two people who differ by 20 kg in weight and 5 cm in height
+person_a <- c(weight_kg = 60, height_cm = 170)
+person_b <- c(weight_kg = 80, height_cm = 175)
+
+# The SAME two people, the SAME real difference — just recording height in
+# millimeters instead of centimeters
+person_a_mm <- c(weight_kg = 60, height_mm = 1700)
+person_b_mm <- c(weight_kg = 80, height_mm = 1750)
+
+dist_cm <- sqrt(sum((person_a - person_b)^2))        # height measured in cm
+dist_mm <- sqrt(sum((person_a_mm - person_b_mm)^2))  # height measured in mm
+
+c(distance_height_in_cm = round(dist_cm, 2), distance_height_in_mm = round(dist_mm, 2))
+# 20.62 vs 53.85 — switching height's unit from cm to mm changed NOTHING about
+# these two people, but it more than doubled the total distance. The height
+# term alone grew from 5 (cm) to 50 (mm) — now bigger than the 20 kg weight
+# difference it should never have outweighed. Without scaling, kNN would let
+# an arbitrary choice of unit decide which feature matters most.
+```
+
+## Check yourself
+
+**1.** Using our toy data, what are the 2 nearest neighbors (k=2) of the query
+point (4, 4)? What class would k=2 predict?
+
+```{webr}
+#| autorun: false
+# check1-starter — edit and Run to check your hand answer
+train_x <- c(1, 2, 3, 6, 7, 8)
+train_y <- c(2, 3, 1, 7, 8, 6)
+label   <- c("A", "A", "A", "B", "B", "B")
+query   <- c(4, 4)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+The 2 nearest are (2, 3) at distance $\sqrt{5} \approx 2.24$ (label A) and
+(3, 1) at distance $\sqrt{10} \approx 3.16$ (label A). Both are A, so the
+majority vote is **A** --- unanimous. In R: `label[order(dists)[1:2]]` gives
+`"A" "A"`.
+:::
+
+**2.** If a dataset has 1000 features and 50 observations, is kNN likely to work
+well? Why or why not?
+
+::: {.callout-note collapse="true" title="Answer"}
+Probably not. With 1000 dimensions and only 50 points, the curse of
+dimensionality kicks in: all 50 points will be roughly the same distance from
+each other, so the "nearest" neighbor is barely nearer than the farthest. The
+concept of neighborhood breaks down, and the majority vote becomes nearly
+random with respect to local structure.
+:::
+
+**3.** Explain to a colleague, in two sentences, what kNN does and when it is a
+poor choice.
+
+::: {.callout-note collapse="true" title="A model answer"}
+kNN classifies a new point by finding the k closest labeled training points and
+letting them vote --- whichever label wins the majority is the prediction. It
+struggles when the data has many features relative to the number of observations
+(the curse of dimensionality makes all distances similar) or when features are
+on wildly different scales and have not been standardized.
+:::
+
+## What you can now do
+
+- **Classify a new point with kNN by hand** --- compute distances, sort, take the
+  top $k$, and hold a majority vote.
+- **Explain what $k$ controls** --- small $k$ is flexible but noisy (sensitive to
+  outliers), large $k$ is smooth but can ignore local structure entirely.
+- **Recognize the curse of dimensionality** --- in high dimensions, all distances
+  converge, and the "nearest" neighbor stops being meaningfully near.
+- **Know that kNN requires feature scaling** --- unscaled columns with big numbers
+  drown out columns with small numbers, exactly as in the distance module.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first)
+and [Getting a feel for it](#getting-a-feel-for-it) before continuing --- the
+clustering module assumes all of them.
+
+## Where this goes next
+
+kNN finds the neighbors of one specific query point. Clustering (e.g.,
+[k-means](../clustering-k-means-and-hierarchical/lesson.qmd)) takes the next
+step: group ALL points into clusters without any labels at all --- unsupervised
+rather than supervised. The distance, scaling, and dimensionality intuitions you
+built here carry directly into that world.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

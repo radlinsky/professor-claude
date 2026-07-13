@@ -1,0 +1,628 @@
+---
+title: "LDA, QDA & naive Bayes"
+subtitle: "Classify by modeling what each class looks like — then let Bayes' theorem do the scoring"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c("MASS")
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+Some classifiers learn "which class does this point belong to?" directly from the
+data (like kNN voting on neighbors). The methods in this lesson take a different
+route: first model what each class **looks like** — its shape as a data cloud — then
+use Bayes' theorem to flip that into "given this new point, which class is most
+likely?" These are called **generative classifiers** because they model the process
+that *generated* the data within each class.
+[@james2021introductionstatisticallearning, pp. 141--142]
+
+We will build three variants — LDA, QDA, and naive Bayes — that differ only in how
+much detail they use to describe each class's shape. All three follow the same recipe:
+estimate a prior, estimate a class-conditional density, plug into Bayes' theorem.
+
+**Builds on:**
+[multivariate normal distribution](../multivariate-normal-distribution/lesson.qmd) —
+the "data cloud described by a mean vector and covariance matrix" that LDA and QDA
+assume each class follows;
+[classification evaluation](../classification-evaluation/lesson.qmd) — the confusion
+matrix and accuracy measures we use to judge the result;
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd) —
+the Bayes flip that turns "how likely is this data given the class?" into "how likely
+is this class given the data?"
+
+
+## Warm-up: do you remember?
+
+Before the new stuff, a few quick reps — answers from memory first, then check.
+
+**1.** A bivariate normal has mean vector $\boldsymbol{\mu} = (5, 10)$ and covariance
+matrix with diagonal entries 4 and 9 and off-diagonal 3. What is the standard
+deviation of $X_1$?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\text{sd}(X_1) = \sqrt{4} = 2$. The diagonal of the covariance matrix gives the
+variance of each variable — taught in
+[multivariate normal distribution](../multivariate-normal-distribution/lesson.qmd);
+revisit if shaky.
+:::
+
+**2.** In the weather/umbrella table (100 days: 25 rainy, 75 dry; 30 with umbrella, 70
+without; 20 rainy-with-umbrella), what is $P(\text{rain} \mid \text{umbrella})$? Say
+the Bayes flip in one sentence: what does it turn into what?
+
+::: {.callout-note collapse="true" title="Answer"}
+$P(\text{rain} \mid \text{umbrella}) = 20/30 \approx 0.667$. The Bayes flip turns
+"how likely is this evidence given the hypothesis?" into "how likely is the hypothesis
+given the evidence?" — taught in
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd); revisit
+if shaky.
+:::
+
+**3.** You have a confusion matrix with 45 true positives, 5 false negatives, 10 false
+positives, and 40 true negatives. What is the sensitivity?
+
+::: {.callout-note collapse="true" title="Answer"}
+Sensitivity = TP / (TP + FN) = 45 / 50 = 0.90. Sensitivity measures how well the
+classifier catches actual positives — taught in
+[classification evaluation](../classification-evaluation/lesson.qmd); revisit if shaky.
+:::
+
+
+## A tiny example first
+
+Imagine two species of fish — **trout** and **bass** — measured on two variables:
+length (cm) and weight (kg). You have 6 fish total, 3 of each:
+
+| Fish | Species | Length | Weight |
+|------|---------|--------|--------|
+| 1    | trout   | 2      | 1      |
+| 2    | trout   | 4      | 2      |
+| 3    | trout   | 3      | 1      |
+| 4    | bass    | 6      | 5      |
+| 5    | bass    | 8      | 6      |
+| 6    | bass    | 7      | 5      |
+
+A new fish arrives with length 5 and weight 3. Which species?
+
+**Step 1 — prior:** each species has 3 of 6 fish, so the prior for each class is 3/6 =
+0.5. If you had no measurements at all, you would guess 50/50.
+
+**Step 2 — class means:** trout center is at (average of 2, 4, 3; average of 1, 2, 1)
+= (3, 1.33). Bass center is at (average of 6, 8, 7; average of 5, 6, 5) = (7, 5.33).
+
+**Step 3 — how close is the new fish to each center?** The new fish at (5, 3) is
+closer to the trout center (3, 1.33) by about 2.6 units and to the bass center (7,
+5.33) by about 3.1 units. But "closer" on raw distance ignores how spread out each
+class is — that is what the covariance matrix fixes. For now, just note: trout center
+is closer.
+
+**Step 4 — Bayes' theorem:** once we compute each class's density at (5, 3) —
+meaning "how plausible is (5, 3) if this fish is a trout?" and the same for bass —
+we multiply by the prior and compare. The class with the larger product wins. We will
+do this formally after the notation, but the recipe is: **prior times density,
+compare**.
+
+```{r toy-example}
+# The toy data: 6 fish, 2 species
+species <- c("trout","trout","trout","bass","bass","bass")
+fish_length <- c(2, 4, 3, 6, 8, 7)
+weight      <- c(1, 2, 1, 5, 6, 5)
+
+# Step 1: priors (class frequencies)
+n_trout <- 3; n_bass <- 3; n <- 6
+pi_trout <- n_trout / n    # 0.5
+pi_bass  <- n_bass / n     # 0.5
+c(pi_trout = pi_trout, pi_bass = pi_bass)
+
+# Step 2: class means
+mu_trout <- c(mean(fish_length[1:3]), mean(weight[1:3]))   # (3.0, 1.33)
+mu_bass  <- c(mean(fish_length[4:6]), mean(weight[4:6]))    # (7.0, 5.33)
+rbind(trout = mu_trout, bass = mu_bass)
+
+# Step 3: Euclidean distance to each center (ignoring covariance for now)
+new_fish <- c(5, 3)
+dist_trout <- sqrt(sum((new_fish - mu_trout)^2))   # ~2.6
+dist_bass  <- sqrt(sum((new_fish - mu_bass)^2))     # ~3.1
+c(dist_trout = round(dist_trout, 2), dist_bass = round(dist_bass, 2))
+```
+
+
+## Getting a feel for it
+
+**The mental picture: every class is a data cloud, and you classify by asking "which
+cloud does this point fit inside better?"** You already know from the
+[multivariate normal module](../multivariate-normal-distribution/lesson.qmd) that a
+mean vector and covariance matrix describe a cloud — its center and its shape (how
+wide, how tilted). LDA says: fit one cloud per class, then score a new point by
+asking each cloud "how likely are you to have produced this point?" The cloud that
+answers louder wins.
+
+**Why this construction?** Because raw distance to the center is not enough. A class
+whose cloud is narrow and tall should "claim" nearby points more strongly than a class
+whose cloud is wide and flat, even if the centers are the same distance away. The
+density — the height of the bell at that point — accounts for both the distance and
+the shape. Bayes' theorem then folds in the prior (if bass are 90% of the lake, a
+tie goes to bass).
+
+**Where the analogy breaks:** real data does not always look like a Gaussian cloud.
+If the true class shapes are banana-curved or multi-modal, the Gaussian model is
+wrong. LDA and QDA work best when the classes are roughly elliptical; for wild
+shapes, other classifiers (like kNN) may win.
+
+**What the scores feel like.** In our toy example, the trout center is closer to (5,
+3), so you would expect trout's density to be higher — and since the priors are
+equal, trout should win the classification. When we formalize this with the density
+function, you will see trout win by a concrete margin.
+
+
+## What the notation is going to say
+
+The formula will say: for each class $k$, multiply the prior probability $\pi_k$
+("how common is class $k$?") by the class-conditional density $f_k(x)$ ("how
+plausible is this measurement $x$ if it came from class $k$?"). Divide by the total
+across all classes (so the results add to 1). The class whose product is biggest wins.
+In our toy, that means: multiply trout's prior (0.5) by the multivariate normal
+density at (5, 3) using trout's mean and covariance, do the same for bass, and pick
+the larger one.
+
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $x$ | "ex" | the measurement vector for the point we want to classify | $(5, 3)$ — the new fish |
+| $K$ | "K" | number of classes | 2 (trout, bass) |
+| $k$, $l$ | "k", "ell" | a particular class index ($l$ is just a second letter for the same kind of index, used when summing over all classes) | 1 = trout, 2 = bass |
+| $p$ | "p" | number of predictors (measurements per observation) | 2 (length, weight) |
+| $\pi_k$ | "pi-k" | prior probability of class $k$ (estimated as $n_k / n$) | $\pi_\text{trout} = 0.5$, $\pi_\text{bass} = 0.5$ |
+| $f_k(x)$ | "f-k of x" | class-conditional density: how plausible is measurement $x$ if it came from class $k$ | the multivariate normal density evaluated at (5, 3) using each class's mean and covariance |
+| $p_k(x)$ | "p-k of x" | posterior probability of class $k$ given $x$ — the thing we want | what we compute via Bayes' theorem |
+| $\boldsymbol{\mu}_k$ | "mu-k" | mean vector of class $k$ | $\boldsymbol{\mu}_\text{trout} = (3, 1.33)$ |
+| $\boldsymbol{\Sigma}$ | "sigma" (the matrix) | shared covariance matrix (LDA); in QDA each class has its own $\boldsymbol{\Sigma}_k$ | the pooled covariance computed from all 6 fish |
+| $\delta_k(x)$ | "delta-k of x" | discriminant score for class $k$ — a shortcut that avoids computing the full density | (derived below) |
+| $\lvert\boldsymbol{\Sigma}_k\rvert$ | "the determinant of sigma-k" | a single number measuring how spread out (how large) the covariance cloud is; in R: `det(Sigma_k)` | (used in QDA below) |
+| $j$, $x_j$ | "j", "x-sub-j" | predictor index and the $j$-th predictor value | $j = 1$ is length, $j = 2$ is weight; $x_1 = 5$, $x_2 = 3$ |
+| $f_{kj}(x_j)$ | "f-k-j of x-sub-j" | the one-dimensional density of predictor $j$ within class $k$ (used in naive Bayes) | the univariate normal density of length within trout, evaluated at 5 |
+| $\prod_{j=1}^{p}$ | "the product from j equals 1 to p" | multiply instead of add (in R: `prod(...)`) | multiply the length density by the weight density |
+
+
+## The formal version
+
+### The classification rule
+
+Bayes' theorem for classification
+[@james2021introductionstatisticallearning, pp. 141--142, Eq. 4.15]:
+
+$$
+p_k(x) = \frac{\pi_k \, f_k(x)}{\sum_{l=1}^{K} \pi_l \, f_l(x)}
+$$
+
+Reading it aloud: "p-k of x equals pi-k times f-k of x, divided by the sum over all
+classes of pi-l times f-l of x" — or in everyday words: "the posterior probability of
+class $k$ is that class's prior times its density, divided by the total density across
+all classes."
+
+Mapping it onto the toy example:
+
+- $\pi_k$ is the 0.5 we computed from counting fish
+- $f_k(x)$ is the multivariate normal density at (5, 3) using class $k$'s mean and
+  covariance — the "how plausible" number
+- the denominator just makes the posteriors add to 1
+
+Classify to the class with the largest $p_k(x)$.
+
+### LDA: shared covariance, linear boundary
+
+LDA assumes every class is a multivariate normal with its own mean $\boldsymbol{\mu}_k$
+but a **shared** covariance matrix $\boldsymbol{\Sigma}$
+[@james2021introductionstatisticallearning, pp. 142--148]. Because the covariance
+is the same for all classes, the quadratic terms in the Gaussian exponent cancel
+when you compare two classes, and what remains is a **linear** function of $x$ — the
+discriminant score:
+
+$$
+\delta_k(x) = x^\top \boldsymbol{\Sigma}^{-1} \boldsymbol{\mu}_k
+  - \tfrac{1}{2}\,\boldsymbol{\mu}_k^\top \boldsymbol{\Sigma}^{-1} \boldsymbol{\mu}_k
+  + \log \pi_k
+$$
+
+Reading it aloud: "delta-k of x equals x-transpose times sigma-inverse times mu-k,
+minus one-half mu-k-transpose times sigma-inverse times mu-k, plus log of pi-k" — or
+in everyday words: "a score that combines how close $x$ is to class $k$'s center
+(accounting for the shape of the cloud) with a bonus for classes that are more common."
+
+Classify to the class with the largest $\delta_k(x)$. The boundary between two classes
+is the set of points where $\delta_k(x) = \delta_l(x)$ — and because $\delta$ is
+linear in $x$, that boundary is a **straight line** (in 2D) or a flat plane (in
+higher dimensions). That is why it is called *linear* discriminant analysis.
+
+### Hand-scoring our toy fish
+
+Now let's do the full LDA computation by hand, then confirm with R.
+
+```{r lda-by-hand}
+# The toy data again
+trout_x <- cbind(c(2, 4, 3), c(1, 2, 1))   # 3 fish x 2 measurements
+bass_x  <- cbind(c(6, 8, 7), c(5, 6, 5))
+
+# Class means
+mu_t <- colMeans(trout_x)   # (3.0, 1.333)
+mu_b <- colMeans(bass_x)    # (7.0, 5.333)
+
+# POOLED covariance: average the within-class covariance matrices
+#  (each has n_k - 1 = 2 degrees of freedom; pool = sum of deviations / (n - K))
+S_t <- cov(trout_x)   # within-trout covariance
+S_b <- cov(bass_x)    # within-bass covariance
+Sigma_pooled <- ((3 - 1) * S_t + (3 - 1) * S_b) / (6 - 2)
+Sigma_pooled
+
+# Inverse of pooled covariance
+Sigma_inv <- solve(Sigma_pooled)
+
+# Discriminant scores at x = (5, 3)
+x_new <- c(5, 3)
+pi_t <- 0.5; pi_b <- 0.5
+
+delta_trout <- as.numeric(x_new %*% Sigma_inv %*% mu_t
+  - 0.5 * mu_t %*% Sigma_inv %*% mu_t + log(pi_t))
+delta_bass <- as.numeric(x_new %*% Sigma_inv %*% mu_b
+  - 0.5 * mu_b %*% Sigma_inv %*% mu_b + log(pi_b))
+
+c(delta_trout = round(delta_trout, 3), delta_bass = round(delta_bass, 3))
+# The larger score wins
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Scatter plot of 6 fish (3 trout at lower-left, 3 bass at upper-right) with the new fish at (5,3) marked as a triangle. The LDA decision boundary is a straight line between the two classes."
+# The toy data
+trout_len <- c(2, 4, 3); trout_wt <- c(1, 2, 1)
+bass_len  <- c(6, 8, 7); bass_wt  <- c(5, 6, 5)
+
+# TRY IT: move the new fish and re-run — does the classification change?
+new_fish <- c(5, 3)
+
+# Pooled covariance and its inverse
+trout_x <- cbind(trout_len, trout_wt)
+bass_x  <- cbind(bass_len, bass_wt)
+S_pool <- ((2) * cov(trout_x) + (2) * cov(bass_x)) / 4
+S_inv  <- solve(S_pool)
+mu_t <- colMeans(trout_x); mu_b <- colMeans(bass_x)
+
+# Discriminant scores
+d_t <- as.numeric(new_fish %*% S_inv %*% mu_t - 0.5 * mu_t %*% S_inv %*% mu_t)
+d_b <- as.numeric(new_fish %*% S_inv %*% mu_b - 0.5 * mu_b %*% S_inv %*% mu_b)
+
+# Plot
+plot(c(trout_len, bass_len), c(trout_wt, bass_wt),
+     col = c(rep("steelblue", 3), rep("coral", 3)), pch = 19, cex = 1.5,
+     xlab = "Length", ylab = "Weight", xlim = c(0, 10), ylim = c(0, 8),
+     main = paste("LDA classifies new fish as:", ifelse(d_t > d_b, "trout", "bass")))
+points(new_fish[1], new_fish[2], pch = 17, cex = 2, col = "black")
+text(new_fish[1] + 0.3, new_fish[2] + 0.4, "new fish", cex = 0.8)
+legend("topleft", legend = c("trout", "bass", "new fish"),
+       col = c("steelblue", "coral", "black"), pch = c(19, 19, 17))
+
+# The decision boundary: where delta_trout = delta_bass
+# delta_k(x) = x' S_inv mu_k - 0.5 mu_k' S_inv mu_k  (equal priors cancel)
+# boundary: x' S_inv (mu_t - mu_b) = 0.5 (mu_t' S_inv mu_t - mu_b' S_inv mu_b)
+w <- S_inv %*% (mu_t - mu_b)
+c_val <- 0.5 * as.numeric(mu_t %*% S_inv %*% mu_t - mu_b %*% S_inv %*% mu_b)
+# w[1]*x1 + w[2]*x2 = c_val  =>  x2 = (c_val - w[1]*x1) / w[2]
+x1_seq <- seq(0, 10, length.out = 100)
+x2_boundary <- (c_val - w[1] * x1_seq) / w[2]
+lines(x1_seq, x2_boundary, lty = 2, lwd = 2, col = "gray40")
+```
+
+
+### QDA: per-class covariance, curved boundary
+
+LDA forced both classes to share one covariance matrix. With our original toy data,
+both species happen to have the same positive length-weight covariance — pooling costs
+nothing. To see *why* QDA matters, suppose we had caught a slightly different set of
+bass: same lengths (6, 8, 7), but weights (6, 4, 6) instead of (5, 6, 5). Now the
+within-class covariances tell a different story:
+
+```{r qda-toy}
+trout_x <- cbind(c(2, 4, 3), c(1, 2, 1))
+bass_x  <- cbind(c(6, 8, 7), c(6, 4, 6))   # hypothetical bass with different covariance
+cat("Trout covariance:\n"); print(cov(trout_x))
+cat("Bass covariance:\n");  print(cov(bass_x))
+```
+
+Trout's length-weight covariance is positive (longer trout tend to be heavier); this
+hypothetical bass has a negative off-diagonal (the longest bass is the lightest — a
+different shape). Pooling would hide that difference. QDA says: let each class keep
+its own $\boldsymbol{\Sigma}_k$.
+[@james2021introductionstatisticallearning, pp. 152--154]
+
+Because each class now has a different covariance, the quadratic terms in the Gaussian
+exponent **do not cancel** when you compare two classes. The discriminant score becomes
+quadratic in $x$:
+
+$$
+\delta_k(x) = -\tfrac{1}{2}\,x^\top \boldsymbol{\Sigma}_k^{-1} x
+  + x^\top \boldsymbol{\Sigma}_k^{-1} \boldsymbol{\mu}_k
+  - \tfrac{1}{2}\,\boldsymbol{\mu}_k^\top \boldsymbol{\Sigma}_k^{-1} \boldsymbol{\mu}_k
+  - \tfrac{1}{2}\,\log\lvert\boldsymbol{\Sigma}_k\rvert
+  + \log \pi_k
+$$
+
+Reading it aloud: "delta-k of x equals negative one-half x-transpose sigma-k-inverse
+x, plus x-transpose sigma-k-inverse mu-k, minus one-half mu-k-transpose
+sigma-k-inverse mu-k, minus one-half the log-determinant of sigma-k, plus log pi-k"
+— the same kind of distance-to-center score as LDA, but now each class uses its own
+sigma-k, and there is an extra log-determinant term that penalizes classes with
+larger (more spread-out) covariance. The boundary where $\delta_k = \delta_l$ is now a
+**curve** — a quadratic function of $x$ — hence "quadratic" discriminant analysis.
+
+Let's score our new fish at (5, 3) under QDA with this hypothetical bass data:
+
+```{r qda-score}
+# QDA scoring with per-class covariances (hypothetical bass)
+trout_x <- cbind(c(2, 4, 3), c(1, 2, 1))
+bass_x  <- cbind(c(6, 8, 7), c(6, 4, 6))
+mu_t <- colMeans(trout_x); mu_b <- colMeans(bass_x)
+S_t <- cov(trout_x); S_b <- cov(bass_x)
+x_new <- c(5, 3)
+
+qda_score <- function(x, mu, S, pi_k) {
+  -0.5 * t(x) %*% solve(S) %*% x +
+   t(x) %*% solve(S) %*% mu -
+   0.5 * t(mu) %*% solve(S) %*% mu -
+   0.5 * log(det(S)) + log(pi_k)
+}
+
+d_trout <- as.numeric(qda_score(x_new, mu_t, S_t, 0.5))
+d_bass  <- as.numeric(qda_score(x_new, mu_b, S_b, 0.5))
+cat("QDA scores — trout:", round(d_trout, 3), " bass:", round(d_bass, 3), "\n")
+cat("QDA classifies as:", ifelse(d_trout > d_bass, "trout", "bass"), "\n")
+```
+
+Compare: LDA (with pooled covariance) classified the fish as trout. QDA, using
+per-class covariances, may agree or disagree — it depends on how the different
+covariance shapes shift the density contours around each class.
+
+Mapping it onto the toy: with only 3 fish per class and $p = 2$ predictors, each class
+estimates 3 covariance parameters (variance of length, variance of weight, their
+covariance). LDA estimates 3 total (shared); QDA estimates $2 \times 3 = 6$ from only
+6 fish — that is why QDA can overfit with small samples.
+
+**When to use QDA over LDA:** if you believe the classes truly have different spreads
+or tilts (different covariance matrices), QDA can capture that. But QDA estimates many
+more parameters ($K \times p(p+1)/2$ covariance entries instead of one shared set of
+$p(p+1)/2$), so with small samples it can overfit. LDA is the safer default when $n$
+is modest relative to $p$.
+[@james2021introductionstatisticallearning, pp. 153--154]
+
+
+### Naive Bayes: drop the covariance entirely
+
+Here is a third option. Instead of estimating a full $p \times p$ covariance matrix (3
+parameters for our 2 predictors), what if we pretend length and weight are independent
+within each species? Then we only need each predictor's own variance — no covariance.
+For trout: variance of length = 1, variance of weight = 0.33. For bass: variance of
+length = 1, variance of weight = 0.33. That is 2 variances per class instead of 3
+covariance parameters — and the savings grow fast with more predictors.
+
+This is the **naive Bayes** assumption: the predictors are **independent within each
+class**. [@james2021introductionstatisticallearning, pp. 154--158]
+
+The class-conditional density factors into a product of one-dimensional densities:
+
+$$
+f_k(x) = \prod_{j=1}^{p} f_{kj}(x_j)
+$$
+
+Reading it aloud: "f-k of x equals the product from j equals 1 to p of f-k-j of
+x-sub-j" — or in everyday words: "the class-conditional density is just each
+predictor's density multiplied together, as if they don't talk to each other."
+
+In our toy: the naive Bayes density for trout at (5, 3) is (density of length = 5
+under a normal with mean 3, variance 1) $\times$ (density of weight = 3 under a
+normal with mean 1.33, variance 0.33). We just multiply the two bell curves
+independently.
+
+```{r nb-toy}
+# Naive Bayes for our toy fish — each predictor separately
+trout_len <- c(2, 4, 3); trout_wt <- c(1, 2, 1)
+bass_len  <- c(6, 8, 7); bass_wt  <- c(5, 6, 5)
+
+# Density at new fish (5, 3) under each class, assuming independence
+nb_trout <- dnorm(5, mean(trout_len), sd(trout_len)) *
+            dnorm(3, mean(trout_wt),  sd(trout_wt))
+nb_bass  <- dnorm(5, mean(bass_len),  sd(bass_len)) *
+            dnorm(3, mean(bass_wt),   sd(bass_wt))
+cat("NB density — trout:", round(nb_trout, 6), " bass:", round(nb_bass, 6), "\n")
+cat("NB classifies as:", ifelse(nb_trout > nb_bass, "trout", "bass"), "\n")
+```
+
+This is a big assumption — it says length and weight carry no information about each
+other within a species, which is probably wrong. But it dramatically reduces the
+number of parameters: instead of a full $p \times p$ covariance matrix, you estimate
+only $p$ variances per class. With many predictors and limited data, that variance
+reduction can more than compensate for the bias of the wrong independence assumption.
+[@james2021introductionstatisticallearning, pp. 156--158]
+
+```{webr}
+#| autorun: true
+# PREDICT: if you move the new fish to (7, 5) — right at the bass center — will
+# LDA, QDA, and naive Bayes all agree? Try it and check.
+# TRY IT: change new_fish and re-run to see where the three methods disagree.
+new_fish <- c(5, 3)
+
+trout_len <- c(2, 4, 3); trout_wt <- c(1, 2, 1)
+bass_len  <- c(6, 8, 7); bass_wt  <- c(5, 6, 5)
+trout_x <- cbind(trout_len, trout_wt)
+bass_x  <- cbind(bass_len, bass_wt)
+
+# LDA (shared covariance)
+S_pool <- ((2)*cov(trout_x) + (2)*cov(bass_x)) / 4
+S_inv <- solve(S_pool)
+mu_t <- colMeans(trout_x); mu_b <- colMeans(bass_x)
+lda_t <- as.numeric(new_fish %*% S_inv %*% mu_t - 0.5 * mu_t %*% S_inv %*% mu_t)
+lda_b <- as.numeric(new_fish %*% S_inv %*% mu_b - 0.5 * mu_b %*% S_inv %*% mu_b)
+
+# Naive Bayes (independent within class)
+nb_t <- dnorm(new_fish[1], mean(trout_len), sd(trout_len)) *
+        dnorm(new_fish[2], mean(trout_wt),  sd(trout_wt))
+nb_b <- dnorm(new_fish[1], mean(bass_len),  sd(bass_len)) *
+        dnorm(new_fish[2], mean(bass_wt),   sd(bass_wt))
+
+cat("LDA:        ", ifelse(lda_t > lda_b, "trout", "bass"), "\n")
+cat("Naive Bayes:", ifelse(nb_t > nb_b, "trout", "bass"), "\n")
+```
+
+
+## Explore it
+
+### LDA with `MASS::lda()`
+
+Let's verify our hand computation with R's `MASS::lda()` and then try a bigger
+dataset.
+
+```{r lda-mass-verify}
+# Confirm our hand result matches MASS::lda()
+library(MASS)
+species <- factor(c("trout","trout","trout","bass","bass","bass"))
+fish_data <- data.frame(length = c(2,4,3,6,8,7), weight = c(1,2,1,5,6,5))
+fit <- lda(species ~ length + weight, data = fish_data)
+
+# Based on our hand calculation, which species should this return?
+mass_result <- as.character(predict(fit, newdata = data.frame(length = 5, weight = 3))$class)
+
+# Our hand computation (from the baked chunk above)
+trout_x <- cbind(c(2,4,3), c(1,2,1)); bass_x <- cbind(c(6,8,7), c(5,6,5))
+S_pool <- ((2)*cov(trout_x) + (2)*cov(bass_x)) / 4; S_inv <- solve(S_pool)
+mu_t <- colMeans(trout_x); mu_b <- colMeans(bass_x); x <- c(5, 3)
+d_t <- as.numeric(x %*% S_inv %*% mu_t - 0.5 * mu_t %*% S_inv %*% mu_t)
+d_b <- as.numeric(x %*% S_inv %*% mu_b - 0.5 * mu_b %*% S_inv %*% mu_b)
+hand_result <- ifelse(d_t > d_b, "trout", "bass")
+
+cat("Hand computation:", hand_result, "\n")
+cat("MASS::lda():    ", mass_result, "\n")
+cat("Match:", hand_result == mass_result, "\n")
+```
+
+```{r lda-mass-sweep}
+# At what length does the class flip? (weight = 3)
+library(MASS)
+species <- factor(c("trout","trout","trout","bass","bass","bass"))
+fish_data <- data.frame(length = c(2,4,3,6,8,7), weight = c(1,2,1,5,6,5))
+fit <- lda(species ~ length + weight, data = fish_data)
+
+# Try a range of lengths at weight = 3
+for (len in 3:7) {
+  pred <- predict(fit, newdata = data.frame(length = len, weight = 3))
+  cat("length =", len, "→", as.character(pred$class),
+      " posterior:", round(pred$posterior, 3), "\n")
+}
+```
+
+### LDA on the iris dataset
+
+```{r lda-iris}
+#| fig-alt: "LDA projection of the iris dataset onto the first two discriminant axes, showing three species as colored clusters: setosa clearly separated, versicolor and virginica partially overlapping."
+library(MASS)
+fit_iris <- lda(Species ~ ., data = iris)
+
+# Project onto the discriminant axes
+proj <- as.matrix(iris[, 1:4]) %*% fit_iris$scaling
+cols <- c(setosa = "steelblue", versicolor = "coral", virginica = "forestgreen")
+plot(proj[, 1], proj[, 2], col = cols[iris$Species], pch = 19,
+     xlab = "LD1", ylab = "LD2", main = "LDA projection of iris")
+legend("topright", legend = names(cols), col = cols, pch = 19, cex = 0.8)
+
+# Accuracy on training data
+preds <- predict(fit_iris)$class
+cat("Training accuracy:", mean(preds == iris$Species), "\n")
+```
+
+
+## Common traps
+
+**Trap: "LDA needs the features to be normally distributed — if they're not, it
+fails."** LDA *assumes* Gaussian class-conditional densities, but it does not
+"fail" on non-normal data — it still produces a linear boundary, and that boundary
+may work fine in practice. Our toy fish data has only 3 points per class (nowhere
+near a Gaussian bell), yet LDA still correctly classified the new fish as trout. The
+real danger is not non-normality but when the classes have very different covariance
+shapes: then the shared-covariance assumption hurts, and QDA is the better choice.
+[@james2021introductionstatisticallearning, pp. 163--165]
+
+**Trap: "QDA is always better than LDA because it is more flexible."** More
+flexibility means more parameters. In our toy, QDA estimates $2 \times 3 = 6$
+covariance parameters from 6 fish — one parameter per data point, so every
+covariance estimate is pure noise. LDA estimates only 3, pooling across classes, so
+each estimate has twice the data behind it. With small $n$, the extra parameters in
+QDA add variance without reducing bias.
+[@james2021introductionstatisticallearning, pp. 153--154]
+
+
+## Check yourself
+
+**1.** In our toy fish example, both priors are 0.5. If the lake were 80% bass and
+20% trout, what would $\pi_\text{bass}$ be, and how would that change the LDA
+discriminant score for bass (higher or lower)?
+
+::: {.callout-note collapse="true" title="Answer"}
+$\pi_\text{bass} = 0.8$. The score $\delta_\text{bass}$ includes a $+\log \pi_k$
+term, and $\log(0.8) > \log(0.5)$, so the bass score goes **up**. A more common
+class gets a bonus in the discriminant score — ties go to the more common species.
+:::
+
+**2.** LDA uses one shared covariance matrix. QDA uses one per class. Which estimates
+more parameters, and what is the practical risk of estimating more?
+
+::: {.callout-note collapse="true" title="Answer"}
+QDA estimates more parameters ($K$ covariance matrices instead of one). The risk is
+overfitting: with small $n$ relative to $p$, those extra parameters are estimated
+noisily and the curved boundary chases noise rather than signal.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what LDA does and
+why it uses Bayes' theorem.
+
+::: {.callout-note collapse="true" title="A model answer"}
+LDA models each class as a Gaussian cloud (same shape, different centers) and asks
+"how plausible is this new point under each cloud?" Bayes' theorem then flips those
+plausibilities into posterior probabilities — "given this point, which class is most
+likely?" — folding in how common each class is.
+:::
+
+
+## What you can now do
+
+- Compute a prior from class frequencies and say what role it plays in Bayes' theorem
+  for classification
+- Hand-score a new point under LDA: compute the pooled covariance, the discriminant
+  scores, and say which class wins
+- Explain why LDA's boundary is linear (shared covariance cancels the quadratic
+  terms) and QDA's boundary is curved (per-class covariance does not cancel)
+- State the naive Bayes independence assumption and explain the bias-variance
+  trade-off it creates
+
+If any of these feels shaky, revisit the relevant section above before continuing —
+the next module that uses classifiers assumes all of them.
+
+
+## Where this goes next
+
+These three methods are part of a larger toolbox of classifiers — you already know
+[kNN](../k-nearest-neighbors/lesson.qmd) (a discriminative, distance-based approach),
+and later modules will add tree-based classifiers that partition the predictor space
+in a completely different way. The choice among methods depends on the true decision
+boundary shape, the sample size, and the number of predictors — no single classifier
+dominates. [@james2021introductionstatisticallearning, pp. 166--170]
+
+Ready for more reps? Do the [practice problems](practice.qmd).

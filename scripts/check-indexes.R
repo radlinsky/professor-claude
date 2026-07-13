@@ -26,6 +26,8 @@
 #      declares the Bib key its filename implies (see citations.md)
 #   9. every knowledge/concepts/<slug>.md link resolves to a real concept page
 #  10. every knowledge/concepts/ page carries at least one citation
+#  11. every concept slug in a source record chapter map resolves to a concept page,
+#      and that concept page cites the source's bib key
 #
 # Run from the repo root: Rscript scripts/check-indexes.R
 
@@ -398,6 +400,60 @@ for (f in concept_pages) {
   }
 }
 passed(before, "every knowledge concept page carries a citation")
+
+## ---- Check 11: source record chapter maps vs concept pages ---------------------------
+cat("\n== Check 11: source record chapter-map concept slugs resolve and cite the source ==\n")
+before <- checkpoint()
+for (f in source_pages) {
+  lines <- read_lines(f)
+  # Extract bib key from the **Bib key:** line.
+  ki <- grep("^\\*\\*Bib key:\\*\\*", lines)
+  if (!length(ki)) next
+  bib_key <- trimws(sub("^\\*\\*Bib key:\\*\\*", "", lines[ki[1]]))
+  # Parse the chapter map table: only process tables whose header contains
+  # "Concepts extracted" (guards against future 4+ column tables).
+  rows <- table_rows(lines)
+  in_chapter_map <- FALSE
+  for (x in rows) {
+    if (length(x$cells) < 4) { in_chapter_map <- FALSE; next }
+    if (x$cells[[4]] == "Concepts extracted") { in_chapter_map <- TRUE; next }
+    if (!in_chapter_map) next
+    concepts_cell <- x$cells[[4]]
+    # Strip glossary portion — glossary terms are not concept pages.
+    # Some records put glossary first ("glossary: ...; augmented: slug"),
+    # others put it after ("slug1, slug2; glossary: ..."). Handle both by
+    # extracting only the concept-slug segments: text NOT inside a
+    # "glossary:" ... ";" span and not after a trailing "glossary:".
+    concepts_part <- gsub("glossary:[^;]*;?", "", concepts_cell)
+    # Strip parenthesized annotations: (created), (augmented), (created from ...), etc.
+    concepts_part <- gsub("\\([^)]*\\)", "", concepts_part)
+    # Strip prefix annotations: "augmented:" / "created:"
+    concepts_part <- gsub("(augmented|created)\\s*:", "", concepts_part)
+    # Split on commas and extract valid concept slugs.
+    tokens <- trimws(unlist(strsplit(concepts_part, ",")))
+    slugs <- tokens[grepl("^[a-z][a-z0-9-]+$", tokens)]
+    for (s in slugs) {
+      cpath <- file.path("knowledge", "concepts", paste0(s, ".md"))
+      if (!file.exists(cpath)) {
+        err(f, sprintf("chapter map lists concept '%s' but %s does not exist", s, cpath), x$line)
+      } else {
+        # Exact citation check: extract all [@...] groups and match keys precisely.
+        clines <- read_lines(cpath)
+        cprose <- clines[code_mask(clines)]
+        all_keys <- character(0)
+        for (cl in cprose) {
+          brackets <- regmatches(cl, gregexpr("\\[@[^]]*\\]", cl))[[1]]
+          for (b in brackets)
+            all_keys <- c(all_keys, sub("^@", "", unlist(regmatches(b, gregexpr("@[a-zA-Z][a-zA-Z0-9]*", b)))))
+        }
+        if (!(bib_key %in% all_keys)) {
+          err(f, sprintf("chapter map lists concept '%s' but %s does not cite [@%s]", s, cpath, bib_key), x$line)
+        }
+      }
+    }
+  }
+}
+passed(before, "all chapter-map concept slugs resolve and cite their source")
 
 ## ---- done ---------------------------------------------------------------------------
 cat("\n")

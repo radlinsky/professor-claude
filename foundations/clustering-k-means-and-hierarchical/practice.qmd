@@ -1,0 +1,505 @@
+---
+title: "Practice: Clustering (k-means & hierarchical)"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only
+then open the answer.
+
+## Problem 1 — the toy example, new numbers (k-means by hand)
+
+Six new 2D points:
+
+```{webr}
+#| autorun: false
+# p1-starter — edit and Run to check your hand work
+x <- c(2, 3, 2.5, 8, 9, 8.5)
+y <- c(2, 2.5, 3, 8, 8.5, 9)
+dat <- data.frame(x = x, y = y)
+```
+
+With $k = 2$ and initial centroids at $(2, 2)$ and $(9, 9)$:
+
+a. Assign each point to its nearest centroid.
+b. Compute the new centroids.
+c. Do a second iteration. Does anything change?
+d. Compute the WCSS.
+
+::: {.callout-note collapse="true" title="Answer"}
+**a. Assign (iteration 1):**
+
+- Point 1 $(2, 2)$: dist to C1 $(2,2)$ = 0; dist to C2 $(9,9)$ = $\sqrt{49+49} \approx 9.90$. Cluster 1.
+- Point 2 $(3, 2.5)$: dist to C1 = $\sqrt{1+0.25} \approx 1.12$; dist to C2 = $\sqrt{36+42.25} \approx 8.85$. Cluster 1.
+- Point 3 $(2.5, 3)$: dist to C1 = $\sqrt{0.25+1} \approx 1.12$; dist to C2 = $\sqrt{42.25+36} \approx 8.85$. Cluster 1.
+- Point 4 $(8, 8)$: dist to C1 = $\sqrt{36+36} \approx 8.49$; dist to C2 = $\sqrt{1+1} \approx 1.41$. Cluster 2.
+- Point 5 $(9, 8.5)$: dist to C1 = $\sqrt{49+42.25} \approx 9.56$; dist to C2 = $\sqrt{0+0.25} = 0.5$. Cluster 2.
+- Point 6 $(8.5, 9)$: dist to C1 = $\sqrt{42.25+49} \approx 9.56$; dist to C2 = $\sqrt{0.25+0} = 0.5$. Cluster 2.
+
+Cluster 1: {1, 2, 3}. Cluster 2: {4, 5, 6}.
+
+**b. New centroids:**
+
+- C1: $((2+3+2.5)/3,\;(2+2.5+3)/3) = (7.5/3,\;7.5/3) = (2.5, 2.5)$.
+- C2: $((8+9+8.5)/3,\;(8+8.5+9)/3) = (25.5/3,\;25.5/3) = (8.5, 8.5)$.
+
+**c. Iteration 2:** All points are still much closer to their own centroid. No
+reassignments. Converged.
+
+**d. WCSS:**
+
+- Cluster 1: $(2-2.5)^2+(2-2.5)^2 + (3-2.5)^2+(2.5-2.5)^2 + (2.5-2.5)^2+(3-2.5)^2 = 0.5 + 0.25 + 0.25 = 1.0$
+- Cluster 2: $(8-8.5)^2+(8-8.5)^2 + (9-8.5)^2+(8.5-8.5)^2 + (8.5-8.5)^2+(9-8.5)^2 = 0.5 + 0.25 + 0.25 = 1.0$
+- Total WCSS = $1.0 + 1.0 = 2.0$.
+
+```{r p1-answer}
+x <- c(2, 3, 2.5, 8, 9, 8.5)
+y <- c(2, 2.5, 3, 8, 8.5, 9)
+dat <- data.frame(x = x, y = y)
+set.seed(42)
+km <- kmeans(dat, centers = 2, nstart = 25)
+km$cluster    # the two clusters
+km$centers    # centroids at (2.5, 2.5) and (8.5, 8.5)
+km$tot.withinss  # 2.0
+```
+:::
+
+## Problem 2 — fill in the missing step (hierarchical merge)
+
+Here is the start of hierarchical clustering (single linkage) on these 4 points:
+
+```{webr}
+#| autorun: false
+# p2-starter — use this data to check the blank
+pts <- data.frame(x = c(0, 1, 5, 6), y = c(0, 1, 5, 6))
+```
+
+Step 1: Compute all pairwise distances.
+
+- $d(1,2) = \sqrt{1+1} \approx 1.41$
+- $d(1,3) = \sqrt{25+25} \approx 7.07$
+- $d(1,4) = \sqrt{36+36} \approx 8.49$
+- $d(2,3) = \sqrt{16+16} \approx 5.66$
+- $d(2,4) = \sqrt{25+25} \approx 7.07$
+- $d(3,4) = \sqrt{1+1} \approx 1.41$
+
+Step 2: The two closest pairs are {1,2} and {3,4}, both at distance 1.41. Merge {1,2}.
+
+Step 3: **Your step here** — compute the single-linkage distance from the merged
+cluster {1,2} to each remaining cluster ({3} and {4}), and decide which merge happens
+next.
+
+Step 4: After all merges, cut at $k = 2$. The two clusters are {1,2} and {3,4}.
+
+Fill in step 3.
+
+::: {.callout-note collapse="true" title="Answer"}
+**Step 3:** Using single linkage (minimum distance between any member of one cluster
+and any member of the other):
+
+- $d(\{1,2\}, \{3\}) = \min(d(1,3), d(2,3)) = \min(7.07, 5.66) = 5.66$
+- $d(\{1,2\}, \{4\}) = \min(d(1,4), d(2,4)) = \min(8.49, 7.07) = 7.07$
+- $d(\{3\}, \{4\}) = 1.41$
+
+The smallest inter-cluster distance is $d(\{3\}, \{4\}) = 1.41$, so {3} and {4}
+merge next. Now we have two clusters: {1,2} and {3,4}.
+
+The final merge at distance $d(\{1,2\}, \{3,4\}) = \min(7.07, 5.66, 8.49, 7.07)
+= 5.66$ joins everything. The dendrogram would show merges at heights 1.41, 1.41,
+and 5.66.
+
+```{r p2-answer}
+#| fig-alt: "Dendrogram of 4 points under single linkage, showing two merges at height 1.41 and a final merge at height 5.66."
+pts <- data.frame(x = c(0, 1, 5, 6), y = c(0, 1, 5, 6))
+d <- dist(pts)
+hc <- hclust(d, method = "single")
+plot(hc, main = "Dendrogram (single linkage)", xlab = "", sub = "",
+     labels = paste0("pt", 1:4))
+cutree(hc, k = 2)  # 1 1 2 2
+```
+:::
+
+## Problem 3 — implement k-means from scratch
+
+Write your own k-means in R: a `while` loop that alternates between assigning points
+to the nearest centroid and recomputing centroids, stopping when assignments stop
+changing. Use the data below with $k = 2$. Compare your result with `kmeans()`.
+
+```{webr}
+#| autorun: false
+# p3-starter — your job: implement k-means from scratch
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+# Start with these centroids
+centroids <- matrix(c(1, 1, 6, 6), nrow = 2, byrow = TRUE)
+
+# Your code here: a while loop that:
+# 1. Computes distance from each point to each centroid
+# 2. Assigns each point to the nearest centroid
+# 3. Recomputes centroids as means of assigned points
+# 4. Stops when assignments don't change
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p3-answer}
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+# Starting centroids
+centroids <- matrix(c(1, 1, 6, 6), nrow = 2, byrow = TRUE)
+colnames(centroids) <- c("x", "y")
+
+cluster <- rep(0, nrow(dat))  # initial (will be overwritten)
+converged <- FALSE
+iter <- 0
+
+while (!converged) {
+  iter <- iter + 1
+
+  # Step 1: distance from each point to each centroid
+  dist_c1 <- sqrt((dat$x - centroids[1, 1])^2 + (dat$y - centroids[1, 2])^2)
+  dist_c2 <- sqrt((dat$x - centroids[2, 1])^2 + (dat$y - centroids[2, 2])^2)
+
+  # Step 2: assign to nearest centroid
+  new_cluster <- ifelse(dist_c1 <= dist_c2, 1, 2)
+
+  # Step 3: check convergence (did assignments change?)
+  converged <- all(new_cluster == cluster)
+  cluster <- new_cluster
+
+  # Step 4: update centroids (mean of assigned points)
+  centroids[1, ] <- colMeans(dat[cluster == 1, ])
+  centroids[2, ] <- colMeans(dat[cluster == 2, ])
+
+  cat("Iteration", iter, "- clusters:", cluster, "\n")
+}
+
+cat("Converged after", iter, "iterations\n")
+cat("Final centroids:\n")
+print(centroids)   # (1.5, 1.5) and (5.5, 5.5)
+
+# Compare with kmeans()
+set.seed(42)
+km <- kmeans(dat, centers = 2, nstart = 25)
+cat("kmeans() clusters:", km$cluster, "\n")
+cat("kmeans() WCSS:", km$tot.withinss, "\n")  # 2.0
+
+# WCSS from our implementation
+wcss <- sum((dat$x[cluster==1] - centroids[1,1])^2 +
+            (dat$y[cluster==1] - centroids[1,2])^2) +
+        sum((dat$x[cluster==2] - centroids[2,1])^2 +
+            (dat$y[cluster==2] - centroids[2,2])^2)
+cat("Our WCSS:", wcss, "\n")  # 2.0 — matches
+```
+:::
+
+## Problem 4 — spot the error
+
+A colleague clusters 9 one-dimensional measurements that fall into three tight,
+well-separated groups (around 0, around 5, and around 10 — the same data as the
+lesson's Trap 1). They run this code:
+
+```{webr}
+#| autorun: false
+# p4-starter — the colleague's exact analysis
+pts <- data.frame(val = c(0, 0.1, -0.1, 5, 5.1, 4.9, 10, 10.1, 9.9))
+set.seed(1)
+km <- kmeans(pts, centers = 3, nstart = 1)
+km$cluster       # the clustering they reported
+km$tot.withinss  # the quality they reported
+```
+
+They report: "`kmeans()` converged, so this is the best 3-cluster solution for this
+data — WCSS is about 37.5."
+
+This analysis contains **exactly one mistake**. Find it and explain the fix.
+
+::: {.callout-note collapse="true" title="Answer"}
+**The mistake:** trusting a **single random start** (`nstart = 1`). "Converged" only
+means k-means reached a *local* minimum of WCSS — it says nothing about whether a
+better clustering exists. With this unlucky start, the colleague's run lumps the
+groups at 0 and 5 into one big cluster and splits the group at 10 into two
+(assignments `2 2 2 2 2 2 1 3 1`), giving WCSS $\approx 37.5$.
+[@boyd2018appliedlinearalgebra, p. 76; @james2021introductionstatisticallearning, pp. 517-518]
+
+**The fix:** run from many random starts with `nstart = 25` (or more) and let
+`kmeans()` keep the run with the lowest `tot.withinss`:
+
+```{r p4-answer}
+pts <- data.frame(val = c(0, 0.1, -0.1, 5, 5.1, 4.9, 10, 10.1, 9.9))
+
+# The colleague's run: one random start
+set.seed(1)
+bad <- kmeans(pts, centers = 3, nstart = 1)
+bad$cluster        # 2 2 2 2 2 2 1 3 1 — two groups merged, one split
+bad$tot.withinss   # 37.545 — a poor local minimum
+
+# The fix: 25 random starts, keep the best
+set.seed(42)
+good <- kmeans(pts, centers = 3, nstart = 25)
+good$cluster       # 1 1 1 2 2 2 3 3 3 — the three real groups
+good$tot.withinss  # 0.06 — about 600 times smaller
+good$centers       # 0, 5, 10 — right on the group centers
+```
+
+The correct clustering finds the three real groups with WCSS $0.06$ — about 600
+times smaller than the reported $37.545$. Same function, same data, same $k$; the
+only thing that changed is not betting everything on one starting position. Whenever
+a clustering matters, run it with `nstart = 25` or more and compare `tot.withinss`.
+:::
+
+## Problem 5 — mixing it with distance *(uses distance-similarity-and-geometry's Manhattan distance)*
+
+Recluster the toy data using **Manhattan distance** instead of Euclidean distance for
+hierarchical clustering. Do the 2-cluster assignments change? Why or why not?
+
+```{webr}
+#| autorun: false
+# p5-starter — edit and Run to compare
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+# Euclidean (default)
+hc_euc <- hclust(dist(dat), method = "single")
+
+# Manhattan distance
+hc_man <- hclust(dist(dat, method = "manhattan"), method = "single")
+
+# Compare 2-cluster cuts
+# Your prediction: same or different?
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p5-answer}
+#| fig-alt: "Two dendrograms side by side comparing Euclidean and Manhattan distance hierarchical clustering, both giving the same two-cluster solution."
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+# Euclidean hierarchical clustering
+hc_euc <- hclust(dist(dat), method = "single")
+cat("Euclidean, k=2:", cutree(hc_euc, k = 2), "\n")
+
+# Manhattan hierarchical clustering
+hc_man <- hclust(dist(dat, method = "manhattan"), method = "single")
+cat("Manhattan, k=2:", cutree(hc_man, k = 2), "\n")
+
+# The merge heights differ but the cluster assignments are the same
+par(mfrow = c(1, 2))
+plot(hc_euc, main = "Euclidean", xlab = "", sub = "")
+plot(hc_man, main = "Manhattan", xlab = "", sub = "")
+par(mfrow = c(1, 1))
+```
+
+The 2-cluster assignments are **the same**: {1,2,3} and {4,5,6}. The two groups are
+so well separated that both distance metrics agree on which points belong together.
+The merge heights change — Manhattan distance between $(1,1)$ and $(2,1.5)$ is
+$|1| + |0.5| = 1.5$ instead of Euclidean $\sqrt{1.25} \approx 1.12$ — but the
+*ordering* of which pairs are closest stays the same. Manhattan adds the absolute gaps
+instead of squaring, adding, and rooting (from
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd)),
+so the numbers differ but the ranking is preserved when clusters are well separated.
+With more ambiguous data the choice of distance metric could change the clustering.
+:::
+
+## Problem 6 — reading a dendrogram (transfer)
+
+Here is the dendrogram from the toy data (complete linkage). Without running any code,
+answer:
+
+a. If you cut at $k = 3$, which points form the three clusters?
+b. If you cut at $k = 2$, which points form the two clusters?
+c. Which cut looks more natural — $k = 2$ or $k = 3$? Why?
+
+```{webr}
+#| autorun: false
+#| fig-alt: "Dendrogram from complete-linkage hierarchical clustering of six points, showing merge heights."
+# p6-starter — run this to see the dendrogram, then answer from the picture
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+d <- dist(dat)
+hc <- hclust(d, method = "complete")
+plot(hc, main = "Dendrogram (complete linkage)", xlab = "", sub = "",
+     labels = paste0("pt", 1:6))
+# Add horizontal lines at the cut heights to help visualize
+abline(h = 3, col = "red", lty = 2)   # a cut around here gives 2 clusters
+abline(h = 1, col = "blue", lty = 2)  # a cut around here gives more clusters
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**a. k = 3:** Cutting at a height that splits one of the two main branches further.
+With complete linkage: points 2 and 3 merge first (they are closest), then point 1
+joins them. On the other side, points 5 and 6 merge, then point 4 joins. At $k = 3$,
+one of the branches stays intact while the other splits, giving something like
+{1}, {2,3}, {4,5,6} or {1,2,3}, {4}, {5,6} depending on which side splits at a lower
+height.
+
+```{r p6-answer}
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+d <- dist(dat)
+hc <- hclust(d, method = "complete")
+cat("k=3:", cutree(hc, k = 3), "\n")
+cat("k=2:", cutree(hc, k = 2), "\n")
+```
+
+**b. k = 2:** {1,2,3} and {4,5,6} — the two obvious groups.
+
+**c. k = 2 looks more natural.** The dendrogram shows a large vertical gap between
+the within-group merges (at heights below ~1.5) and the final between-group merge (at
+a height above 6). That big gap indicates a strong, natural separation into two
+groups. Going to $k = 3$ splits one of those tight groups that has no reason to be
+split — there is no large gap within either branch to justify it.
+:::
+
+## Problem 7 — which scaling is "right"? (transfer)
+
+An online retailer sells two things: socks and computers. For six customers, you
+have last year's purchase counts. [@james2021introductionstatisticallearning, pp. 527-528]
+
+```{webr}
+#| autorun: false
+# p7-starter — copy this to begin
+socks     <- c(2, 3, 1, 11, 12, 10)   # pairs of socks each customer bought
+computers <- c(0, 1, 1, 0, 1, 0)      # computers each customer bought
+shop <- data.frame(socks = socks, computers = computers)
+```
+
+Cluster the customers into $k = 2$ groups (use `nstart = 25`) three different ways,
+and **predict each result before you run it**:
+
+a. **Raw counts**, as given. Which customers group together — and which column
+   decided that?
+b. **Scaled to unit SD** (`scale(shop)`). What changes about each column's
+   contribution to the distance? Does the 2-cluster split change?
+c. **Dollars spent**: socks cost \$2 a pair, computers cost \$2,000 each
+   (`shop$socks * 2` and `shop$computers * 2000`). Now which column decides?
+d. **Interpretation:** one clustering changed and two didn't — which, and why? Is
+   any of the three versions the "correct" one?
+
+::: {.callout-note collapse="true" title="Answer"}
+```{r p7-answer}
+socks     <- c(2, 3, 1, 11, 12, 10)
+computers <- c(0, 1, 1, 0, 1, 0)
+shop <- data.frame(socks = socks, computers = computers)
+
+# a. Raw counts — the sock column has all the spread
+apply(shop, 2, var)   # socks 25.1, computers 0.3 — socks carry ~99% of the variance
+set.seed(42)
+kmeans(shop, centers = 2, nstart = 25)$cluster        # 1 1 1 2 2 2
+
+# b. Scaled to unit SD — both columns now run about -0.9 to +1.1
+shop_scaled <- scale(shop)
+round(shop_scaled, 2)
+set.seed(42)
+kmeans(shop_scaled, centers = 2, nstart = 25)$cluster  # 1 1 1 2 2 2 — same split
+
+# c. Dollars — the computer column now has almost all the spread
+shop_dollars <- data.frame(socks = socks * 2, computers = computers * 2000)
+apply(shop_dollars, 2, var)  # socks 100.4, computers 1,200,000
+set.seed(42)
+kmeans(shop_dollars, centers = 2, nstart = 25)$cluster # 1 2 2 1 2 1 — different!
+```
+
+**a. Raw counts:** {1, 2, 3} vs {4, 5, 6} — the light sock buyers vs the heavy sock
+buyers. The sock column decided alone: its variance (25.1) dwarfs the computer
+column's (0.3), so sock differences dominate every Euclidean distance and computer
+purchases barely register.
+
+**b. Scaled:** each column now has SD 1, so a "one computer" difference finally
+counts as much as a proportional sock difference — both columns genuinely contribute
+to the distances. On this data the best 2-cluster split happens to stay
+{1, 2, 3} vs {4, 5, 6}: even with both columns weighted equally, the sock gap between
+the two customer groups is the strongest pattern. Same partition, but for a better
+reason — it now survives with both variables heard, instead of winning by drowning
+the other out.
+
+**c. Dollars:** {1, 4, 6} vs {2, 3, 5} — a *different* clustering: the
+computer-buyers vs the non-buyers. A single computer is a \$2,000 gap while the
+entire sock range spans \$2 to \$24, so computer ownership dominates every distance.
+
+**d.** The dollar version changed the grouping; raw and scaled agreed here (though
+they weighted the columns very differently). And none of the three is "the correct
+one" — each answers a different question. Raw counts cluster by *items handled*
+(inventory/shipping view), unit-SD scaling gives *each product an equal vote*
+(product-mix view), and dollars cluster by *revenue* (finance view). Scaling is not
+a technicality you get right or wrong; it encodes what you, the analyst, mean by
+"similar customers" — which is exactly why a clustering report must state the choice
+it made. [@james2021introductionstatisticallearning, pp. 527-528]
+:::
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/clustering-k-means-and-hierarchical" pass="4"}
+
+::: {.quiz-q qid="clust-centroid-update" qtype="mc" answer="c"}
+After the assign step of k-means, what does the update step compute for each cluster?
+
+a) The point in the cluster farthest from all other clusters
+b) The median of each coordinate across the cluster's points
+c) The mean of each coordinate across the cluster's points
+d) The point in the cluster closest to all other points in the dataset
+:::
+
+::: {.quiz-q qid="clust-wcss-toy" qtype="numeric" answer="2" tolerance="0"}
+For the lesson's toy data (6 points, $k = 2$, centroids at $(1.5, 1.5)$ and $(5.5, 5.5)$), what is the total WCSS?
+:::
+
+::: {.quiz-q qid="clust-linkage-choice" qtype="mc" answer="b"}
+Which linkage method measures the distance between two clusters as the distance between their two closest members?
+
+a) Complete linkage
+b) Single linkage
+c) Ward's linkage
+d) Average linkage
+:::
+
+::: {.quiz-q qid="clust-nstart" qtype="mc" answer="d"}
+Why should you use `nstart = 25` (or more) when running `kmeans()` in R?
+
+a) It searches over 25 different values of k and picks the best cluster count
+b) It speeds up convergence by spreading the work across 25 parallel runs
+c) It guarantees the algorithm reaches the global minimum WCSS on every run
+d) It runs 25 random starts and keeps the lowest-WCSS result
+:::
+
+::: {.quiz-q qid="clust-dist-scale" qtype="mc" answer="a"}
+*(Interleaved from distance-similarity-and-geometry.)* Before running k-means on a dataset where column A ranges from 0 to 1 and column B ranges from 0 to 100,000, what must you do first?
+
+a) Scale both columns so neither dominates the distance
+b) Remove column B because its range is too large for clustering
+c) Use Manhattan distance, which handles different scales automatically
+d) Set nstart to a very large number to compensate for the scale difference
+:::
+
+:::
+
+::::

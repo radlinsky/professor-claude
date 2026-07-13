@@ -1,0 +1,831 @@
+---
+title: "Clustering: k-means and hierarchical"
+subtitle: "Group unlabeled points into clusters — two algorithms, one goal"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+## Where we're going
+
+You already know how to measure distance between data points and how to compute a
+mean. Now the question is: **given a cloud of points with no labels, can you find
+the groups?** That is *clustering* — discovering structure that nobody told you was
+there. This lesson teaches two ways to do it. **k-means** says "pick k centers,
+assign each point to its nearest center, move each center to the middle of its group,
+repeat." **Hierarchical clustering** says "start with every point alone, then keep
+merging the two closest groups until one big group remains — and read the merge
+history to choose your clusters." Both rest on the distance and mean machinery you
+already own.
+
+**Builds on:**
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd) —
+Euclidean distance, why column scale matters;
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd) — the mean as
+a center point.
+
+## Warm-up: do you remember?
+
+Three quick reps from earlier modules — answers from memory first, then check.
+
+**1.** Compute the Euclidean distance between the points $(1, 2)$ and $(4, 6)$.
+
+```{webr}
+#| autorun: false
+# warmup1-starter — edit and Run to check
+a <- c(1, 2)
+b <- c(4, 6)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+Square the coordinate gaps: $(4-1)^2 = 9$, $(6-2)^2 = 16$. Add: $9 + 16 = 25$.
+Square root: $\sqrt{25} = 5$. In R: `sqrt(sum((a - b)^2))` gives 5. Taught in
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd);
+revisit if shaky.
+:::
+
+**2.** The values are 3, 7, 5. What is their mean?
+
+::: {.callout-note collapse="true" title="Answer"}
+$(3 + 7 + 5) / 3 = 15 / 3 = 5$. The mean is **5** — the balance point. Taught in
+[mean, variance & covariance](../mean-variance-covariance/lesson.qmd); revisit if
+shaky.
+:::
+
+**3.** Why does column scale matter when computing distances between data points?
+
+::: {.callout-note collapse="true" title="Answer"}
+A column measured in large numbers (like income in dollars) dominates the distance
+calculation, drowning out columns measured in small numbers (like age in years). The
+data's raw scale, not its importance, decides what matters. That is why you
+standardize columns before computing distances. Taught in
+[distance, similarity & geometry](../distance-similarity-and-geometry/lesson.qmd);
+revisit if shaky.
+:::
+
+---
+
+## The toy data (shared by both algorithms)
+
+Six points in 2D. They naturally fall into two groups — three points in the
+lower-left corner and three in the upper-right.
+
+```{r toy-data}
+#| fig-alt: "Six points plotted on a 2D grid, with three points clustered in the lower-left near (1.5,1.5) and three in the upper-right near (5.5,5.5), labeled 1 through 6."
+# Six 2D points — three near (1,1) and three near (5.5, 5.5)
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+dat
+
+# Quick look: you can see the two clusters by eye
+plot(dat$x, dat$y, pch = 16, cex = 2, col = "steelblue",
+     xlab = "x", ylab = "y", main = "Six points — two obvious groups",
+     xlim = c(0, 7), ylim = c(0, 7))
+text(dat$x, dat$y, labels = 1:6, pos = 3)
+```
+
+Points 1, 2, 3 sit near $(1.5, 1.5)$. Points 4, 5, 6 sit near $(5.5, 5.5)$. Both
+algorithms should discover exactly these two groups — let's see how.
+
+---
+
+# Part 1: k-means clustering
+
+## A tiny example first
+
+**k-means by hand, step by step.** We set $k = 2$ (we want two clusters) and pick
+two initial centroids — starting guesses for the cluster centers. For predictability,
+start with centroid 1 at $(1, 1)$ and centroid 2 at $(6, 6)$.
+
+**Iteration 1 — assign each point to its nearest centroid.**
+
+For each of the 6 points, compute the distance to both centroids and assign the point
+to whichever centroid is closer.
+
+- Point 1 $(1, 1)$: distance to centroid 1 $(1,1)$ = $\sqrt{0+0} = 0$; distance to
+  centroid 2 $(6,6)$ = $\sqrt{25+25} = \sqrt{50} \approx 7.07$. Assign to cluster 1.
+- Point 2 $(2, 1.5)$: distance to C1 = $\sqrt{1+0.25} = \sqrt{1.25} \approx 1.12$;
+  distance to C2 = $\sqrt{16+20.25} = \sqrt{36.25} \approx 6.02$. Assign to cluster 1.
+- Point 3 $(1.5, 2)$: distance to C1 = $\sqrt{0.25+1} = \sqrt{1.25} \approx 1.12$;
+  distance to C2 = $\sqrt{20.25+16} = \sqrt{36.25} \approx 6.02$. Assign to cluster 1.
+- Point 4 $(5, 5)$: distance to C1 = $\sqrt{16+16} = \sqrt{32} \approx 5.66$;
+  distance to C2 = $\sqrt{1+1} = \sqrt{2} \approx 1.41$. Assign to cluster 2.
+- Point 5 $(6, 5.5)$: distance to C1 = $\sqrt{25+20.25} = \sqrt{45.25} \approx 6.73$;
+  distance to C2 = $\sqrt{0+0.25} = \sqrt{0.25} = 0.5$. Assign to cluster 2.
+- Point 6 $(5.5, 6)$: distance to C1 = $\sqrt{20.25+25} = \sqrt{45.25} \approx 6.73$;
+  distance to C2 = $\sqrt{0.25+0} = \sqrt{0.25} = 0.5$. Assign to cluster 2.
+
+Cluster 1 gets points {1, 2, 3}. Cluster 2 gets points {4, 5, 6}.
+
+**Now update the centroids** — each centroid moves to the mean of its assigned points.
+
+- Centroid 1: x-mean = $(1 + 2 + 1.5) / 3 = 4.5 / 3 = 1.5$,
+  y-mean = $(1 + 1.5 + 2) / 3 = 4.5 / 3 = 1.5$. New centroid 1: $(1.5, 1.5)$.
+- Centroid 2: x-mean = $(5 + 6 + 5.5) / 3 = 16.5 / 3 = 5.5$,
+  y-mean = $(5 + 5.5 + 6) / 3 = 16.5 / 3 = 5.5$. New centroid 2: $(5.5, 5.5)$.
+
+**Iteration 2 — reassign.**
+
+Recompute distances with the new centroids $(1.5, 1.5)$ and $(5.5, 5.5)$:
+
+- Point 1 $(1, 1)$: distance to C1 = $\sqrt{0.25+0.25} \approx 0.71$;
+  distance to C2 = $\sqrt{20.25+20.25} \approx 6.36$. Still cluster 1.
+- Point 2 $(2, 1.5)$: distance to C1 = $\sqrt{0.25+0} = 0.5$;
+  distance to C2 = $\sqrt{12.25+16} \approx 5.31$. Still cluster 1.
+- Point 3 $(1.5, 2)$: distance to C1 = $\sqrt{0+0.25} = 0.5$;
+  distance to C2 = $\sqrt{16+12.25} \approx 5.31$. Still cluster 1.
+- Points 4, 5, 6 are all much closer to C2 — assignments unchanged.
+
+No point changed clusters, so the centroids stay at $(1.5, 1.5)$ and $(5.5, 5.5)$.
+**Converged.** The algorithm stops.
+
+The same computation in R:
+
+```{r kmeans-by-hand}
+# The 6 points as a matrix (one row per point)
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+# Starting centroids: (1,1) and (6,6)
+centroids <- matrix(c(1, 1, 6, 6), nrow = 2, byrow = TRUE)
+colnames(centroids) <- c("x", "y")
+
+# --- Iteration 1 ---
+# Distance from each point to each centroid (6 x 2 matrix)
+dist_to_c1 <- sqrt((dat$x - centroids[1, 1])^2 + (dat$y - centroids[1, 2])^2)
+dist_to_c2 <- sqrt((dat$x - centroids[2, 1])^2 + (dat$y - centroids[2, 2])^2)
+
+# Assign each point to the nearest centroid
+cluster <- ifelse(dist_to_c1 <= dist_to_c2, 1, 2)
+cluster  # 1 1 1 2 2 2
+
+# Update centroids: mean of assigned points
+centroids[1, ] <- colMeans(dat[cluster == 1, ])  # (1.5, 1.5)
+centroids[2, ] <- colMeans(dat[cluster == 2, ])  # (5.5, 5.5)
+centroids
+
+# --- Iteration 2 ---
+dist_to_c1 <- sqrt((dat$x - centroids[1, 1])^2 + (dat$y - centroids[1, 2])^2)
+dist_to_c2 <- sqrt((dat$x - centroids[2, 1])^2 + (dat$y - centroids[2, 2])^2)
+cluster_new <- ifelse(dist_to_c1 <= dist_to_c2, 1, 2)
+cluster_new  # 1 1 1 2 2 2 — same as before, converged!
+
+all(cluster == cluster_new)  # TRUE: nothing changed, algorithm stops
+```
+
+And with R's built-in `kmeans()`:
+
+```{r kmeans-builtin}
+# kmeans() on the same data, k = 2, one random start
+set.seed(42)
+km <- kmeans(dat, centers = 2, nstart = 1)
+km$cluster   # cluster assignments (1 or 2 — the label numbers may be swapped)
+km$centers   # the final centroids
+```
+
+The centroids from `kmeans()` land at the same positions (up to label swapping —
+"cluster 1" and "cluster 2" are just names, and `kmeans()` may number them
+differently from our hand computation).
+
+## Getting a feel for it (k-means)
+
+**The magnet analogy.** Picture two magnets on a table scattered with iron filings.
+Each filing snaps to its nearest magnet. Then each magnet slides to the center of its
+pile of filings. After it slides, some filings near the boundary might now be closer
+to the other magnet, so they switch. The magnets slide again. Repeat until nothing
+moves. That is k-means: the magnets are the centroids, the filings are the data
+points. (Where the analogy strains: real magnets exert force that varies with
+distance; k-means only cares about "nearest", with no force weighting.)
+
+**Why iterate — why not just pick good centers and be done?** Because the initial
+guess is arbitrary. The loop alternates between two questions: "given these centers,
+who belongs where?" (the assign step) and "given these members, where should the
+center be?" (the update step). Each step can only improve the total squared distance
+or leave it unchanged — never worsen it — so the algorithm always converges. But it
+finds a *local* minimum, not necessarily the global best, which is why the starting
+positions matter and why you run it multiple times (more on that in Common traps).
+
+**What the grouping feels like.** Our two clusters have centroids at $(1.5, 1.5)$ and
+$(5.5, 5.5)$ — they are 4 units apart in each coordinate, a clear separation. Each
+point sits less than 1 unit from its own centroid. If the two groups were closer
+together, or if the points were more spread out, the clustering would be harder — the
+boundary between clusters gets fuzzy when the gap between centroids shrinks relative
+to the scatter within each cluster.
+
+## WCSS: how good is this clustering?
+
+The **within-cluster sum of squares** (WCSS) measures clustering quality. For each
+point, compute the squared distance from that point to its own cluster's centroid.
+Add them all up. A smaller WCSS means tighter clusters.
+
+For our toy data:
+
+- Cluster 1, centroid $(1.5, 1.5)$:
+  - Point 1: $(1-1.5)^2 + (1-1.5)^2 = 0.25 + 0.25 = 0.5$
+  - Point 2: $(2-1.5)^2 + (1.5-1.5)^2 = 0.25 + 0 = 0.25$
+  - Point 3: $(1.5-1.5)^2 + (2-1.5)^2 = 0 + 0.25 = 0.25$
+  - Subtotal: $0.5 + 0.25 + 0.25 = 1.0$
+- Cluster 2, centroid $(5.5, 5.5)$:
+  - Point 4: $(5-5.5)^2 + (5-5.5)^2 = 0.25 + 0.25 = 0.5$
+  - Point 5: $(6-5.5)^2 + (5.5-5.5)^2 = 0.25 + 0 = 0.25$
+  - Point 6: $(5.5-5.5)^2 + (6-5.5)^2 = 0 + 0.25 = 0.25$
+  - Subtotal: $0.5 + 0.25 + 0.25 = 1.0$
+- **Total WCSS = $1.0 + 1.0 = 2.0$.**
+
+This is what k-means tries to minimize. `kmeans()` reports it as `tot.withinss`:
+
+```{r wcss-check}
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+set.seed(42)
+km <- kmeans(dat, centers = 2, nstart = 1)
+km$tot.withinss  # 2.0 — matches our hand computation
+```
+
+## What the notation is going to say (k-means)
+
+The formula will say: for each cluster $k$, take every point $\mathbf{x}_i$ in that
+cluster, compute the squared distance from $\mathbf{x}_i$ to its centroid
+$\boldsymbol{\mu}_k$, and add them all up across every cluster. The centroid update
+will say: the new centroid is the mean of all the points assigned to that cluster. In
+our toy example that is exactly the "compute squared gaps, add up to get 2.0" we just
+did, and the "average the x-coordinates and y-coordinates separately" we did in the
+update step.
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $K$ | "big K" | the number of clusters you choose | $K = 2$ |
+| $k$ | "little k" | the index of one particular cluster ($k = 1, 2, \ldots, K$) | cluster 1 or cluster 2 |
+| $\boldsymbol{\mu}_k$ | "mew sub k" | the centroid of cluster $k$ — the mean position of its members (in R: `colMeans(dat[cluster == k, ])`) | $\boldsymbol{\mu}_1 = (1.5, 1.5)$, $\boldsymbol{\mu}_2 = (5.5, 5.5)$ |
+| $C_k$ | "see sub k" | the set of points assigned to cluster $k$ | $C_1 = \{1, 2, 3\}$, $C_2 = \{4, 5, 6\}$ |
+| $\mathbf{x}_i$ | "ex sub eye" (bold) | the $i$-th data point, as a vector of coordinates (in R: `dat[i, ]`) | $\mathbf{x}_1 = (1, 1)$, $\mathbf{x}_4 = (5, 5)$ |
+| $n_k$ or $\lvert C_k \rvert$ | "en sub k" or "the size of see sub k" | how many points are in cluster $k$ | $n_1 = 3$, $n_2 = 3$ |
+| $\lVert \mathbf{x}_i - \boldsymbol{\mu}_k \rVert^2$ | "the squared norm of ex-sub-i minus mew-sub-k" | the squared Euclidean distance from point $i$ to its centroid (in R: `sum((dat[i,] - centroid_k)^2)`) | point 1 to $\boldsymbol{\mu}_1$: $0.5$ |
+| WCSS | "double-you see ess ess" | within-cluster sum of squares — the total of all those squared distances | $2.0$ |
+| $d(\mathbf{x}_i, \boldsymbol{\mu}_k)$ | "d of ex-sub-i and mew-sub-k" | the distance from point $i$ to centroid $k$ (in R: `sqrt(sum((dat[i,] - centroid_k)^2))`) | point 1 to $\boldsymbol{\mu}_1$: $\sqrt{0.5} \approx 0.71$ |
+
+## The formal version (k-means)
+
+**The k-means objective — what the algorithm tries to minimize:**
+[@boyd2018appliedlinearalgebra, ch. 4; @james2021introductionstatisticallearning, pp. 515-517]
+
+$$
+\text{WCSS} = \sum_{k=1}^{K} \sum_{i \in C_k} \lVert \mathbf{x}_i - \boldsymbol{\mu}_k \rVert^2
+$$
+
+Reading it aloud: "the WCSS equals the sum, from k equals 1 to K, of the sum over
+all i in C-sub-k, of the squared norm of x-sub-i minus mu-sub-k" — or in everyday
+words: **"for every point, square its distance to its own cluster center; add all of
+those up across all clusters."**
+
+Mapping it onto the toy example:
+
+- The outer sum $\sum_{k=1}^{K}$ says "do this for cluster 1 and cluster 2" — our
+  $K = 2$.
+- The inner sum $\sum_{i \in C_k}$ says "for every point in this cluster" — three
+  points each.
+- $\lVert \mathbf{x}_i - \boldsymbol{\mu}_k \rVert^2$ is the squared Euclidean
+  distance from point $i$ to its centroid — e.g. $\lVert (1,1) - (1.5,1.5) \rVert^2
+  = 0.25 + 0.25 = 0.5$.
+- Adding it all up: $0.5 + 0.25 + 0.25 + 0.5 + 0.25 + 0.25 = 2.0$.
+
+**The centroid update rule:** [@boyd2018appliedlinearalgebra, p. 74]
+
+$$
+\boldsymbol{\mu}_k = \frac{1}{\lvert C_k \rvert} \sum_{i \in C_k} \mathbf{x}_i
+$$
+
+Reading it aloud: "mu-sub-k equals one over the size of C-sub-k, times the sum of
+x-sub-i for all i in C-sub-k" — or in everyday words: **"the centroid is the average
+position of all the points in the cluster."** For cluster 1:
+$\boldsymbol{\mu}_1 = \frac{1}{3}\bigl((1,1) + (2,1.5) + (1.5,2)\bigr) = (4.5/3,\;4.5/3) = (1.5,\;1.5)$.
+
+---
+
+# Part 2: hierarchical clustering
+
+## A tiny example first
+
+**Hierarchical agglomerative clustering by hand.** We use the same 6 points. Instead
+of picking $k$ up front, we start with each point as its own cluster (6 clusters)
+and repeatedly merge the two closest clusters until only one remains.
+[@james2021introductionstatisticallearning, pp. 519-524]
+
+**Step 1 — compute all pairwise distances.** We need the Euclidean distance between
+every pair:
+
+```{r pairwise-distances}
+# The same 6 points
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+# The full distance matrix (we only need the upper/lower triangle)
+d <- dist(dat)
+round(as.matrix(d), 2)
+```
+
+The key distances: points 1-2 are about 1.12 apart, points 1-3 are about 1.12 apart,
+points 2-3 are about 0.71 apart. On the other side, points 4-5 are about 1.12 apart,
+points 4-6 are about 1.12 apart, points 5-6 are about 0.71 apart. The cross-group
+distances (e.g. 1-4) are all around 5 or more.
+
+**Step 2 — merge the closest pair.** The smallest distance is 0.71, between points
+2 and 3 (and also between points 5 and 6). Pick one — say 2 and 3. Merge them into a
+new cluster {2, 3}. We now have 5 clusters: {1}, {2,3}, {4}, {5}, {6}.
+
+**Step 3 — update distances.** We need the distance from the merged cluster {2, 3}
+to every other cluster. Using **single linkage** (minimum distance between any member
+of one cluster and any member of the other):
+
+- $d(\{2,3\}, \{1\})$ = $\min(d(2,1),\;d(3,1))$ = $\min(1.12,\;1.12)$ = $1.12$
+- $d(\{2,3\}, \{4\})$ = $\min(d(2,4),\;d(3,4))$ = $\min(4.61,\;4.61)$ = $4.61$
+- $d(\{2,3\}, \{5\})$ = $\min(d(2,5),\;d(3,5))$ = $\min(5.66,\;5.70)$ = $5.66$
+- $d(\{2,3\}, \{6\})$ = $\min(d(2,6),\;d(3,6))$ = $\min(5.70,\;5.66)$ = $5.66$
+
+**Step 4 — find the next closest pair and merge.** Scanning all current inter-cluster
+distances, the smallest is 0.71 between {5} and {6}. Merge into {5, 6}. Now 4
+clusters: {1}, {2,3}, {4}, {5,6}.
+
+**Step 5 — keep going.** The next smallest distance is 1.12 between {1} and {2,3}.
+Merge into {1, 2, 3}. Now 3 clusters: {1,2,3}, {4}, {5,6}.
+
+**Step 6.** The next merge is {4} into {5,6}, giving {4,5,6}, at a single-linkage
+distance of about 1.12. Now 2 clusters: {1,2,3} and {4,5,6}.
+
+**Step 7.** The last merge combines {1,2,3} and {4,5,6} into one big cluster, at a
+distance of about 4.61 (the nearest member of one group to the nearest member of the
+other).
+
+The whole merge history — which pairs merged and at what distance — is the
+**dendrogram**: a tree diagram that records the clustering at every level.
+
+The same thing in R with `hclust()`:
+
+```{r hclust-example}
+#| fig-alt: "Dendrogram from single-linkage hierarchical clustering of 6 points, showing within-group merges at low heights and the final between-group merge at a much greater height."
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+# hclust() needs a dist object, and we specify single linkage
+d <- dist(dat)
+hc <- hclust(d, method = "single")
+
+# The dendrogram: the tree of merges
+plot(hc, main = "Dendrogram (single linkage)", xlab = "", sub = "",
+     labels = paste0("pt", 1:6))
+```
+
+## Getting a feel for it (hierarchical)
+
+**The party analogy.** Imagine six people at a party, each standing alone. The two
+standing closest start chatting and form a pair. Then the next-closest person or pair
+joins a conversation. Groups grow by absorbing whoever is nearest, and eventually the
+whole room is one big group. The dendrogram is the *guest list* that records who
+joined whom and when. (Where the analogy breaks: at a real party, someone might
+join based on who they know, not pure physical distance — hierarchical clustering uses
+only the numbers.)
+
+**Why bottom-up?** Starting with every point separate and merging upward means you
+never have to pick the number of clusters in advance. The dendrogram records *every*
+possible grouping — from 6 clusters down to 1 — and you choose after the fact by
+cutting the tree at a height that makes sense. That flexibility is the key advantage
+over k-means, which demands you commit to $K$ before running.
+
+**What the dendrogram tells you.** The height at which two branches merge is the
+distance between those clusters at the moment they joined. A tall vertical gap in the
+dendrogram before a merge means those groups were far apart — a natural break. In our
+toy data, the biggest gap is between the merges at height ~1.12 (the within-group
+merges) and the final merge at height ~4.61 (the between-group merge). That gap
+screams "two clusters."
+
+## Cutting the dendrogram
+
+The dendrogram stores the full merge history. To get a specific number of clusters,
+you **cut** it — draw a horizontal line across the tree at some height, and each
+branch below the line is one cluster.
+
+```{r cutree-example}
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+d <- dist(dat)
+hc <- hclust(d, method = "single")
+
+# Cut to get exactly 2 clusters
+clusters_2 <- cutree(hc, k = 2)
+clusters_2  # 1 1 1 2 2 2 — same two groups as k-means found
+
+# Cut to get 3 clusters
+clusters_3 <- cutree(hc, k = 3)
+clusters_3  # one of the tight groups splits further
+```
+
+`cutree(hc, k = 2)` gives us {1,2,3} and {4,5,6} — the same two groups k-means
+found.
+
+## Linkage types
+
+The linkage rule decides how to measure the distance between two clusters (not just
+two individual points). This choice matters a lot.
+[@james2021introductionstatisticallearning, pp. 523-524]
+
+**Single linkage** = the distance between the **closest** members of the two
+clusters: $d(A, B) = \min_{i \in A,\;j \in B} d(\mathbf{x}_i, \mathbf{x}_j)$.
+It can chain: if cluster A has a point near cluster B, which has a point near cluster
+C, single linkage may merge A-B-C into one long straggling chain even when A and C
+are far apart. Good for detecting elongated shapes; bad if you want compact round
+clusters.
+
+**Complete linkage** = the distance between the **farthest** members:
+$d(A, B) = \max_{i \in A,\;j \in B} d(\mathbf{x}_i, \mathbf{x}_j)$. A merge only
+happens if even the most remote members are close. This gives compact, roughly
+spherical clusters — the conservative choice.
+
+**Average linkage** = the average of all pairwise distances between members of the
+two clusters. A middle ground between single and complete: less prone to chaining
+than single, less extreme than complete.
+
+**Ward's linkage** = merge the pair of clusters that increases the WCSS the least.
+It directly optimizes compactness and is the most common choice in practice. (The
+`method = "ward.D2"` argument in `hclust()` implements this using squared distances.)
+
+```{r linkage-comparison}
+#| fig-alt: "Two dendrograms side by side: single linkage (left) and Ward's linkage (right) for the same 6 points, both showing the same two-cluster structure."
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+d <- dist(dat)
+
+# Compare dendrograms: set up a 1-row, 2-column layout
+par(mfrow = c(1, 2))
+plot(hclust(d, method = "single"), main = "Single linkage",
+     xlab = "", sub = "", labels = paste0("pt", 1:6))
+plot(hclust(d, method = "ward.D2"), main = "Ward's linkage",
+     xlab = "", sub = "", labels = paste0("pt", 1:6))
+par(mfrow = c(1, 1))
+```
+
+For our toy data both linkage methods give the same two-cluster solution — the groups
+are so well separated that the linkage choice doesn't matter. On messier real data,
+the choice matters a great deal.
+
+---
+
+## What the notation is going to say (hierarchical)
+
+The single-linkage formula will say: the distance between two clusters $A$ and $B$ is
+the *smallest* distance between any one member of $A$ and any one member of $B$. In
+our toy example, that is exactly the "which two points from different groups are
+closest?" question.
+
+## How to read the symbols (hierarchical)
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $A$, $B$ | "cluster A, cluster B" | two clusters being considered for a merge | {1} and {2,3} during step 5 |
+| $d(A, B)$ | "d of A and B" | the inter-cluster distance (depends on linkage) | single linkage: the smallest point-to-point distance across the two clusters |
+| $\min_{i \in A,\;j \in B}$ | "the minimum over i in A and j in B" | the smallest value you get when checking all pairs with one member from A and one from B (in R: `min(dist_matrix[A, B])`) | $\min(1.12, 1.12) = 1.12$ for $d(\{1\}, \{2,3\})$ |
+| $\max_{i \in A,\;j \in B}$ | "the maximum over i in A and j in B" | the largest such pairwise distance | used in complete linkage |
+
+## The formal version (hierarchical)
+[@james2021introductionstatisticallearning, pp. 523-524, Table 12.3]
+
+**Single linkage:**
+
+$$
+d(A, B) = \min_{i \in A,\;j \in B} d(\mathbf{x}_i, \mathbf{x}_j)
+$$
+
+Reading it aloud: "d of A and B equals the minimum, over all i in A and j in B, of
+d of x-sub-i and x-sub-j" — or in everyday words: **"the distance between two
+clusters is the distance between their two closest members."**
+
+For our toy example, the distance between cluster {1,2,3} and cluster {4,5,6} under
+single linkage is the shortest point-to-point distance across the two groups. The
+closest cross-group pair is points 3 and 4: $d((1.5, 2), (5, 5)) = \sqrt{3.5^2 + 3^2}
+= \sqrt{12.25 + 9} = \sqrt{21.25} \approx 4.61$. That is the merge height for the
+final merge in the dendrogram.
+
+**Complete linkage** swaps min for max:
+
+$$
+d(A, B) = \max_{i \in A,\;j \in B} d(\mathbf{x}_i, \mathbf{x}_j)
+$$
+
+"The distance between two clusters is the distance between their two **farthest**
+members."
+
+---
+
+## Choosing k: the elbow method
+
+Neither algorithm tells you the "right" number of clusters. For k-means, a common
+trick is the **elbow plot**: run k-means for $k = 1, 2, 3, \ldots$ and plot the
+total WCSS at each $k$. WCSS always decreases as you add more clusters (at the
+extreme, every point would be its own cluster and WCSS = 0), but at some point the
+improvement slows sharply — the "elbow." The $k$ at the elbow is a reasonable choice.
+[@boyd2018appliedlinearalgebra, p. 76]
+
+```{r elbow-plot}
+#| fig-alt: "Elbow plot showing WCSS versus number of clusters k from 1 to 5, with a sharp drop from k=1 to k=2 and nearly flat after k=2, indicating the elbow at k=2."
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+# Run kmeans for k = 1 to 5, collect WCSS (k = 6 = n would be trivial: every
+# point its own cluster, WCSS = 0 — and R's kmeans doesn't allow k = n)
+wcss <- numeric(5)
+for (k in 1:5) {
+  set.seed(42)
+  wcss[k] <- kmeans(dat, centers = k, nstart = 25)$tot.withinss
+}
+wcss
+
+# The elbow plot
+plot(1:5, wcss, type = "b", pch = 16, col = "steelblue",
+     xlab = "Number of clusters (k)", ylab = "Total WCSS",
+     main = "Elbow plot — WCSS vs k")
+```
+
+The big drop is from $k = 1$ to $k = 2$. After $k = 2$ the line is nearly flat — the
+elbow says $k = 2$, which matches what we see by eye.
+
+---
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Side-by-side comparison of k-means clustering results with nstart=1 versus nstart=25 on the toy data, showing cluster assignments and centroids."
+# explore-1 — LIVE: why nstart matters.
+# PREDICT: will running kmeans() twice with nstart=1 give the same clusters?
+# Try it — run this cell, note the results, then run it AGAIN.
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+# nstart=1: one random starting position
+km1 <- kmeans(dat, centers = 2, nstart = 1)
+
+# nstart=25: pick the best of 25 random starts
+km25 <- kmeans(dat, centers = 2, nstart = 25)
+
+par(mfrow = c(1, 2))
+plot(dat$x, dat$y, col = km1$cluster, pch = 16, cex = 2,
+     main = paste("nstart=1, WCSS =", round(km1$tot.withinss, 2)),
+     xlab = "x", ylab = "y", xlim = c(0, 7), ylim = c(0, 7))
+points(km1$centers, pch = 4, cex = 3, lwd = 3)
+
+plot(dat$x, dat$y, col = km25$cluster, pch = 16, cex = 2,
+     main = paste("nstart=25, WCSS =", round(km25$tot.withinss, 2)),
+     xlab = "x", ylab = "y", xlim = c(0, 7), ylim = c(0, 7))
+points(km25$centers, pch = 4, cex = 3, lwd = 3)
+par(mfrow = c(1, 1))
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two dendrograms side by side showing single linkage (left) and complete linkage (right) for the same 6-point dataset."
+# explore-2 — LIVE: linkage comparison.
+# TRY IT: change method to "average" or "ward.D2" and re-run.
+# PREDICT: will single linkage and complete linkage give different 2-cluster cuts
+# for this well-separated data? What about data where clusters are closer together?
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+d <- dist(dat)
+
+par(mfrow = c(1, 2))
+hc_s <- hclust(d, method = "single")
+hc_c <- hclust(d, method = "complete")
+plot(hc_s, main = "Single linkage", xlab = "", sub = "")
+plot(hc_c, main = "Complete linkage", xlab = "", sub = "")
+par(mfrow = c(1, 1))
+
+# The 2-cluster assignments — same for both on this clean data
+cat("Single linkage, k=2:", cutree(hc_s, k = 2), "\n")
+cat("Complete linkage, k=2:", cutree(hc_c, k = 2), "\n")
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Elbow plot showing WCSS versus number of clusters k from 1 to 5, with the elbow at k=2."
+# explore-3 — LIVE: the elbow plot for choosing k.
+# TRY IT: what if you added a 7th point at (3.5, 3.5) — right between the groups?
+# Would the elbow still be at k=2?
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+
+wcss <- numeric(5)
+for (k in 1:5) {
+  set.seed(42)
+  wcss[k] <- kmeans(dat, centers = k, nstart = 25)$tot.withinss
+}
+
+plot(1:5, wcss, type = "b", pch = 16, cex = 1.5, col = "steelblue",
+     xlab = "Number of clusters (k)", ylab = "Total WCSS",
+     main = "Elbow plot — where does the curve bend?")
+# The sharp drop from k=1 to k=2 and flat afterward — elbow at k=2
+```
+
+---
+
+## Common traps
+
+**Trap 1 — "k-means always finds the best clustering."** k-means finds a *local*
+minimum of WCSS, not the global one. With unlucky starting centroids, it can get stuck
+in a worse solution. On our toy data the two clusters are so obvious that any start
+works, but here is a 1D example where starting positions matter.
+[@boyd2018appliedlinearalgebra, p. 76; @james2021introductionstatisticallearning, pp. 517-518]
+
+```{r trap-nstart}
+# 9 points in 1D: three tight groups at 0, 5, and 10
+pts <- data.frame(val = c(0, 0.1, -0.1, 5, 5.1, 4.9, 10, 10.1, 9.9))
+set.seed(1)
+bad <- kmeans(pts, centers = 3, nstart = 1)
+set.seed(42)
+good <- kmeans(pts, centers = 3, nstart = 25)
+cat("nstart=1 WCSS:", bad$tot.withinss, "\n")
+cat("nstart=25 WCSS:", good$tot.withinss, "\n")
+# nstart=25 is more likely to find the best (lowest WCSS) solution
+```
+
+The fix is `nstart = 25` (or more) — run the algorithm 25 times from random starts
+and keep the best. Always use `nstart` > 1 in practice.
+
+**Trap 2 — "k-means works for any shape of cluster."** k-means assumes roughly
+spherical (round) clusters because it assigns points to the *nearest centroid*. If the
+true clusters are crescent-shaped or elongated, k-means slices them with straight
+borders and gets it wrong:
+
+```{r trap-shape}
+#| fig-alt: "Two crescent-shaped clusters that k-means splits incorrectly because it assumes round clusters."
+# Two crescents (half-moons) — k-means can't handle these
+set.seed(42)
+n <- 100
+theta1 <- seq(0, pi, length.out = n)
+theta2 <- seq(0, pi, length.out = n)
+moon1 <- data.frame(x = cos(theta1), y = sin(theta1))
+moon2 <- data.frame(x = cos(theta2) + 0.5, y = -sin(theta2) + 0.5)
+moons <- rbind(moon1, moon2)
+true_label <- rep(c(1, 2), each = n)
+
+km_moons <- kmeans(moons, centers = 2, nstart = 25)
+
+plot(moons$x, moons$y, col = km_moons$cluster, pch = 16,
+     xlab = "x", ylab = "y",
+     main = "k-means on crescents — wrong split")
+```
+
+k-means draws a straight boundary between the two crescents instead of following
+their curved shapes. Hierarchical clustering with single linkage handles elongated
+shapes better — it follows the chain of nearby points.
+
+**Trap 3 — "Leaves that sit close together in a dendrogram are similar."** Look
+again at the single-linkage dendrogram from *A tiny example first* in Part 2.
+Points 3 and 4 are drawn right next to each other on the x-axis — the picture
+invites you to read that as "similar." Check the height at which they actually
+first end up in the same cluster instead:
+
+```{r trap-dendrogram-order}
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y)
+hc <- hclust(dist(dat), method = "single")
+
+hc$order                       # leaf order left-to-right in the plot: 1 2 3 4 5 6
+hc$height[length(hc$height)]   # height of the very last (highest) merge
+```
+
+Points 3 and 4 don't join the same cluster until the **last, highest merge in the
+whole tree**, at height $\approx 4.61$ — they are the *least* similar adjacent pair
+here, not the most. Similarity in a dendrogram is read from the **vertical axis**
+(the height where two branches first fuse), never from horizontal position. Horizontal
+order is largely a drawing convenience: a dendrogram with $n$ leaves has $2^{n-1}$
+different left-to-right layouts, all showing the exact same clustering, because you
+can always flip either side of any fork without changing which points end up
+together. [@james2021introductionstatisticallearning, pp. 521-522]
+
+**Trap 4 — "The clusters my run found are THE truth."** Clustering results are not
+as robust as they look — remove a few observations and re-cluster, and the grouping
+can shift. Force $k = 3$ on the toy data (splitting one of the two obvious groups,
+since 3 isn't the natural number of clusters here) and compare the full data against
+the same data with point 4 dropped:
+
+```{r trap-perturbation}
+x <- c(1, 2, 1.5, 5, 6, 5.5)
+y <- c(1, 1.5, 2, 5, 5.5, 6)
+dat <- data.frame(x = x, y = y, id = 1:6)
+
+# All 6 points, k = 3
+full <- cutree(hclust(dist(dat[, c("x", "y")]), method = "single"), k = 3)
+names(full) <- dat$id
+full   # point 4 ends up alone in its own group
+
+# Drop point 4 (about 1/6, close to a 20% perturbation) and re-cluster
+sub <- dat[dat$id != 4, ]
+no4 <- cutree(hclust(dist(sub[, c("x", "y")]), method = "single"), k = 3)
+names(no4) <- sub$id
+no4    # point 1 is alone now instead
+```
+
+With all 6 points, point 4 is the odd one out (its own singleton group). Drop that
+one point and re-cluster the remaining 5, and point 1 becomes the new odd one out —
+a genuinely different grouping, not just a relabeling. If a single removed point can
+change *which* observation looks like the outlier on data this clean, imagine what
+removing a chunk of a messier, real dataset can do. Treat a clustering result as a
+hypothesis to sanity-check — re-run it on a perturbed subset before treating the
+grouping as settled fact. [@james2021introductionstatisticallearning, pp. 529-530]
+
+**Trap 5 — "It doesn't matter which options I pick."** The dissimilarity metric, linkage method, scaling
+decision, and choice of $k$ are not minor implementation details — every one of them
+can materially change which points end up grouped together. This lesson already
+showed it: the warm-up recalled how raw column scale silently decides what counts as
+"close", *Linkage types* explained why single and complete linkage can disagree on
+messier data, and Trap 4 showed the grouping shifting when a single point was
+removed. There is no universally "correct" combination, so always report your choices —
+state the dissimilarity measure, the linkage rule (or `nstart` for k-means), whether
+and how you scaled, and the $k$ you chose, so a reader can assess and reproduce the
+result.
+[@james2021introductionstatisticallearning, pp. 528--530]
+
+## Check yourself
+
+**1.** You run `kmeans()` with `nstart = 1` and get a WCSS of 15. You run it again
+with `nstart = 1` and get a WCSS of 12. Which run found the better clustering?
+
+::: {.callout-note collapse="true" title="Answer"}
+The run with WCSS = **12** found the better clustering. Lower WCSS means points are
+closer to their own centroids, i.e., tighter clusters. The fact that two runs gave
+different answers is why you should use `nstart = 25` or more — it keeps the best of
+many tries.
+:::
+
+**2.** In a dendrogram, what does a large vertical gap between two merge heights tell
+you?
+
+::: {.callout-note collapse="true" title="Answer"}
+A large gap means the clusters on either side of that gap were far apart — they
+resisted merging for a long time. This is a natural break in the data and suggests
+a good place to cut the dendrogram. In our toy data, the big gap between the
+within-group merges (~1.12) and the final between-group merge (~4.61) signals two
+well-separated clusters.
+:::
+
+**3.** In your own words: explain to a colleague when you would prefer k-means over
+hierarchical clustering, and when you might choose the other way.
+
+::: {.callout-note collapse="true" title="A model answer"}
+k-means is fast and works well when you have a rough idea of how many clusters you
+want and the clusters are roughly round — you set k, run it, and get assignments.
+Hierarchical clustering is better when you want to explore different numbers of
+clusters without re-running anything — the dendrogram shows the full merge history,
+so you cut it wherever makes sense. Hierarchical also handles elongated cluster shapes
+better (with single linkage), but it is slower on large datasets because it computes
+all pairwise distances.
+:::
+
+## What you can now do
+
+- **Run k-means by hand**: assign points to nearest centroids, recompute centroids as
+  means, iterate until convergence — and reproduce it with `kmeans()` in R.
+- **Compute WCSS** for a clustering — the sum of squared distances from each point to
+  its centroid — and read `kmeans()$tot.withinss`.
+- **Run hierarchical clustering by hand**: compute pairwise distances, merge the
+  closest pair, update distances, and read the resulting dendrogram — and reproduce it
+  with `hclust()` and `plot()`.
+- **Cut a dendrogram** at a chosen height or number of clusters using `cutree()`.
+- **Choose k** using the elbow plot (WCSS vs k) and explain why `nstart` > 1 matters
+  for k-means.
+
+If any of these feels shaky, revisit
+[A tiny example first (k-means)](#a-tiny-example-first) or
+[A tiny example first (hierarchical)](#a-tiny-example-first-1) before continuing —
+any method that groups data assumes all of these.
+
+## Where this goes next
+
+Clustering groups similar points; **[PCA & SVD](../pca-and-svd/lesson.qmd)** (principal
+component analysis) finds the directions along which points *vary most* — both use the
+covariance matrix's geometry, and they often work in tandem (reduce dimensions with
+PCA, then cluster in that reduced space). The distance and mean machinery you used
+here will come right back.
+
+Ready for more reps? Do the [practice problems](practice.qmd).

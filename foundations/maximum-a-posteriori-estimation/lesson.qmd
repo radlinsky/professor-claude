@@ -1,0 +1,488 @@
+---
+title: "Maximum a posteriori estimation"
+subtitle: "MLE plus a prior — and why ridge regression is secretly Bayesian"
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c()
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+
+## Where we're going
+
+You already know two estimation ideas. **Maximum likelihood** (MLE) asks: "which
+parameter makes my observed data most probable?" — it maximises the likelihood.
+**Bayesian updating** says: "multiply the likelihood by a prior, and the result (the
+posterior) is your updated belief about the parameter."
+[@chan2021probabilitydatascience, pp. 503--504]
+
+**MAP estimation** combines both: it finds the parameter value at the **peak** (mode) of
+the posterior. Because the posterior is likelihood × prior, the MAP estimate is pulled
+between the data (likelihood) and your prior belief. With enough data, the data win and
+MAP converges to MLE. With a flat (uniform) prior, MAP IS MLE — the prior drops out.
+[@chan2021probabilitydatascience, pp. 506--507]
+
+The payoff: MAP explains *why* ridge regression and the lasso exist. Ridge is MAP with a
+Gaussian prior; lasso is MAP with a Laplace prior. The shape of the prior controls
+whether coefficients shrink smoothly toward zero (ridge) or snap exactly to zero (lasso).
+[@chan2021probabilitydatascience, pp. 518--520]
+
+**Builds on:**
+[likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd) —
+the MLE idea and the product-to-sum log rule;
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd) —
+posterior ∝ likelihood × prior;
+[ridge regularization](../ridge-regularization/lesson.qmd) —
+the ridge and lasso penalties.
+
+
+## Warm-up: do you remember?
+
+Three quick reps — produce each answer from memory first, then check.
+
+**1.** *(likelihood)* You flip a coin 5 times and see 3 heads, 2 tails. What is the
+likelihood $L(p)$ of a particular value $p$? Which $p$ maximises it?
+
+::: {.callout-note collapse="true" title="Answer"}
+$L(p) = p^3 (1-p)^2$ — three heads contribute $p$ each, two tails contribute $(1-p)$
+each, multiplied by independence. The MLE is $\hat{p} = 3/5 = 0.6$. Taught in
+[likelihood & log-likelihood](../likelihood-and-log-likelihood/lesson.qmd); revisit if
+shaky.
+:::
+
+**2.** *(priors)* Write Bayes' theorem in one line using "posterior ∝ likelihood × prior".
+What does the ∝ mean?
+
+::: {.callout-note collapse="true" title="Answer"}
+$P(\theta \mid \text{data}) \propto P(\text{data} \mid \theta) \times P(\theta)$. The
+∝ ("proportional to") means we drop the denominator $P(\text{data})$ because it doesn't
+depend on $\theta$ — it's just a normalising constant. Taught in
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd); revisit if
+shaky.
+:::
+
+**3.** *(priors)* If your prior says $\theta = 0.5$ and your data strongly suggest
+$\theta = 0.8$, does the posterior sit closer to 0.5 or to 0.8? What happens as you
+collect more data?
+
+::: {.callout-note collapse="true" title="Answer"}
+With little data the posterior sits closer to the prior (0.5). With more data the
+likelihood sharpens and the posterior shifts toward 0.8 (the data's answer). With
+enough data the posterior concentrates on the MLE — the prior's influence fades.
+Taught in
+[priors, posteriors & updating](../priors-posteriors-and-updating/lesson.qmd);
+revisit if shaky.
+:::
+
+
+## A tiny example first
+
+Same coin: 5 flips, 3 heads. The MLE says $\hat{p} = 0.6$ — just the fraction of
+heads. But suppose you believe, before seeing any data, that the coin is probably
+close to fair. Encode that belief as a **Beta(3, 3)** prior — a hill centred at 0.5
+that gives low weight to extreme values like 0.1 or 0.9.
+
+**What Beta(3, 3) means in plain language:** think of it as "phantom observations." A
+Beta($\alpha$, $\beta$) prior acts like you have already seen $\alpha - 1$ phantom heads
+and $\beta - 1$ phantom tails before touching the real data. Beta(3, 3) means 2 phantom
+heads and 2 phantom tails — 4 phantom flips that split evenly, pulling toward fair. The
+MAP formula adds the phantom counts to the real counts.
+
+The MAP estimate — the peak of the posterior — has a closed form for the Beta-Bernoulli
+case. For Beta($\alpha$, $\beta$) prior with $\alpha + \text{heads} > 1$ and
+$\beta + \text{tails} > 1$ (so the mode exists in the interior):
+[@chan2021probabilitydatascience, pp. 514--515]
+
+MAP = (heads + a − 1) / (n + a + b − 2)  = (3 + 3 − 1) / (5 + 3 + 3 − 2) = 5/9 ≈ 0.556
+
+Read it as: "(real heads + phantom heads) / (real flips + phantom flips)" =
+(3 + 2) / (5 + 4) = 5/9.
+
+The MLE was 0.6 (pulled entirely by the data). The MAP is 0.556 — pulled partway
+back toward the prior's mode at 0.5. The prior "tugged" the estimate away from the
+data, toward fair.
+
+Now try a **uniform** prior — Beta(1, 1), which says "every value of p is equally likely
+before I see data":
+
+MAP = (3 + 1 − 1) / (5 + 1 + 1 − 2) = 3/5 = 0.6 = MLE
+
+With no prior opinion, MAP gives the same answer as MLE. The prior is what makes the
+difference — and the shape of the prior determines *how* the estimate is pulled.
+
+```{r toy-example}
+# 5 flips, 3 heads — compute MAP under two priors
+n <- 5; heads <- 3
+
+mle <- heads / n                                         # 0.6
+map_beta33 <- (heads + 3 - 1) / (n + 3 + 3 - 2)        # 5/9 ≈ 0.556
+map_uniform <- (heads + 1 - 1) / (n + 1 + 1 - 2)       # 3/5 = 0.6
+
+cat("MLE:", mle, "\n")
+cat("MAP (Beta(3,3) prior):", round(map_beta33, 3), "\n")
+cat("MAP (Uniform prior):", map_uniform, "— same as MLE\n")
+```
+
+
+## Getting a feel for it
+
+**The mental picture: a tug-of-war.** The likelihood is a team of horses, one per data
+point, pulling the estimate toward the data's answer. The prior is a bull anchored at
+its favourite value. With few data points the bull wins — MAP stays near the prior. Add
+more horses and they overpower the bull — MAP drifts toward the MLE. (Where the
+analogy strains: the tug-of-war implies one equilibrium point between two pulls. That
+works for the Beta-Bernoulli case and for ridge/lasso, but with a multimodal prior or a
+non-concave posterior the MAP can jump between multiple peaks — more like a landscape
+than a rope.)
+[@chan2021probabilitydatascience, pp. 509--511]
+
+In the toy, the bull (Beta(3, 3)) is anchored at 0.5. The 5 horses pull toward 0.6.
+Result: 0.556, closer to the horses than the bull but not all the way. With 50 flips
+and 30 heads the MAP would be $(30 + 2)/(50 + 4) \approx 0.593$ — almost at the MLE
+of 0.6 — because 50 horses overwhelm one bull.
+
+**Why it matters beyond coins.** In regression, "the prior" becomes a belief about how
+big the coefficients should be. A Gaussian prior centred at zero says "I expect small
+coefficients" — the bull pulls each coefficient toward zero. That is exactly what the
+[ridge penalty](../ridge-regularization/lesson.qmd) does: it shrinks coefficients toward
+zero. MAP with a Gaussian prior IS ridge. That's not a metaphor — it is the same
+formula, derived below.
+
+
+## What the notation is going to say
+
+The upcoming formula says: "instead of just maximising the log-likelihood (as MLE
+does), add the log of the prior and maximise the sum." The extra log-prior term acts as
+a **penalty** — it rewards parameter values the prior likes and penalises values it
+dislikes. In the coin example, the Beta(3, 3) log-prior adds a hill at 0.5, pushing the
+peak from 0.6 down to 0.556.
+
+
+## How to read the symbols
+
+| Symbol | How to say it | What it means | In our toy example |
+|---|---|---|---|
+| $\hat{\theta}_{\text{MAP}}$ | "theta-hat MAP" | the MAP estimate: the mode (peak) of the posterior | 5/9 ≈ 0.556 |
+| $\hat{\theta}_{\text{ML}}$ | "theta-hat ML" | the MLE: the mode of the likelihood | 3/5 = 0.6 |
+| $f(\theta)$ | "the prior" | the prior density — your belief about $\theta$ before seeing data | Beta(3, 3), centred at 0.5 |
+| $L(\theta)$ | "the likelihood" | how probable the data are under parameter $\theta$ | $p^3(1-p)^2$ |
+| $\ell(\theta)$ | "the log-likelihood" | $\log L(\theta)$ — same peak, easier arithmetic | $3\log p + 2\log(1-p)$ |
+| $\log f(\theta)$ | "log prior" | the log of the prior density — becomes the penalty term in MAP | $(3-1)\log p + (3-1)\log(1-p)$ |
+| $\lambda$ | "lambda" (the regularisation weight) | in ridge/lasso: how hard to penalise large coefficients; in MAP: $\sigma^2/\sigma_0^2$ | strength of the prior's pull |
+| $\arg\max$ | "arg max" | the value of the input that makes the expression largest | find the $p$ that peaks the posterior |
+| $\beta$ | "beta" (coefficient vector) | the vector of regression coefficients being estimated | slope in the toy regression |
+| $\sigma^2$ | "sigma squared" (noise variance) | variance of the observation noise $\varepsilon$ in the regression model | assumed known; controls how much the data pull |
+| $\sigma_0^2$ | "sigma-zero squared" (prior variance) | variance of the Gaussian prior on each coefficient; small = tight prior | $\sigma^2/\lambda$ — determines the ridge penalty strength |
+
+
+## The formal version
+
+### MAP = argmax (log-likelihood + log-prior)
+
+The posterior is $f(\theta \mid \text{data}) \propto L(\theta) \times f(\theta)$.
+Taking the log: [@chan2021probabilitydatascience, pp. 506--507]
+
+$$
+\hat{\theta}_{\text{MAP}} = \arg\max_\theta \;
+\bigl[\,\ell(\theta) + \log f(\theta)\,\bigr]
+$$
+
+Reading it aloud: "theta-hat MAP is the argmax over theta of the log-likelihood plus the
+log-prior." In everyday words: "find the $\theta$ that maximises the posterior by
+maximising the sum of two terms — one from the data, one from the prior."
+
+Map it onto the coin toy with a Beta(3, 3) prior. The log-prior of Beta($\alpha, \beta$)
+is (up to a constant) $(\alpha - 1)\log p + (\beta - 1)\log(1-p) = 2\log p + 2\log(1-p)$.
+The log-likelihood is $3\log p + 2\log(1-p)$. Sum:
+
+$$
+3\log p + 2\log(1-p) + 2\log p + 2\log(1-p) = 5\log p + 4\log(1-p)
+$$
+
+This is the log of $p^5(1-p)^4$ — a Beta(6, 5) shape whose mode is
+$5/(5+4) = 5/9 \approx 0.556$, exactly what we computed.
+
+With a **uniform** prior ($\log f(\theta)$ = constant), the log-prior adds nothing
+to the optimisation and MAP reduces to MLE. The prior is the *only* difference between
+MAP and MLE.
+
+```{r map-formula}
+# MAP on the coin: maximise log-likelihood + log-prior
+log_posterior <- function(p, heads, tails, alpha, beta) {
+  heads * log(p) + tails * log(1 - p) +   # log-likelihood
+  (alpha - 1) * log(p) + (beta - 1) * log(1 - p)  # log-prior
+}
+
+p_grid <- seq(0.01, 0.99, by = 0.001)
+lp <- log_posterior(p_grid, heads = 3, tails = 2, alpha = 3, beta = 3)
+cat("MAP (grid search):", p_grid[which.max(lp)], "\n")  # ≈ 0.556
+cat("MAP (formula):    ", 5/9, "\n")
+```
+
+
+### Gaussian prior → ridge
+
+Now apply MAP to regression. You have data $(x_i, y_i)$ and a linear model
+$y = X\beta + \varepsilon$ with Gaussian noise $\varepsilon \sim N(0, \sigma^2)$.
+The log-likelihood is (up to a constant):
+[@chan2021probabilitydatascience, pp. 518--519]
+
+$$
+\ell(\beta) = -\frac{1}{2\sigma^2} \sum_i (y_i - x_i^\top \beta)^2
+$$
+
+Put a **Gaussian** prior on $\beta$: each $\beta_j \sim N(0, \sigma_0^2)$. Its log
+(up to a constant) is:
+
+$$
+\log f(\beta) = -\frac{1}{2\sigma_0^2} \sum_j \beta_j^2
+$$
+
+Add them and maximise:
+
+$$
+\hat{\beta}_{\text{MAP}} = \arg\max_\beta \left[
+  -\frac{1}{2\sigma^2}\sum_i(y_i - x_i^\top\beta)^2
+  - \frac{1}{2\sigma_0^2}\sum_j \beta_j^2 \right]
+$$
+
+Maximising a negative sum is the same as *minimising* the positive version. Multiply
+through by $2\sigma^2$:
+
+$$
+\hat{\beta}_{\text{MAP}} = \arg\min_\beta \left[
+  \sum_i(y_i - x_i^\top\beta)^2 + \frac{\sigma^2}{\sigma_0^2}\sum_j \beta_j^2 \right]
+$$
+
+Set $\lambda = \sigma^2 / \sigma_0^2$ and this is **ridge regression**:
+
+$$
+\text{RSS} + \lambda \sum_j \beta_j^2
+$$
+
+The $\lambda$ that ridge treats as a "tuning knob" is the ratio of noise variance to
+prior variance. A tight prior ($\sigma_0^2$ small) makes $\lambda$ large — strong
+shrinkage. A wide prior ($\sigma_0^2$ large) makes $\lambda$ small — almost no
+shrinkage, nearly MLE.
+
+```{r ridge-map}
+# Simple regression: y ~ bx (centered, no intercept)
+x <- c(-1, 0, 1); y <- c(-1, 0.5, 2)
+
+b_ols   <- sum(x * y) / sum(x^2)          # 1.5 (MLE)
+b_ridge1 <- sum(x * y) / (sum(x^2) + 1)   # 1.0 (ridge, lambda=1)
+b_ridge3 <- sum(x * y) / (sum(x^2) + 3)   # 0.6 (ridge, lambda=3)
+
+cat("OLS (= MLE = MAP with flat prior):", b_ols, "\n")
+cat("Ridge lambda=1 (= MAP, sigma0^2 = sigma^2):", b_ridge1, "\n")
+cat("Ridge lambda=3 (= MAP, tight prior):", b_ridge3, "\n")
+```
+
+
+### Laplace prior → lasso
+
+Replace the Gaussian prior with a **Laplace** (double-exponential) prior:
+each $\beta_j$ has density $f(\beta_j) \propto \exp(-|\beta_j|/\alpha)$.
+Its log is: [@chan2021probabilitydatascience, pp. 519--520]
+
+$$
+\log f(\beta) = -\frac{1}{\alpha}\sum_j |\beta_j|
+$$
+
+The MAP problem becomes (multiply through by $2\sigma^2$ as before — but the Laplace
+has no $\tfrac{1}{2}$, so a factor of 2 survives):
+
+$$
+\hat{\beta}_{\text{MAP}} = \arg\min_\beta \left[
+  \sum_i(y_i - x_i^\top\beta)^2 + \frac{2\sigma^2}{\alpha}\sum_j |\beta_j| \right]
+$$
+
+This is the **lasso** — the absolute-value penalty from the
+[ridge-regularization module](../ridge-regularization/lesson.qmd). The Laplace
+distribution has a sharp peak at zero — it concentrates more mass near zero than the
+Gaussian does. Importantly, a continuous prior like the Laplace does not assign nonzero
+probability to any single value (including zero); the sparsity comes from the
+**non-differentiability** of the absolute-value penalty at zero. The crease in
+$|\beta_j|$ at zero means the MAP optimisation can land exactly at zero — the penalty's
+corner acts as a "catch" that traps small coefficients.
+
+The difference in one picture: the Gaussian prior is a smooth bell (the squared penalty
+is differentiable everywhere, so the MAP solution glides toward zero but never reaches
+it), while the Laplace prior is a tent with a crease at zero (the absolute-value
+penalty's corner is where the MAP solution snaps coefficients to exactly zero).
+
+
+## Explore it
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Two-panel plot showing MAP coin estimate vs data size: with few flips MAP stays near the prior, with many flips it converges to MLE"
+# explore-1 — LIVE: watch MAP move from the prior toward MLE as data accumulates.
+# TRY IT: change alpha/beta to c(10,10) (strong prior) — how many flips before MAP
+# reaches 0.59?
+# PREDICT: with alpha=1, beta=1 (uniform prior), will MAP ever differ from MLE?
+alpha <- 3; beta <- 3   # prior: Beta(alpha, beta)
+true_p <- 0.6            # the "true" coin bias
+
+flips <- c(5, 10, 20, 50, 100, 200)
+results <- sapply(flips, function(n) {
+  heads <- round(n * true_p)
+  mle <- heads / n
+  map <- (heads + alpha - 1) / (n + alpha + beta - 2)
+  c(MLE = mle, MAP = map)
+})
+
+matplot(flips, t(results), type = "b", pch = c(1, 19), lty = 1, lwd = 2,
+        col = c("grey50", "steelblue"),
+        xlab = "number of flips", ylab = "estimate",
+        main = sprintf("MAP (Beta(%d,%d) prior) converges to MLE", alpha, beta))
+abline(h = 0.5, lty = 3, col = "tomato")
+abline(h = true_p, lty = 2, col = "grey50")
+legend("right", legend = c("MLE", "MAP", "prior centre", "true p"),
+       col = c("grey50", "steelblue", "tomato", "grey50"),
+       lty = c(1, 1, 3, 2), pch = c(1, 19, NA, NA), bty = "n")
+```
+
+```{webr}
+#| autorun: true
+#| fig-alt: "Plot comparing Gaussian and Laplace prior densities: Gaussian is a smooth bell, Laplace has a sharp peak at zero"
+# explore-2 — LIVE: the Gaussian vs Laplace prior — why lasso zeros out.
+# TRY IT: change sigma0 to 0.5 (tighter Gaussian) — does it look more like Laplace?
+# PREDICT: which prior puts more weight near beta = 0?
+sigma0 <- 1    # Gaussian prior std dev
+alpha  <- 1    # Laplace prior scale
+
+b_grid <- seq(-4, 4, length.out = 300)
+gauss  <- dnorm(b_grid, 0, sigma0)
+laplace <- (1 / (2 * alpha)) * exp(-abs(b_grid) / alpha)
+
+plot(b_grid, gauss, type = "l", col = "steelblue", lwd = 2,
+     xlab = expression(beta), ylab = "prior density",
+     main = "Gaussian prior (ridge) vs Laplace prior (lasso)", ylim = c(0, max(laplace) * 1.1))
+lines(b_grid, laplace, col = "tomato", lwd = 2)
+abline(v = 0, lty = 3)
+legend("topright", legend = c("Gaussian → ridge", "Laplace → lasso"),
+       col = c("steelblue", "tomato"), lwd = 2, bty = "n")
+```
+
+```{webr}
+#| autorun: false
+# explore-3 — LIVE: MAP by grid search vs closed-form formula — they agree.
+# TRY IT: change to alpha=10, beta=10 (stronger prior) — does MAP move?
+n <- 5; heads <- 3; tails <- 2
+alpha <- 3; beta <- 3
+
+p_grid <- seq(0.01, 0.99, by = 0.001)
+log_post <- heads * log(p_grid) + tails * log(1 - p_grid) +
+            (alpha - 1) * log(p_grid) + (beta - 1) * log(1 - p_grid)
+map_grid <- p_grid[which.max(log_post)]
+map_formula <- (heads + alpha - 1) / (n + alpha + beta - 2)
+cat("MAP (grid search):", map_grid, "\n")
+cat("MAP (formula):    ", round(map_formula, 4), "\n")
+cat("They agree:", abs(map_grid - map_formula) < 0.002, "\n")
+```
+
+```{webr}
+#| autorun: false
+# explore-4 — LIVE: ridge MAP in action on the toy regression.
+# TRY IT: change lambda to 0 — does the estimate match OLS?
+# PREDICT: what lambda makes the MAP slope exactly 0.5?
+x <- c(-1, 0, 1); y <- c(-1, 0.5, 2)
+lambda <- 1
+
+b_ols   <- sum(x * y) / sum(x^2)
+b_ridge <- sum(x * y) / (sum(x^2) + lambda)
+
+cat("OLS slope:", b_ols, "\n")
+cat("Ridge MAP slope (lambda =", lambda, "):", b_ridge, "\n")
+cat("Shrinkage:", round((1 - b_ridge / b_ols) * 100, 1), "% toward zero\n")
+```
+
+
+## Common traps
+
+**Trap: "MAP is always better than MLE."** MAP is optimal for maximising the posterior;
+MLE is optimal for maximising the likelihood. Neither is universally superior. A strong
+prior that is *wrong* (e.g. centred at the wrong value) makes the MAP estimate worse
+than MLE, especially with little data. MAP's advantage depends entirely on the prior
+being reasonable. In the toy, a Beta(50, 2) prior "knows" the coin is very biased —
+if the coin is actually fair, that prior actively hurts.
+[@chan2021probabilitydatascience, p. 520]
+
+**Trap: "Ridge and lasso are just ad hoc penalties with no justification."** They *are*
+justified — each is the MAP estimate under a specific prior. Ridge penalises
+$\sum \beta_j^2$ because the Gaussian prior says "large coefficients are unlikely."
+Lasso penalises $\sum |\beta_j|$ because the Laplace prior concentrates mass near zero,
+and the non-differentiability of $|\beta_j|$ at zero lets the MAP solution snap
+coefficients to exactly zero. The penalty isn't a hack — it is a *belief*, written in
+math.
+[@chan2021probabilitydatascience, pp. 518--520]
+
+
+## Check yourself
+
+**1.** If you use a uniform prior (every parameter value equally likely before seeing
+data), what does the MAP estimate equal?
+
+::: {.callout-note collapse="true" title="Answer"}
+The MLE. A uniform prior's log is a constant, which drops out of the optimisation
+$\arg\max[\ell(\theta) + \text{const}]$, leaving just $\arg\max \ell(\theta)$.
+:::
+
+**2.** A colleague fits a ridge regression with $\lambda = 5$. In MAP language, is
+their Gaussian prior on the coefficients tight (small $\sigma_0^2$) or wide (large
+$\sigma_0^2$)? Why?
+
+::: {.callout-note collapse="true" title="Answer"}
+Tight (small $\sigma_0^2$). Since $\lambda = \sigma^2 / \sigma_0^2$, a large $\lambda$
+means $\sigma_0^2$ is small relative to $\sigma^2$. A small $\sigma_0^2$ means the
+prior is concentrated near zero — a strong belief that coefficients should be small —
+so the estimate shrinks aggressively.
+:::
+
+**3.** In your own words: explain to a colleague, in two sentences, what MAP does and
+how it relates to ridge regression.
+
+::: {.callout-note collapse="true" title="A model answer"}
+MAP finds the most probable parameter value by maximising the log-likelihood plus the
+log-prior — it is MLE with a penalty for parameter values the prior dislikes. Ridge
+regression is MAP with a Gaussian prior centred at zero: the penalty
+$\lambda\sum\beta_j^2$ is exactly the negative log of that prior.
+:::
+
+
+## What you can now do
+
+- **State the MAP formula** — argmax of log-likelihood + log-prior — and explain how
+  it differs from MLE by exactly one term.
+- **Compute a MAP estimate** for the coin-flip toy under a Beta prior, by hand and in R.
+- **Derive the ridge penalty** from a Gaussian prior on the coefficients, and name the
+  relationship $\lambda = \sigma^2 / \sigma_0^2$.
+- **Explain why lasso zeros out coefficients and ridge does not** — the Laplace prior
+  has a sharp peak at zero, the Gaussian prior does not.
+
+If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first)
+before continuing — the MAP idea is one formula, and every regularisation method is a
+disguised version of it.
+
+
+## Where this goes next
+
+The MAP-ridge and MAP-lasso equivalences reappear whenever a paper says "regularisation."
+Knowing that the penalty is a prior lets you choose one intelligently: if you believe most coefficients are small but nonzero, use ridge (Gaussian prior); if
+you believe most are near zero and want sparsity, use lasso (Laplace prior — the
+non-differentiable corner, not a point mass at zero, is what drives coefficients to
+exactly zero). More complex priors lead to more complex
+penalties — elastic net, horseshoe, spike-and-slab — but the MAP recipe is always the
+same: log-likelihood plus log-prior.
+[@chan2021probabilitydatascience, pp. 517--520]
+
+Ready for more reps? Do the [practice problems](practice.qmd).
