@@ -85,7 +85,7 @@ predictors."* This contains **exactly one mistake** — find it.
 The mistake: expecting **ridge** to zero out predictors. Ridge shrinks coefficients
 *toward* zero but essentially never *to* exactly zero, so it does **not** select variables
 — every predictor stays. The tool that drives coefficients to exactly zero (and so
-selects) is the **lasso** ($\ell_1$ penalty, $\sum_j|\beta_j|$). Ridge is behaving
+selects) is the **lasso** (absolute-value penalty, $\sum_j|\beta_j|$). Ridge is behaving
 correctly; it was the wrong tool for the colleague's goal.
 :::
 
@@ -138,6 +138,35 @@ solve(t(X) %*% X + 0.1 * diag(2), t(X) %*% y)   # returns an answer; plain solve
 ```
 :::
 
+## Problem 7 — lasso snap and choosing the right tool
+
+**(a)** For the lesson's toy data ($x = (1,2,3)$, $y = (2,4,6)$), the lasso slope is
+$b = \max\!\big(0,\; (28 - \lambda/2)\,/\,14\big)$. At what $\lambda$ does the lasso first
+set $b$ to exactly 0? What is the *ridge* slope at that same $\lambda$?
+
+**(b)** A colleague has 200 observations and 50 predictors. Domain knowledge says about 5
+predictors truly matter; the rest are noise. Based on the difference you just computed,
+which method — ridge or lasso — should they try first?
+
+```{webr}
+#| autorun: false
+# p7-starter
+Sxy <- 28; Sxx <- 14
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+**(a)** The lasso hits zero when $28 - \lambda/2 = 0$, so $\lambda = 56$. Ridge at
+$\lambda = 56$ gives $28/(14 + 56) = 28/70 = 0.4$ — still nonzero. The lasso snapped to
+exactly 0 while ridge was still at 0.4; this is the structural difference between the
+absolute-value and squared penalties.
+
+**(b)** **Lasso.** The scenario fits the "few predictors matter, many are noise" pattern —
+the true model is sparse. The lasso's absolute-value penalty will drive the ~45 noise
+coefficients to exactly zero, effectively selecting the 5 relevant predictors. Ridge would
+keep all 50 in the model with small-but-nonzero coefficients. (If unsure in practice,
+cross-validate both and compare test error.)
+:::
+
 ## Module check
 
 :::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
@@ -167,14 +196,6 @@ b) They grow without bound
 c) They shrink toward zero but stay in the model
 :::
 
-::: {.quiz-q qid="rr-vs-lasso" qtype="mc" answer="a"}
-Does ridge do variable selection — zeroing out useless predictors?
-
-a) No — ridge shrinks toward but not to zero; lasso selects
-b) Yes — ridge sets useless coefficients to exactly zero
-c) Yes — ridge and lasso are the same method
-:::
-
 ::: {.quiz-q qid="rr-invertibility" qtype="mc" answer="b"}
 Besides shrinking coefficients, what does ridge's $+\lambda I$ term guarantee?
 
@@ -189,6 +210,14 @@ c) That all coefficients become equal
 a) So the penalty treats every coefficient on a comparable scale
 b) So the intercept becomes exactly zero
 c) It is optional — standardization changes nothing for ridge
+:::
+
+::: {.quiz-q qid="rr-lasso-corner" qtype="mc" answer="a"}
+What makes the lasso penalty $\sum|\beta_j|$ produce exactly-zero coefficients, unlike ridge's $\sum\beta_j^2$?
+
+a) The absolute value has a corner at zero where the derivative jumps, so the solution can land exactly at the corner
+b) The absolute value is always larger than the square for small $\beta$
+c) The lasso uses a larger $\lambda$ than ridge
 :::
 
 :::

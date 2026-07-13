@@ -147,6 +147,7 @@ every coefficient toward 0.
 | $\sum_i$ | "the sum over i" | add over the data points | over the 3 points |
 | $\sum_j \beta_j^2$ | "the sum of the squared betas" | the total coefficient size the penalty charges for | $b^2$ (one predictor) |
 | $\lVert \beta \rVert^2$ | "the squared norm of beta" | same thing in vector shorthand: $\sum_j \beta_j^2$ | $b^2$ |
+| $\lvert \beta_j \rvert$ | "the absolute value of beta-j" | how far $\beta_j$ is from zero, dropping the sign; used in the lasso penalty | $\lvert b \rvert = b$ (since $b > 0$ in our toy) |
 | $I$ | "the identity matrix" | the matrix version of "1" (used in the matrix form) | — |
 
 ## The formal version
@@ -170,7 +171,7 @@ plus lambda times the sum of the squared betas" — or in everyday words: "fit t
 
 **The matrix form (stated, used later).** With predictors stacked in $X$, the ridge
 solution is $\hat\beta = (X^\top X + \lambda I)^{-1} X^\top y$ — ordinary least squares
-with $\lambda$ added down the diagonal of $X^\top X$. The payoff, proved in the
+with $\lambda$ added down the diagonal of $X^\top X$. The payoff, proved in
 a later course: $X^\top X + \lambda I$ is invertible for **any** $\lambda > 0$, even
 when $X^\top X$ alone is singular (near-collinear predictors). That's ridge's other job —
 making a fit *computable* when plain least squares can't invert.
@@ -217,6 +218,122 @@ bruteforce <- optimize(function(b) sum((y - b * x)^2) + lambda * b^2, c(-5, 5))$
 c(closed_form = closed, optimize = bruteforce)   # both 1
 ```
 
+## Lasso: the cousin that deletes
+
+Ridge penalizes $\sum_j \beta_j^2$ — the squared coefficients. The **lasso** swaps the
+squares for absolute values: $|\beta_j|$ instead of $\beta_j^2$. Everything else is
+identical — same fit term, same $\lambda$ dial. That one-character change has one dramatic
+consequence: the lasso can drive coefficients to **exactly zero**, dropping predictors from
+the model entirely. [@james2021introductionstatisticallearning, pp. 241--242]
+
+### Soft-thresholding: the 1-D case
+
+Use the same toy: $x = (1,2,3)$, $y = (2,4,6)$, minimize
+$\text{cost}(b) = \sum_i (y_i - b x_i)^2 + \lambda |b|$.
+
+The derivative of $|b|$ is $+1$ when $b > 0$ and $-1$ when $b < 0$, so the
+"set-to-zero" move needs cases. For $b > 0$:
+
+$$
+-2\sum_i x_i(y_i - b x_i) + \lambda = 0 \;\Longrightarrow\; b = \frac{\sum x_i y_i - \lambda/2}{\sum x_i^2} .
+$$
+
+That's the OLS slope **minus** a fixed shift $\lambda/(2\sum x_i^2)$. Compare with
+ridge's *proportional* shrinkage $b = \sum x_i y_i / (\sum x_i^2 + \lambda)$, which
+never reaches zero. When the shift pushes $b$ past zero, the answer clamps to exactly 0.
+[@james2021introductionstatisticallearning, pp. 247--248]
+
+With our numbers ($\sum x_i y_i = 28$, $\sum x_i^2 = 14$):
+
+```{r lasso-vs-ridge-table}
+Sxy <- 28; Sxx <- 14
+lambdas <- c(0, 14, 56, 100)
+ridge <- Sxy / (Sxx + lambdas)
+lasso <- pmax(0, (Sxy - lambdas / 2) / Sxx)
+data.frame(lambda = lambdas, ridge = round(ridge, 3), lasso = lasso)
+```
+
+Ridge at $\lambda = 56$ still gives 0.4. Lasso at $\lambda = 56$ gives **exactly 0** —
+it dropped the predictor. Every $\lambda \geq 56$ keeps it at zero.
+
+### The formal lasso objective
+
+$$
+\hat\beta_{\text{lasso}} = \arg\min_{\beta} \; \sum_{i=1}^{n}\Big(y_i - \textstyle\sum_j \beta_j x_{ij}\Big)^2 \; + \; \lambda \sum_{j} |\beta_j| .
+$$
+
+Reading it aloud: "beta-hat-lasso is the beta minimizing the sum of squared residuals,
+plus lambda times the sum of the absolute betas" — fit the data *and* keep the knobs
+small, but charge the *absolute* size rather than the squared size.
+
+::: {.callout-tip title="PREDICT before you run"}
+The formula says lasso snaps to 0 at $\lambda = 56$. Will the brute-force optimizer
+agree? Change `lambda` in the cell below and check.
+:::
+
+```{webr}
+#| autorun: false
+# TRY IT: verify the lasso answer with a brute-force optimizer.
+# Change lambda and re-run — notice the exact-zero snap.
+x <- c(1, 2, 3); y <- c(2, 4, 6); lambda <- 56
+lasso_cost <- function(b) sum((y - b * x)^2) + lambda * abs(b)
+lasso_b <- optimize(lasso_cost, c(-5, 5))$minimum
+ridge_b <- sum(x * y) / (sum(x^2) + lambda)
+c(lasso = round(lasso_b, 4), ridge = round(ridge_b, 4))
+```
+
+### Why no matrix form
+
+Ridge had a clean matrix formula: $(X^\top X + \lambda I)^{-1} X^\top y$. That works
+because $\beta_j^2$ is smooth — differentiable everywhere, so you set the gradient to
+zero and solve.
+
+The absolute value $|\beta_j|$ has a **corner** at zero — its derivative jumps from $-1$
+to $+1$, so "set the gradient to zero" breaks down. For one predictor the corner is
+manageable (the two-case derivation above), but with multiple predictors there is no
+$(X^\top X + \text{something})^{-1}$ formula. The lasso needs iterative algorithms.
+[@chan2021probabilitydatascience, p. 453]
+
+### Ridge paths vs lasso paths
+
+The ridge path plot above showed both coefficients gliding smoothly toward zero. Run the
+same data through the lasso and the picture changes:
+
+```{r lasso-path-compare}
+#| fig-alt: "Side-by-side coefficient path plots. Left: ridge paths curve smoothly toward zero without reaching it. Right: lasso paths hit exactly zero at specific lambda values and stay there."
+set.seed(1); n <- 60; z <- rnorm(n)
+x1 <- scale(z + rnorm(n, sd = 0.3)); x2 <- scale(z + rnorm(n, sd = 0.3))
+y  <- as.numeric(scale(2 * x1 - 1 * x2 + rnorm(n))); X <- cbind(x1, x2)
+
+lambdas <- 10^seq(-2, 2.5, length.out = 40)
+ridge_paths <- sapply(lambdas, function(l)
+  solve(t(X) %*% X + l * diag(2), t(X) %*% y))
+lasso_paths <- sapply(lambdas, function(l)
+  optim(c(0, 0), function(b) sum((y - X %*% b)^2) + l * sum(abs(b)),
+        method = "Nelder-Mead", control = list(reltol = 1e-10))$par)
+
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+matplot(log10(lambdas), t(ridge_paths), type = "l", lwd = 2, lty = 1,
+        xlab = "log10(lambda)", ylab = "coefficient", main = "Ridge paths")
+abline(h = 0, lty = 3); legend("topright", c("b1", "b2"), col = 1:2, lwd = 2, bty = "n")
+matplot(log10(lambdas), t(lasso_paths), type = "l", lwd = 2, lty = 1,
+        xlab = "log10(lambda)", ylab = "coefficient", main = "Lasso paths")
+abline(h = 0, lty = 3); legend("topright", c("b1", "b2"), col = 1:2, lwd = 2, bty = "n")
+```
+
+Left: ridge coefficients approach zero but never arrive. Right: lasso coefficients hit
+zero at specific $\lambda$ values and stay there — the predictor is dropped.
+
+### When to use which
+
+- **Many predictors, all contributing a little** → **ridge**. Zeroing any one out loses
+  real signal; smooth shrinkage is the right trade.
+  [@james2021introductionstatisticallearning, pp. 246--247]
+- **A few predictors matter, many are noise** → **lasso**. Most coefficients *should*
+  be zero; the lasso finds that sparsity.
+- **Don't know?** Try both; cross-validate and compare test error. (The *elastic net*,
+  which blends both penalties, is a common default when you're unsure.)
+
 ## Common traps
 
 **Trap: "a larger $\lambda$ throws away real signal."** Not quite — it *shrinks* toward
@@ -228,11 +345,11 @@ you'd tune $\lambda$ (often by cross-validation) to balance the two.
 
 **Trap: "ridge zeroes out useless predictors, so it does variable selection."** No — ridge
 shrinks coefficients *toward* zero but almost never *to* exactly zero, so every predictor
-stays in the model. In the toy, $\lambda = 56$ shrank the slope to 0.4 — small, but still
-not zero. Even at $\lambda = 1{,}000{,}000$ the slope is $28/1{,}000{,}014 \approx 0.00003$,
-not zero. Its cousin the **lasso** (which penalizes $\sum_j |\beta_j|$ instead of
-$\sum_j \beta_j^2$) *does* drive some coefficients to exactly zero and so selects
-variables. Ridge stabilizes; lasso selects.
+stays in the model. In the toy, $\lambda = 56$ shrank the ridge slope to 0.4 — small, but
+still not zero. Even at $\lambda = 1{,}000{,}000$ the slope is
+$28/1{,}000{,}014 \approx 0.00003$, not zero. The lasso *did* hit exactly zero at
+$\lambda = 56$ (see [the section above](#lasso-the-cousin-that-deletes)). Ridge
+stabilizes; lasso selects.
 
 ## Check yourself
 
@@ -268,12 +385,16 @@ variance).
 
 ## What you can now do
 
-- **Write penalized RSS** (fit + $\lambda \sum_j \beta_j^2$) and explain each part.
-- **Predict how coefficients move** as $\lambda$ goes from 0 (OLS) to $\infty$ (all shrink
-  to 0), and read a ridge path plot.
+- **Write penalized RSS** for ridge ($\lambda \sum_j \beta_j^2$) and lasso
+  ($\lambda \sum_j |\beta_j|$), and explain the one-character difference.
+- **Predict how coefficients move** as $\lambda$ grows, for both methods — ridge curves
+  smoothly toward zero, lasso snaps to zero at a threshold.
 - **Say why standardization comes first**, and why the intercept is left unpenalized.
-- **Distinguish ridge from lasso** (shrinks toward 0 vs sets exactly to 0 / selects), and
-  state ridge's second job: making $(X^\top X + \lambda I)$ invertible for any $\lambda>0$.
+- **Pick ridge vs lasso** for a given problem: many small effects → ridge; sparse signal
+  → lasso.
+- **Explain the structural difference**: ridge has a closed-form matrix solution
+  ($(X^\top X + \lambda I)^{-1}$, invertible for any $\lambda>0$), while lasso does not
+  (the corner in $|\beta|$ breaks the gradient).
 
 If any of these feels shaky, revisit [Getting a feel for it](#getting-a-feel-for-it) —
 methods that fit near-collinear predictors depend on the leash idea.
@@ -282,5 +403,11 @@ methods that fit near-collinear predictors depend on the leash idea.
 
 The matrix form $(X^\top X + \lambda I)^{-1}$ becomes essential when a correlation matrix
 is near-singular: a later course uses a ridge $\lambda$ to
-invert a near-collinear predictor-correlation matrix stably. Ready for reps? Do the
-[practice problems](practice.qmd). External videos/readings: [resources](resources.md).
+invert a near-collinear predictor-correlation matrix stably. There is also a deeper
+connection: ridge is the MAP estimate under a Gaussian prior on the coefficients, and lasso
+is the MAP estimate under a Laplace prior — the prior's shape explains *why* lasso
+produces zeros and ridge does not.
+[@james2021introductionstatisticallearning, pp. 249--250]
+
+Ready for reps? Do the [practice problems](practice.qmd). External videos/readings:
+[resources](resources.md).
