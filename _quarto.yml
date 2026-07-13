@@ -97,6 +97,9 @@ project:
     - foundations/variance-structure-and-standardization/lesson.qmd
     - foundations/variance-structure-and-standardization/practice.qmd
     - foundations/variance-structure-and-standardization/resources.md
+    - foundations/bagging-random-forests-and-boosting/lesson.qmd
+    - foundations/bagging-random-forests-and-boosting/practice.qmd
+    - foundations/bagging-random-forests-and-boosting/resources.md
     - foundations/classification-evaluation/lesson.qmd
     - foundations/classification-evaluation/practice.qmd
     - foundations/classification-evaluation/resources.md
@@ -488,6 +491,14 @@ website:
                     href: foundations/variance-structure-and-standardization/resources.md
           - section: "Statistical learning & ML"
             contents:
+              - section: "Bagging, random forests & boosting"
+                contents:
+                  - text: "Lesson"
+                    href: foundations/bagging-random-forests-and-boosting/lesson.qmd
+                  - text: "Practice"
+                    href: foundations/bagging-random-forests-and-boosting/practice.qmd
+                  - text: "Resources"
+                    href: foundations/bagging-random-forests-and-boosting/resources.md
               - section: "Classification evaluation"
                 contents:
                   - text: "Lesson"

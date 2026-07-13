@@ -421,7 +421,8 @@ the next module builds on trees as the base learner for ensemble methods.
 ## Where this goes next
 
 A single tree is interpretable but fragile — small changes in the data can produce a
-completely different tree. The next module — **bagging, random forests & boosting** —
+completely different tree. The next module —
+[bagging, random forests & boosting](../bagging-random-forests-and-boosting/lesson.qmd) —
 fixes this by growing **many** trees and averaging their predictions, trading
 interpretability for dramatically better accuracy and stability.
 

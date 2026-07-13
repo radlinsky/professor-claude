@@ -1,0 +1,278 @@
+---
+title: "Practice: Bagging, random forests & boosting"
+subtitle: "Answers are hidden — try honestly first, then click to check."
+engine: knitr
+---
+
+{{< include /_extensions/r-wasm/live/_knitr.qmd >}}
+
+```{r setup}
+#| include: false
+needed <- c("rpart", "randomForest")
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
+set.seed(42)
+```
+
+{{< include /includes/practice-timing.qmd >}}
+
+Work these in order — they get harder. Do them on paper or in an R session; only then
+open the answer.
+
+
+## Problem 1 — confidence rep with new numbers
+
+Six observations:
+
+| $x$ | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| $y$ | 10 | 12 | 8 | 35 | 30 | 40 |
+
+(a) Find the best one-split tree (the cutpoint with the lowest total RSS). What are the
+left and right means?
+
+(b) Bag $B = 25$ one-split trees and report the bagged prediction at $x = 5$.
+
+```{webr}
+#| autorun: false
+# p1-starter
+x <- c(1, 2, 3, 4, 5, 6)
+y <- c(10, 12, 8, 35, 30, 40)
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) Best split at $x = 3.5$: left = (10, 12, 8), mean = 10; right = (35, 30, 40),
+mean = 35. Left RSS = 8, right RSS = 50, total = 58.
+
+```{r}
+x <- c(1, 2, 3, 4, 5, 6); y <- c(10, 12, 8, 35, 30, 40)
+cuts <- (x[-length(x)] + x[-1]) / 2
+rss <- sapply(cuts, function(s) {
+  L <- y[x <= s]; R <- y[x > s]
+  sum((L - mean(L))^2) + sum((R - mean(R))^2)
+})
+names(rss) <- cuts; round(rss, 2)  # 3.5 wins with RSS = 58
+```
+
+(b) Bagging 25 trees at $x = 4$:
+
+```{r}
+stump <- function(x, y, new_x) {
+  ux <- sort(unique(x)); if (length(ux) < 2) return(mean(y))
+  cuts <- (ux[-length(ux)] + ux[-1]) / 2
+  rss <- sapply(cuts, function(s) {
+    L <- y[x <= s]; R <- y[x > s]
+    sum((L - mean(L))^2) + sum((R - mean(R))^2)
+  })
+  best <- cuts[which.min(rss)]
+  ifelse(new_x <= best, mean(y[x <= best]), mean(y[x > best]))
+}
+
+x <- c(1, 2, 3, 4, 5, 6); y <- c(10, 12, 8, 35, 30, 40)
+set.seed(42)
+bp <- replicate(25, { i <- sample(1:6, 6, TRUE); stump(x[i], y[i], 5) })
+cat("Bagged prediction at x=5:", round(mean(bp), 2), "\n")
+cat("Single tree at x=5:", stump(x, y, 5), "\n")
+```
+
+The single tree predicts 35 (right region). The bagged prediction is close but not
+identical — each bootstrap tree sees slightly different data, so the right-region mean
+varies across trees. Averaging smooths this out.
+:::
+
+
+## Problem 2 — faded worked example
+
+Below is the procedure for bagging the lesson's toy data (predict at $x = 5$, $B = 25$).
+One step is blanked out.
+
+- Step 1: set $B = 25$ and create an empty vector for predictions.
+- Step 2: for $b = 1$: draw a bootstrap sample of 6 from the data (with replacement).
+  Suppose we draw indices {1, 4, 1, 2, 5, 3}, giving ages (1, 4, 1, 2, 5, 3) and
+  spending (5, 20, 5, 8, 25, 6).
+- Step 3: **your step here** — given this bootstrap sample, what do you do to get a
+  prediction at $x = 5$?
+- Step 4: store the prediction. Repeat steps 2–4 for $b = 2, \ldots, 25$.
+- Step 5: average all 25 stored predictions → the bagged prediction.
+
+::: {.callout-note collapse="true" title="Answer"}
+Step 3: **fit a one-split tree on the bootstrap sample** — try every cutpoint, pick the
+one with the lowest total RSS, then predict at $x = 5$ using the left or right mean.
+
+For this bootstrap sample, unique sorted ages are (1, 2, 3, 4, 5), so the cutpoints are
+1.5, 2.5, 3.5, 4.5. The best cut is 3.5 (lowest RSS): left = (5, 5, 8, 6), mean = 6;
+right = (20, 25), mean = 22.5. Since $x = 5 > 3.5$, the prediction is **22.5**.
+
+This is the decision-trees module's best-split search, applied to a bootstrap sample
+instead of the full data. Each of the 25 trees repeats this on its own bootstrap sample.
+:::
+
+
+## Problem 3 — OOB error computation
+
+You bagged 4 trees on the lesson's toy data. Here are the OOB predictions for each
+observation (from the trees that excluded it):
+
+| Obs | $y$ | OOB tree predictions | OOB mean |
+|---|---|---|---|
+| 1 | 5 | 6, 7 | ? |
+| 2 | 8 | 6, 5, 7 | ? |
+| 3 | 6 | 7 | ? |
+| 4 | 20 | 22, 23, 21 | ? |
+| 5 | 25 | 23, 22 | ? |
+| 6 | 22 | 23, 24, 22 | ? |
+
+(a) Compute each observation's OOB mean prediction.
+(b) Compute the OOB MSE.
+
+```{webr}
+#| autorun: false
+# p3-starter
+y       <- c(5, 8, 6, 20, 25, 22)
+oob_preds <- list(c(6, 7), c(6, 5, 7), c(7), c(22, 23, 21), c(23, 22), c(23, 24, 22))
+```
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) OOB means: average each row's predictions.
+
+```{r}
+y <- c(5, 8, 6, 20, 25, 22)
+oob_preds <- list(c(6, 7), c(6, 5, 7), c(7), c(22, 23, 21), c(23, 22), c(23, 24, 22))
+oob_means <- sapply(oob_preds, mean)
+round(oob_means, 2)   # 6.5, 6, 7, 22, 22.5, 23
+```
+
+(b) OOB MSE = average of $(y_i - \text{OOB mean}_i)^2$:
+
+```{r}
+oob_mse <- mean((y - oob_means)^2)
+round(oob_mse, 2)     # 3.08
+```
+
+$(5 - 6.5)^2 + (8 - 6)^2 + (6 - 7)^2 + (20 - 22)^2 + (25 - 22.5)^2 + (22 - 23)^2$
+$= 2.25 + 4 + 1 + 4 + 6.25 + 1 = 18.5$. Divide by 6: **OOB MSE = 3.08**. This
+approximates test error without needing a separate test set.
+:::
+
+
+## Problem 4 — spot the error
+
+A colleague says: *"I trained a random forest with 200 trees and got 94% accuracy. Then I
+tried 2000 trees and got 93.8%. The model is overfitting — I need to use fewer trees."*
+This contains **exactly one mistake** — find it.
+
+::: {.callout-note collapse="true" title="Answer"}
+The mistake: claiming the random forest is **overfitting** because more trees gave
+slightly lower accuracy. Random forests (and bagging) do NOT overfit as $B$ increases —
+each tree is trained independently on a random sample, so adding more trees just
+stabilizes the average. The tiny accuracy drop from 94% to 93.8% is random noise in the
+OOB or test estimate, not overfitting. The correct response is that 200 and 2000 trees
+give essentially the same performance, confirming the error has settled. Overfitting from
+too many trees is a boosting concern, not a random forest concern.
+:::
+
+
+## Problem 5 — interleaved *(uses resampling's universal loop pattern)*
+
+Compare the bagging loop to the bootstrap CI loop from the resampling module:
+
+(a) Both use `replicate(B, { ... })`. What does the "resample" step inside the loop do
+in each case?
+(b) What does the "summarize the pile" step do after the loop in each case?
+(c) In one sentence, what is the key difference between the two uses of the same loop?
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) Both resample the data **with replacement** (`sample(x, length(x), replace = TRUE)`).
+In the bootstrap CI, you resample the data and compute a *statistic* (like the mean). In
+bagging, you resample the data and *fit a tree then predict* at a new point.
+
+(b) The bootstrap CI takes `sd()` of the pile for a standard error and
+`quantile(pile, c(.025, .975))` for a 95% interval. Bagging takes `mean()` of the pile
+for the final prediction — the average of all trees.
+
+(c) The loop shape is identical; the difference is the *goal*: the bootstrap CI quantifies
+the *uncertainty* of an estimate, while bagging uses the same resampling engine to produce
+a *better* (more stable) prediction.
+:::
+
+
+## Problem 6 — transfer: boosting shrinkage
+
+In the lesson's boosting demo ($\lambda = 0.1$), predictions after 2 iterations were
+$(0.76, 0.76, 3.14, 3.14)$ — still far from the actual $y = (3, 5, 15, 18)$.
+
+(a) If you changed $\lambda$ from 0.1 to 0.01, would you need more or fewer iterations
+to reach the same accuracy? Why?
+(b) Despite being slower, why is a smaller $\lambda$ sometimes preferred?
+
+::: {.callout-note collapse="true" title="Answer"}
+(a) **More iterations.** Each tree's contribution is scaled by $\lambda$, so with
+$\lambda = 0.01$ each stump contributes ten times less per iteration than with
+$\lambda = 0.1$. It takes roughly ten times as many iterations to reach the same
+prediction accuracy.
+
+(b) Smaller $\lambda$ (slower learning) often **generalizes better** to new data. Each
+tree makes a smaller correction, so the model doesn't latch onto noise in the training
+data as quickly. This is the same principle as regularization: constraining how fast the
+model fits prevents overfitting. The cost is computational — more trees to train — but
+the payoff is lower test error.
+:::
+
+
+## Module check
+
+:::: {.callout-tip collapse="true" title="⏳ Wait at least a day before taking this quiz"}
+
+This is a checkpoint, not more practice — come back to it **at least a day from now**,
+once the material isn't fresh. A pass then is real evidence you've retained it. Five
+questions, graded on the page; 4/5 or better means this module is solid. Score under
+4? Revisit what the missed questions point at, then retake in a **later session** —
+passing after another gap is the evidence that counts. Results are saved in this
+browser only.
+
+::: {.module-check module="foundations/bagging-random-forests-and-boosting" pass="4"}
+
+::: {.quiz-q qid="brfb-bag-effect" qtype="mc" answer="c"}
+What does bagging do to individual tree predictions?
+
+a) Prunes each tree aggressively before averaging their predictions together
+b) Makes each tree deeper by adding more splits at every branching node
+c) Averages many bootstrap trees, reducing the variance of predictions
+:::
+
+::: {.quiz-q qid="brfb-oob-fraction" qtype="mc" answer="b"}
+Roughly what fraction of observations is left out of each bootstrap sample (the OOB observations)?
+
+a) About one-half of the training observations are left out of each bootstrap sample
+b) About one-third are left out of each bootstrap sample
+c) About one-tenth of the training observations are left out of each bootstrap sample
+:::
+
+::: {.quiz-q qid="brfb-rf-vs-bag" qtype="mc" answer="a"}
+What is the key difference between random forests and plain bagging?
+
+a) At each split, random forests pick from a random subset of predictors
+b) Random forests grow each individual tree to a shallower depth than bagging does
+c) Random forests apply a shrinkage penalty to scale down each individual tree's contribution
+:::
+
+::: {.quiz-q qid="brfb-tree-variance" qtype="mc" answer="c"}
+(From decision trees.) Why are single trees the natural building block for bagging?
+
+a) Trees are the only model type that can work with bootstrap resampling of the data
+b) Trees run faster than any other model type on bootstrapped datasets
+c) Trees have high variance from instability, which averaging effectively reduces
+:::
+
+::: {.quiz-q qid="brfb-boost-target" qtype="mc" answer="a"}
+In boosting, each new tree is fit to:
+
+a) The residuals — what the current ensemble has not yet explained
+b) A fresh bootstrap sample drawn from the original training data
+c) The original response values, ignoring all of the previous trees
+:::
+
+:::
+
+::::
