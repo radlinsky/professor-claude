@@ -3,7 +3,7 @@ Topic: statistical-learning
 Concepts: classify or predict by majority vote of k closest points,
  distance choice matters for kNN,
  choosing k (flexibility vs smoothness),
- the curse of dimensionality (high dimensions make all points far apart),
+ the curse of dimensionality (high dimensions make nearest and farthest distances converge),
  when kNN works vs when it fails,
  kNN in R with class::knn()
 BuildsOn: [distance-similarity-and-geometry](distance-similarity-and-geometry/lesson.qmd),

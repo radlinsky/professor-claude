@@ -18,7 +18,7 @@ Clustering partitions a collection of $N$ $n$-vectors $x_1, \ldots, x_N$ into $k
 
 Each group has an associated *group representative* (an $n$-vector) $z_1, \ldots, z_k$. These need not be members of the original data set. The *clustering objective* is the mean squared distance from each vector to its assigned representative:
 $$J^{\text{clust}} = \bigl(\lVert x_1 - z_{c_1} \rVert^2 + \cdots + \lVert x_N - z_{c_N} \rVert^2\bigr) / N.$$
-A smaller $J^{\text{clust}}$ means a better clustering. The extreme $J^{\text{clust}} = 0$ occurs only when the data take exactly $k$ distinct values and each vector equals its representative. [@boyd2018appliedlinearalgebra, pp. 72--73]
+A smaller $J^{\text{clust}}$ means a better clustering. The extreme $J^{\text{clust}} = 0$ occurs only when the data take at most $k$ distinct values and each vector equals its representative. [@boyd2018appliedlinearalgebra, pp. 72--73]
 
 ISL formulates $K$-means as minimizing total within-cluster variation: $\min_{C_1,\ldots,C_K} \sum_{k=1}^{K} W(C_k)$, where $W(C_k) = (1/|C_k|) \sum_{i,i' \in C_k} \sum_{j=1}^{p} (x_{ij} - x_{i'j})^2$ is the within-cluster variation defined using pairwise squared Euclidean distances. This is equivalent to Boyd's formulation because the within-cluster pairwise sum equals twice the sum of squared distances to the centroid. [@james2021introductionstatisticallearning, pp. 515--517, Eqs. 12.15--12.18]
 

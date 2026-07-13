@@ -423,7 +423,8 @@ on the car (the model), not the road (the disease).
 
 **Trap: "The 50% threshold is always the right one."** The 50% cutoff (predict
 "sick" whenever the model's probability exceeds 0.5) minimizes the *overall* error
-rate, but "overall" quietly averages the two kinds of mistakes together as if they
+rate when the model outputs well-calibrated posterior probabilities and
+misclassification costs are equal, but "overall" quietly averages the two kinds of mistakes together as if they
 cost the same --- and they usually don't. Look back at the 10-patient ROC data above:
 at $t = 0.50$, sensitivity and specificity are both 0.8. Lower the threshold to
 $t = 0.30$ and sensitivity rises to 1.0 (every truly sick patient is now caught) while

@@ -28,7 +28,7 @@ believe before seeing data that the coin is more likely biased toward tails.
 
 (a) Compute the MLE $\hat{p}_{\text{ML}}$.
 (b) Compute the MAP estimate $\hat{p}_{\text{MAP}}$.
-(c) Is the MAP closer to the prior's centre or to the MLE? Why?
+(c) Is the MAP closer to the prior's mode or to the MLE? Why?
 
 ```{webr}
 #| autorun: false
@@ -42,15 +42,15 @@ alpha <- 2; beta_prior <- 4
 
 (b) $\hat{p}_{\text{MAP}} = (6 + 2 - 1)/(8 + 2 + 4 - 2) = 7/12 \approx 0.583$.
 
-(c) The prior's centre is $(2-1)/(2+4-2) = 1/4 = 0.25$. The MAP (0.583) is much
-closer to the MLE (0.75) than to the prior centre (0.25). The 8 data points overpower
+(c) The prior's mode is $(2-1)/(2+4-2) = 1/4 = 0.25$. The MAP (0.583) is much
+closer to the MLE (0.75) than to the prior mode (0.25). The 8 data points overpower
 the weak Beta(2, 4) prior — the data horses outnumber the prior bull.
 
 ```{r}
 n <- 8; heads <- 6; alpha <- 2; beta_prior <- 4
 mle <- heads / n
 map <- (heads + alpha - 1) / (n + alpha + beta_prior - 2)
-prior_centre <- (alpha - 1) / (alpha + beta_prior - 2)
+prior_mode <- (alpha - 1) / (alpha + beta_prior - 2)
 cat("MLE:", mle, "\n")
 cat("MAP:", round(map, 3), "\n")
 cat("Prior centre:", prior_centre, "\n")
@@ -180,12 +180,12 @@ Why?
 
 ::: {.callout-note collapse="true" title="Answer"}
 (a) **Laplace prior (lasso).** The researcher expects most coefficients (190 out of
-200) to be exactly zero — only 10 features matter. The Laplace prior's sharp peak at
-zero matches this belief: it says "most coefficients should be zero," and the lasso
-penalty enforces that by setting small coefficients exactly to zero.
+200) to be near zero — only 10 features matter. The Laplace prior concentrates mass
+near zero, and the non-differentiable corner of the absolute-value penalty drives
+small coefficients to exactly zero in the MAP solution.
 
-(b) The Laplace prior believes that the coefficient vector is **sparse** — most
-entries are zero, and only a few are nonzero.
+(b) The Laplace prior encodes the belief that the coefficient vector is **sparse** —
+most entries are near zero, and only a few carry meaningful signal.
 
 A Gaussian prior (ridge) would shrink all 200 coefficients toward zero but keep them
 all nonzero — the wrong model for a situation where most truly are zero.
@@ -224,8 +224,8 @@ c) It is undefined, because the posterior cannot be computed from a uniform prio
 ::: {.quiz-q qid="map-ridge" qtype="mc" answer="b"}
 Which prior distribution on the regression coefficients produces ridge regression as a MAP estimate?
 
-a) A Laplace prior centred at zero, which creates the absolute-value penalty
-b) A Gaussian prior centred at zero, which creates the squared penalty
+a) A Laplace prior moded at zero, which creates the absolute-value penalty
+b) A Gaussian prior moded at zero, which creates the squared penalty
 c) A uniform prior, which produces no penalty and gives ordinary least squares
 :::
 

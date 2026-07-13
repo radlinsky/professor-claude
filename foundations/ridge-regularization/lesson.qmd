@@ -308,7 +308,6 @@ y  <- as.numeric(scale(2 * x1 - 1 * x2 + rnorm(n))); X <- cbind(x1, x2)
 lambdas <- 10^seq(-2, 2.5, length.out = 40)
 ridge_paths <- sapply(lambdas, function(l)
   solve(t(X) %*% X + l * diag(2), t(X) %*% y))
-# ponytail: Nelder-Mead on L1; coordinate descent if plot artifacts appear
 lasso_paths <- sapply(lambdas, function(l)
   optim(c(0, 0), function(b) sum((y - X %*% b)^2) + l * sum(abs(b)),
         method = "Nelder-Mead", control = list(reltol = 1e-10))$par)

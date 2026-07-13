@@ -281,8 +281,12 @@ cat("Random forest (m = 2) OOB error:",
     round(rf_iris$err.rate[200, "OOB"] * 100, 1), "%\n")
 ```
 
-Even on iris (where predictors aren't highly correlated), random forests match or beat
-bagging. The bigger the correlation among predictors, the bigger the gap.
+On this seed, bagging and random forests produce similar OOB error. (Iris actually has
+highly correlated predictors — petal length and width correlate at ~0.96 — so the trees
+are correlated even under bagging. Restricting $m$ decorrelates the *trees*, which is
+what matters for variance reduction, not whether the original *predictors* are
+correlated.) With more strongly dominant predictors, the gap between RF and bagging
+widens because bagging trees all split on the same predictor first.
 
 
 ### Boosting — learning from your mistakes, slowly
@@ -359,7 +363,7 @@ means the predictor matters. This partially compensates for losing single-tree r
 #| fig-alt: "Histogram of 25 bagged stump predictions at age 5, centered near 22.5, with a red dashed line at the average"
 # explore-1 — LIVE: bag stumps on the toy data and watch the average stabilize.
 # TRY IT: change B from 25 to 200 and re-run — does the average change much?
-# PREDICT: will the SD of predictions get LARGER or SMALLER with more trees? Guess first.
+# PREDICT: will the AVERAGE change much with more trees? Will the histogram shift or just fill in?
 set.seed(42)
 x <- c(1, 2, 3, 4, 5, 6)
 y <- c(5, 8, 6, 20, 25, 22)

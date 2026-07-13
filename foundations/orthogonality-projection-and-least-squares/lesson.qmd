@@ -348,7 +348,7 @@ cat("\nlm() agrees:", coef(lm(y ~ x)), "\n")
 #| autorun: false
 # explore-3 — LIVE: projection vector recap. The shadow as a VECTOR.
 # TRY IT: change a to (0, 5) — what direction is the projection?
-# PREDICT: for a = (3, -4) (orthogonal to b), what is the projection vector?
+# PREDICT: for a = (4, -3) (orthogonal to b), what is the projection vector?
 a <- c(4, 2); b <- c(3, 4)
 
 proj <- (sum(a * b) / sum(b * b)) * b   # projection vector

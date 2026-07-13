@@ -125,7 +125,7 @@ contains **exactly one mistake** — find it.
 
 ::: {.callout-note collapse="true" title="Answer"}
 The mistake: concluding QDA is worse in general from one dataset. QDA estimates far
-more parameters (20 covariance values per class vs. one shared set), so with only
+more parameters ($20 \times 21 / 2 = 210$ covariance entries per class vs. one shared set), so with only
 500 observations and 20 features, QDA likely **overfitted**. The lower accuracy
 reflects high variance from too many parameters, not that QDA is a worse method. With
 more data or fewer features, QDA could outperform LDA — the right conclusion is "QDA

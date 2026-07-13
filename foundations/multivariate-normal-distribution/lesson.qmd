@@ -23,9 +23,11 @@ set.seed(42)
 
 You know the bell curve (normal distribution) for one variable, and you know a
 covariance matrix packs all pairwise co-movements into one grid. Now: what happens
-when several variables are ALL normally distributed and correlated with each other?
+when several variables are *jointly* normally distributed?
 The **multivariate normal distribution** -- and that covariance matrix you built in
-the variance-structure module IS its shape parameter. When a paper writes "assume
+the variance-structure module IS its shape parameter. (A subtle point: each variable
+being individually normal is *not enough* to make them jointly normal -- the joint
+distribution is a stronger statement, explored in the Traps section below.) When a paper writes "assume
 $\mathbf{X} \sim N(\boldsymbol{\mu}, \boldsymbol{\Sigma})$," this is what they mean:
 a cloud of points whose shape is an ellipse (or ellipsoid) described by
 $\boldsymbol{\Sigma}$.
@@ -180,8 +182,8 @@ literally IS the same object, now doing double duty as the distribution's shape.
 **What the numbers feel like.** Our cloud of 500 points is a tilted oval -- wider in
 the $X_2$ direction (variance 9 vs 4), tilted up-and-to-the-right (positive
 covariance 3). Make the covariance 0 and the cloud becomes an untilted oval. Make
-the variances equal (say both 4) and the cloud becomes round (a circle, because both
-directions have the same spread). Make the covariance larger and the cloud becomes
+the variances equal (say both 4) *and* the covariance zero, and the cloud becomes
+round (a circle, because both directions have the same spread and no tilt). Make the covariance larger and the cloud becomes
 more cigar-shaped -- the variables track each other more tightly.
 
 

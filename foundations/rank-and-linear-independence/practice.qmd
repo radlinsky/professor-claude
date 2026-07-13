@@ -126,8 +126,9 @@ qr(X)$rank
 ::: {.callout-note collapse="true" title="Answer"}
 The rank is **3**. BMI is a *nonlinear* function of height and weight
 (weight / height²), not a linear combination ($c_1 \cdot \text{height} + c_2 \cdot \text{weight}$).
-Linear independence only cares about *weighted sums* — nonlinear functions create
-genuinely new columns.
+Linear independence only cares about *weighted sums* — a nonlinear function like
+BMI creates a genuinely new column that no linear combination of the originals
+can reproduce (for continuous real-valued data).
 
 ```{r p3-answer}
 height <- c(1.65, 1.70, 1.75, 1.80, 1.85)

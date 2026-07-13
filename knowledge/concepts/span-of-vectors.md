@@ -28,7 +28,7 @@ Terminology note: span is a property of a *set of vectors*, not of a matrix. Say
 
 - **Span and pivot positions.** The span of a set of vectors equals all of $\mathbb{R}^m$ if and only if the matrix $[\mathbf{v}_1 \; \mathbf{v}_2 \; \cdots \; \mathbf{v}_n]$ has a pivot position in every row. [@austin2022understandinglinearalgebra, p. 90]
 - **Minimum number of vectors to span $\mathbb{R}^m$.** Any set of vectors whose span is $\mathbb{R}^m$ must contain at least $m$ vectors. [@austin2022understandinglinearalgebra, p. 91]
-- **Geometric classification in $\mathbb{R}^3$.** The span of a set of vectors in $\mathbb{R}^3$ is one of: (1) a line through the origin (one pivot position), (2) a plane through the origin (two pivot positions), or (3) all of $\mathbb{R}^3$ (three pivot positions). [@austin2022understandinglinearalgebra, pp. 89--90]
+- **Geometric classification in $\mathbb{R}^3$.** The span of a set of vectors in $\mathbb{R}^3$ is one of: (0) just the origin $\{\mathbf{0}\}$ (zero pivot positions, e.g. span of the zero vector), (1) a line through the origin (one pivot position), (2) a plane through the origin (two pivot positions), or (3) all of $\mathbb{R}^3$ (three pivot positions). [@austin2022understandinglinearalgebra, pp. 89--90]
 - **Redundant vectors do not enlarge the span.** If one vector in a set is a linear combination of the others, removing it does not change the span. For example, if $\mathbf{w} = -2\mathbf{v}$, then $\text{Span}\{\mathbf{v}, \mathbf{w}\}$ is the line defined by $\mathbf{v}$, not a plane. [@austin2022understandinglinearalgebra, pp. 85--86]
 
 ## Prerequisites

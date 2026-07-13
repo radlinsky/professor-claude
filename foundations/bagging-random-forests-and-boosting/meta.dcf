@@ -3,7 +3,7 @@ Topic: statistical-learning
 Concepts: bagging (bootstrap aggregation: average B unpruned trees trained on bootstrap samples to reduce variance),
  out-of-bag error (the free test-error estimate from observations left out of each bootstrap sample),
  random forests (decorrelate bagged trees by restricting each split to m random predictors),
- boosting (build small trees sequentially on residuals with shrinkage for slow accurate learning),
+ boosting (build small trees sequentially — fitting residuals in regression or pseudo-residuals in classification — with shrinkage for slow accurate learning),
  variable importance (rank predictors by total RSS or Gini improvement across all B trees)
 BuildsOn: [decision-trees](decision-trees/lesson.qmd),
  [resampling-bootstrap-and-permutation](resampling-bootstrap-and-permutation/lesson.qmd)

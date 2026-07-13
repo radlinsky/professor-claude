@@ -254,6 +254,14 @@ full tree wins (lowest RSS). As $\alpha$ grows, the penalty for extra leaves
 increases, and the best tree shrinks. Select $\alpha$ by cross-validation — same
 idea as choosing $\lambda$ in ridge or lasso.
 
+**Hand-check it.** The 2-leaf tree (split at 8.5) has total RSS = 2040.75. Adding a
+second split at 4.5 on the left gives a 3-leaf tree with RSS = 180.25. Compare the
+penalized scores at $\alpha = 500$: 2 leaves scores $2040.75 + 500 \times 2 = 3040.75$;
+3 leaves scores $180.25 + 500 \times 3 = 1680.25$ — the 3-leaf tree wins. Raise $\alpha$
+to 2000: 2 leaves scores $2040.75 + 4000 = 6040.75$; 3 leaves scores $180.25 + 6000 =
+6180.25$ — now the simpler tree wins because the penalty for the extra leaf outweighs the
+RSS improvement. That is pruning in one number.
+
 PREDICT: how many leaves will the unpruned tree have for 12 data points? Write your
 guess, then check the plot below.
 
@@ -349,11 +357,12 @@ cat("Training accuracy:", mean(preds == iris$Species), "\n")
 ## Common traps
 
 **Trap: "A split that barely reduces RSS is useless — just stop early."** Stopping
-early is risky because a weak split now can enable a strong split later. For example,
-in our toy data, suppose the first split at age = 8.5 looks mediocre. If we stop, we
-miss the chance to split the left group at age = 4.5, which would cleanly separate
-the low and mid spenders. The standard approach is: grow the full tree, then prune
-back. Let the pruning penalty decide what to keep, not an early-stopping rule.
+early is risky because a weak first split can enable a strong second split. In our toy,
+the first split at age = 8.5 happens to be genuinely good — but imagine data where the
+best first split only shaves a little off RSS. If you stop there, you miss the chance to
+split one of the child regions at a cutpoint that cleanly separates two subgroups. The
+standard approach is: grow the full tree, then prune back. Let the pruning penalty decide
+what to keep, not an early-stopping rule.
 [@james2021introductionstatisticallearning, p. 331]
 
 **Trap: "Trees are as accurate as linear models."** On our toy data, a single tree

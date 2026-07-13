@@ -113,8 +113,8 @@ Python). [@chan2021probabilitydatascience, pp. 213--214]
 - **Origin of the Gaussian: convolution and CLT** -- the PDF of a sum
   $Z = X_1 + \cdots + X_N$ of independent random variables is the convolution
   of their individual PDFs. As $N$ grows, repeated convolution produces a
-  bell shape regardless of the individual distributions -- this is the Central
-  Limit Theorem. The Gaussian's Fourier transform is itself a Gaussian, so the
+  bell shape provided the individual distributions have finite nonzero
+  variance -- this is the Central Limit Theorem. The Gaussian's Fourier transform is itself a Gaussian, so the
   product of Fourier transforms (convolution in frequency domain) remains
   Gaussian. [@chan2021probabilitydatascience, pp. 220--222]
 

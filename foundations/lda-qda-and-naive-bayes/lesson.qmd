@@ -115,8 +115,8 @@ compare**.
 ```{r toy-example}
 # The toy data: 6 fish, 2 species
 species <- c("trout","trout","trout","bass","bass","bass")
-length  <- c(2, 4, 3, 6, 8, 7)
-weight  <- c(1, 2, 1, 5, 6, 5)
+fish_length <- c(2, 4, 3, 6, 8, 7)
+weight      <- c(1, 2, 1, 5, 6, 5)
 
 # Step 1: priors (class frequencies)
 n_trout <- 3; n_bass <- 3; n <- 6
@@ -125,8 +125,8 @@ pi_bass  <- n_bass / n     # 0.5
 c(pi_trout = pi_trout, pi_bass = pi_bass)
 
 # Step 2: class means
-mu_trout <- c(mean(length[1:3]), mean(weight[1:3]))   # (3.0, 1.33)
-mu_bass  <- c(mean(length[4:6]), mean(weight[4:6]))    # (7.0, 5.33)
+mu_trout <- c(mean(fish_length[1:3]), mean(weight[1:3]))   # (3.0, 1.33)
+mu_bass  <- c(mean(fish_length[4:6]), mean(weight[4:6]))    # (7.0, 5.33)
 rbind(trout = mu_trout, bass = mu_bass)
 
 # Step 3: Euclidean distance to each center (ignoring covariance for now)
@@ -327,20 +327,23 @@ lines(x1_seq, x2_boundary, lty = 2, lwd = 2, col = "gray40")
 
 ### QDA: per-class covariance, curved boundary
 
-LDA forced both classes to share one covariance matrix. But look at the within-class
-covariances for our fish:
+LDA forced both classes to share one covariance matrix. With our original toy data,
+both species happen to have the same positive length-weight covariance — pooling costs
+nothing. To see *why* QDA matters, suppose we had caught a slightly different set of
+bass: same lengths (6, 8, 7), but weights (6, 4, 6) instead of (5, 6, 5). Now the
+within-class covariances tell a different story:
 
 ```{r qda-toy}
 trout_x <- cbind(c(2, 4, 3), c(1, 2, 1))
-bass_x  <- cbind(c(6, 8, 7), c(6, 4, 6))   # different covariance from trout
+bass_x  <- cbind(c(6, 8, 7), c(6, 4, 6))   # hypothetical bass with different covariance
 cat("Trout covariance:\n"); print(cov(trout_x))
 cat("Bass covariance:\n");  print(cov(bass_x))
 ```
 
-Trout's length-weight covariance is positive (longer trout tend to be heavier); bass
-has a negative off-diagonal (the longest bass is the lightest — a different shape).
-Pooling hides that difference. QDA says: let each class keep its own
-$\boldsymbol{\Sigma}_k$.
+Trout's length-weight covariance is positive (longer trout tend to be heavier); this
+hypothetical bass has a negative off-diagonal (the longest bass is the lightest — a
+different shape). Pooling would hide that difference. QDA says: let each class keep
+its own $\boldsymbol{\Sigma}_k$.
 [@james2021introductionstatisticallearning, pp. 152--154]
 
 Because each class now has a different covariance, the quadratic terms in the Gaussian
@@ -362,6 +365,33 @@ sigma-k-inverse mu-k, minus one-half the log-determinant of sigma-k, plus log pi
 sigma-k, and there is an extra log-determinant term that penalizes classes with
 larger (more spread-out) covariance. The boundary where $\delta_k = \delta_l$ is now a
 **curve** — a quadratic function of $x$ — hence "quadratic" discriminant analysis.
+
+Let's score our new fish at (5, 3) under QDA with this hypothetical bass data:
+
+```{r qda-score}
+# QDA scoring with per-class covariances (hypothetical bass)
+trout_x <- cbind(c(2, 4, 3), c(1, 2, 1))
+bass_x  <- cbind(c(6, 8, 7), c(6, 4, 6))
+mu_t <- colMeans(trout_x); mu_b <- colMeans(bass_x)
+S_t <- cov(trout_x); S_b <- cov(bass_x)
+x_new <- c(5, 3)
+
+qda_score <- function(x, mu, S, pi_k) {
+  -0.5 * t(x) %*% solve(S) %*% x +
+   t(x) %*% solve(S) %*% mu -
+   0.5 * t(mu) %*% solve(S) %*% mu -
+   0.5 * log(det(S)) + log(pi_k)
+}
+
+d_trout <- as.numeric(qda_score(x_new, mu_t, S_t, 0.5))
+d_bass  <- as.numeric(qda_score(x_new, mu_b, S_b, 0.5))
+cat("QDA scores — trout:", round(d_trout, 3), " bass:", round(d_bass, 3), "\n")
+cat("QDA classifies as:", ifelse(d_trout > d_bass, "trout", "bass"), "\n")
+```
+
+Compare: LDA (with pooled covariance) classified the fish as trout. QDA, using
+per-class covariances, may agree or disagree — it depends on how the different
+covariance shapes shift the density contours around each class.
 
 Mapping it onto the toy: with only 3 fish per class and $p = 2$ predictors, each class
 estimates 3 covariance parameters (variance of length, variance of weight, their
@@ -423,6 +453,35 @@ number of parameters: instead of a full $p \times p$ covariance matrix, you esti
 only $p$ variances per class. With many predictors and limited data, that variance
 reduction can more than compensate for the bias of the wrong independence assumption.
 [@james2021introductionstatisticallearning, pp. 156--158]
+
+```{webr}
+#| autorun: true
+# PREDICT: if you move the new fish to (7, 5) — right at the bass center — will
+# LDA, QDA, and naive Bayes all agree? Try it and check.
+# TRY IT: change new_fish and re-run to see where the three methods disagree.
+new_fish <- c(5, 3)
+
+trout_len <- c(2, 4, 3); trout_wt <- c(1, 2, 1)
+bass_len  <- c(6, 8, 7); bass_wt  <- c(5, 6, 5)
+trout_x <- cbind(trout_len, trout_wt)
+bass_x  <- cbind(bass_len, bass_wt)
+
+# LDA (shared covariance)
+S_pool <- ((2)*cov(trout_x) + (2)*cov(bass_x)) / 4
+S_inv <- solve(S_pool)
+mu_t <- colMeans(trout_x); mu_b <- colMeans(bass_x)
+lda_t <- as.numeric(new_fish %*% S_inv %*% mu_t - 0.5 * mu_t %*% S_inv %*% mu_t)
+lda_b <- as.numeric(new_fish %*% S_inv %*% mu_b - 0.5 * mu_b %*% S_inv %*% mu_b)
+
+# Naive Bayes (independent within class)
+nb_t <- dnorm(new_fish[1], mean(trout_len), sd(trout_len)) *
+        dnorm(new_fish[2], mean(trout_wt),  sd(trout_wt))
+nb_b <- dnorm(new_fish[1], mean(bass_len),  sd(bass_len)) *
+        dnorm(new_fish[2], mean(bass_wt),   sd(bass_wt))
+
+cat("LDA:        ", ifelse(lda_t > lda_b, "trout", "bass"), "\n")
+cat("Naive Bayes:", ifelse(nb_t > nb_b, "trout", "bass"), "\n")
+```
 
 
 ## Explore it
