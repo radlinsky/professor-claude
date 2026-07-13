@@ -744,9 +744,12 @@ before continuing; the next module that uses this will assume all of them.
 ## Where this goes next
 
 When a paper writes "assume the data follow a multivariate normal distribution," you
-now know what that means and what the covariance matrix controls. This shows up in
-**Bayesian methods** (multivariate normal priors on parameter vectors), **discriminant
-analysis** (LDA models each class as a multivariate normal), **probabilistic PCA**
-(the latent variables are multivariate normal), and many genetics models (e.g.,
-modeling correlated effect sizes across SNPs). Ready for more reps? Do the
-[practice problems](practice.qmd).
+now know what that means and what the covariance matrix controls. The very next place
+this shows up is
+[LDA, QDA & naive Bayes](../lda-qda-and-naive-bayes/lesson.qmd) — LDA models each
+class as a multivariate normal cloud with its own center but a shared covariance, and
+you classify a new point by asking which cloud it fits inside best. The same idea
+recurs in **Bayesian methods** (multivariate normal priors on parameter vectors),
+**probabilistic PCA** (the latent variables are multivariate normal), and many genetics
+models (e.g., modeling correlated effect sizes across SNPs). Ready for more reps? Do
+the [practice problems](practice.qmd).

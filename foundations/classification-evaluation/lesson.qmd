@@ -501,8 +501,10 @@ them.
 
 These tools apply every time you build or evaluate a classifier. In the
 [k-nearest-neighbors](../k-nearest-neighbors/lesson.qmd) module you will train your
-first classifier --- and the confusion matrix, sensitivity/specificity, and ROC curve
-you just learned are exactly how you would grade it, or any classifier you build
-later.
+first classifier, and in
+[LDA, QDA & naive Bayes](../lda-qda-and-naive-bayes/lesson.qmd) you will see
+generative classifiers that model each class as a data cloud and use Bayes' theorem
+to score. The confusion matrix, sensitivity/specificity, and ROC curve you just
+learned are exactly how you would grade any of these classifiers.
 
 Ready for more reps? Do the [practice problems](practice.qmd).
