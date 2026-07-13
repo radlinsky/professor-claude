@@ -1,6 +1,6 @@
 ---
 title: "The multivariate normal distribution"
-subtitle: "When several variables are all normally distributed and correlated, the covariance matrix IS the shape"
+subtitle: "When variables are jointly normal, the covariance matrix IS the shape"
 engine: knitr
 ---
 
@@ -673,14 +673,18 @@ but that only works because independent normals happen to be jointly normal. The
 you introduce dependence in a way that does not preserve joint normality, marginal
 normality does not guarantee joint normality.
 
-**Trap: "The covariance matrix can be any symmetric matrix."** Not quite. $\Sigma$ must
-be symmetric (it always is, by definition of covariance -- $\text{Cov}(X_1, X_2) =
-\text{Cov}(X_2, X_1)$) AND **positive definite** -- meaning
-$\mathbf{a}^\top \boldsymbol{\Sigma} \mathbf{a} > 0$ for any non-zero vector
-$\mathbf{a}$. In practical terms, the determinant must be positive and the Cholesky
-decomposition must succeed. If it fails, the matrix is not a valid covariance matrix.
+**Trap: "The covariance matrix can be any symmetric matrix."** Not quite. A valid
+covariance matrix must be symmetric AND **positive semi-definite** (PSD) -- meaning
+$\mathbf{a}^\top \boldsymbol{\Sigma} \mathbf{a} \ge 0$ for any vector $\mathbf{a}$.
+A PSD matrix with determinant zero is a legitimate covariance (e.g., perfectly
+correlated variables), but the multivariate normal **density** requires the stronger
+condition **positive definite** (PD, strictly $> 0$), because the density formula
+needs $\boldsymbol{\Sigma}^{-1}$, which exists only when the determinant is positive.
+In practical terms: `chol()` needs PD to succeed; a PSD-but-singular matrix describes
+a valid covariance structure but the distribution lives on a lower-dimensional
+subspace and has no density in the usual sense.
 With numbers: `matrix(c(4, 5, 5, 1), 2, 2)` has determinant $4 \times 1 - 5 \times 5
-= -21 < 0$. It is NOT positive definite, and `chol()` will error. The covariance of 5
+= -21 < 0$. It is not even PSD, and `chol()` will error. The covariance of 5
 between two variables with standard deviations 2 and 1 implies a correlation of
 $5 / (2 \times 1) = 2.5$, which is impossible (correlations live in $[-1, 1]$).
 

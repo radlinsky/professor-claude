@@ -8,7 +8,10 @@ engine: knitr
 
 ```{r setup}
 #| include: false
-library(MASS)
+needed <- c("MASS")
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 

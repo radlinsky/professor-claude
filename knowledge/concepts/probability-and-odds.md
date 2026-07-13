@@ -27,7 +27,9 @@ A **probability space** is a triple $(\Omega, \mathcal{F}, \mathbb{P})$ where:
   [@chan2021probabilitydatascience, pp. 56--58]
 - $\mathcal{F}$ is the **event space**: the collection of all subsets of $\Omega$
   that we can assign probabilities to. For a finite sample space with $n$
-  elements, $\mathcal{F}$ has $2^n$ events. The event space must be a
+  elements, $\mathcal{F}$ has at most $2^n$ events (exactly $2^n$ when
+  $\mathcal{F}$ is the power set, which is the usual choice for finite
+  sample spaces). The event space must be a
   **field** (closed under complement, union, and intersection) and, for
   infinite sample spaces, a **sigma-field** (closed under countably infinite
   unions and intersections as well).
@@ -47,7 +49,7 @@ integrator (for regions), depending on the nature of $\Omega$.
 A probability law $\mathbb{P} : \mathcal{F} \to [0, 1]$ must satisfy the
 **Kolmogorov axioms**: [@chan2021probabilitydatascience, pp. 74--75]
 
-I. **Non-negativity:** $\mathbb{P}[A] \ge 0$ for any event $A \subseteq \Omega$.
+I. **Non-negativity:** $\mathbb{P}[A] \ge 0$ for any event $A \in \mathcal{F}$ (i.e., $A \subseteq \Omega$).
 
 II. **Normalization:** $\mathbb{P}[\Omega] = 1$.
 
@@ -78,7 +80,7 @@ $\mathbb{P}[A \cup B] = \mathbb{P}[A] + \mathbb{P}[B]$.
 
 ### Measure zero sets
 
-A set $A \in \Omega$ has **measure zero** if, for any $\epsilon > 0$, there
+A set $A \in \mathcal{F}$ (with $A \subseteq \Omega$) has **measure zero** if, for any $\epsilon > 0$, there
 exists a countable collection of subsets $\{A_n\}$ covering $A$ whose total
 probability is less than $\epsilon$. A single point in a continuous sample space
 always has measure zero (e.g. $\mathbb{P}[\{0.5\}] = 0$ when $\Omega = [0, 1]$),

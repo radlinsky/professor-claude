@@ -243,7 +243,9 @@ has a well-defined characteristic function $\Phi_X(j\omega) = \mathbb{E}[e^{-j\o
 - **Mean, median, mode: three summary statistics** -- the mean is the center
   of mass (balance point); the median is the 50th percentile ($F_X(c) = 1/2$);
   the mode is the peak of the PDF ($\arg\max f_X$). For a symmetric
-  distribution, all three coincide. For a skewed distribution, they differ, and
+  unimodal distribution, all three coincide (a symmetric bimodal
+  distribution has two modes that differ from the mean/median). For a
+  skewed distribution, they differ, and
   skewness and kurtosis provide additional shape information beyond mean and
   variance. [@chan2021probabilitydatascience, pp. 196--198, 216]
 

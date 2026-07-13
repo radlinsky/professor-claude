@@ -59,7 +59,7 @@ Methods that repeatedly draw samples from a training data set and refit a model 
 What you must already understand for this concept to make sense:
 
 - [bias-variance-trade-off](bias-variance-trade-off.md) -- the bias-variance trade-off motivates why we need test error estimation (training error misleads), and it reappears in the choice of $k$ for $k$-fold CV.
-- [mean-variance-covariance](../foundations/mean-variance-covariance/lesson.qmd) -- standard errors and the bootstrap SE formula require understanding of variance and standard deviation.
+- [mean-variance-covariance](../../foundations/mean-variance-covariance/lesson.qmd) -- standard errors and the bootstrap SE formula require understanding of variance and standard deviation.
 
 ## Misconceptions & learner traps
 

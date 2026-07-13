@@ -38,8 +38,12 @@ $$\mathbb{P}[A \mid B] = \frac{\mathbb{P}[B \mid A]\,\mathbb{P}[A]}{\mathbb{P}[B
 
 The theorem provides two views of the intersection $\mathbb{P}[A \cap B]$
 using two different conditional probabilities: $\mathbb{P}[B \mid A]$ (called
-the **conditional probability** or **likelihood**) and $\mathbb{P}[A \mid B]$
-(called the **posterior probability**). The order of $A$ and $B$ is arbitrary.
+the **conditional probability**) and $\mathbb{P}[A \mid B]$ (called the
+**posterior probability**). In Bayesian inference, $\mathbb{P}[B \mid A]$ is
+often called the **likelihood** when $B$ represents observed data and the
+expression is viewed as a function of the hypothesis $A$; the term "likelihood"
+refers to this specific interpretive role, not merely to the argument order in
+a conditional probability. The order of $A$ and $B$ is arbitrary.
 [@chan2021probabilitydatascience, p. 89]
 
 **Law of total probability:** Let $\{A_1, \ldots, A_n\}$ be a partition of
@@ -110,10 +114,11 @@ whether $A$ occurred. [@chan2021probabilitydatascience, pp. 85--86]
   [@chan2021probabilitydatascience, p. 89]
 
 - **Three Prisoners problem illustrates independence** -- prisoner $A$ fears
-  that learning the guard's information ($G_B$: "prisoner $B$ is pardoned")
-  reduces $A$'s pardon probability from 2/3 to 1/2. The resolution: by Bayes'
-  theorem and total probability, $\mathbb{P}[X_A \mid G_B] = 1/3 =
-  \mathbb{P}[X_A]$, so the events are independent. The key insight is that
+  that learning the guard's information ($G_B$: "prisoner $B$ will be
+  executed") changes $A$'s pardon probability. Initially $A$'s pardon
+  probability is 1/3. The resolution: by Bayes' theorem and total probability,
+  $\mathbb{P}[X_A \mid G_B] = 1/3 = \mathbb{P}[X_A]$, so the events are
+  independent. The key insight is that
   $G_A, G_B, G_C$ do not form a partition, and verbal reasoning about reduced
   sets is misleading; writing down the conditional probabilities resolves the
   paradox. [@chan2021probabilitydatascience, pp. 92--94]

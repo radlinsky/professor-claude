@@ -24,11 +24,12 @@ the joint expectation is: [@chan2021probabilitydatascience, p. 257]
 
 $$\mathbb{E}[XY] = \sum_{y \in \Omega_Y} \sum_{x \in \Omega_X} xy\, p_{X,Y}(x,y) \quad \text{or} \quad \int_{\Omega_Y}\int_{\Omega_X} xy\, f_{X,Y}(x,y)\, dx\, dy.$$
 
-Joint expectation is also called **correlation** because $\mathbb{E}[XY]$ can
+Joint expectation $\mathbb{E}[XY]$ is sometimes called **correlation** (as a
+raw joint moment), but it differs from the **correlation coefficient** $\rho$,
+which normalizes by the standard deviations:
+$\rho = \text{Cov}(X,Y)/(\sigma_X \sigma_Y)$. The joint expectation can
 be interpreted as a weighted inner product $\boldsymbol{x}^T
 \boldsymbol{P}\boldsymbol{y}$, where $\boldsymbol{P}$ is the joint PMF matrix.
-This is the cosine-angle perspective: $\mathbb{E}[XY]$ measures the alignment
-between the state vectors of $X$ and $Y$.
 [@chan2021probabilitydatascience, pp. 258--261]
 
 **Covariance:** The covariance of $X$ and $Y$ is:
@@ -85,7 +86,7 @@ $\sigma^2 = \mathbb{E}[X^2] - \mu^2$).
 | $\rho$ | "rho" or "the correlation coefficient" | $\text{Cov}(X,Y) / (\sigma_X \sigma_Y)$; bounded between $-1$ and $1$. [@chan2021probabilitydatascience, p. 263] |
 | $\boldsymbol{\Sigma}$ | "Sigma" or "the covariance matrix" | The $N \times N$ matrix with $[\boldsymbol{\Sigma}]_{ij} = \text{Cov}(X_i, X_j)$. [@chan2021probabilitydatascience, p. 289] |
 | $\boldsymbol{R}$ | "the autocorrelation matrix" | $\mathbb{E}[\boldsymbol{X}\boldsymbol{X}^T]$; $\boldsymbol{\Sigma} = \boldsymbol{R} - \boldsymbol{\mu}\boldsymbol{\mu}^T$. [@chan2021probabilitydatascience, p. 290] |
-| $\mathbb{E}[X \mid Y = y]$ | "E of X given Y equals y" | The conditional expectation: the expected value of $X$ using the conditional distribution $p_{X|Y}(\cdot|y)$ or $f_{X|Y}(\cdot|y)$. [@chan2021probabilitydatascience, p. 275] |
+| $\mathbb{E}[X \mid Y = y]$ | "E of X given Y equals y" | The conditional expectation: the expected value of $X$ using the conditional distribution $p_{X \mid Y}(\cdot \mid y)$ or $f_{X \mid Y}(\cdot \mid y)$. [@chan2021probabilitydatascience, p. 275] |
 
 ## Key results & derivations
 

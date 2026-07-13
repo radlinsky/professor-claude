@@ -16,7 +16,7 @@ When testing $m$ null hypotheses simultaneously, controlling the error rate for 
 
 **Family-wise error rate (FWER).** The probability of making at least one Type I error (false positive) when performing $m$ hypothesis tests. Using the notation of Table 13.2 in ISL, where $V$ is the number of Type I errors among $m$ tests: $\text{FWER} = \Pr(V \geq 1)$. [@james2021introductionstatisticallearning, p. 560, Eq. 13.3]
 
-**False discovery proportion (FDP).** The ratio of false positives to total rejections: $V/R$, where $V$ is the number of true null hypotheses incorrectly rejected and $R$ is the total number of rejections. The FDP is a random quantity that cannot be controlled directly because the analyst does not know which hypotheses are truly null. [@james2021introductionstatisticallearning, p. 569]
+**False discovery proportion (FDP).** The ratio of false positives to total rejections: $V/R$, where $V$ is the number of true null hypotheses incorrectly rejected and $R$ is the total number of rejections. By convention, $\text{FDP} = 0$ when $R = 0$ (no rejections means no false discoveries). The FDP is a random quantity that cannot be controlled directly because the analyst does not know which hypotheses are truly null. [@james2021introductionstatisticallearning, p. 569]
 
 **False discovery rate (FDR).** The expected value of the false discovery proportion: $\text{FDR} = \text{E}(V/R)$. When we control the FDR at level $q$, we are guaranteeing that on average no more than a fraction $q$ of rejected null hypotheses are false positives. On a given dataset, the actual false discovery proportion may be above or below $q$. [@james2021introductionstatisticallearning, p. 569, Eq. 13.9]
 
@@ -41,7 +41,7 @@ When testing $m$ null hypotheses simultaneously, controlling the error rate for 
 
 ## Key results & derivations
 
-- **FWER grows rapidly with the number of tests** -- Under independence and with all $m$ null hypotheses true, $\text{FWER}(\alpha) = 1 - (1-\alpha)^m$. With $\alpha = 0.05$ and $m = 100$, $\text{FWER} \approx 0.994$: virtually guaranteed to make at least one Type I error. Even with $\alpha = 0.01$, the FWER exceeds 0.05 after just five tests. [@james2021introductionstatisticallearning, pp. 560--561, Eq. 13.5]
+- **FWER grows rapidly with the number of tests** -- Under independence and with all $m$ null hypotheses true, $\text{FWER}(\alpha) = 1 - (1-\alpha)^m$. With $\alpha = 0.05$ and $m = 100$, $\text{FWER} \approx 0.994$: virtually guaranteed to make at least one Type I error. Even with $\alpha = 0.01$, the FWER first exceeds 0.05 at six tests ($1 - 0.99^6 \approx 0.0585$; at five tests $1 - 0.99^5 \approx 0.0490 < 0.05$). [@james2021introductionstatisticallearning, pp. 560--561, Eq. 13.5]
 
 - **The union bound (Boole's inequality) underlies Bonferroni** -- For any events $A_1, \ldots, A_m$: $\Pr(\cup_{j=1}^m A_j) \leq \sum_{j=1}^m \Pr(A_j)$. Setting the threshold for each test at $\alpha/m$ ensures $\text{FWER} \leq \alpha$ regardless of the dependence structure among the tests. The inequality is what makes Bonferroni conservative: the true FWER may be well below $\alpha$, especially when tests are positively correlated. [@james2021introductionstatisticallearning, pp. 562--563, Eq. 13.6]
 
@@ -91,7 +91,7 @@ What you must already understand for this concept to make sense:
 
 - **Power decay with $m$ (Figure 13.5)** -- Power (proportion of false nulls rejected) plotted against FWER for $m = 10$, $100$, and $500$. At a FWER of 0.05, power drops from ~60% ($m = 10$) to ~40% ($m = 100$) to ~20% ($m = 500$). This visual makes the case for FDR control in high-dimensional settings. [@james2021introductionstatisticallearning, p. 568]
 
-- **The genomics motivation** -- A genomic researcher testing 20,000 genes for association with a disease would expect 1,000 false positives at $\alpha = 0.05$ even if no genes are truly associated. Controlling the FDR at 20% guarantees that at most 20% of reported associations are false -- a practically useful guarantee for exploratory analyses. [@james2021introductionstatisticallearning, p. 570]
+- **The genomics motivation** -- A genomic researcher testing 20,000 genes for association with a disease would expect 1,000 false positives at $\alpha = 0.05$ even if no genes are truly associated. Controlling the FDR at 20% guarantees that the *expected proportion* of reported associations that are false is at most 20% -- a practically useful guarantee for exploratory analyses. [@james2021introductionstatisticallearning, p. 570]
 
 ## How the field talks about it
 

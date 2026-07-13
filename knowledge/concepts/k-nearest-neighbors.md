@@ -41,7 +41,7 @@ KNN then classifies $x_0$ to the class with the largest estimated probability. [
 What you must already understand for this concept to make sense:
 
 - [bias-variance-trade-off](bias-variance-trade-off.md) -- KNN's behavior with different values of $K$ is a canonical example of the bias-variance trade-off.
-- [distance-similarity-and-geometry](../foundations/distance-similarity-and-geometry/lesson.qmd) -- "closest" requires a distance metric (typically Euclidean).
+- [distance-similarity-and-geometry](../../foundations/distance-similarity-and-geometry/lesson.qmd) -- "closest" requires a distance metric (typically Euclidean).
 
 ## Misconceptions & learner traps
 

@@ -8,4 +8,4 @@ Concepts: recursive binary splitting (greedily choose the predictor and cutpoint
  tree instability (small data changes can produce very different trees)
 BuildsOn: [model-fit-error-and-validation](model-fit-error-and-validation/lesson.qmd),
  [classification-evaluation](classification-evaluation/lesson.qmd)
-UsedBy: —
+UsedBy: [bagging-random-forests-and-boosting](bagging-random-forests-and-boosting/lesson.qmd)

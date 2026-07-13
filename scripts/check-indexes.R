@@ -410,27 +410,43 @@ for (f in source_pages) {
   ki <- grep("^\\*\\*Bib key:\\*\\*", lines)
   if (!length(ki)) next
   bib_key <- trimws(sub("^\\*\\*Bib key:\\*\\*", "", lines[ki[1]]))
-  # Parse the chapter map table and extract concept slugs from the "Concepts extracted"
-  # column. Slugs appear as `slug (created)` or `slug (augmented)`.
+  # Parse the chapter map table: only process tables whose header contains
+  # "Concepts extracted" (guards against future 4+ column tables).
   rows <- table_rows(lines)
+  in_chapter_map <- FALSE
   for (x in rows) {
-    if (length(x$cells) < 4) next
+    if (length(x$cells) < 4) { in_chapter_map <- FALSE; next }
+    if (x$cells[[4]] == "Concepts extracted") { in_chapter_map <- TRUE; next }
+    if (!in_chapter_map) next
     concepts_cell <- x$cells[[4]]
-    if (concepts_cell == "Concepts extracted") next
-    # Only extract concept slugs from before "; glossary:" — glossary terms also
-    # carry (augmented) annotations but are not concept pages.
-    concepts_part <- sub(";\\s*glossary:.*$", "", concepts_cell)
-    slugs <- regmatches(concepts_part,
-      gregexpr("[a-z][a-z0-9-]+ \\((created|augmented)", concepts_part))[[1]]
-    slugs <- sub(" \\((created|augmented)$", "", slugs)
+    # Strip glossary portion — glossary terms are not concept pages.
+    # Some records put glossary first ("glossary: ...; augmented: slug"),
+    # others put it after ("slug1, slug2; glossary: ..."). Handle both by
+    # extracting only the concept-slug segments: text NOT inside a
+    # "glossary:" ... ";" span and not after a trailing "glossary:".
+    concepts_part <- gsub("glossary:[^;]*;?", "", concepts_cell)
+    # Strip parenthesized annotations: (created), (augmented), (created from ...), etc.
+    concepts_part <- gsub("\\([^)]*\\)", "", concepts_part)
+    # Strip prefix annotations: "augmented:" / "created:"
+    concepts_part <- gsub("(augmented|created)\\s*:", "", concepts_part)
+    # Split on commas and extract valid concept slugs.
+    tokens <- trimws(unlist(strsplit(concepts_part, ",")))
+    slugs <- tokens[grepl("^[a-z][a-z0-9-]+$", tokens)]
     for (s in slugs) {
       cpath <- file.path("knowledge", "concepts", paste0(s, ".md"))
       if (!file.exists(cpath)) {
         err(f, sprintf("chapter map lists concept '%s' but %s does not exist", s, cpath), x$line)
       } else {
+        # Exact citation check: extract all [@...] groups and match keys precisely.
         clines <- read_lines(cpath)
         cprose <- clines[code_mask(clines)]
-        if (!any(grepl(paste0("@", bib_key), cprose, fixed = TRUE))) {
+        all_keys <- character(0)
+        for (cl in cprose) {
+          brackets <- regmatches(cl, gregexpr("\\[@[^]]*\\]", cl))[[1]]
+          for (b in brackets)
+            all_keys <- c(all_keys, sub("^@", "", unlist(regmatches(b, gregexpr("@[a-zA-Z][a-zA-Z0-9]*", b)))))
+        }
+        if (!(bib_key %in% all_keys)) {
           err(f, sprintf("chapter map lists concept '%s' but %s does not cite [@%s]", s, cpath, bib_key), x$line)
         }
       }

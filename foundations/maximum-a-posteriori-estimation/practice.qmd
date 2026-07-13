@@ -126,7 +126,7 @@ This contains **exactly one mistake** — find it.
 ::: {.callout-note collapse="true" title="Answer"}
 The mistake: claiming Beta(50, 2) is "open-minded." Beta(50, 2) is an extremely
 informative prior — its centre is $(50-1)/(50+2-2) = 49/50 = 0.98$, which says "I
-believe the coin almost always lands heads." The MAP of 0.93 is driven primarily by
+believe the coin almost always lands heads." The MAP of 0.945 is driven primarily by
 that prior, not the data (which suggest 0.6). An open-minded prior would be Beta(1,1)
 (uniform) or Beta(2,2) (weakly centred at 0.5). The colleague's conclusion confuses a
 strong prior with strong evidence.

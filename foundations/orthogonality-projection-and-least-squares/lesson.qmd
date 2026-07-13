@@ -23,8 +23,10 @@ slope makes the errors zero — the system of equations is **inconsistent**. The
 you can do is find the line whose errors are as small as possible. That "best
 approximate answer" turns out to be a **projection**: you drop a perpendicular from the
 data onto the space of all possible fitted values, and the foot of that perpendicular
-is the fitted line. The normal equations that `lm()` solves are nothing but the
-algebraic statement of that perpendicularity.
+is the fitted line. The normal equations are nothing but the algebraic statement of
+that perpendicularity — and `lm()` finds the same least-squares solution (via QR
+decomposition, which is numerically more stable than solving the normal equations
+directly).
 [@austin2022understandinglinearalgebra, pp. 397--398]
 
 This lesson extends the "shadow" you already know from the distance module into a full
@@ -444,7 +446,8 @@ other coefficients would leave a longer residual.
 
 If any of these feels shaky, revisit [A tiny example first](#a-tiny-example-first) and
 [The formal version](#the-formal-version) before continuing — anything that uses `lm()`
-is solving these normal equations under the hood.
+finds the same least-squares solution under the hood (via QR decomposition rather than
+forming $A^\top A$ directly, for numerical stability).
 
 
 ## Where this goes next

@@ -44,7 +44,10 @@ where $p$ is the success probability. We write $X \sim \text{Geometric}(p)$.
 The formula reads as: $k-1$ consecutive failures (each with probability
 $1-p$) followed by one success (probability $p$). Unlike the binomial, there
 is no $\binom{n}{k}$ factor because the ordering of failures and the final
-success is fixed. [@chan2021probabilitydatascience, p. 150]
+success is fixed. **R convention note:** R's `dgeom(k, p)` counts the number of
+*failures before the first success* (support $k = 0, 1, 2, \ldots$), so
+`dgeom(k-1, p)` in R corresponds to $p_X(k)$ above.
+[@chan2021probabilitydatascience, p. 150]
 
 **Poisson random variable:** Models the number of arrivals (events) in a fixed
 interval, where arrivals are independent and occur at a constant rate. The PMF

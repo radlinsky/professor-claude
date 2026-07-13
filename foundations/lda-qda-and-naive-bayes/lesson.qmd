@@ -332,14 +332,14 @@ covariances for our fish:
 
 ```{r qda-toy}
 trout_x <- cbind(c(2, 4, 3), c(1, 2, 1))
-bass_x  <- cbind(c(6, 8, 7), c(5, 6, 5))
+bass_x  <- cbind(c(6, 8, 7), c(6, 4, 6))   # different covariance from trout
 cat("Trout covariance:\n"); print(cov(trout_x))
 cat("Bass covariance:\n");  print(cov(bass_x))
 ```
 
 Trout's length-weight covariance is positive (longer trout tend to be heavier); bass
-has a negative off-diagonal (in these 3 fish, the heaviest is not the longest). Pooling
-hides that difference. QDA says: let each class keep its own
+has a negative off-diagonal (the longest bass is the lightest — a different shape).
+Pooling hides that difference. QDA says: let each class keep its own
 $\boldsymbol{\Sigma}_k$.
 [@james2021introductionstatisticallearning, pp. 152--154]
 
@@ -432,15 +432,14 @@ reduction can more than compensate for the bias of the wrong independence assump
 Let's verify our hand computation with R's `MASS::lda()` and then try a bigger
 dataset.
 
-```{webr}
-#| autorun: false
+```{r lda-mass-verify}
 # Confirm our hand result matches MASS::lda()
 library(MASS)
 species <- factor(c("trout","trout","trout","bass","bass","bass"))
 fish_data <- data.frame(length = c(2,4,3,6,8,7), weight = c(1,2,1,5,6,5))
 fit <- lda(species ~ length + weight, data = fish_data)
 
-# PREDICT: based on our hand calculation, which species should this return?
+# Based on our hand calculation, which species should this return?
 mass_result <- as.character(predict(fit, newdata = data.frame(length = 5, weight = 3))$class)
 
 # Our hand computation (from the baked chunk above)
@@ -456,10 +455,8 @@ cat("MASS::lda():    ", mass_result, "\n")
 cat("Match:", hand_result == mass_result, "\n")
 ```
 
-```{webr}
-#| autorun: false
-# TRY IT: change the new fish's measurements — at what length does the class flip?
-# PREDICT: write down your guess, then run.
+```{r lda-mass-sweep}
+# At what length does the class flip? (weight = 3)
 library(MASS)
 species <- factor(c("trout","trout","trout","bass","bass","bass"))
 fish_data <- data.frame(length = c(2,4,3,6,8,7), weight = c(1,2,1,5,6,5))

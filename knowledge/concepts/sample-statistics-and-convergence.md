@@ -64,9 +64,10 @@ converges almost surely to $\alpha$ if:
 
 $$\mathbb{P}\left[\lim_{N \to \infty} A_N = \alpha\right] = 1.$$
 
-Written $A_N \xrightarrow{a.s.} \alpha$. This means the number of
-"failures" ($A_N \ne \alpha$) is finite with probability 1; after those
-finite failures, $A_N = \alpha$ forever. Almost sure convergence implies
+Written $A_N \xrightarrow{a.s.} \alpha$. This means that, for any
+$\varepsilon > 0$, deviations $|A_N - \alpha| > \varepsilon$ occur only
+finitely many times with probability 1; eventually $A_N$ stays within
+$\varepsilon$ of $\alpha$ forever. Almost sure convergence implies
 convergence in probability, but not vice versa.
 [@chan2021probabilitydatascience, pp. 361--364]
 
@@ -170,15 +171,21 @@ values converge, not that the random variables themselves get close.
   $\mathbb{P}[\lim_{N \to \infty} \overline{X}_N = \mu] = 1$. The strong law
   places the limit inside the probability (almost sure convergence), while the
   weak law places it outside (convergence in probability). The strong law
-  guarantees a finite number of failures, then convergence forever.
+  guarantees that, for any $\varepsilon > 0$, deviations
+  $|\overline{X}_N - \mu| > \varepsilon$ occur only finitely many times
+  with probability 1.
   [@chan2021probabilitydatascience, pp. 361, 365--366]
 
 - **Central Limit Theorem (Theorem 6.19)** -- for i.i.d. random variables with
   mean $\mu$, variance $\sigma^2$, and finite $\mathbb{E}[|X_n|^3]$, the
   normalized sample average $Z_N = \sqrt{N}\left(\frac{\overline{X}_N - \mu}
   {\sigma}\right)$ satisfies $\lim_{N \to \infty} F_{Z_N}(z) = \Phi(z)$ for
-  all $z$, where $\Phi$ is the standard Gaussian CDF. Equivalently,
-  $\overline{X}_N \xrightarrow{d} \text{Gaussian}(\mu, \sigma^2/N)$.
+  all $z$, where $\Phi$ is the standard Gaussian CDF. In other words,
+  $Z_N \xrightarrow{d} \text{Gaussian}(0, 1)$. (The informal statement
+  "$\overline{X}_N$ is approximately $\text{Gaussian}(\mu, \sigma^2/N)$"
+  is a useful approximation for fixed large $N$, but the rigorous
+  convergence statement is about the standardized $Z_N$ converging to a
+  fixed $N(0,1)$ target.)
   The CLT does NOT say the PDF converges to a Gaussian PDF; it says only
   that the CDF values converge. For discrete RVs (e.g., binomial), the PDF
   is a train of delta functions that never becomes continuous.
@@ -205,10 +212,11 @@ values converge, not that the random variables themselves get close.
 ## Misconceptions & learner traps
 
 - **"The CLT says the sample average becomes Gaussian"** -- WRONG. The CLT says
-  only that the CDF of $\overline{X}_N$ converges to the Gaussian CDF. The
-  sample average of Bernoulli RVs is always a binomial (a discrete
-  distribution), never a Gaussian; but its CDF values approach those of a
-  Gaussian. [@chan2021probabilitydatascience, pp. 368--369]
+  that the CDF of the *standardized* sample average
+  $Z_N = \sqrt{N}(\overline{X}_N - \mu)/\sigma$ converges to the standard
+  Gaussian CDF $\Phi(z)$. The sample average of Bernoulli RVs is always a
+  scaled binomial (a discrete distribution), never a Gaussian; but the CDF of
+  $Z_N$ approaches $\Phi$. [@chan2021probabilitydatascience, pp. 368--369]
 
 - **"Small probability means impossible"** -- a probability converging to zero
   (as in the WLLN) does not exclude the event at any finite $N$. The weak law
@@ -277,9 +285,11 @@ values converge, not that the random variables themselves get close.
   [@chan2021probabilitydatascience, pp. 352, 355--356]
 
 - **Weak vs. strong law: electronic dictionary analogy** -- the weak law says
-  if you use the dictionary long enough, the probability of an error becomes
-  very small (99.99% guarantee). The strong law says after a finite number of
-  errors, the dictionary becomes perfectly error-free forever (100% guarantee).
+  if you use the dictionary long enough, the probability of an error on any
+  given lookup becomes very small (99.99% guarantee). The strong law says that,
+  for any error tolerance $\varepsilon > 0$, errors exceeding $\varepsilon$
+  occur only finitely many times -- eventually the dictionary stays within
+  $\varepsilon$ of perfect forever (with probability 1).
   The strong law does not say when this happens, only that it does.
   [@chan2021probabilitydatascience, p. 361]
 

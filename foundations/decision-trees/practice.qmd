@@ -8,7 +8,10 @@ engine: knitr
 
 ```{r setup}
 #| include: false
-library(rpart)
+needed <- c("rpart")
+to_install <- setdiff(needed, rownames(installed.packages()))
+if (length(to_install) > 0) install.packages(to_install)
+invisible(lapply(needed, library, character.only = TRUE))
 set.seed(42)
 ```
 
@@ -137,11 +140,15 @@ test_pred   <- 82.5
 training right group: ages 9--10).
 Test RSS = $(78 - 82.5)^2 + (90 - 82.5)^2 = 20.25 + 56.25 = 76.5$.
 
-(b) The test RSS (76.5 for 2 observations) is proportionally higher than the
-training RSS per observation — expected, because the tree was fit to the training
-data, not these new points. Moderate test error on unseen data is normal; the
-concern would be if test RSS were dramatically worse than training, signaling
-overfitting.
+(b) Test RSS per observation = 76.5 / 2 = 38.25. Training RSS: left (ages 1--8)
+has mean 29, RSS = 1954; right (ages 9--10) has mean 82.5, RSS = 12.5; total
+training RSS = 1966.5 for 10 observations, or 196.65 per observation. So the test
+RSS per observation (38.25) is actually **lower** than the training RSS per
+observation (196.65). This is unusual — normally test error exceeds training error.
+Here it happens because the split at 8.5 lumps the diverse ages 1--8 into one
+region (producing high within-group RSS), while the two test points (ages 11, 12)
+both fall in the homogeneous high-spending region where the prediction is close.
+With only 2 test points, a favorable test split like this can occur by chance.
 :::
 
 
@@ -171,10 +178,14 @@ names(rss) <- 1:10 + 0.5; round(rss, 1)
 cat("Best split:", names(which.min(rss)), "\n")
 ```
 
-Removing one customer can change which cutpoint wins (or at least change the RSS
-values substantially). This is tree **instability**: small data changes can produce
-different trees. It is the main weakness of single decision trees and the motivation
-for ensemble methods (bagging, random forests) in the next module.
+The best split is still at 8.5 — removing customer 12 did not change the winning
+cutpoint here. But notice the RSS values shifted: the other cutpoints moved closer
+to 8.5's score, and different removals could tip the balance. Even when the top
+split survives, the second-best split and the tree built below the first split can
+change. This is tree **instability**: small data changes can alter the tree
+structure, even if the first split happens to hold. It is the main weakness of
+single decision trees and the motivation for ensemble methods (bagging, random
+forests) in the next module.
 :::
 
 

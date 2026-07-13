@@ -56,10 +56,11 @@ The CDF is essentially the cumulative sum of the PMF.
 [@chan2021probabilitydatascience, p. 121]
 
 **Probability density function (PDF):** A continuous random variable $X$ is
-defined by its probability density function $f_X : \Omega \to \mathbb{R}$, with
+defined by its probability density function $f_X : \mathbb{R} \to \mathbb{R}$
+(defined on the value space of $X$, not the sample space $\Omega$), with
 the properties: (i) non-negativity: $f_X(x) \ge 0$; (ii) unity:
-$\int_\Omega f_X(x)\,dx = 1$; (iii) measure of a set:
-$\mathbb{P}[\{x \in A\}] = \int_A f_X(x)\,dx$.
+$\int_{-\infty}^{\infty} f_X(x)\,dx = 1$; (iii) measure of a set:
+$\mathbb{P}[X \in A] = \int_A f_X(x)\,dx$.
 [@chan2021probabilitydatascience, p. 174]
 
 When $X$ takes real values, a more concrete definition is: the PDF $f_X$ is a

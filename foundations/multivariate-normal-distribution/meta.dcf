@@ -12,4 +12,4 @@ BuildsOn: [distributions-and-densities](distributions-and-densities/lesson.qmd),
  [variance-structure-and-standardization](variance-structure-and-standardization/lesson.qmd),
  [matrices-and-linear-transforms](matrices-and-linear-transforms/lesson.qmd),
  [quadratic-forms-and-the-chi-square-statistic](quadratic-forms-and-the-chi-square-statistic/lesson.qmd)
-UsedBy: —
+UsedBy: [lda-qda-and-naive-bayes](lda-qda-and-naive-bayes/lesson.qmd)

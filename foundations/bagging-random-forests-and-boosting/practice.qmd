@@ -55,7 +55,7 @@ rss <- sapply(cuts, function(s) {
 names(rss) <- cuts; round(rss, 2)  # 3.5 wins with RSS = 58
 ```
 
-(b) Bagging 25 trees at $x = 4$:
+(b) Bagging 25 trees at $x = 5$:
 
 ```{r}
 stump <- function(x, y, new_x) {

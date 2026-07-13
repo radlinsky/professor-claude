@@ -139,10 +139,12 @@ bagging: **grow many trees on bootstrap samples, average them out, and the noise
 **The "wisdom of crowds" picture.** Each bootstrap tree is like one person's guess at a
 jar of jellybeans: individually noisy, but average 25 guesses and the noise cancels. The
 key is that the guesses must be *somewhat independent* — if everyone copies the same
-answer, averaging doesn't help. Bagging gets independence by giving each tree a different
-bootstrap sample. Where the analogy strains: the bootstrap samples overlap (they're drawn
-from the same pool), so the trees are not truly independent. That overlap is what random
-forests attack below.
+answer, averaging doesn't help. Bagging gets diversity by giving each tree a different
+bootstrap sample. But the bootstrap samples overlap (they're drawn from the same pool),
+so the trees are identically distributed but **correlated**, not independent. That
+correlation limits how much variance the average can remove — and is exactly what random
+forests attack below by forcing each split to consider only a random subset of
+predictors.
 
 **Why trees are the perfect building block.** Averaging works best on high-variance,
 low-bias estimators. An unpruned tree is exactly that: it memorizes training data (low
@@ -182,8 +184,8 @@ sample"), and $\hat{f}_{\text{bag}}(x)$ for the average.
 | $r_i$ | "r sub eye" (the residual) | what's left for observation $i$ after the current boosted model: $y_i - \hat{f}(x_i)$ | 2.6 for customer 1 after one boosting step |
 | $\hat{f}^b(x)$ | "f-hat b of x" (no star) | in boosting: the $b$th small tree, fit to residuals (sequential, not bootstrapped) | the stump predicting 4 (left) or 16.5 (right) |
 
-The star ($^{*}$) distinguishes bagging trees (random, independent, bootstrapped) from
-boosting trees (sequential, fit to what's left over).
+The star ($^{*}$) distinguishes bagging trees (random, correlated via overlapping
+bootstrap samples) from boosting trees (sequential, fit to what's left over).
 
 
 ## The formal version
@@ -285,9 +287,9 @@ bagging. The bigger the correlation among predictors, the bigger the gap.
 
 ### Boosting — learning from your mistakes, slowly
 
-Bagging and random forests grow trees **independently** and average. Boosting takes the
-opposite approach: trees are grown **sequentially**, each one fixing the mistakes of the
-ensemble so far.
+Bagging and random forests grow trees **in parallel** (each on its own bootstrap sample)
+and average. Boosting takes the opposite approach: trees are grown **sequentially**, each
+one fixing the mistakes of the ensemble so far.
 
 Here's the idea on four data points — smaller even than the bagging toy, so the
 arithmetic stays quick:
@@ -468,7 +470,7 @@ learners generalize better — the same bias-variance logic as regularization. I
 $\lambda = 0.1$ means each stump's contribution is scaled to 10%. After 2 iterations,
 predictions are still $(0.76, 0.76, 3.14, 3.14)$ — far from the data. It takes 100
 iterations of patient correction to converge, which is exactly the discipline that
-prevents overfitting.
+slows overfitting (though CV must still choose when to stop).
 
 
 ## Check yourself
@@ -500,8 +502,8 @@ why it works.
 ::: {.callout-note collapse="true" title="A model answer"}
 Bagging grows many decision trees, each trained on a different bootstrap resample of the
 data, and averages their predictions to get a single, more stable estimate. It works
-because individual trees are noisy (high variance), and averaging many independent noisy
-estimates cancels out the noise — the same "wisdom of crowds" effect that makes the mean
+because individual trees are noisy (high variance), and averaging many noisy
+estimates reduces the noise — the same "wisdom of crowds" effect that makes the mean
 of many guesses better than any single guess.
 :::
 

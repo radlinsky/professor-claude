@@ -292,14 +292,17 @@ $$
 
 This is the **lasso** — the absolute-value penalty from the
 [ridge-regularization module](../ridge-regularization/lesson.qmd). The Laplace
-distribution has a sharp peak at zero — it concentrates more mass right at zero than
-the Gaussian does. That sharp peak is *why* the lasso sets small coefficients exactly
-to zero: the prior strongly "believes" that many coefficients should be zero, and the
-lasso respects that belief.
+distribution has a sharp peak at zero — it concentrates more mass near zero than the
+Gaussian does. Importantly, a continuous prior like the Laplace does not assign nonzero
+probability to any single value (including zero); the sparsity comes from the
+**non-differentiability** of the absolute-value penalty at zero. The crease in
+$|\beta_j|$ at zero means the MAP optimisation can land exactly at zero — the penalty's
+corner acts as a "catch" that traps small coefficients.
 
-The difference in one picture: the Gaussian prior is a smooth bell (no coefficient is
-ever exactly at zero under ridge), while the Laplace prior is a tent with a crease at
-zero (the crease is where the lasso snaps coefficients to exactly zero).
+The difference in one picture: the Gaussian prior is a smooth bell (the squared penalty
+is differentiable everywhere, so the MAP solution glides toward zero but never reaches
+it), while the Laplace prior is a tent with a crease at zero (the absolute-value
+penalty's corner is where the MAP solution snaps coefficients to exactly zero).
 
 
 ## Explore it
@@ -402,8 +405,10 @@ if the coin is actually fair, that prior actively hurts.
 **Trap: "Ridge and lasso are just ad hoc penalties with no justification."** They *are*
 justified — each is the MAP estimate under a specific prior. Ridge penalises
 $\sum \beta_j^2$ because the Gaussian prior says "large coefficients are unlikely."
-Lasso penalises $\sum |\beta_j|$ because the Laplace prior says "most coefficients
-should be zero." The penalty isn't a hack — it is a *belief*, written in math.
+Lasso penalises $\sum |\beta_j|$ because the Laplace prior concentrates mass near zero,
+and the non-differentiability of $|\beta_j|$ at zero lets the MAP solution snap
+coefficients to exactly zero. The penalty isn't a hack — it is a *belief*, written in
+math.
 [@chan2021probabilitydatascience, pp. 518--520]
 
 

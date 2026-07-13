@@ -328,11 +328,13 @@ raising the threshold so the model only flags transactions it is very confident 
 --- FP drops, but some real fraud slips through (FN goes up), dragging recall down.
 
 The ROC curve shows every possible threshold at once. The CEO and compliance officer
-can walk along the curve together: at the upper-left corner, recall is high but FPR
-(and thus false alarms) is also high. Moving down and left lowers both. They find the
-point where the trade-off is acceptable for their business --- maybe catching 95% of
-fraud (recall = 0.95) while accepting a certain false alarm rate. The curve makes the
-trade-off *visible* instead of hidden behind a single number.
+can walk along the curve together: the upper-left corner is the ideal (high recall,
+low FPR), but real models cannot reach it perfectly. Moving the threshold lower
+(toward the upper-right) raises recall but also raises FPR (more false alarms).
+Moving it higher (toward the lower-left) lowers FPR but also lowers recall. They
+find the point where the trade-off is acceptable for their business --- maybe
+catching 95% of fraud (recall = 0.95) while accepting a certain false alarm rate.
+The curve makes the trade-off *visible* instead of hidden behind a single number.
 :::
 
 

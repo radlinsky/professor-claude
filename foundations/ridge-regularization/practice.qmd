@@ -161,10 +161,12 @@ exactly 0 while ridge was still at 0.4; this is the structural difference betwee
 absolute-value and squared penalties.
 
 **(b)** **Lasso.** The scenario fits the "few predictors matter, many are noise" pattern —
-the true model is sparse. The lasso's absolute-value penalty will drive the ~45 noise
-coefficients to exactly zero, effectively selecting the 5 relevant predictors. Ridge would
-keep all 50 in the model with small-but-nonzero coefficients. (If unsure in practice,
-cross-validate both and compare test error.)
+the true model is sparse. The lasso's absolute-value penalty tends to drive noise
+coefficients to exactly zero, encouraging a sparse solution that identifies the relevant
+predictors. It does not guarantee perfect variable selection (correlated predictors or
+borderline signals can fool it), but it is far better suited than ridge, which would keep
+all 50 predictors in the model with small-but-nonzero coefficients. (If unsure in
+practice, cross-validate both and compare test error.)
 :::
 
 ## Module check

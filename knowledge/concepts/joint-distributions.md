@@ -107,8 +107,8 @@ axis directions, eigenvalues give the squared radii.
 | $p_{X,Y}(x,y)$ | "the joint PMF at x, y" | The probability that $X = x$ and $Y = y$ simultaneously. [@chan2021probabilitydatascience, p. 246] |
 | $f_{X,Y}(x,y)$ | "the joint PDF at x, y" | The joint probability density at $(x, y)$; integrate over a region to get probability. [@chan2021probabilitydatascience, p. 247] |
 | $f_{\boldsymbol{X}}(\boldsymbol{x})$ | "the joint PDF of the random vector X" | The $N$-dimensional joint PDF; $\boldsymbol{X} = [X_1, \ldots, X_N]^T$. [@chan2021probabilitydatascience, p. 241] |
-| $p_{X|Y}(x|y)$ | "the conditional PMF of X given Y equals y" | The PMF of $X$ when $Y$ is fixed at $y$. [@chan2021probabilitydatascience, p. 267] |
-| $f_{X|Y}(x|y)$ | "the conditional PDF of X given Y equals y" | The PDF of $X$ when $Y$ is fixed at $y$. [@chan2021probabilitydatascience, p. 272] |
+| $p_{X \mid Y}(x \mid y)$ | "the conditional PMF of X given Y equals y" | The PMF of $X$ when $Y$ is fixed at $y$. [@chan2021probabilitydatascience, p. 267] |
+| $f_{X \mid Y}(x \mid y)$ | "the conditional PDF of X given Y equals y" | The PDF of $X$ when $Y$ is fixed at $y$. [@chan2021probabilitydatascience, p. 272] |
 | $F_{X,Y}(x,y)$ | "the joint CDF at x, y" | $\mathbb{P}[X \le x \cap Y \le y]$. [@chan2021probabilitydatascience, p. 255] |
 | $(f_X * f_Y)(z)$ | "the convolution of f-X and f-Y at z" | $\int_{-\infty}^{\infty} f_X(z-y) f_Y(y)\, dy$: the PDF of $Z = X + Y$ for independent $X, Y$. [@chan2021probabilitydatascience, p. 281] |
 

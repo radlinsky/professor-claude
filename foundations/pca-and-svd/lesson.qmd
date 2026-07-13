@@ -291,12 +291,13 @@ project all your centered data points onto an eigenvector direction and compute 
 variance of those projections, you get exactly the eigenvalue. In formula:
 
 $$
-\mathbf{u}^\top S \mathbf{u} = \lambda \quad \text{when } \mathbf{u} \text{ is an eigenvector of } S
+\mathbf{u}^\top S \mathbf{u} = \lambda \quad \text{when } \mathbf{u} \text{ is a unit eigenvector of } S
 $$
 
 Reading it aloud: "yoo transpose ess yoo equals lambda" -- the variance of the data's
-shadow on direction $\mathbf{u}$ equals the eigenvalue for that direction
-[@austin2022understandinglinearalgebra, p. 431]. We will
+shadow on direction $\mathbf{u}$ equals the eigenvalue for that direction, provided
+$\mathbf{u}$ has unit length ($\lVert \mathbf{u} \rVert = 1$). R's `eigen()` returns
+unit eigenvectors by default [@austin2022understandinglinearalgebra, p. 431]. We will
 verify this numerically in sub-spine C.
 
 
